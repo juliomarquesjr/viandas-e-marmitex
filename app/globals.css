@@ -3,24 +3,82 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --muted-foreground: #6b7280; /* gray-500 */
+
+  /* Paleta principal (laranja escuro) */
+  --primary: #c2410c; /* orange-700 */
+  --primary-foreground: #ffffff;
+
+  /* Superfícies e elementos */
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --muted: #f5f5f4; /* stone-100 */
+  --accent: #fff4e6; /* leve tom de laranja para hover/acento */
+  --accent-foreground: #7a2c0c; /* marrom/laranja escuro para texto sobre accent */
+
+  /* Bordas, inputs e foco */
+  --border: #e5e7eb; /* gray-200 */
+  --input: #e5e7eb;
+  --ring: #ea580c; /* orange-600 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark :root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --muted-foreground: #a3a3a3; /* neutral-400 */
+
+  --primary: #f97316; /* orange-500 para melhor contraste no dark */
+  --primary-foreground: #0a0a0a;
+
+  --card: #0f0f0f;
+  --card-foreground: var(--foreground);
+  --muted: #111111;
+  --accent: #1a120a; /* laranja bem escuro para hover no dark */
+  --accent-foreground: #f5d0b5;
+
+  --border: #262626;
+  --input: #262626;
+  --ring: #fb923c; /* orange-400 */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  color-scheme: light; /* força renderização de elementos nativos no tema claro */
+}
+
+/* Animações suaves para blobs decorativos */
+@keyframes blobFloat {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(18px, -12px) scale(1.04); }
+  66% { transform: translate(-12px, 10px) scale(0.98); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blobFloat 12s ease-in-out infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
 }
