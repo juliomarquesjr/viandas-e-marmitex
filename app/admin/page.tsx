@@ -1,54 +1,42 @@
 "use client";
 
+import {
+    Activity,
+    ArrowDownRight,
+    ArrowUpRight,
+    BarChart3,
+    DollarSign,
+    Download,
+    Eye,
+    Package,
+    PieChart,
+    RefreshCw,
+    Settings,
+    ShoppingCart,
+    Star,
+    TrendingUp,
+    Users,
+    Zap
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { 
-  TrendingUp, 
-  Users, 
-  Package, 
-  ShoppingCart, 
-  DollarSign, 
-  CalendarDays, 
-  CreditCard, 
-  Wallet, 
-  QrCode, 
-  ClipboardList, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  Activity,
-  Target,
-  Zap,
-  Star,
-  BarChart3,
-  PieChart,
-  Clock,
-  Eye,
-  Download,
-  RefreshCw,
-  Settings,
-  Bell,
-  Search
-} from "lucide-react";
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
-  Legend,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Cell,
+    Line,
+    LineChart,
+    Pie,
+    PieChart as RechartsPieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
 } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 
 const baseSalesData = [
   { day: "Seg", vendas: 3200, pedidos: 18 },

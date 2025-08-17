@@ -1,28 +1,25 @@
 "use client";
 
+import {
+    BarChart3,
+    ChefHat,
+    Gauge,
+    LogOut,
+    Menu,
+    Package,
+    Receipt,
+    Search,
+    Settings,
+    ShoppingCart,
+    Users,
+    X
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "../../lib/utils";
-import { Separator } from "../components/ui/separator";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { 
-  ChefHat, 
-  Gauge, 
-  Package, 
-  Users, 
-  Receipt, 
-  BarChart3, 
-  Settings, 
-  LogOut,
-  Menu,
-  X,
-  Search,
-  ShoppingCart,
-  ChevronLeft,
-  ChevronRight
-} from "lucide-react";
+import { Separator } from "../components/ui/separator";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -183,15 +180,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                <Menu className="h-7 w-7 text-primary transition-transform duration-300" />
              </Button>
             
-                         {/* Search Bar */}
-             <div className="hidden md:flex items-center gap-4 px-6 py-3 rounded-2xl bg-white/90 border-2 border-white/30 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-               <Search className="h-6 w-6 text-primary" />
-               <input
-                 type="text"
-                 placeholder="Buscar clientes..."
-                 className="bg-transparent border-none outline-none text-base font-medium placeholder:text-muted-foreground w-[500px] focus:outline-none focus:ring-0"
-               />
-             </div>
+                         {/* Search Bar - Design Compacto */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/80 border border-gray-200/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
+              <Search className="h-4 w-4 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-500 w-64 focus:outline-none focus:ring-0"
+              />
+            </div>
           </div>
 
           {/* Right Side Actions */}

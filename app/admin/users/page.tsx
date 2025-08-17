@@ -1,30 +1,26 @@
 "use client";
 
+import {
+    AlertCircle,
+    Calendar,
+    Check,
+    Edit,
+    Mail,
+    MapPin,
+    Phone,
+    Search,
+    Shield,
+    Trash2,
+    User,
+    UserPlus,
+    Users,
+    X
+} from "lucide-react";
 import { useState } from "react";
-import { Input } from "../../components/ui/input";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { 
-  Users, 
-  UserPlus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff,
-  Shield,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Filter,
-  Plus,
-  X,
-  Check,
-  AlertCircle
-} from "lucide-react";
+import { Input } from "../../components/ui/input";
 
 type User = {
   id: string;
@@ -263,47 +259,65 @@ export default function AdminUsersPage() {
         </Card>
       </div>
 
-      {/* Filtros e Busca */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
-            {/* Busca */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Buscar usuários..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-3 rounded-xl border-white/30 bg-white/50 focus:bg-white focus:border-primary/50"
-              />
-            </div>
+      {/* Barra de Busca e Filtros Compacta */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm">
+        {/* Busca Principal */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Buscar usuários..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+          />
+          {searchTerm && (
+            <Badge className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
+              {users.filter(user => 
+                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (user.phone && user.phone.includes(searchTerm))
+              ).length}
+            </Badge>
+          )}
+        </div>
 
-            {/* Filtros */}
-            <div className="flex gap-3">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as User["role"] | "all")}
-                className="px-4 py-3 rounded-xl border border-white/30 bg-white/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-              >
-                <option value="all">Todos os Perfis</option>
-                <option value="admin">Administrador</option>
-                <option value="manager">Gerente</option>
-                <option value="pdv">PDV</option>
-              </select>
+        {/* Filtros e Ações */}
+        <div className="flex items-center gap-2">
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as User["role"] | "all")}
+            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
+          >
+            <option value="all">Todos os Perfis</option>
+            <option value="admin">Administrador</option>
+            <option value="manager">Gerente</option>
+            <option value="pdv">PDV</option>
+          </select>
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as User["status"] | "all")}
-                className="px-4 py-3 rounded-xl border border-white/30 bg-white/50 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-              >
-                <option value="all">Todos os Status</option>
-                <option value="active">Ativo</option>
-                <option value="inactive">Inativo</option>
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as User["status"] | "all")}
+            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
+          >
+            <option value="all">Todos os Status</option>
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchTerm("");
+              setRoleFilter("all");
+              setStatusFilter("all");
+            }}
+            className="h-8 px-3 text-xs border-gray-200 text-gray-600 hover:bg-gray-50"
+          >
+            Limpar
+          </Button>
+        </div>
+      </div>
 
       {/* Lista de Usuários */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
