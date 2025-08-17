@@ -6,7 +6,6 @@ import {
     Check,
     Edit,
     Mail,
-    MapPin,
     Phone,
     Search,
     Shield,
@@ -16,7 +15,7 @@ import {
     Users,
     X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -27,49 +26,17 @@ type User = {
   name: string;
   email: string;
   phone?: string;
-  address?: string;
-  role: "admin" | "pdv" | "manager";
+  role: "admin" | "pdv";
   status: "active" | "inactive";
   createdAt: string;
-  lastLogin?: string;
+  updatedAt: string;
 };
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      name: "João Silva",
-      email: "joao@viandas.com",
-      phone: "(11) 99999-9999",
-      address: "Rua das Flores, 123 - São Paulo/SP",
-      role: "admin",
-      status: "active",
-      createdAt: "2024-01-15",
-      lastLogin: "2024-12-19 14:30"
-    },
-    {
-      id: "2",
-      name: "Maria Santos",
-      email: "maria@viandas.com",
-      phone: "(11) 88888-8888",
-      address: "Av. Paulista, 456 - São Paulo/SP",
-      role: "pdv",
-      status: "active",
-      createdAt: "2024-02-20",
-      lastLogin: "2024-12-19 10:15"
-    },
-    {
-      id: "3",
-      name: "Pedro Costa",
-      email: "pedro@viandas.com",
-      phone: "(11) 77777-7777",
-      address: "Rua Augusta, 789 - São Paulo/SP",
-      role: "manager",
-      status: "inactive",
-      createdAt: "2024-03-10",
-      lastLogin: "2024-12-15 16:45"
-    }
-  ]);
+  // Estados de dados
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -78,9 +45,9 @@ export default function AdminUsersPage() {
     name: "",
     email: "",
     phone: "",
-    address: "",
     role: "pdv" as User["role"],
-    status: "active" as User["status"]
+    status: "active" as User["status"],
+    password: ""
   });
 
   // Estados de filtros e busca
@@ -91,15 +58,37 @@ export default function AdminUsersPage() {
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  // Carregar usuários
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/users?q=${searchTerm}&role=${roleFilter}&status=${statusFilter}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const result = await response.json();
+      setUsers(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar usuários na montagem e quando filtros mudarem
+  useEffect(() => {
+    loadUsers();
+  }, [searchTerm, roleFilter, statusFilter]);
+
   // Funções auxiliares
   const resetForm = () => {
     setFormData({
       name: "",
       email: "",
       phone: "",
-      address: "",
       role: "pdv",
-      status: "active"
+      status: "active",
+      password: ""
     });
     setEditingUser(null);
   };
@@ -111,9 +100,9 @@ export default function AdminUsersPage() {
         name: user.name,
         email: user.email,
         phone: user.phone || "",
-        address: user.address || "",
         role: user.role,
-        status: user.status
+        status: user.status,
+        password: ""
       });
     } else {
       resetForm();
@@ -126,40 +115,73 @@ export default function AdminUsersPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email) return;
-
-    if (editingUser) {
-      // Editar usuário existente
-      setUsers(prev => prev.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, ...formData, updatedAt: new Date().toISOString() }
-          : user
-      ));
-    } else {
-      // Criar novo usuário
-      const newUser: User = {
-        id: Math.random().toString(36).slice(2, 8),
-        ...formData,
-        createdAt: new Date().toISOString()
-      };
-      setUsers(prev => [...prev, newUser]);
+    if (!formData.name || !formData.email) {
+      alert('Nome e email são obrigatórios');
+      return;
     }
-    
-    closeForm();
+
+    try {
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        role: formData.role,
+        status: formData.status,
+        password: formData.password || undefined
+      };
+      
+      if (editingUser) {
+        // Editar usuário existente
+        const response = await fetch(`/api/users`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingUser.id, ...userData })
+        });
+        
+        if (!response.ok) throw new Error('Failed to update user');
+        const updatedUser = await response.json();
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      } else {
+        // Criar novo usuário
+        const response = await fetch(`/api/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to create user');
+        const newUser = await response.json();
+        setUsers(prev => [...prev, newUser]);
+      }
+      
+      closeForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save user');
+    }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(user => user.id !== id));
-    setDeleteConfirm(null);
+  const deleteUser = async (id: string) => {
+    try {
+      const response = await fetch(`/api/users?id=${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete user');
+      setUsers(prev => prev.filter(user => user.id !== id));
+      setDeleteConfirm(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete user');
+    }
   };
 
   // Filtros
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (user.phone && user.phone.includes(searchTerm));
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     const matchesStatus = statusFilter === "all" || user.status === statusFilter;
     
@@ -170,8 +192,6 @@ export default function AdminUsersPage() {
     switch (role) {
       case "admin":
         return { label: "Administrador", color: "bg-red-100 text-red-800 border-red-200", icon: Shield };
-      case "manager":
-        return { label: "Gerente", color: "bg-blue-100 text-blue-800 border-blue-200", icon: Shield };
       case "pdv":
         return { label: "PDV", color: "bg-green-100 text-green-800 border-green-200", icon: User };
       default:
@@ -203,7 +223,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -243,20 +263,6 @@ export default function AdminUsersPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-600">PDV</p>
-                <p className="text-3xl font-bold text-orange-900">
-                  {users.filter(u => u.role === "pdv").length}
-                </p>
-              </div>
-              <User className="h-12 w-12 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Barra de Busca e Filtros Compacta */}
@@ -290,7 +296,6 @@ export default function AdminUsersPage() {
           >
             <option value="all">Todos os Perfis</option>
             <option value="admin">Administrador</option>
-            <option value="manager">Gerente</option>
             <option value="pdv">PDV</option>
           </select>
 
@@ -328,123 +333,129 @@ export default function AdminUsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredUsers.map((user) => (
-              <div key={user.id} className="bg-white/60 rounded-xl p-6 border border-white/30 hover:shadow-lg transition-all duration-300">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  {/* Informações do usuário */}
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <p className="mt-4 text-gray-600">Carregando usuários...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar usuários</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={loadUsers} className="bg-primary hover:bg-primary/90">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredUsers.map((user) => (
+                <div key={user.id} className="bg-white/60 rounded-xl p-6 border border-white/30 hover:shadow-lg transition-all duration-300">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    {/* Informações do usuário */}
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                          <span className="text-white font-bold text-lg">
+                            {user.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                          <p className="text-gray-600 flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            {user.email}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                        <p className="text-gray-600 flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                      {user.phone && (
-                        <p className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          {user.phone}
-                        </p>
-                      )}
-                      {user.address && (
-                        <p className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {user.address}
-                        </p>
-                      )}
-                      <p className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Criado em {new Date(user.createdAt).toLocaleDateString('pt-BR')}
-                      </p>
-                      {user.lastLogin && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                        {user.phone && (
+                          <p className="flex items-center gap-2">
+                            <Phone className="h-4 w-4" />
+                            {user.phone}
+                          </p>
+                        )}
                         <p className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          Último login: {new Date(user.lastLogin).toLocaleDateString('pt-BR')}
+                          Criado em {new Date(user.createdAt).toLocaleDateString('pt-BR')}
                         </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status e Perfil */}
-                  <div className="flex flex-col items-end gap-3">
-                    <div className="flex gap-2">
-                      {(() => {
-                        const roleInfo = getRoleInfo(user.role);
-                        const Icon = roleInfo.icon;
-                        return (
-                          <Badge className={`${roleInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1`}>
-                            <Icon className="h-3 w-3" />
-                            {roleInfo.label}
-                          </Badge>
-                        );
-                      })()}
-                      
-                      {(() => {
-                        const statusInfo = getStatusInfo(user.status);
-                        return (
-                          <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
-                            {statusInfo.label}
-                          </Badge>
-                        );
-                      })()}
+                      </div>
                     </div>
 
-                    {/* Ações */}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openForm(user)}
-                        className="h-9 px-3 rounded-lg border-white/30 hover:bg-white/50 hover:border-primary/50 transition-all duration-300"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDeleteConfirm(user.id)}
-                        className="h-9 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-300"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remover
-                      </Button>
+                    {/* Status e Perfil */}
+                    <div className="flex flex-col items-end gap-3">
+                      <div className="flex gap-2">
+                        {(() => {
+                          const roleInfo = getRoleInfo(user.role);
+                          const Icon = roleInfo.icon;
+                          return (
+                            <Badge className={`${roleInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1`}>
+                              <Icon className="h-3 w-3" />
+                              {roleInfo.label}
+                            </Badge>
+                          );
+                        })()}
+                        
+                        {(() => {
+                          const statusInfo = getStatusInfo(user.status);
+                          return (
+                            <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
+                              {statusInfo.label}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openForm(user)}
+                          className="h-9 px-3 rounded-lg border-white/30 hover:bg-white/50 hover:border-primary/50 transition-all duration-300"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(user.id)}
+                          className="h-9 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-300"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum usuário encontrado</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchTerm || roleFilter !== "all" || statusFilter !== "all" 
-                    ? "Tente ajustar os filtros de busca" 
-                    : "Comece cadastrando o primeiro usuário do sistema"
-                  }
-                </p>
-                {!searchTerm && roleFilter === "all" && statusFilter === "all" && (
-                  <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Cadastrar Usuário
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum usuário encontrado</h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm || roleFilter !== "all" || statusFilter !== "all" 
+                      ? "Tente ajustar os filtros de busca" 
+                      : "Comece cadastrando o primeiro usuário do sistema"
+                    }
+                  </p>
+                  {!searchTerm && roleFilter === "all" && statusFilter === "all" && (
+                    <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Cadastrar Usuário
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -518,7 +529,6 @@ export default function AdminUsersPage() {
                       required
                     >
                       <option value="pdv">PDV</option>
-                      <option value="manager">Gerente</option>
                       <option value="admin">Administrador</option>
                     </select>
                   </div>
@@ -534,16 +544,20 @@ export default function AdminUsersPage() {
                       <option value="inactive">Inativo</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Endereço</label>
-                  <Input
-                    placeholder="Rua, número, bairro, cidade/estado"
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      {editingUser ? "Nova Senha" : "Senha"} {editingUser ? "(opcional)" : "*"}
+                    </label>
+                    <Input
+                      type="password"
+                      placeholder={editingUser ? "Deixe em branco para manter a senha atual" : "Digite uma senha"}
+                      value={formData.password}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      {...(!editingUser && { required: true })}
+                    />
+                  </div>
                 </div>
 
                 {/* Separator */}
@@ -609,5 +623,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-

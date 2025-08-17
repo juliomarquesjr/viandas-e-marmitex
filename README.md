@@ -7,6 +7,7 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 - **PDV (Ponto de Venda)**: Interface para realização de vendas
 - **Gestão de Produtos**: Cadastro e gerenciamento de produtos e categorias
 - **Gestão de Clientes**: Cadastro e gerenciamento de clientes
+- **Gestão de Usuários**: Cadastro e gerenciamento de usuários (Administradores e PDV)
 - **Gestão de Pedidos**: Acompanhamento de pedidos
 - **Relatórios**: Análise de vendas e desempenho
 
@@ -54,9 +55,7 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 
 6. **Popule o banco com dados de exemplo:**
    ```bash
-   npx tsx scripts/seed-categories.ts
-   npx tsx scripts/seed-products.ts
-   npx tsx scripts/seed-customers.ts
+   npm run seed:all
    ```
 
 7. **Inicie o servidor de desenvolvimento:**
@@ -74,6 +73,7 @@ app/
   ├── admin/           # Área administrativa
   │   ├── customers/   # Gestão de clientes
   │   ├── products/    # Gestão de produtos
+  │   ├── users/       # Gestão de usuários
   │   ├── orders/      # Gestão de pedidos
   │   └── reports/     # Relatórios
   ├── pdv/             # Ponto de venda
@@ -88,10 +88,19 @@ prisma/
 scripts/
   ├── seed-categories.ts  # Script para popular categorias
   ├── seed-products.ts    # Script para popular produtos
-  └── seed-customers.ts   # Script para popular clientes
+  ├── seed-customers.ts   # Script para popular clientes
+  └── seed-users.ts       # Script para popular usuários
 ```
 
 ## APIs
+
+### Usuários
+
+- `GET /api/users` - Listar usuários
+  - Parâmetros: `q` (busca), `role` (all/admin/pdv), `status` (all/active/inactive), `page`, `size`
+- `POST /api/users` - Criar usuário
+- `PUT /api/users` - Atualizar usuário
+- `DELETE /api/users?id={id}` - Excluir usuário
 
 ### Clientes
 
@@ -122,6 +131,11 @@ scripts/
 - `npm run build` - Build de produção
 - `npm run start` - Iniciar servidor de produção
 - `npm run lint` - Verificar linting
+- `npm run seed:all` - Popular todos os dados de exemplo
+- `npm run seed:users` - Popular apenas usuários
+- `npm run seed:customers` - Popular apenas clientes
+- `npm run seed:products` - Popular apenas produtos
+- `npm run seed:categories` - Popular apenas categorias
 
 ### Comandos do Prisma
 
