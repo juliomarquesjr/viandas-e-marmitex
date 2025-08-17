@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuário (administradores, funcionários, etc.)
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("employee") // admin, employee
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Modelo de Cliente
+model Customer {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String
+  email      String?  @unique
+  doc        String?  // CPF/CNPJ
+  address    Json?    // Endereço em formato JSON
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  orders     Order[]
+}
+
+// Modelo de Categoria de Produto
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  products  Product[]
+}
+
+// Modelo de Produto
+model Product {
+  id              String   @id @default(uuid())
+  name            String
+  barcode         String?  @unique
+  categoryId      String?
+  priceCents      Int      @default(0) // Preço em centavos para evitar problemas de arredondamento
+  description     String?
+  stockEnabled    Boolean  @default(false)
+  stock           Int?
+  imageUrl        String?
+  productType     String   @default("sellable") // sellable, addon
+  variableProduct Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relacionamentos
+  category        Category? @relation(fields: [categoryId], references: [id])
+  orderItems      OrderItem[]
+
+  @@index([categoryId])
+}
+
+// Modelo de Pedido
+model Order {
+  id             String   @id @default(uuid())
+  customerId     String?
+  status         String   @default("pending") // pending, confirmed, preparing, ready, delivered, cancelled
+  subtotalCents  Int      @default(0)
+  discountCents  Int      @default(0)
+  deliveryFeeCents Int     @default(0)
+  totalCents     Int      @default(0)
+  paymentMethod  String?  // cash, credit, debit, pix, invoice
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  items          OrderItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Modelo de Item do Pedido
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int      @default(1)
+  priceCents Int     @default(0) // Preço no momento da venda
+
+  // Relacionamentos
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}

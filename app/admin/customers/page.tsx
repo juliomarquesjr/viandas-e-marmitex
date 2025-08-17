@@ -11,7 +11,7 @@ import {
   User,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -22,86 +22,17 @@ type Customer = {
   name: string;
   phone: string;
   email?: string;
-  doc?: string; // CPF/CNPJ
-  address_json?: string; // Endereço em formato JSON
-  created_at: string;
+  doc?: string;
+  address?: any;
   active: boolean;
+  createdAt: string;
 };
 
 export default function AdminCustomersPage() {
-  // Dados simulados de clientes
-  const [customers, setCustomers] = useState<Customer[]>([
-    {
-      id: "1",
-      name: "João Silva",
-      phone: "(11) 99999-9999",
-      email: "joao.silva@email.com",
-      doc: "123.456.789-00",
-      address_json: JSON.stringify({
-        street: "Rua das Flores",
-        number: "123",
-        complement: "Apto 101",
-        neighborhood: "Centro",
-        city: "São Paulo",
-        state: "SP",
-        zip: "01001-000"
-      }),
-      created_at: "2024-01-15",
-      active: true
-    },
-    {
-      id: "2",
-      name: "Maria Oliveira",
-      phone: "(21) 98888-8888",
-      email: "maria.oliveira@email.com",
-      doc: "987.654.321-00",
-      address_json: JSON.stringify({
-        street: "Av. Brasil",
-        number: "456",
-        neighborhood: "Jardim América",
-        city: "Rio de Janeiro",
-        state: "RJ",
-        zip: "20001-000"
-      }),
-      created_at: "2024-02-20",
-      active: true
-    },
-    {
-      id: "3",
-      name: "Carlos Santos",
-      phone: "(31) 97777-7777",
-      email: "carlos.santos@email.com",
-      doc: "456.789.123-00",
-      address_json: JSON.stringify({
-        street: "Rua da Praça",
-        number: "789",
-        neighborhood: "Savassi",
-        city: "Belo Horizonte",
-        state: "MG",
-        zip: "30110-000"
-      }),
-      created_at: "2024-03-10",
-      active: false
-    },
-    {
-      id: "4",
-      name: "Ana Costa",
-      phone: "(51) 96666-6666",
-      email: "ana.costa@email.com",
-      doc: "321.654.987-00",
-      address_json: JSON.stringify({
-        street: "Rua dos Andradas",
-        number: "101",
-        complement: "Sala 501",
-        neighborhood: "Centro",
-        city: "Porto Alegre",
-        state: "RS",
-        zip: "90010-000"
-      }),
-      created_at: "2024-03-15",
-      active: true
-    }
-  ]);
+  // Estados de dados
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -128,6 +59,26 @@ export default function AdminCustomersPage() {
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  // Carregar clientes
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/customers?q=${searchTerm}&status=${statusFilter}`);
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      const result = await response.json();
+      setCustomers(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar clientes na montagem e quando filtros mudarem
+  useEffect(() => {
+    loadCustomers();
+  }, [searchTerm, statusFilter]);
+
   // Funções auxiliares
   const resetForm = () => {
     setFormData({
@@ -149,39 +100,21 @@ export default function AdminCustomersPage() {
   const openForm = (customer?: Customer) => {
     if (customer) {
       setEditingCustomer(customer);
-      try {
-        const address = customer.address_json ? JSON.parse(customer.address_json) : {};
-        setFormData({
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email || "",
-          doc: customer.doc || "",
-          street: address.street || "",
-          number: address.number || "",
-          complement: address.complement || "",
-          neighborhood: address.neighborhood || "",
-          city: address.city || "",
-          state: address.state || "",
-          zip: address.zip || "",
-          active: customer.active
-        });
-      } catch (e) {
-        // Se houver erro ao parsear o endereço, usa valores vazios
-        setFormData({
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email || "",
-          doc: customer.doc || "",
-          street: "",
-          number: "",
-          complement: "",
-          neighborhood: "",
-          city: "",
-          state: "",
-          zip: "",
-          active: customer.active
-        });
-      }
+      const address = customer.address || {};
+      setFormData({
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email || "",
+        doc: customer.doc || "",
+        street: address.street || "",
+        number: address.number || "",
+        complement: address.complement || "",
+        neighborhood: address.neighborhood || "",
+        city: address.city || "",
+        state: address.state || "",
+        zip: address.zip || "",
+        active: customer.active
+      });
     } else {
       setEditingCustomer(null);
       resetForm();
@@ -195,7 +128,7 @@ export default function AdminCustomersPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validação básica
@@ -209,55 +142,69 @@ export default function AdminCustomersPage() {
       return;
     }
     
-    // Monta o objeto de endereço
-    const address = {
-      street: formData.street,
-      number: formData.number,
-      complement: formData.complement,
-      neighborhood: formData.neighborhood,
-      city: formData.city,
-      state: formData.state,
-      zip: formData.zip
-    };
-    
-    const address_json = JSON.stringify(address);
-    
-    if (editingCustomer) {
-      // Editar cliente existente
-      setCustomers(prev => prev.map(c => 
-        c.id === editingCustomer.id 
-          ? {
-              ...c,
-              name: formData.name,
-              phone: formData.phone,
-              email: formData.email || undefined,
-              doc: formData.doc || undefined,
-              address_json,
-              active: formData.active
-            }
-          : c
-      ));
-    } else {
-      // Criar novo cliente
-      const newCustomer: Customer = {
-        id: Date.now().toString(),
+    try {
+      // Monta o objeto de endereço
+      const address = {
+        street: formData.street,
+        number: formData.number,
+        complement: formData.complement,
+        neighborhood: formData.neighborhood,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip
+      };
+      
+      const customerData = {
         name: formData.name,
         phone: formData.phone,
         email: formData.email || undefined,
         doc: formData.doc || undefined,
-        address_json,
-        created_at: new Date().toISOString().split('T')[0],
+        address: Object.values(address).some(v => v) ? address : undefined,
         active: formData.active
       };
-      setCustomers(prev => [...prev, newCustomer]);
+      
+      if (editingCustomer) {
+        // Editar cliente existente
+        const response = await fetch(`/api/customers`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingCustomer.id, ...customerData })
+        });
+        
+        if (!response.ok) throw new Error('Failed to update customer');
+        const updatedCustomer = await response.json();
+        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+      } else {
+        // Criar novo cliente
+        const response = await fetch(`/api/customers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to create customer');
+        const newCustomer = await response.json();
+        setCustomers(prev => [...prev, newCustomer]);
+      }
+      
+      closeForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save customer');
     }
-    
-    closeForm();
   };
 
-  const deleteCustomer = (id: string) => {
-    setCustomers(prev => prev.filter(c => c.id !== id));
-    setDeleteConfirm(null);
+  const deleteCustomer = async (id: string) => {
+    try {
+      const response = await fetch(`/api/customers?id=${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete customer');
+      setCustomers(prev => prev.filter(c => c.id !== id));
+      setDeleteConfirm(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete customer');
+    }
   };
 
   const getStatusInfo = (active: boolean) => {
@@ -265,21 +212,6 @@ export default function AdminCustomersPage() {
       ? { label: "Ativo", color: "bg-green-100 text-green-700 border-green-200" }
       : { label: "Inativo", color: "bg-red-100 text-red-700 border-red-200" };
   };
-
-  // Filtros
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = 
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.doc && customer.doc.includes(searchTerm));
-    
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && customer.active) ||
-      (statusFilter === "inactive" && !customer.active);
-    
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div className="p-6 space-y-6">
@@ -365,7 +297,7 @@ export default function AdminCustomersPage() {
           />
           {searchTerm && (
             <Badge className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
-              {filteredCustomers.length}
+              {customers.length}
             </Badge>
           )}
         </div>
@@ -401,114 +333,132 @@ export default function AdminCustomersPage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-900">Lista de Clientes</CardTitle>
           <CardDescription>
-            {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} encontrado{filteredCustomers.length !== 1 ? 's' : ''}
+            {customers.length} cliente{customers.length !== 1 ? 's' : ''} encontrado{customers.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Cliente</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Contato</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Documento</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{customer.name}</div>
-                          <div className="text-xs text-gray-500">
-                            Cadastrado em {new Date(customer.created_at).toLocaleDateString('pt-BR')}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-sm text-gray-700">
-                          <Phone className="h-4 w-4" />
-                          {customer.phone}
-                        </div>
-                        {customer.email && (
-                          <div className="text-sm text-gray-600 truncate max-w-xs">
-                            {customer.email}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="text-sm text-gray-700">
-                        {customer.doc || "-"}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-4">
-                      {(() => {
-                        const statusInfo = getStatusInfo(customer.active);
-                        return (
-                          <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
-                            {statusInfo.label}
-                          </Badge>
-                        );
-                      })()}
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openForm(customer)}
-                          className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteConfirm(customer.id)}
-                          className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredCustomers.length === 0 && (
-              <div className="text-center py-12">
-                <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cliente encontrado</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchTerm || statusFilter !== "all"
-                    ? "Tente ajustar os filtros de busca" 
-                    : "Comece cadastrando o primeiro cliente"
-                  }
-                </p>
-                {!searchTerm && statusFilter === "all" && (
-                  <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Cadastrar Cliente
-                  </Button>
-                )}
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <p className="mt-4 text-gray-600">Carregando clientes...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-            )}
-          </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar clientes</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={loadCustomers} className="bg-primary hover:bg-primary/90">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Cliente</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Contato</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Documento</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((customer) => (
+                    <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{customer.name}</div>
+                            <div className="text-xs text-gray-500">
+                              Cadastrado em {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1 text-sm text-gray-700">
+                            <Phone className="h-4 w-4" />
+                            {customer.phone}
+                          </div>
+                          {customer.email && (
+                            <div className="text-sm text-gray-600 truncate max-w-xs">
+                              {customer.email}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">
+                          {customer.doc || "-"}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        {(() => {
+                          const statusInfo = getStatusInfo(customer.active);
+                          return (
+                            <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
+                              {statusInfo.label}
+                            </Badge>
+                          );
+                        })()}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openForm(customer)}
+                            className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteConfirm(customer.id)}
+                            className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {customers.length === 0 && (
+                <div className="text-center py-12">
+                  <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cliente encontrado</h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm || statusFilter !== "all"
+                      ? "Tente ajustar os filtros de busca" 
+                      : "Comece cadastrando o primeiro cliente"
+                    }
+                  </p>
+                  {!searchTerm && statusFilter === "all" && (
+                    <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Cadastrar Cliente
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

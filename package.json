@@ -6,9 +6,18 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:studio": "npx prisma studio",
+    "db:migrate": "npx prisma migrate dev",
+    "db:generate": "npx prisma generate",
+    "db:reset": "npx prisma migrate reset",
+    "seed:categories": "npx tsx scripts/seed-categories.ts",
+    "seed:products": "npx tsx scripts/seed-products.ts",
+    "seed:customers": "npx tsx scripts/seed-customers.ts",
+    "seed:all": "npm run seed:categories && npm run seed:products && npm run seed:customers"
   },
   "dependencies": {
+    "@prisma/client": "^6.14.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "axios": "^1.7.7",
@@ -16,6 +25,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.539.0",
     "next": "15.4.6",
+    "prisma": "^6.14.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "recharts": "^3.1.2",

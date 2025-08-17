@@ -12,7 +12,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
@@ -27,11 +27,11 @@ type Product = {
   active: boolean;
   created_at: string;
   description?: string;
-  stock_enabled: boolean; // Controle se o produto usa gerenciamento de estoque
-  stock?: number; // Quantidade em estoque (só usado quando stock_enabled = true)
+  stock_enabled: boolean;
+  stock?: number;
   image_url?: string;
-  product_type: "sellable" | "addon"; // Produto vendável ou adicional/complemento
-  variable_product: boolean; // Produto com variações (tamanhos, cores, etc.)
+  product_type: "sellable" | "addon";
+  variable_product: boolean;
 };
 
 type Category = {
@@ -40,92 +40,11 @@ type Category = {
 };
 
 export default function AdminProductsPage() {
-  // Dados simulados de categorias
-  const categories: Category[] = [
-    { id: "1", name: "Pratos Principais" },
-    { id: "2", name: "Entradas" },
-    { id: "3", name: "Sobremesas" },
-    { id: "4", name: "Bebidas" },
-    { id: "5", name: "Acompanhamentos" }
-  ];
-
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "1",
-      name: "Prato Executivo",
-      barcode: "7891234567890",
-      category_id: "1",
-      price_cents: 2500,
-      active: true,
-      created_at: "2024-01-15",
-      description: "Arroz, feijão, bife e salada",
-      stock_enabled: true,
-      stock: 50,
-      image_url: "https://picsum.photos/seed/prato-executivo/200/200",
-      product_type: "sellable",
-      variable_product: false
-    },
-    {
-      id: "2",
-      name: "Salada Caesar",
-      barcode: "7891234567891",
-      category_id: "2",
-      price_cents: 1200,
-      active: true,
-      created_at: "2024-02-20",
-      description: "Alface, croutons, parmesão e molho caesar",
-      stock_enabled: true,
-      stock: 30,
-      image_url: "https://picsum.photos/seed/salada-caesar/200/200",
-      product_type: "sellable",
-      variable_product: false
-    },
-    {
-      id: "3",
-      name: "Pudim de Leite",
-      barcode: "7891234567892",
-      category_id: "3",
-      price_cents: 800,
-      active: true,
-      created_at: "2024-03-10",
-      description: "Pudim tradicional de leite condensado",
-      stock_enabled: false,
-      stock: undefined,
-      image_url: "https://picsum.photos/seed/pudim-leite/200/200",
-      product_type: "sellable",
-      variable_product: false
-    },
-    {
-      id: "4",
-      name: "Queijo Ralado Extra",
-      barcode: "7891234567893",
-      category_id: "5",
-      price_cents: 300,
-      active: true,
-      created_at: "2024-03-15",
-      description: "Queijo parmesão ralado para complementar pratos",
-      stock_enabled: true,
-      stock: 100,
-      image_url: "https://picsum.photos/seed/queijo-ralado/200/200",
-      product_type: "addon",
-      variable_product: false
-    },
-    {
-      id: "5",
-      name: "Molho Especial",
-      barcode: "7891234567894",
-      category_id: "5",
-      price_cents: 200,
-      active: true,
-      created_at: "2024-03-16",
-      description: "Molho caseiro especial para acompanhar pratos",
-      stock_enabled: false,
-      stock: undefined,
-      image_url: "https://picsum.photos/seed/molho-especial/200/200",
-      product_type: "addon",
-      variable_product: false
-    }
-  ]);
+  // Estados de dados
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -153,6 +72,29 @@ export default function AdminProductsPage() {
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Carregar produtos e categorias
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/products?q=${searchTerm}&category=${categoryFilter}&status=${statusFilter}&type=${typeFilter}&variable=${variableFilter}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch products');
+      const result = await response.json();
+      setProducts(result.data);
+      setCategories(result.categories);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar produtos na montagem e quando filtros mudarem
+  useEffect(() => {
+    loadProducts();
+  }, [searchTerm, categoryFilter, statusFilter, typeFilter, variableFilter]);
 
   // Funções auxiliares
   const resetForm = () => {
@@ -200,7 +142,7 @@ export default function AdminProductsPage() {
     resetForm();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validação do preço
@@ -210,30 +152,8 @@ export default function AdminProductsPage() {
       return;
     }
     
-    if (editingProduct) {
-      // Editar produto existente
-      setProducts(prev => prev.map(p => 
-        p.id === editingProduct.id 
-          ? {
-              ...p,
-              name: formData.name,
-              barcode: formData.barcode || undefined,
-              category_id: formData.category_id || undefined,
-              price_cents: parseInt(formData.price_cents),
-              description: formData.description || undefined,
-              stock_enabled: formData.stock_enabled,
-              stock: formData.stock_enabled && formData.stock ? parseInt(formData.stock) : undefined,
-              active: formData.active,
-              image_url: formData.image_url || undefined,
-              product_type: formData.product_type,
-              variable_product: formData.variable_product
-            }
-          : p
-      ));
-    } else {
-      // Criar novo produto
-      const newProduct: Product = {
-        id: Date.now().toString(),
+    try {
+      const productData = {
         name: formData.name,
         barcode: formData.barcode || undefined,
         category_id: formData.category_id || undefined,
@@ -244,18 +164,51 @@ export default function AdminProductsPage() {
         active: formData.active,
         image_url: formData.image_url || undefined,
         product_type: formData.product_type,
-        variable_product: formData.variable_product,
-        created_at: new Date().toISOString().split('T')[0]
+        variable_product: formData.variable_product
       };
-      setProducts(prev => [...prev, newProduct]);
+      
+      if (editingProduct) {
+        // Editar produto existente
+        const response = await fetch(`/api/products`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingProduct.id, ...productData })
+        });
+        
+        if (!response.ok) throw new Error('Failed to update product');
+        const updatedProduct = await response.json();
+        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+      } else {
+        // Criar novo produto
+        const response = await fetch(`/api/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to create product');
+        const newProduct = await response.json();
+        setProducts(prev => [...prev, newProduct]);
+      }
+      
+      closeForm();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save product');
     }
-    
-    closeForm();
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    setDeleteConfirm(null);
+  const deleteProduct = async (id: string) => {
+    try {
+      const response = await fetch(`/api/products?id=${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete product');
+      setProducts(prev => prev.filter(p => p.id !== id));
+      setDeleteConfirm(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete product');
+    }
   };
 
   const getCategoryName = (categoryId?: string) => {
@@ -319,25 +272,6 @@ export default function AdminProductsPage() {
       setFormData(prev => ({ ...prev, price_cents: cents.toString() }));
     }
   };
-
-  // Filtros
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.barcode && product.barcode.includes(searchTerm)) ||
-      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesCategory = categoryFilter === "all" || product.category_id === categoryFilter;
-    const matchesStatus = statusFilter === "all" || 
-      (statusFilter === "active" && product.active) ||
-      (statusFilter === "inactive" && !product.active);
-    const matchesType = typeFilter === "all" || product.product_type === typeFilter;
-    const matchesVariable = variableFilter === "all" || 
-      (variableFilter === "variable" && product.variable_product) ||
-      (variableFilter === "standard" && !product.variable_product);
-    
-    return matchesSearch && matchesCategory && matchesStatus && matchesType && matchesVariable;
-  });
 
   return (
     <div className="p-6 space-y-6">
@@ -437,7 +371,7 @@ export default function AdminProductsPage() {
           />
           {searchTerm && (
             <Badge className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
-              {filteredProducts.length}
+              {products.length}
             </Badge>
           )}
         </div>
@@ -507,154 +441,172 @@ export default function AdminProductsPage() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-900">Catálogo de Produtos</CardTitle>
           <CardDescription>
-            {filteredProducts.length} produto{filteredProducts.length !== 1 ? 's' : ''} encontrado{filteredProducts.length !== 1 ? 's' : ''}
+            {products.length} produto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Produto</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Categoria</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Tipo</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Preço</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Variações</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Estoque</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                          {product.image_url ? (
-                            <img 
-                              src={product.image_url} 
-                              alt={product.name}
-                              className="h-full w-full object-cover"
-                            />
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <p className="mt-4 text-gray-600">Carregando produtos...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar produtos</h3>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button onClick={loadProducts} className="bg-primary hover:bg-primary/90">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Produto</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Categoria</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Tipo</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Preço</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Variações</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Estoque</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                            {product.image_url ? (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="h-6 w-6 text-gray-400" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{product.name}</div>
+                            {product.description && (
+                              <div className="text-sm text-gray-500 truncate max-w-xs">
+                                {product.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">{getCategoryName(product.category_id)}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {(() => {
+                          const typeInfo = getTypeInfo(product.product_type);
+                          const Icon = typeInfo.icon;
+                          return (
+                            <Badge className={`${typeInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit`}>
+                              <Icon className="h-3 w-3" />
+                              {typeInfo.label}
+                            </Badge>
+                          );
+                        })()}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-lg font-semibold text-gray-900">
+                          {formatPriceToReais(product.price_cents || 0)}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">
+                          {product.variable_product ? (
+                            <Badge className="bg-purple-100 text-purple-700 border-purple-200 border px-3 py-1 rounded-full text-xs font-medium">
+                              Com variações
+                            </Badge>
                           ) : (
-                            <ImageIcon className="h-6 w-6 text-gray-400" />
+                            <Badge className="bg-gray-100 text-gray-600 border-gray-200 border px-3 py-1 rounded-full text-xs font-medium">
+                              Padrão
+                            </Badge>
                           )}
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          {product.description && (
-                            <div className="text-sm text-gray-500 truncate max-w-xs">
-                              {product.description}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm text-gray-700">
+                          {product.stock_enabled ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span>{product.stock !== undefined ? product.stock : 0}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                              <span className="text-gray-500">Sem controle</span>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </td>
+                      </td>
+                      <td className="py-4 px-4">
+                        {(() => {
+                          const statusInfo = getStatusInfo(product.active);
+                          return (
+                            <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
+                              {statusInfo.label}
+                            </Badge>
+                          );
+                        })()}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openForm(product)}
+                            className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteConfirm(product.id)}
+                            className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                    <td className="py-4 px-4">
-                      <div className="text-sm text-gray-700">{getCategoryName(product.category_id)}</div>
-                    </td>
-                    <td className="py-4 px-4">
-                      {(() => {
-                        const typeInfo = getTypeInfo(product.product_type);
-                        const Icon = typeInfo.icon;
-                        return (
-                          <Badge className={`${typeInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit`}>
-                            <Icon className="h-3 w-3" />
-                            {typeInfo.label}
-                          </Badge>
-                        );
-                      })()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-lg font-semibold text-gray-900">
-                        {formatPriceToReais(product.price_cents || 0)}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm text-gray-700">
-                        {product.variable_product ? (
-                          <Badge className="bg-purple-100 text-purple-700 border-purple-200 border px-3 py-1 rounded-full text-xs font-medium">
-                            Com variações
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-gray-100 text-gray-600 border-gray-200 border px-3 py-1 rounded-full text-xs font-medium">
-                            Padrão
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-sm text-gray-700">
-                        {product.stock_enabled ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span>{product.stock !== undefined ? product.stock : 0}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <span className="text-gray-500">Sem controle</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      {(() => {
-                        const statusInfo = getStatusInfo(product.active);
-                        return (
-                          <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
-                            {statusInfo.label}
-                          </Badge>
-                        );
-                      })()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openForm(product)}
-                          className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteConfirm(product.id)}
-                          className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredProducts.length === 0 && (
-              <div className="text-center py-12">
-                <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum produto encontrado</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchTerm || categoryFilter !== "all" || statusFilter !== "all" || typeFilter !== "all" || variableFilter !== "all"
-                    ? "Tente ajustar os filtros de busca" 
-                    : "Comece cadastrando o primeiro produto do catálogo"
-                  }
-                </p>
-                {!searchTerm && categoryFilter === "all" && statusFilter === "all" && typeFilter === "all" && variableFilter === "all" && (
-                  <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Cadastrar Produto
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+              {products.length === 0 && (
+                <div className="text-center py-12">
+                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum produto encontrado</h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm || categoryFilter !== "all" || statusFilter !== "all" || typeFilter !== "all" || variableFilter !== "all"
+                      ? "Tente ajustar os filtros de busca" 
+                      : "Comece cadastrando o primeiro produto do catálogo"
+                    }
+                  </p>
+                  {!searchTerm && categoryFilter === "all" && statusFilter === "all" && typeFilter === "all" && variableFilter === "all" && (
+                    <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Cadastrar Produto
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -906,5 +858,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
-
