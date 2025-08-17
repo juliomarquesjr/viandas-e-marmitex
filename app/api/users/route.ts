@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Função auxiliar para hash de senha (placeholder)
-async function hashPassword(password: string): Promise<string> {
-  // Em produção, usar bcrypt ou outra biblioteca de hash
-  return `hashed_${password}`;
-}
+import bcrypt from "bcryptjs";
 
 export async function GET(request: Request) {
   try {
@@ -93,17 +88,17 @@ export async function POST(request: Request) {
       );
     }
     
-    // Criptografar senha (placeholder - implementar bcrypt na produção)
+    // Criptografar senha
     const hashedPassword = body.password 
-      ? await hashPassword(body.password) 
-      : await hashPassword('123456'); // Senha padrão
+      ? await bcrypt.hash(body.password, 10) 
+      : await bcrypt.hash('123456', 10); // Senha padrão
     
     const user = await prisma.user.create({
       data: {
         name: body.name,
         email: body.email,
         password: hashedPassword,
-        role: body.role || 'employee',
+        role: body.role || 'pdv',
         active: body.status === 'active'
       }
     });
@@ -162,12 +157,12 @@ export async function PUT(request: Request) {
     let updateData: any = {
       name: data.name,
       email: data.email,
-      role: data.role || 'employee',
+      role: data.role || 'pdv',
       active: data.status === 'active'
     };
     
     if (password) {
-      updateData.password = await hashPassword(password);
+      updateData.password = await bcrypt.hash(password, 10);
     }
     
     const user = await prisma.user.update({

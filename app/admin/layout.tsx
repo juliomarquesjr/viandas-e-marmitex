@@ -12,16 +12,31 @@ import {
     Settings,
     ShoppingCart,
     Users,
-    X
+    X,
+    User
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { cn } from "../../lib/utils";
-import { Button } from "../components/ui/button";
-import { Separator } from "../components/ui/separator";
+import { cn } from "@/lib/utils";
+import { Button } from "@/app/components/ui/button";
+import { Separator } from "@/app/components/ui/separator";
+import { useSession, signOut } from "next-auth/react";
+import { Session } from "next-auth";
+
+// Definir o tipo extendido para a sessão
+interface ExtendedSession extends Session {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role: string;
+  }
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession() as { data: ExtendedSession | null };
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,11 +50,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <Link
         href={href}
-                 className={cn(
-           "group relative flex items-center rounded-2xl font-medium transition-all duration-300 ease-in-out",
-           sidebarCollapsed 
-             ? "h-14 w-14 mx-auto justify-center" 
-             : "h-14 w-full px-6 gap-4",
+        className={cn(
+          "group relative flex items-center rounded-2xl font-medium transition-all duration-300 ease-in-out",
+          sidebarCollapsed 
+            ? "h-14 w-14 mx-auto justify-center" 
+            : "h-14 w-full px-6 gap-4",
           active 
             ? "bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 text-primary shadow-xl shadow-primary/20 border border-primary/30" 
             : "text-muted-foreground hover:bg-gradient-to-r hover:from-white/60 hover:via-white/40 hover:to-white/20 hover:text-foreground hover:shadow-lg hover:border hover:border-white/30"
@@ -50,16 +65,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary to-primary/60 rounded-r-full" />
         )}
         
-                 <div className={cn(
-           "flex items-center justify-center transition-all duration-300",
-           sidebarCollapsed ? "h-10 w-10" : "h-8 w-8"
-         )}>
-           <Icon className={cn(
-             "transition-all duration-300",
-             sidebarCollapsed ? "h-6 w-6" : "h-5 w-5",
-             active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-           )} />
-         </div>
+        <div className={cn(
+          "flex items-center justify-center transition-all duration-300",
+          sidebarCollapsed ? "h-10 w-10" : "h-8 w-8"
+        )}>
+          <Icon className={cn(
+            "transition-all duration-300",
+            sidebarCollapsed ? "h-6 w-6" : "h-5 w-5",
+            active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          )} />
+        </div>
         
         {!sidebarCollapsed && (
           <span className="flex-1 text-sm font-semibold transition-all duration-300 group-hover:translate-x-1">
@@ -122,7 +137,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <NavItem href="/admin/customers" icon={Users} label="Clientes" />
             <NavItem href="/admin/orders" icon={Receipt} label="Vendas" />
             <NavItem href="/admin/reports" icon={BarChart3} label="Relatórios" />
-            <NavItem href="/admin/users" icon={Users} label="Usuários" />
+            {session?.user?.role === "admin" && (
+              <NavItem href="/admin/users" icon={Users} label="Usuários" />
+            )}
             <Separator className="my-8 bg-white/20" />
             <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
@@ -131,6 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="p-6 border-t border-white/20 bg-gradient-to-r from-white/50 to-white/30">
             <Button
               variant="outline"
+              onClick={() => signOut()}
               className="w-full justify-center gap-3 border-white/30 text-muted-foreground hover:bg-white/30 hover:text-foreground hover:shadow-lg transition-all duration-300 hover:scale-[1.02] h-14 rounded-2xl"
             >
               <LogOut className="h-5 w-5" />
@@ -170,17 +188,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <Separator orientation="vertical" className="mx-2 h-10 bg-white/20" />
             
-                         {/* Desktop Menu Toggle Button */}
-             <Button
-               variant="ghost"
-               size="icon"
-               onClick={toggleSidebar}
-               className="hidden lg:flex h-14 w-14 rounded-2xl hover:bg-white/30 hover:shadow-xl transition-all duration-300 border-2 border-white/30 bg-white/20"
-             >
-               <Menu className="h-7 w-7 text-primary transition-transform duration-300" />
-             </Button>
+            {/* Desktop Menu Toggle Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="hidden lg:flex h-14 w-14 rounded-2xl hover:bg-white/30 hover:shadow-xl transition-all duration-300 border-2 border-white/30 bg-white/20"
+            >
+              <Menu className="h-7 w-7 text-primary transition-transform duration-300" />
+            </Button>
             
-                         {/* Search Bar - Design Compacto */}
+            {/* Search Bar - Design Compacto */}
             <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/80 border border-gray-200/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
               <Search className="h-4 w-4 text-gray-500" />
               <input
@@ -193,6 +211,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-4">
+            {/* User Info */}
+            {session?.user && (
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-white/80 border border-white/30 backdrop-blur-sm shadow-sm">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {session.user.name}
+                  </span>
+                  <span className="text-xs text-gray-500 capitalize">
+                    {session.user.role === "admin" ? "Administrador" : "PDV"}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Desktop Navigation Links */}
             <div className="hidden lg:flex items-center gap-4">
               {/* Abrir PDV */}
@@ -207,6 +242,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {/* Sair */}
               <Button
                 variant="outline"
+                onClick={() => signOut()}
                 className="gap-3 px-6 py-4 h-14 rounded-2xl border-2 border-white/30 hover:bg-white/30 hover:border-white/50 hover:shadow-xl transition-all duration-300 hover:scale-105 bg-white/20 font-semibold"
               >
                 <LogOut className="h-6 w-6" />
@@ -230,7 +266,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <NavItem href="/admin/customers" icon={Users} label="Clientes" />
                 <NavItem href="/admin/orders" icon={Receipt} label="Vendas" />
                 <NavItem href="/admin/reports" icon={BarChart3} label="Relatórios" />
-                <NavItem href="/admin/users" icon={Users} label="Usuários" />
+                {session?.user?.role === "admin" && (
+                  <NavItem href="/admin/users" icon={Users} label="Usuários" />
+                )}
                 <Separator className="my-8 bg-white/20" />
                 <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
               </nav>
@@ -260,5 +298,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
-
-

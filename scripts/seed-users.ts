@@ -1,24 +1,19 @@
 import prisma from '../lib/prisma';
-
-// Função auxiliar para hash de senha (placeholder)
-async function hashPassword(password: string): Promise<string> {
-  // Em produção, usar bcrypt ou outra biblioteca de hash
-  return `hashed_${password}`;
-}
+import bcrypt from "bcryptjs";
 
 async function main() {
   const users = [
     {
       name: "Administrador do Sistema",
       email: "admin@viandas.com",
-      password: await hashPassword("admin123"),
+      password: await bcrypt.hash("admin123", 10),
       role: "admin",
       active: true
     },
     {
       name: "Operador PDV",
       email: "pdv@viandas.com",
-      password: await hashPassword("pdv123"),
+      password: await bcrypt.hash("pdv123", 10),
       role: "pdv",
       active: true
     }

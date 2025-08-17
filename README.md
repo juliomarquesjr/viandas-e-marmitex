@@ -11,13 +11,27 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 - **Gestão de Pedidos**: Acompanhamento de pedidos
 - **Relatórios**: Análise de vendas e desempenho
 
+## Perfis de Usuário
+
+O sistema possui dois perfis de usuário com diferentes níveis de acesso:
+
+### Administrador
+- Acesso completo a todas as funcionalidades
+- Pode gerenciar usuários (criar, editar, excluir)
+- Pode acessar todas as áreas do sistema
+
+### PDV (Ponto de Venda)
+- Acesso ao PDV para realização de vendas
+- Pode visualizar produtos e clientes
+- Não pode acessar áreas administrativas restritas
+
 ## Tecnologias
 
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **UI**: Tailwind CSS, Shadcn UI, Lucide Icons
 - **Backend**: Next.js API Routes
 - **Banco de Dados**: PostgreSQL com Prisma ORM
-- **Autenticação**: (A ser implementada)
+- **Autenticação**: NextAuth.js com credenciais
 
 ## Pré-requisitos
 
@@ -66,10 +80,23 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 8. **Acesse a aplicação:**
    Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
+## Credenciais de Acesso
+
+Após executar o seed, as seguintes credenciais estarão disponíveis:
+
+**Administrador:**
+- Email: `admin@viandas.com`
+- Senha: `admin123`
+
+**PDV:**
+- Email: `pdv@viandas.com`
+- Senha: `pdv123`
+
 ## Estrutura do Projeto
 
 ```
 app/
+  ├── auth/            # Autenticação
   ├── admin/           # Área administrativa
   │   ├── customers/   # Gestão de clientes
   │   ├── products/    # Gestão de produtos
@@ -78,8 +105,10 @@ app/
   │   └── reports/     # Relatórios
   ├── pdv/             # Ponto de venda
   ├── api/             # APIs REST
+  │   └── auth/        # API de autenticação
   └── components/      # Componentes reutilizáveis
 lib/
+  ├── auth.ts          # Configuração do NextAuth
   ├── prisma.ts        # Cliente Prisma
   └── utils.ts         # Funções utilitárias
 prisma/
@@ -93,6 +122,12 @@ scripts/
 ```
 
 ## APIs
+
+### Autenticação
+
+- `POST /api/auth/callback/credentials` - Autenticação de credenciais
+- `GET /api/auth/session` - Obter sessão atual
+- `POST /api/auth/signout` - Encerrar sessão
 
 ### Usuários
 
@@ -144,9 +179,17 @@ scripts/
 - `npx prisma generate` - Gerar cliente Prisma
 - `npx prisma migrate reset` - Resetar banco de dados (apenas desenvolvimento)
 
+## Segurança
+
+- Todas as senhas são armazenadas com hash bcrypt
+- Rotas protegidas por middleware de autenticação
+- Controle de acesso baseado em perfis de usuário
+- Sessões seguras com JWT
+
 ## Documentação
 
 - [Documentação do Next.js](https://nextjs.org/docs)
+- [Documentação do NextAuth.js](https://next-auth.js.org/)
 - [Documentação do Prisma](https://www.prisma.io/docs/)
 - [Documentação do Tailwind CSS](https://tailwindcss.com/docs)
 
