@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "../components/ui/dialog";
 import { useSession, signOut } from "next-auth/react";
+import { Clock } from "../components/ui/clock";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = { id: string; name: string };
@@ -226,20 +227,47 @@ export default function PDVPage() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground grid grid-rows-[auto_1fr]">
-      <header className="p-4 border-b shadow-md bg-[linear-gradient(120deg,#ffffff_0%,#fff5ee_35%,#eef7ff_100%)] backdrop-blur">
-        <div className="flex w-full items-center justify-between">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/80 backdrop-blur-xl p-6 shadow-lg">
+        <div className="flex items-center gap-6">
+          {/* Logo and Brand */}
           <div className="flex items-center gap-4">
-            <div className="relative grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-b from-primary/15 to-transparent ring-1 ring-primary/20">
-              <ChefHat className="h-5 w-5 text-primary" />
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg">
+              <ChefHat className="h-7 w-7 text-white" />
             </div>
-            <div className="flex items-baseline gap-2">
-              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">
+            <div className="hidden sm:block">
+              <div className="font-bold text-2xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 Viandas & Marmitex
-              </h1>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">PDV</span>
+              </div>
+              <div className="text-sm text-muted-foreground">Ponto de Venda</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* User Info */}
+          {session?.user && (
+            <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-white/80 border border-white/30 backdrop-blur-sm shadow-sm">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-900">
+                  {session.user.name}
+                </span>
+                <span className="text-xs text-gray-500 capitalize">
+                  {session.user.role === "admin" ? "Administrador" : "PDV"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Clock */}
+          <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-white/80 border border-white/30 backdrop-blur-sm shadow-sm">
+            <Clock />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               className="h-9 gap-2"
