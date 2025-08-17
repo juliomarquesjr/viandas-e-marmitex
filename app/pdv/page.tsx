@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Kbd } from "../components/ui/kbd";
-import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, Boxes, ShoppingCart } from "lucide-react";
+import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, Boxes, ShoppingCart, LogOut } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,11 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import { useSession, signOut } from "next-auth/react";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = { id: string; name: string };
 
 export default function PDVPage() {
+  const { data: session } = useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -272,6 +274,13 @@ export default function PDVPage() {
               }}
             >
               <RefreshCcw className="h-4 w-4" /> Nova venda (F9)
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 gap-2"
+              onClick={() => signOut({ callbackUrl: "/auth/login" })}
+            >
+              <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>
         </div>
