@@ -45,7 +45,7 @@ export default function UnauthorizedPage() {
             </Button>
             <Button 
               variant="ghost"
-              onClick={() => signOut()}
+              onClick={() => signOut({ callbackUrl: "/auth/login" })}
             >
               Sair do Sistema
             </Button>

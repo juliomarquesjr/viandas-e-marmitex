@@ -21,6 +21,11 @@ export default withAuth(
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
     
+    // Usuários PDV não podem acessar rotas admin (exceto as permitidas acima)
+    if (pathname.startsWith("/admin") && token.role === "pdv" && !pathname.startsWith("/admin/pdv")) {
+      return NextResponse.redirect(new URL("/unauthorized", req.url));
+    }
+    
     return NextResponse.next();
   },
   {

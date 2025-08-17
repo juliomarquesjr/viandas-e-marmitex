@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
@@ -15,6 +15,20 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/admin";
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (status === "authenticated") {
+      if (session?.user?.role === "pdv") {
+        router.push("/pdv");
+      } else {
+        router.push("/admin");
+      }
+    }
+  }, [status, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +45,22 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Credenciais inválidas. Verifique seu email e senha.");
       } else {
-        router.push("/admin");
-        router.refresh();
+        // Get the user's role to redirect appropriately
+        const sessionResponse = await fetch("/api/auth/session");
+        const sessionData = await sessionResponse.json();
+        
+        // Determine redirect URL based on user role
+        let redirectUrl = callbackUrl;
+        if (sessionData?.user?.role === "pdv") {
+          // If user is PDV, redirect to PDV even if callbackUrl says otherwise
+          redirectUrl = "/pdv";
+        } else if (!redirectUrl || redirectUrl === "/auth/login") {
+          // Default redirect for admin users
+          redirectUrl = "/admin";
+        }
+        
+        // Use window.location for full page redirect to avoid blank page issue
+        window.location.href = redirectUrl;
       }
     } catch (err) {
       setError("Ocorreu um erro ao fazer login. Tente novamente.");
@@ -40,6 +68,20 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Don't show the login form if we're checking the session or redirecting
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
+      </div>
+    );
+  }
+
+  // If already authenticated, don't show the login form
+  if (status === "authenticated") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-secondary/10 p-4">
