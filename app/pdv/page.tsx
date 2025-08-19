@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Kbd } from "../components/ui/kbd";
-import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, Boxes, ShoppingCart, LogOut } from "lucide-react";
+import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, Boxes, ShoppingCart, LogOut, Image as ImageIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +19,19 @@ import { Clock } from "../components/ui/clock";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = { id: string; name: string };
+type Product = {
+  id: string;
+  name: string;
+  price_cents: number;
+  barcode?: string;
+  imageUrl?: string;
+  active: boolean;
+};
 
 export default function PDVPage() {
   const { data: session } = useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -37,11 +46,74 @@ export default function PDVPage() {
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [isNewSaleConfirmOpen, setNewSaleConfirmOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
+
+  // Função para reproduzir som
+  const playBeepSound = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.log("Erro ao reproduzir som:", e));
+    }
+  }, []);
+
+  // Efeito para adicionar produto automaticamente quando código de barras completo é digitado
+  useEffect(() => {
+    if (query.trim() !== "") {
+      // Procurar produto somente pelo código de barras completo
+      const product = products.find(
+        (p) => p.barcode && p.barcode === query.trim()
+      );
+      
+      if (product) {
+        // Adicionar produto ao carrinho automaticamente
+        setCart((prev) => {
+          const existingIndex = prev.findIndex((item) => item.id === product.id);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
+            setSelectedIndex(existingIndex);
+            return updated;
+          }
+          const item: CartItem = {
+            id: product.id,
+            name: product.name,
+            price: product.price_cents / 100,
+            qty: 1,
+          };
+          setSelectedIndex(prev.length);
+          return [...prev, item];
+        });
+        // Reproduzir som de beep
+        playBeepSound();
+        setQuery("");
+        inputRef.current?.focus();
+      }
+    }
+  }, [query, products, playBeepSound]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await fetch("/api/products?size=100&status=active");
+      if (!response.ok) throw new Error("Failed to fetch products");
+      const result = await response.json();
+      setProducts(result.data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
@@ -50,29 +122,6 @@ export default function PDVPage() {
       document.documentElement.requestFullscreen().catch(() => {});
     }
   }, []);
-
-  const addMockItem = useCallback(() => {
-    const id = Math.random().toString(36).slice(2, 8);
-    setCart((prev) => {
-      const existingIndex = prev.findIndex((i) => i.name.toLowerCase().includes(query.toLowerCase()));
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
-        setSelectedIndex(existingIndex);
-        return updated;
-      }
-      const item: CartItem = {
-        id,
-        name: query ? query : `Produto ${prev.length + 1}`,
-        price: 9.9,
-        qty: 1,
-      };
-      setSelectedIndex(prev.length);
-      return [...prev, item];
-    });
-      setQuery("");
-    inputRef.current?.focus();
-  }, [query]);
 
   const handleGlobalKeys = useCallback((e: KeyboardEvent) => {
     const isCtrlK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
@@ -227,6 +276,9 @@ export default function PDVPage() {
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground grid grid-rows-[auto_1fr]">
+      {/* Elemento de áudio para o som de beep */}
+      <audio ref={audioRef} src="/audio/beep.mp3" preload="auto" />
+      
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/80 backdrop-blur-xl p-6 shadow-lg">
         <div className="flex items-center gap-6">
           {/* Logo and Brand */}
@@ -324,35 +376,13 @@ export default function PDVPage() {
             <div className="relative w-full">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addMockItem();
-              }}
-              placeholder="Código de barras, nome ou SKU (Enter para adicionar)"
-              className="pl-9"
-            />
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Código de barras"
+                className="pl-9"
+              />
             </div>
-            <Button onClick={addMockItem} className="gap-2"><Plus className="h-4 w-4" />Adicionar</Button>
-            <Dialog open={isHelpOpen} onOpenChange={setHelpOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Atalhos de Teclado</DialogTitle>
-                  <DialogDescription>Otimize sua operação sem tirar as mãos do teclado.</DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                  <div className="flex items-center justify-between"><span>F1 Ajuda</span><span><Kbd>F1</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Busca</span><span><Kbd>Ctrl</Kbd>+<Kbd>K</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Pagamento</span><span><Kbd>F2</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Desconto</span><span><Kbd>F4</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Nova venda</span><span><Kbd>F9</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Navegar carrinho</span><span><Kbd>↑</Kbd>/<Kbd>↓</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Quantidade +/−</span><span><Kbd>+</Kbd>/<Kbd>−</Kbd></span></div>
-                  <div className="flex items-center justify-between"><span>Remover item</span><span><Kbd>Del</Kbd></span></div>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
           <div className="mt-2 flex items-center gap-3 text-lg font-semibold text-foreground">
             <Boxes className="h-5 w-5 text-primary" />
@@ -360,37 +390,99 @@ export default function PDVPage() {
             <div className="h-px flex-1 bg-border" />
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => {
-              const hasImage = i % 3 !== 0; // demo: alguns com imagem, outros sem
-              const imgSrc = hasImage ? `https://picsum.photos/seed/viandas-${i}/160/160` : "/product-placeholder.svg";
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setQuery(`Produto ${i + 1}`);
-                    addMockItem();
-                  }}
-                  className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+            {loadingProducts ? (
+              Array.from({ length: 12 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm animate-pulse"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imgSrc}
-                    alt={`Produto ${i + 1}`}
-                    className="h-24 w-24 flex-shrink-0 rounded-md object-cover"
-                    loading="lazy"
-                  />
+                  <div className="h-24 w-24 flex-shrink-0 rounded-md bg-gray-200" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="truncate text-base font-semibold">Produto {i + 1}</div>
-                        <div className="text-sm text-muted-foreground">Clique para adicionar</div>
+                        <div className="h-4 w-24 rounded bg-gray-200 mb-2"></div>
+                        <div className="h-3 w-32 rounded bg-gray-200"></div>
                       </div>
-                      <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">R$ 9,90</div>
+                      <div className="h-6 w-16 rounded-full bg-gray-200"></div>
                     </div>
                   </div>
-              </button>
-              );
-            })}
+                </div>
+              ))
+            ) : products.length === 0 ? (
+              <div className="col-span-3 grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <div>Nenhum produto cadastrado.</div>
+              </div>
+            ) : (
+              products.map((product) => {
+                const hasImage = product.imageUrl; // usar imagem real se disponível
+                const imgSrc = hasImage ? product.imageUrl : "/product-placeholder.svg";
+                const price = product.price_cents / 100; // converter centavos para reais
+                
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() => {
+                      // Adicionar produto ao carrinho
+                      setCart((prev) => {
+                        const existingIndex = prev.findIndex((item) => item.id === product.id);
+                        if (existingIndex >= 0) {
+                          const updated = [...prev];
+                          updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
+                          setSelectedIndex(existingIndex);
+                          return updated;
+                        }
+                        const item: CartItem = {
+                          id: product.id,
+                          name: product.name,
+                          price,
+                          qty: 1,
+                        };
+                        setSelectedIndex(prev.length);
+                        return [...prev, item];
+                      });
+                      // Reproduzir som de beep
+                      playBeepSound();
+                      setQuery("");
+                      inputRef.current?.focus();
+                    }}
+                    className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                      {hasImage ? (
+                        <img
+                          src={imgSrc}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            // Se a imagem falhar, mostrar o placeholder
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                            target.parentElement!.innerHTML = '<div class="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image h-8 w-8 text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
+                          }}
+                        />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-base font-semibold">{product.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {product.barcode ? `Cód: ${product.barcode}` : "Sem código"}
+                          </div>
+                        </div>
+                        <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
+                          R$ {price.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </section>
 
@@ -409,7 +501,7 @@ export default function PDVPage() {
           <div className="space-y-1 overflow-auto pr-2">
             {cart.length === 0 && (
               <div className="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-                <div>Seu carrinho está vazio. Pesquise acima e pressione Enter para adicionar.</div>
+                <div>Seu carrinho está vazio. Informe o código de barras para adicionar produtos automaticamente.</div>
               </div>
             )}
             {cart.map((item, idx) => (
@@ -696,7 +788,7 @@ export default function PDVPage() {
                     </Button>
                   </div>
                 </div>
-          </div>
+              </div>
             </DialogContent>
           </Dialog>
         </aside>
