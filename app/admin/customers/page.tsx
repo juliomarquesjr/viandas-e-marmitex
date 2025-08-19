@@ -374,7 +374,11 @@ export default function AdminCustomersPage() {
                             <User className="h-5 w-5 text-primary" />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">{customer.name}</div>
+                            <div className="font-medium text-gray-900">
+                              <a href={`/admin/customers/${customer.id}`} className="hover:underline">
+                                {customer.name}
+                              </a>
+                            </div>
                             <div className="text-xs text-gray-500">
                               Cadastrado em {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
                             </div>

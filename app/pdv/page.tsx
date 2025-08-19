@@ -235,7 +235,45 @@ export default function PDVPage() {
   }, [discount, subtotal]);
   const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
 
-  const finalizeSale = useCallback(() => {
+  const finalizeSale = useCallback(async () => {
+    // Registrar a venda na API
+    try {
+      const items = cart.map(item => ({
+        productId: item.id,
+        quantity: item.qty,
+        priceCents: Math.round(item.price * 100)
+      }));
+      
+      const subtotalCents = Math.round(subtotal * 100);
+      const discountCents = Math.round(discountAmount * 100);
+      const totalCents = Math.round(total * 100);
+      
+      const orderData = {
+        customerId: selectedCustomer?.id || null,
+        items,
+        subtotalCents,
+        discountCents,
+        totalCents,
+        paymentMethod: selectedPayment?.toLowerCase().replace(/\s+/g, '') || null
+      };
+      
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create order');
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      // Mesmo que ocorra um erro, continuamos com o fluxo normal
+    }
+    
+    // Resetar o estado do PDV
     setCart([]);
     setSelectedIndex(null);
     setQuery("");
@@ -244,7 +282,7 @@ export default function PDVPage() {
     setSelectedPayment(null);
     setPaymentOpen(false);
     inputRef.current?.focus();
-  }, []);
+  }, [cart, subtotal, discountAmount, total, selectedCustomer, selectedPayment]);
 
   const handleFinalizePayment = useCallback(() => {
     if (!selectedPayment || cart.length === 0) return;
