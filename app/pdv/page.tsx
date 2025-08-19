@@ -16,9 +16,10 @@ import {
 } from "../components/ui/dialog";
 import { useSession, signOut } from "next-auth/react";
 import { Clock } from "../components/ui/clock";
+import { CustomerSelector } from "../components/CustomerSelector";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
-type Customer = { id: string; name: string };
+type Customer = { id: string; name: string; phone?: string; email?: string };
 type Product = {
   id: string;
   name: string;
@@ -37,8 +38,6 @@ export default function PDVPage() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isPaymentOpen, setPaymentOpen] = useState(false);
   const [isHelpOpen, setHelpOpen] = useState(false);
-  const [isCustomerOpen, setCustomerOpen] = useState(false);
-  const [customerQuery, setCustomerQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isDiscountOpen, setDiscountOpen] = useState(false);
   const [discount, setDiscount] = useState<{ type: "percent" | "amount"; value: number } | null>(null);
@@ -130,15 +129,6 @@ export default function PDVPage() {
       inputRef.current?.focus();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
-      e.preventDefault();
-      setCustomerOpen(true);
-      setTimeout(() => {
-        const el = document.getElementById("customer-search-input");
-        (el as HTMLInputElement | null)?.focus();
-      }, 0);
-      return;
-    }
     if (e.key === "F1") {
       e.preventDefault();
       setHelpOpen(true);
@@ -158,11 +148,8 @@ export default function PDVPage() {
     }
     if (e.key === "F3") {
       e.preventDefault();
-      setCustomerOpen(true);
-      setTimeout(() => {
-        const el = document.getElementById("customer-search-input");
-        (el as HTMLInputElement | null)?.focus();
-      }, 0);
+      // Disparar evento personalizado para o CustomerSelector
+      window.dispatchEvent(new CustomEvent('openCustomerSelector'));
       return;
     }
     if (e.key === "F11") {
@@ -263,16 +250,20 @@ export default function PDVPage() {
     if (!selectedPayment || cart.length === 0) return;
     // Para "Ficha do Cliente" é obrigatório ter cliente selecionado
     if (selectedPayment === "Ficha do Cliente" && !selectedCustomer) {
-      setCustomerOpen(true);
-      setTimeout(() => {
-        const el = document.getElementById("customer-search-input");
-        (el as HTMLInputElement | null)?.focus();
-      }, 0);
+      // O componente CustomerSelector já trata isso
       return;
     }
     // Demais formas: segue sem obrigar cliente
     finalizeSale();
   }, [selectedPayment, cart.length, selectedCustomer, finalizeSale]);
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+
+  const handleRemoveCustomer = () => {
+    setSelectedCustomer(null);
+  };
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground grid grid-rows-[auto_1fr]">
@@ -323,7 +314,7 @@ export default function PDVPage() {
             <Button
               variant="outline"
               className="h-9 gap-2"
-              onClick={() => setCustomerOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent('openCustomerSelector'))}
               aria-label="Selecionar cliente (F3)"
               title="Selecionar cliente (F3)"
             >
@@ -494,9 +485,12 @@ export default function PDVPage() {
             </div>
             <Badge variant="subtle">Itens: {cart.length}</Badge>
           </div>
-          {selectedCustomer && (
-            <div className="-mt-1 text-xs text-muted-foreground">Cliente: <span className="text-foreground font-medium">{selectedCustomer.name}</span></div>
-          )}
+          
+          <CustomerSelector 
+            onSelect={handleSelectCustomer}
+            selectedCustomer={selectedCustomer}
+            onRemove={handleRemoveCustomer}
+          />
 
           <div className="space-y-1 overflow-auto pr-2">
             {cart.length === 0 && (
@@ -604,20 +598,6 @@ export default function PDVPage() {
                   ) : (
                     <span className="text-muted-foreground">Nenhum cliente selecionado.</span>
                   )}
-                  {!selectedCustomer && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setCustomerOpen(true);
-                        setTimeout(() => {
-                          const el = document.getElementById("customer-search-input");
-                          (el as HTMLInputElement | null)?.focus();
-                        }, 0);
-                      }}
-                    >
-                      Selecionar cliente
-                    </Button>
-                  )}
                 </div>
               )}
               <div className="mt-4 text-right">
@@ -664,58 +644,6 @@ export default function PDVPage() {
                 >
                   Nova venda
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Prompt de cliente removido para pagamentos não "Ficha do Cliente" */}
-
-          {/* Seleção de cliente */}
-          <Dialog open={isCustomerOpen} onOpenChange={setCustomerOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Selecionar cliente</DialogTitle>
-                <DialogDescription>Busque por nome. Pressione Enter para confirmar.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-3">
-                <Input
-                  id="customer-search-input"
-                  value={customerQuery}
-                  onChange={(e) => setCustomerQuery(e.target.value)}
-                  placeholder="Nome do cliente (Ctrl+L / F3)"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && customerQuery.trim()) {
-                      // Em produção, aqui deveríamos escolher um resultado da lista (API)
-                      if (!demoDataEnabled) return;
-                      setSelectedCustomer({ id: crypto.randomUUID(), name: customerQuery.trim() });
-                      setCustomerOpen(false);
-                      setCustomerQuery("");
-                    }
-                  }}
-                />
-                {demoDataEnabled ? (
-                  <div className="text-xs text-muted-foreground">
-                    Modo demo ativo: Enter confirma o texto como cliente.
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">
-                    Conecte a busca de clientes à API (ex.: GET /customers?query=).
-                  </div>
-                )}
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setCustomerOpen(false)}>Cancelar</Button>
-                  <Button
-                    onClick={() => {
-                      if (!customerQuery.trim()) return;
-                      if (!demoDataEnabled) return;
-                      setSelectedCustomer({ id: crypto.randomUUID(), name: customerQuery.trim() });
-                      setCustomerOpen(false);
-                      setCustomerQuery("");
-                    }}
-                  >
-                    Selecionar
-                  </Button>
-                </div>
               </div>
             </DialogContent>
           </Dialog>
