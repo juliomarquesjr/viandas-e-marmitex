@@ -36,7 +36,6 @@ O sistema possui dois perfis de usuário com diferentes níveis de acesso:
 ## Pré-requisitos
 
 - Node.js 18+
-- Docker e Docker Compose
 
 ## Instalação
 
@@ -51,18 +50,13 @@ O sistema possui dois perfis de usuário com diferentes níveis de acesso:
    npm install
    ```
 
-3. **Inicie o banco de dados PostgreSQL:**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Configure as variáveis de ambiente:**
+3. **Configure as variáveis de ambiente:**
    ```bash
    cp .env.example .env
    # Ajuste as variáveis conforme necessário
    ```
 
-5. **Execute as migrations do banco de dados:**
+4. **Execute as migrations do banco de dados:**
    ```bash
    npx prisma migrate dev
    ```
