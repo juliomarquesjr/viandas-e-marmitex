@@ -17,6 +17,16 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useToast } from "../../components/Toast";
 
 type Customer = {
   id: string;
@@ -31,6 +41,8 @@ type Customer = {
 };
 
 export default function AdminCustomersPage() {
+  const { showToast } = useToast();
+  
   // Estados de dados
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +66,11 @@ export default function AdminCustomersPage() {
     zip: "",
     active: true
   });
+
+  // Estados de alerta
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Estados de filtros e busca
   const [searchTerm, setSearchTerm] = useState("");
@@ -179,7 +196,20 @@ export default function AdminCustomersPage() {
         
         if (!response.ok) throw new Error('Failed to update customer');
         const updatedCustomer = await response.json();
-        setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+        
+        // Verificar se o código de barras foi alterado
+        if (editingCustomer.barcode !== updatedCustomer.barcode && updatedCustomer.barcode) {
+          setConfirmMessage(`Atenção: O código de barras do cliente será alterado para ${updatedCustomer.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`);
+          setPendingAction(() => () => {
+            setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+            showToast("Cliente atualizado com sucesso!", "success");
+          });
+          setIsConfirmOpen(true);
+        } else {
+          setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+          showToast("Cliente atualizado com sucesso!", "success");
+          closeForm();
+        }
       } else {
         // Criar novo cliente
         const response = await fetch(`/api/customers`, {
@@ -190,12 +220,23 @@ export default function AdminCustomersPage() {
         
         if (!response.ok) throw new Error('Failed to create customer');
         const newCustomer = await response.json();
-        setCustomers(prev => [...prev, newCustomer]);
+        
+        // Verificar se o código de barras foi definido
+        if (newCustomer.barcode) {
+          setConfirmMessage(`Atenção: O código de barras do cliente será definido como ${newCustomer.barcode}.`);
+          setPendingAction(() => () => {
+            setCustomers(prev => [...prev, newCustomer]);
+            showToast("Cliente cadastrado com sucesso!", "success");
+          });
+          setIsConfirmOpen(true);
+        } else {
+          setCustomers(prev => [...prev, newCustomer]);
+          showToast("Cliente cadastrado com sucesso!", "success");
+          closeForm();
+        }
       }
-      
-      closeForm();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save customer');
+      showToast(err instanceof Error ? err.message : 'Failed to save customer', "error");
     }
   };
 
@@ -217,6 +258,15 @@ export default function AdminCustomersPage() {
     return active 
       ? { label: "Ativo", color: "bg-green-100 text-green-700 border-green-200" }
       : { label: "Inativo", color: "bg-red-100 text-red-700 border-red-200" };
+  };
+
+  const handleConfirmAction = () => {
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+    setIsConfirmOpen(false);
+    closeForm();
   };
 
   return (
@@ -716,6 +766,17 @@ export default function AdminCustomersPage() {
           </Card>
         </div>
       )}
+
+      {/* Diálogo de Confirmação */}
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        title="Aviso Importante"
+        description={confirmMessage}
+        onConfirm={handleConfirmAction}
+        confirmText="Continuar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

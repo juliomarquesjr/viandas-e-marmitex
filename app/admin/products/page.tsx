@@ -17,6 +17,16 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useToast } from "../../components/Toast";
 
 type Product = {
   id: string;
@@ -40,6 +50,8 @@ type Category = {
 };
 
 export default function AdminProductsPage() {
+  const { showToast } = useToast();
+  
   // Estados de dados
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -62,6 +74,11 @@ export default function AdminProductsPage() {
     product_type: "sellable" as Product["product_type"],
     variable_product: false
   });
+
+  // Estados de alerta
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Estados de filtros e busca
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,7 +194,20 @@ export default function AdminProductsPage() {
         
         if (!response.ok) throw new Error('Failed to update product');
         const updatedProduct = await response.json();
-        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+        
+        // Verificar se o código de barras foi alterado
+        if (editingProduct.barcode !== updatedProduct.barcode && updatedProduct.barcode) {
+          setConfirmMessage(`Atenção: O código de barras do produto será alterado para ${updatedProduct.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`);
+          setPendingAction(() => () => {
+            setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+            showToast("Produto atualizado com sucesso!", "success");
+          });
+          setIsConfirmOpen(true);
+        } else {
+          setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+          showToast("Produto atualizado com sucesso!", "success");
+          closeForm();
+        }
       } else {
         // Criar novo produto
         const response = await fetch(`/api/products`, {
@@ -188,12 +218,23 @@ export default function AdminProductsPage() {
         
         if (!response.ok) throw new Error('Failed to create product');
         const newProduct = await response.json();
-        setProducts(prev => [...prev, newProduct]);
+        
+        // Verificar se o código de barras foi definido
+        if (newProduct.barcode) {
+          setConfirmMessage(`Atenção: O código de barras do produto será definido como ${newProduct.barcode}.`);
+          setPendingAction(() => () => {
+            setProducts(prev => [...prev, newProduct]);
+            showToast("Produto cadastrado com sucesso!", "success");
+          });
+          setIsConfirmOpen(true);
+        } else {
+          setProducts(prev => [...prev, newProduct]);
+          showToast("Produto cadastrado com sucesso!", "success");
+          closeForm();
+        }
       }
-      
-      closeForm();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save product');
+      showToast(err instanceof Error ? err.message : 'Failed to save product', "error");
     }
   };
 
@@ -227,6 +268,15 @@ export default function AdminProductsPage() {
     return type === "sellable"
       ? { label: "Vendável", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Package }
       : { label: "Adicional", color: "bg-orange-100 text-orange-700 border-orange-200", icon: Plus };
+  };
+
+  const handleConfirmAction = () => {
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
+    setIsConfirmOpen(false);
+    closeForm();
   };
 
   // Funções para formatação de preço
@@ -858,6 +908,17 @@ export default function AdminProductsPage() {
           </Card>
         </div>
       )}
+
+      {/* Diálogo de Confirmação */}
+      <ConfirmDialog
+        open={isConfirmOpen}
+        onOpenChange={setIsConfirmOpen}
+        title="Aviso Importante"
+        description={confirmMessage}
+        onConfirm={handleConfirmAction}
+        confirmText="Continuar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }
