@@ -662,7 +662,10 @@ export default function AdminProductsPage() {
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          const randomBarcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
+                          // Gerar código de barras no range 5-7 (iniciando com 5, 6 ou 7)
+                          const prefix = Math.floor(Math.random() * 3) + 5; // 5, 6 ou 7
+                          const randomSuffix = Math.floor(Math.random() * 1000000000000);
+                          const randomBarcode = prefix * 1000000000000 + randomSuffix;
                           setFormData(prev => ({ ...prev, barcode: randomBarcode.toString() }));
                         }}
                         className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"

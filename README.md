@@ -25,6 +25,13 @@ O sistema possui dois perfis de usuário com diferentes níveis de acesso:
 - Pode visualizar produtos e clientes
 - Não pode acessar áreas administrativas restritas
 
+## Códigos de Barras
+
+O sistema utiliza códigos de barras para identificação rápida de produtos e clientes no PDV:
+
+- **Clientes**: Códigos que começam com 1, 2 ou 3
+- **Produtos**: Códigos que começam com 5, 6 ou 7
+
 ## Tecnologias
 
 - **Frontend**: Next.js 15, React 19, TypeScript

@@ -19,7 +19,7 @@ import { Clock } from "../components/ui/clock";
 import { CustomerSelector } from "../components/CustomerSelector";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
-type Customer = { id: string; name: string; phone?: string; email?: string };
+type Customer = { id: string; name: string; phone?: string; email?: string; barcode?: string };
 type Product = {
   id: string;
   name: string;
@@ -57,40 +57,76 @@ export default function PDVPage() {
     }
   }, []);
 
-  // Efeito para adicionar produto automaticamente quando código de barras completo é digitado
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+
   useEffect(() => {
     if (query.trim() !== "") {
-      // Procurar produto somente pelo código de barras completo
-      const product = products.find(
-        (p) => p.barcode && p.barcode === query.trim()
-      );
+      // Verificar se é um código de barras de cliente (começa com 1, 2 ou 3)
+      const isCustomerBarcode = /^[1-3]/.test(query.trim());
       
-      if (product) {
-        // Adicionar produto ao carrinho automaticamente
-        setCart((prev) => {
-          const existingIndex = prev.findIndex((item) => item.id === product.id);
-          if (existingIndex >= 0) {
-            const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
-            setSelectedIndex(existingIndex);
-            return updated;
+      if (isCustomerBarcode) {
+        // Procurar cliente pelo código de barras
+        const fetchCustomerByBarcode = async () => {
+          try {
+            const response = await fetch(`/api/customers?q=${encodeURIComponent(query.trim())}`);
+            if (!response.ok) throw new Error("Failed to fetch customer");
+            const result = await response.json();
+            const customer = result.data.find((c: Customer) => c.barcode === query.trim());
+            
+            if (customer) {
+              // Selecionar cliente automaticamente
+              handleSelectCustomer(customer);
+              playBeepSound();
+              setQuery("");
+              inputRef.current?.focus();
+            }
+          } catch (error) {
+            console.error("Error fetching customer by barcode:", error);
           }
-          const item: CartItem = {
-            id: product.id,
-            name: product.name,
-            price: product.price_cents / 100,
-            qty: 1,
-          };
-          setSelectedIndex(prev.length);
-          return [...prev, item];
-        });
-        // Reproduzir som de beep
-        playBeepSound();
-        setQuery("");
-        inputRef.current?.focus();
+        };
+        
+        fetchCustomerByBarcode();
+        return;
+      }
+      
+      // Verificar se é um código de barras de produto (começa com 5, 6 ou 7)
+      const isProductBarcode = /^[5-7]/.test(query.trim());
+      
+      if (isProductBarcode) {
+        // Procurar produto somente pelo código de barras completo
+        const product = products.find(
+          (p) => p.barcode && p.barcode === query.trim()
+        );
+        
+        if (product) {
+          // Adicionar produto ao carrinho automaticamente
+          setCart((prev) => {
+            const existingIndex = prev.findIndex((item) => item.id === product.id);
+            if (existingIndex >= 0) {
+              const updated = [...prev];
+              updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
+              setSelectedIndex(existingIndex);
+              return updated;
+            }
+            const item: CartItem = {
+              id: product.id,
+              name: product.name,
+              price: product.price_cents / 100,
+              qty: 1,
+            };
+            setSelectedIndex(prev.length);
+            return [...prev, item];
+          });
+          // Reproduzir som de beep
+          playBeepSound();
+          setQuery("");
+          inputRef.current?.focus();
+        }
       }
     }
-  }, [query, products, playBeepSound]);
+  }, [query, products, playBeepSound, handleSelectCustomer]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -294,10 +330,6 @@ export default function PDVPage() {
     // Demais formas: segue sem obrigar cliente
     finalizeSale();
   }, [selectedPayment, cart.length, selectedCustomer, finalizeSale]);
-
-  const handleSelectCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-  };
 
   const handleRemoveCustomer = () => {
     setSelectedCustomer(null);

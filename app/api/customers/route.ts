@@ -17,7 +17,8 @@ export async function GET(request: Request) {
         { name: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
         { email: { contains: q, mode: 'insensitive' } },
-        { doc: { contains: q } }
+        { doc: { contains: q } },
+        { barcode: { contains: q } }
       ];
     }
     
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
         phone: body.phone,
         email: body.email,
         doc: body.doc,
+        barcode: body.barcode,
         address: body.address ? JSON.parse(JSON.stringify(body.address)) : undefined,
         active: body.active !== undefined ? body.active : true
       }
@@ -116,6 +118,7 @@ export async function PUT(request: Request) {
         phone: data.phone,
         email: data.email,
         doc: data.doc,
+        barcode: data.barcode,
         address: data.address ? JSON.parse(JSON.stringify(data.address)) : undefined,
         active: data.active !== undefined ? data.active : true
       }

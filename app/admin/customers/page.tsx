@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Check,
   Edit,
+  Package,
   Phone,
   Plus,
   Search,
@@ -23,6 +24,7 @@ type Customer = {
   phone: string;
   email?: string;
   doc?: string;
+  barcode?: string;
   address?: any;
   active: boolean;
   createdAt: string;
@@ -42,6 +44,7 @@ export default function AdminCustomersPage() {
     phone: "",
     email: "",
     doc: "",
+    barcode: "",
     street: "",
     number: "",
     complement: "",
@@ -86,6 +89,7 @@ export default function AdminCustomersPage() {
       phone: "",
       email: "",
       doc: "",
+      barcode: "",
       street: "",
       number: "",
       complement: "",
@@ -106,6 +110,7 @@ export default function AdminCustomersPage() {
         phone: customer.phone,
         email: customer.email || "",
         doc: customer.doc || "",
+        barcode: customer.barcode || "",
         street: address.street || "",
         number: address.number || "",
         complement: address.complement || "",
@@ -159,6 +164,7 @@ export default function AdminCustomersPage() {
         phone: formData.phone,
         email: formData.email || undefined,
         doc: formData.doc || undefined,
+        barcode: formData.barcode || undefined,
         address: Object.values(address).some(v => v) ? address : undefined,
         active: formData.active
       };
@@ -525,6 +531,33 @@ export default function AdminCustomersPage() {
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Código de Barras</label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="0123456789012"
+                        value={formData.barcode}
+                        onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          // Gerar código de barras no range 1-3 (iniciando com 1, 2 ou 3)
+                          const prefix = Math.floor(Math.random() * 3) + 1; // 1, 2 ou 3
+                          const randomSuffix = Math.floor(Math.random() * 1000000000000);
+                          const randomBarcode = prefix * 1000000000000 + randomSuffix;
+                          setFormData(prev => ({ ...prev, barcode: randomBarcode.toString() }));
+                        }}
+                        className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
+                        title="Gerar código de barras aleatório"
+                      >
+                        <Package className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">

@@ -33,6 +33,7 @@ model Customer {
   phone      String
   email      String?  @unique
   doc        String?  // CPF/CNPJ
+  barcode    String?  @unique // Código de barras para identificação rápida no PDV
   address    Json?    // Endereço em formato JSON
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())

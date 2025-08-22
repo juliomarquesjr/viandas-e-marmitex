@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -10,6 +8,7 @@ type Customer = {
   name: string;
   phone?: string;
   email?: string;
+  barcode?: string;
 };
 
 export function CustomerSelector({
@@ -188,7 +187,7 @@ export function CustomerSelector({
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">Busque por nome, telefone ou e-mail</p>
+              <p className="text-sm text-muted-foreground">Busque por nome, telefone, e-mail ou código de barras</p>
             </div>
             
             <div className="relative mb-4">
@@ -200,7 +199,7 @@ export function CustomerSelector({
                   setQuery(e.target.value);
                   setSelectedIndex(0);
                 }}
-                placeholder="Nome, telefone ou e-mail do cliente"
+                placeholder="Nome, telefone, e-mail ou código de barras do cliente"
                 className="pl-9"
               />
             </div>
