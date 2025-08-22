@@ -14,7 +14,8 @@ import {
   Package,
   Trash2,
   Check,
-  Clock
+  Clock,
+  TrendingUp
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -69,6 +70,11 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState({
+    pendingAmount: 0,
+    last30DaysAmount: 0,
+    totalOrders: 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,11 +93,38 @@ export default function CustomerDetailPage() {
       if (!ordersResponse.ok) throw new Error('Failed to fetch orders');
       const ordersData = await ordersResponse.json();
       setOrders(ordersData.data);
+      
+      // Calcular estatísticas
+      calculateStats(ordersData.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateStats = (ordersData: Order[]) => {
+    // Valor total das compras pendentes
+    const pendingAmount = ordersData
+      .filter(order => order.status === 'pending')
+      .reduce((sum, order) => sum + order.totalCents, 0);
+    
+    // Total de compras nos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const last30DaysAmount = ordersData
+      .filter(order => new Date(order.createdAt) >= thirtyDaysAgo)
+      .reduce((sum, order) => sum + order.totalCents, 0);
+    
+    // Total de pedidos
+    const totalOrders = ordersData.length;
+    
+    setStats({
+      pendingAmount,
+      last30DaysAmount,
+      totalOrders
+    });
   };
 
   useEffect(() => {
@@ -145,6 +178,9 @@ export default function CustomerDetailPage() {
       
       // Remover o pedido da lista
       setOrders(prev => prev.filter(order => order.id !== orderId));
+      
+      // Recalcular estatísticas
+      calculateStats(orders.filter(order => order.id !== orderId));
     } catch (error) {
       console.error('Error deleting order:', error);
       alert('Erro ao excluir venda. Por favor, tente novamente.');
@@ -257,58 +293,40 @@ export default function CustomerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">Total de Compras</p>
-                <p className="text-3xl font-bold text-blue-900">{orders.length}</p>
-              </div>
-              <Receipt className="h-12 w-12 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">Compras Confirmadas</p>
-                <p className="text-3xl font-bold text-green-900">
-                  {orders.filter(order => order.status === 'confirmed').length}
-                </p>
-              </div>
-              <Check className="h-12 w-12 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
+      {/* Novos Cards de Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-amber-600">Compras Pendentes</p>
-                <p className="text-3xl font-bold text-amber-900">
-                  {orders.filter(order => order.status === 'pending').length}
-                </p>
+                <p className="text-xl font-bold text-amber-900">{formatCurrency(stats.pendingAmount)}</p>
               </div>
-              <Clock className="h-12 w-12 text-amber-600" />
+              <Clock className="h-8 w-8 text-amber-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Últimos 30 Dias</p>
+                <p className="text-xl font-bold text-blue-900">{formatCurrency(stats.last30DaysAmount)}</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">Valor Total</p>
-                <p className="text-3xl font-bold text-purple-900">
-                  {formatCurrency(orders.reduce((sum, order) => sum + order.totalCents, 0))}
-                </p>
+                <p className="text-sm font-medium text-purple-600">Total de Pedidos</p>
+                <p className="text-xl font-bold text-purple-900">{stats.totalOrders}</p>
               </div>
-              <CreditCard className="h-12 w-12 text-purple-600" />
+              <Receipt className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
