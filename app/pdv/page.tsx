@@ -17,6 +17,7 @@ import {
 import { useSession, signOut } from "next-auth/react";
 import { Clock } from "../components/ui/clock";
 import { CustomerSelector } from "../components/CustomerSelector";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = { id: string; name: string; phone?: string; email?: string; barcode?: string };
@@ -45,6 +46,8 @@ export default function PDVPage() {
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [isNewSaleConfirmOpen, setNewSaleConfirmOpen] = useState(false);
+  const [isChangeCustomerConfirmOpen, setChangeCustomerConfirmOpen] = useState(false);
+  const [pendingCustomer, setPendingCustomer] = useState<Customer | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
@@ -58,7 +61,26 @@ export default function PDVPage() {
   }, []);
 
   const handleSelectCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
+    // Se já houver um cliente selecionado, mostrar confirmação antes de trocar
+    if (selectedCustomer && selectedCustomer.id !== customer.id) {
+      setPendingCustomer(customer);
+      setChangeCustomerConfirmOpen(true);
+    } else {
+      setSelectedCustomer(customer);
+    }
+  };
+
+  const handleConfirmCustomerChange = () => {
+    if (pendingCustomer) {
+      setSelectedCustomer(pendingCustomer);
+      setPendingCustomer(null);
+    }
+    setChangeCustomerConfirmOpen(false);
+  };
+
+  const handleCancelCustomerChange = () => {
+    setPendingCustomer(null);
+    setChangeCustomerConfirmOpen(false);
   };
 
   useEffect(() => {
@@ -76,7 +98,7 @@ export default function PDVPage() {
             const customer = result.data.find((c: Customer) => c.barcode === query.trim());
             
             if (customer) {
-              // Selecionar cliente automaticamente
+              // Selecionar cliente automaticamente (irá mostrar confirmação se necessário)
               handleSelectCustomer(customer);
               playBeepSound();
               setQuery("");
@@ -126,7 +148,7 @@ export default function PDVPage() {
         }
       }
     }
-  }, [query, products, playBeepSound, handleSelectCustomer]);
+  }, [query, products, playBeepSound, handleSelectCustomer, selectedCustomer]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -789,6 +811,17 @@ export default function PDVPage() {
               </div>
             </DialogContent>
           </Dialog>
+          
+          {/* Confirmar alteração de cliente */}
+          <ConfirmDialog
+            open={isChangeCustomerConfirmOpen}
+            onOpenChange={setChangeCustomerConfirmOpen}
+            title="Alterar cliente da venda?"
+            description="Já existe um cliente selecionado para esta venda. Deseja substituí-lo?"
+            onConfirm={handleConfirmCustomerChange}
+            confirmText="Alterar cliente"
+            cancelText="Manter atual"
+          />
         </aside>
       </main>
     </div>
