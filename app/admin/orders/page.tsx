@@ -1,26 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { 
-  Receipt, 
-  Search, 
-  Filter, 
-  Calendar, 
-  User, 
-  CreditCard, 
-  Clock, 
-  CheckCircle, 
-  XCircle,
-  Package,
-  Truck,
+import {
   Check,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  Filter,
+  Package,
+  Receipt,
+  Search,
+  Trash2,
+  Truck,
+  User,
   X,
-  Trash2
+  XCircle,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { useEffect, useState } from "react";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
 
 type Order = {
   id: string;
@@ -30,6 +35,8 @@ type Order = {
   deliveryFeeCents: number;
   totalCents: number;
   paymentMethod: string | null;
+  cashReceivedCents: number | null;
+  changeCents: number | null;
   createdAt: string;
   customer: {
     id: string;
@@ -48,12 +55,32 @@ type Order = {
 };
 
 const statusMap = {
-  pending: { label: "Pendente", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
-  confirmed: { label: "Confirmado", icon: CheckCircle, color: "bg-blue-100 text-blue-800" },
-  preparing: { label: "Preparando", icon: Package, color: "bg-indigo-100 text-indigo-800" },
+  pending: {
+    label: "Pendente",
+    icon: Clock,
+    color: "bg-yellow-100 text-yellow-800",
+  },
+  confirmed: {
+    label: "Confirmado",
+    icon: CheckCircle,
+    color: "bg-blue-100 text-blue-800",
+  },
+  preparing: {
+    label: "Preparando",
+    icon: Package,
+    color: "bg-indigo-100 text-indigo-800",
+  },
   ready: { label: "Pronto", icon: Check, color: "bg-green-100 text-green-800" },
-  delivered: { label: "Entregue", icon: Truck, color: "bg-purple-100 text-purple-800" },
-  cancelled: { label: "Cancelado", icon: XCircle, color: "bg-red-100 text-red-800" }
+  delivered: {
+    label: "Entregue",
+    icon: Truck,
+    color: "bg-purple-100 text-purple-800",
+  },
+  cancelled: {
+    label: "Cancelado",
+    icon: XCircle,
+    color: "bg-red-100 text-red-800",
+  },
 };
 
 const paymentMethodMap = {
@@ -61,7 +88,7 @@ const paymentMethodMap = {
   credit: "Cartão de Crédito",
   debit: "Cartão de Débito",
   pix: "PIX",
-  invoice: "Ficha do Cliente"
+  invoice: "Ficha do Cliente",
 };
 
 export default function AdminOrdersPage() {
@@ -77,25 +104,41 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      
+
       if (statusFilter !== "all") {
         params.append("status", statusFilter);
       }
-      
+
       if (dateFilter.start) {
         params.append("startDate", dateFilter.start);
       }
-      
+
       if (dateFilter.end) {
         params.append("endDate", dateFilter.end);
       }
-      
+
       const response = await fetch(`/api/orders?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch orders');
+      if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
+      console.log("Orders data:", result.data); // Log para depuração
+
+      // Verificar se os campos de pagamento estão presentes
+      result.data.forEach((order: any) => {
+        if (order.paymentMethod === "cash") {
+          console.log(
+            `Order ${order.id}: cashReceivedCents=${order.cashReceivedCents}, changeCents=${order.changeCents}`
+          );
+          console.log(
+            "Types:",
+            typeof order.cashReceivedCents,
+            typeof order.changeCents
+          );
+          console.log("Values:", order.cashReceivedCents, order.changeCents);
+        }
+      });
       setOrders(result.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
+      setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -105,41 +148,48 @@ export default function AdminOrdersPage() {
     loadOrders();
   }, [statusFilter, dateFilter]);
 
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
+  const formatCurrency = (cents: number | null) => {
+    if (cents === null || cents === undefined) return "N/A";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(cents / 100);
   };
 
   const deleteOrder = async (orderId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.')) {
+    if (
+      !confirm(
+        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
+      )
+    ) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/orders?id=${orderId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to delete order');
+        throw new Error("Failed to delete order");
       }
-      
+
       // Remover o pedido da lista
-      setOrders(prev => prev.filter(order => order.id !== orderId));
+      setOrders((prev) => prev.filter((order) => order.id !== orderId));
     } catch (error) {
-      console.error('Error deleting order:', error);
-      alert('Erro ao excluir venda. Por favor, tente novamente.');
+      console.error("Error deleting order:", error);
+      alert("Erro ao excluir venda. Por favor, tente novamente.");
     }
   };
 
   const getStatusInfo = (status: string) => {
-    return statusMap[status as keyof typeof statusMap] || { 
-      label: status, 
-      icon: Clock, 
-      color: "bg-gray-100 text-gray-800" 
-    };
+    return (
+      statusMap[status as keyof typeof statusMap] || {
+        label: status,
+        icon: Clock,
+        color: "bg-gray-100 text-gray-800",
+      }
+    );
   };
 
   const getPaymentMethodLabel = (method: string | null) => {
@@ -148,12 +198,12 @@ export default function AdminOrdersPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -162,7 +212,9 @@ export default function AdminOrdersPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Vendas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gerenciamento de Vendas
+          </h1>
           <p className="text-gray-600">Acompanhe todas as vendas realizadas</p>
         </div>
       </div>
@@ -173,8 +225,12 @@ export default function AdminOrdersPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">Total de Vendas</p>
-                <p className="text-3xl font-bold text-blue-900">{orders.length}</p>
+                <p className="text-sm font-medium text-blue-600">
+                  Total de Vendas
+                </p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {orders.length}
+                </p>
               </div>
               <Receipt className="h-12 w-12 text-blue-600" />
             </div>
@@ -185,9 +241,14 @@ export default function AdminOrdersPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">Vendas Confirmadas</p>
+                <p className="text-sm font-medium text-green-600">
+                  Vendas Confirmadas
+                </p>
                 <p className="text-3xl font-bold text-green-900">
-                  {orders.filter(order => order.status === 'confirmed').length}
+                  {
+                    orders.filter((order) => order.status === "confirmed")
+                      .length
+                  }
                 </p>
               </div>
               <Check className="h-12 w-12 text-green-600" />
@@ -199,9 +260,11 @@ export default function AdminOrdersPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-600">Vendas Pendentes</p>
+                <p className="text-sm font-medium text-amber-600">
+                  Vendas Pendentes
+                </p>
                 <p className="text-3xl font-bold text-amber-900">
-                  {orders.filter(order => order.status === 'pending').length}
+                  {orders.filter((order) => order.status === "pending").length}
                 </p>
               </div>
               <Clock className="h-12 w-12 text-amber-600" />
@@ -213,9 +276,13 @@ export default function AdminOrdersPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">Valor Total</p>
+                <p className="text-sm font-medium text-purple-600">
+                  Valor Total
+                </p>
                 <p className="text-3xl font-bold text-purple-900">
-                  {formatCurrency(orders.reduce((sum, order) => sum + order.totalCents, 0))}
+                  {formatCurrency(
+                    orders.reduce((sum, order) => sum + order.totalCents, 0)
+                  )}
                 </p>
               </div>
               <CreditCard className="h-12 w-12 text-purple-600" />
@@ -272,21 +339,29 @@ export default function AdminOrdersPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Data Início</label>
+            <label className="text-sm font-medium text-gray-700">
+              Data Início
+            </label>
             <Input
               type="date"
               value={dateFilter.start}
-              onChange={(e) => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+              onChange={(e) =>
+                setDateFilter((prev) => ({ ...prev, start: e.target.value }))
+              }
               className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Data Fim</label>
+            <label className="text-sm font-medium text-gray-700">
+              Data Fim
+            </label>
             <Input
               type="date"
               value={dateFilter.end}
-              onChange={(e) => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+              onChange={(e) =>
+                setDateFilter((prev) => ({ ...prev, end: e.target.value }))
+              }
               className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
             />
           </div>
@@ -296,9 +371,12 @@ export default function AdminOrdersPage() {
       {/* Tabela de Pedidos */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">Lista de Vendas</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-900">
+            Lista de Vendas
+          </CardTitle>
           <CardDescription>
-            {orders.length} venda{orders.length !== 1 ? 's' : ''} encontrada{orders.length !== 1 ? 's' : ''}
+            {orders.length} venda{orders.length !== 1 ? "s" : ""} encontrada
+            {orders.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -312,9 +390,14 @@ export default function AdminOrdersPage() {
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <X className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar vendas</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Erro ao carregar vendas
+              </h3>
               <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={loadOrders} className="bg-primary hover:bg-primary/90">
+              <Button
+                onClick={loadOrders}
+                className="bg-primary hover:bg-primary/90"
+              >
                 Tentar novamente
               </Button>
             </div>
@@ -323,25 +406,46 @@ export default function AdminOrdersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Pedido</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Cliente</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Itens</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Valor</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Pagamento</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Data</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Pedido
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Cliente
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Itens
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Valor
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Pagamento
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Data
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((order) => {
                     const StatusIcon = getStatusInfo(order.status).icon;
                     return (
-                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <tr
+                        key={order.id}
+                        className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                      >
                         <td className="py-4 px-4">
-                          <div className="font-mono text-sm text-gray-600">#{order.id.slice(0, 8)}</div>
+                          <div className="font-mono text-sm text-gray-600">
+                            #{order.id.slice(0, 8)}
+                          </div>
                         </td>
-                        
+
                         <td className="py-4 px-4">
                           {order.customer ? (
                             <div className="flex items-center gap-2">
@@ -349,48 +453,78 @@ export default function AdminOrdersPage() {
                                 <User className="h-4 w-4 text-primary" />
                               </div>
                               <div>
-                                <div className="font-medium text-gray-900 text-sm">{order.customer.name}</div>
-                                <div className="text-xs text-gray-500">{order.customer.phone}</div>
+                                <div className="font-medium text-gray-900 text-sm">
+                                  {order.customer.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.customer.phone}
+                                </div>
                               </div>
                             </div>
                           ) : (
-                            <div className="text-gray-500 text-sm">Sem cliente</div>
+                            <div className="text-gray-500 text-sm">
+                              Sem cliente
+                            </div>
                           )}
                         </td>
-                        
+
                         <td className="py-4 px-4">
                           <div className="text-sm text-gray-700">
-                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                            {order.items.length} item
+                            {order.items.length !== 1 ? "s" : ""}
                           </div>
                           <div className="text-xs text-gray-500 truncate max-w-xs">
-                            {order.items.map(item => item.product.name).join(', ')}
+                            {order.items
+                              .map((item) => item.product.name)
+                              .join(", ")}
                           </div>
                         </td>
-                        
+
                         <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">{formatCurrency(order.totalCents)}</div>
+                          <div className="font-medium text-gray-900">
+                            {formatCurrency(order.totalCents)}
+                          </div>
                           {order.discountCents > 0 && (
                             <div className="text-xs text-red-600">
                               -{formatCurrency(order.discountCents)}
                             </div>
                           )}
+                          {order.paymentMethod === "dinheiro" &&
+                            order.cashReceivedCents != null &&
+                            order.changeCents != null && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                <div>
+                                  Recebido:{" "}
+                                  {formatCurrency(order.cashReceivedCents)}
+                                </div>
+                                <div>
+                                  Troco: {formatCurrency(order.changeCents)}
+                                </div>
+                              </div>
+                            )}
                         </td>
-                        
+
                         <td className="py-4 px-4">
                           <div className="text-sm text-gray-700">
                             {getPaymentMethodLabel(order.paymentMethod)}
                           </div>
                         </td>
-                        
+
                         <td className="py-4 px-4">
-                          <Badge className={`${getStatusInfo(order.status).color} border px-2 py-1 rounded-full text-xs font-medium gap-1`}>
+                          <Badge
+                            className={`${
+                              getStatusInfo(order.status).color
+                            } border px-2 py-1 rounded-full text-xs font-medium gap-1`}
+                          >
                             <StatusIcon className="h-3 w-3" />
                             {getStatusInfo(order.status).label}
                           </Badge>
                         </td>
-                        
+
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-700">{formatDate(order.createdAt)}</div>
+                          <div className="text-sm text-gray-700">
+                            {formatDate(order.createdAt)}
+                          </div>
                         </td>
                         <td className="py-4 px-4">
                           <Button
@@ -412,12 +546,15 @@ export default function AdminOrdersPage() {
               {orders.length === 0 && (
                 <div className="text-center py-12">
                   <Receipt className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma venda encontrada</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Nenhuma venda encontrada
+                  </h3>
                   <p className="text-gray-600 mb-4">
-                    {statusFilter !== "all" || dateFilter.start || dateFilter.end
-                      ? "Tente ajustar os filtros de busca" 
-                      : "Ainda não há vendas registradas"
-                    }
+                    {statusFilter !== "all" ||
+                    dateFilter.start ||
+                    dateFilter.end
+                      ? "Tente ajustar os filtros de busca"
+                      : "Ainda não há vendas registradas"}
                   </p>
                 </div>
               )}
@@ -428,5 +565,3 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
-
-

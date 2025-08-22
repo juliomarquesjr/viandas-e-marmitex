@@ -30,6 +30,13 @@ type Product = {
   active: boolean;
 };
 
+// New type for payment data
+type PaymentData = {
+  method: string;
+  cashReceived?: number;
+  change?: number;
+};
+
 export default function PDVPage() {
   const { data: session } = useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -50,6 +57,8 @@ export default function PDVPage() {
   const [pendingCustomer, setPendingCustomer] = useState<Customer | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [cashReceived, setCashReceived] = useState<string>("");
+  const [change, setChange] = useState<number>(0);
   const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
 
   // Função para reproduzir som
@@ -306,7 +315,8 @@ export default function PDVPage() {
       const discountCents = Math.round(discountAmount * 100);
       const totalCents = Math.round(total * 100);
       
-      const orderData = {
+      // Prepare payment data
+      const paymentData: any = {
         customerId: selectedCustomer?.id || null,
         items,
         subtotalCents,
@@ -315,12 +325,18 @@ export default function PDVPage() {
         paymentMethod: selectedPayment?.toLowerCase().replace(/\s+/g, '') || null
       };
       
+      // Add cash payment data if applicable
+      if (selectedPayment === "Dinheiro" && cashReceived) {
+        paymentData.cashReceivedCents = Math.round(parseFloat(cashReceived) * 100);
+        paymentData.changeCents = Math.round(change * 100);
+      }
+      
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify(paymentData),
       });
       
       if (!response.ok) {
@@ -339,8 +355,10 @@ export default function PDVPage() {
     setDiscountValue(0);
     setSelectedPayment(null);
     setPaymentOpen(false);
+    setCashReceived("");
+    setChange(0);
     inputRef.current?.focus();
-  }, [cart, subtotal, discountAmount, total, selectedCustomer, selectedPayment]);
+  }, [cart, subtotal, discountAmount, total, selectedCustomer, selectedPayment, cashReceived, change]);
 
   const handleFinalizePayment = useCallback(() => {
     if (!selectedPayment || cart.length === 0) return;
@@ -655,15 +673,23 @@ export default function PDVPage() {
             </div>
           </div>
 
-          <Dialog open={isPaymentOpen} onOpenChange={setPaymentOpen}>
-            <DialogContent>
+          <Dialog open={isPaymentOpen} onOpenChange={(open) => {
+            setPaymentOpen(open);
+            if (!open) {
+              // Reset cash payment fields when closing dialog
+              setCashReceived("");
+              setChange(0);
+            }
+          }}>
+            <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Pagamento</DialogTitle>
+                <DialogTitle className="text-2xl">Pagamento</DialogTitle>
                 <DialogDescription>
                   Selecione o método de pagamento{selectedCustomer ? ` para ${selectedCustomer.name}` : ""}.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-2">
+              
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Dinheiro", icon: CircleDollarSign },
                   { label: "Cartão Débito", icon: CreditCard },
@@ -674,15 +700,85 @@ export default function PDVPage() {
                   <Button
                     key={m.label}
                     variant={selectedPayment === m.label ? "default" : "outline"}
-                    className="h-12"
-                    onClick={() => setSelectedPayment(m.label)}
+                    className="h-14 flex flex-col items-center justify-center gap-1 py-2"
+                    onClick={() => {
+                      setSelectedPayment(m.label);
+                      // Reset cash fields when changing payment method
+                      if (m.label !== "Dinheiro") {
+                        setCashReceived("");
+                        setChange(0);
+                      }
+                    }}
                   >
-                    <m.icon className="mr-2 h-4 w-4" /> {m.label}
+                    <m.icon className="h-5 w-5" />
+                    <span className="text-xs">{m.label}</span>
                   </Button>
                 ))}
               </div>
+              
+              {selectedPayment === "Dinheiro" && (
+                <div className="mt-4 space-y-4 rounded-lg bg-muted p-4">
+                  <h3 className="font-medium">Pagamento em Dinheiro</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Total da Compra</label>
+                      <div className="rounded-md bg-background p-3 text-center text-lg font-semibold">
+                        R$ {total.toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label htmlFor="cashReceived" className="text-sm font-medium">
+                        Valor Recebido
+                      </label>
+                      <Input
+                        id="cashReceived"
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={cashReceived}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setCashReceived(value);
+                          
+                          // Calculate change
+                          if (value && !isNaN(parseFloat(value))) {
+                            const received = parseFloat(value);
+                            const changeAmount = Math.max(0, received - total);
+                            setChange(changeAmount);
+                          } else {
+                            setChange(0);
+                          }
+                        }}
+                        placeholder="0.00"
+                        className="text-lg"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Troco
+                    </label>
+                    <div className={`rounded-md p-3 text-center text-lg font-semibold ${
+                      change > 0 ? "bg-green-100 text-green-800" : "bg-background"
+                    }`}>
+                      R$ {change.toFixed(2)}
+                    </div>
+                  </div>
+                  
+                  {cashReceived && parseFloat(cashReceived) > 0 && parseFloat(cashReceived) < total && (
+                    <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+                      O valor recebido é menor que o total da compra.
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {selectedPayment === "Ficha do Cliente" && (
-                <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                <div className="mt-3 rounded-md bg-blue-50 p-3 text-sm">
                   {selectedCustomer ? (
                     <span>
                       Esta venda será lançada na ficha de <span className="font-medium">{selectedCustomer.name}</span>.
@@ -692,13 +788,26 @@ export default function PDVPage() {
                   )}
                 </div>
               )}
-              <div className="mt-4 text-right">
+              
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <Button
-                  className="h-11 gap-2"
+                  variant="outline"
+                  onClick={() => {
+                    setPaymentOpen(false);
+                    setCashReceived("");
+                    setChange(0);
+                  }}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
                   disabled={
                     !selectedPayment ||
                     cart.length === 0 ||
-                    (selectedPayment === "Ficha do Cliente" && !selectedCustomer)
+                    (selectedPayment === "Ficha do Cliente" && !selectedCustomer) ||
+                    (selectedPayment === "Dinheiro" && (!cashReceived || parseFloat(cashReceived) < total))
                   }
                   onClick={handleFinalizePayment}
                 >

@@ -80,20 +80,22 @@ model Product {
 
 // Modelo de Pedido
 model Order {
-  id             String   @id @default(uuid())
-  customerId     String?
-  status         String   @default("pending") // pending, confirmed, preparing, ready, delivered, cancelled
-  subtotalCents  Int      @default(0)
-  discountCents  Int      @default(0)
-  deliveryFeeCents Int     @default(0)
-  totalCents     Int      @default(0)
-  paymentMethod  String?  // cash, credit, debit, pix, invoice
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  customerId       String?
+  status           String   @default("pending") // pending, confirmed, preparing, ready, delivered, cancelled
+  subtotalCents    Int      @default(0)
+  discountCents    Int      @default(0)
+  deliveryFeeCents Int      @default(0)
+  totalCents       Int      @default(0)
+  paymentMethod    String?  // cash, credit, debit, pix, invoice
+  cashReceivedCents Int?    // Valor recebido em centavos para pagamentos em dinheiro
+  changeCents      Int?     // Troco em centavos para pagamentos em dinheiro
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relacionamentos
-  customer       Customer? @relation(fields: [customerId], references: [id])
-  items          OrderItem[]
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  items            OrderItem[]
 
   @@index([customerId])
   @@index([status])

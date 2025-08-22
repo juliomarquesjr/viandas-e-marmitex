@@ -43,7 +43,17 @@ export async function GET(request: Request) {
         skip: (page - 1) * size,
         take: size,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          status: true,
+          subtotalCents: true,
+          discountCents: true,
+          deliveryFeeCents: true,
+          totalCents: true,
+          paymentMethod: true,
+          cashReceivedCents: true,
+          changeCents: true,
+          createdAt: true,
           customer: {
             select: {
               id: true,
@@ -65,6 +75,14 @@ export async function GET(request: Request) {
       }),
       prisma.order.count({ where })
     ]);
+    
+    // Log para depuração
+    console.log('Orders fetched:', orders.map(order => ({
+      id: order.id,
+      paymentMethod: order.paymentMethod,
+      cashReceivedCents: order.cashReceivedCents,
+      changeCents: order.changeCents
+    })));
     
     return NextResponse.json({
       data: orders,
@@ -124,6 +142,15 @@ export async function POST(request: Request) {
     // Determinar status baseado no método de pagamento
     const status = body.paymentMethod === 'invoice' || body.paymentMethod === 'fichadocliente' ? 'pending' : 'confirmed';
     
+    // Preparar dados adicionais de pagamento
+    const additionalData: any = {};
+    if (body.cashReceivedCents !== undefined) {
+      additionalData.cashReceivedCents = body.cashReceivedCents;
+    }
+    if (body.changeCents !== undefined) {
+      additionalData.changeCents = body.changeCents;
+    }
+    
     // Criar pedido
     const order = await prisma.order.create({
       data: {
@@ -134,6 +161,7 @@ export async function POST(request: Request) {
         deliveryFeeCents,
         totalCents,
         paymentMethod: body.paymentMethod || null,
+        ...additionalData,
         items: {
           create: itemsData
         }
