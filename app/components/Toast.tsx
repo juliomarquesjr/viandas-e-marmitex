@@ -95,10 +95,23 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
+  // Listener para eventos personalizados
+  useEffect(() => {
+    const handleShowToast = (event: CustomEvent) => {
+      const { message, type } = event.detail;
+      showToast(message, type);
+    };
+
+    window.addEventListener("showToast", handleShowToast as EventListener);
+    return () => {
+      window.removeEventListener("showToast", handleShowToast as EventListener);
+    };
+  }, [showToast]);
+
   return (
     <>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      <div className="fixed top-4 right-4 z-50 space-y-2">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast
