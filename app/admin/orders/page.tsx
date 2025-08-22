@@ -14,6 +14,9 @@ import {
   User,
   X,
   XCircle,
+  Banknote,
+  QrCode,
+  IdCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/ui/badge";
@@ -84,11 +87,18 @@ const statusMap = {
 };
 
 const paymentMethodMap = {
-  cash: "Dinheiro",
-  credit: "Cartão de Crédito",
-  debit: "Cartão de Débito",
-  pix: "PIX",
-  invoice: "Ficha do Cliente",
+  cash: { label: "Dinheiro", icon: Banknote },
+  credit: { label: "Cartão de Crédito", icon: CreditCard },
+  debit: { label: "Cartão de Débito", icon: CreditCard },
+  pix: { label: "PIX", icon: QrCode },
+  invoice: { label: "Ficha do Cliente", icon: IdCard },
+  dinheiro: { label: "Dinheiro", icon: Banknote },
+  "ficha do cliente": { label: "Ficha do Cliente", icon: IdCard },
+  "fichadocliente": { label: "Ficha do Cliente", icon: IdCard },
+  "cartão débito": { label: "Cartão de Débito", icon: CreditCard },
+  "cartão crédito": { label: "Cartão de Crédito", icon: CreditCard },
+  "cartao debito": { label: "Cartão de Débito", icon: CreditCard },
+  "cartao credito": { label: "Cartão de Crédito", icon: CreditCard },
 };
 
 export default function AdminOrdersPage() {
@@ -194,7 +204,12 @@ export default function AdminOrdersPage() {
 
   const getPaymentMethodLabel = (method: string | null) => {
     if (!method) return "Não especificado";
-    return paymentMethodMap[method as keyof typeof paymentMethodMap] || method;
+    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.label || method;
+  };
+
+  const getPaymentMethodIcon = (method: string | null) => {
+    if (!method) return null;
+    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.icon;
   };
 
   const formatDate = (dateString: string) => {
@@ -505,8 +520,17 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-700">
-                            {getPaymentMethodLabel(order.paymentMethod)}
+                          <div className="flex items-center justify-center">
+                            {(() => {
+                              const Icon = getPaymentMethodIcon(order.paymentMethod);
+                              return Icon ? (
+                                <Icon className="h-5 w-5 text-gray-700" />
+                              ) : (
+                                <div className="text-sm text-gray-700">
+                                  {getPaymentMethodLabel(order.paymentMethod)}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
 
