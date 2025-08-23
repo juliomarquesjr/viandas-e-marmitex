@@ -1,95 +1,95 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const q = searchParams.get('q') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const size = parseInt(searchParams.get('size') || '10');
-    const category = searchParams.get('category') || 'all';
-    const status = searchParams.get('status') || 'all';
-    const type = searchParams.get('type') || 'all';
-    const variable = searchParams.get('variable') || 'all';
-    
+    const q = searchParams.get("q") || "";
+    const page = parseInt(searchParams.get("page") || "1");
+    const size = parseInt(searchParams.get("size") || "10");
+    const category = searchParams.get("category") || "all";
+    const status = searchParams.get("status") || "all";
+    const type = searchParams.get("type") || "all";
+    const variable = searchParams.get("variable") || "all";
+
     const where: any = {};
-    
+
     // Filtro de busca
     if (q) {
       where.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q, mode: "insensitive" } },
         { barcode: { contains: q } },
-        { description: { contains: q, mode: 'insensitive' } }
+        { description: { contains: q, mode: "insensitive" } },
       ];
     }
-    
+
     // Filtro de categoria
-    if (category !== 'all') {
+    if (category !== "all") {
       where.categoryId = category;
     }
-    
+
     // Filtro de status
-    if (status === 'active') {
+    if (status === "active") {
       where.active = true;
-    } else if (status === 'inactive') {
+    } else if (status === "inactive") {
       where.active = false;
     }
-    
+
     // Filtro de tipo
-    if (type !== 'all') {
+    if (type !== "all") {
       where.productType = type;
     }
-    
+
     // Filtro de variação
-    if (variable === 'variable') {
+    if (variable === "variable") {
       where.variableProduct = true;
-    } else if (variable === 'standard') {
+    } else if (variable === "standard") {
       where.variableProduct = false;
     }
-    
+
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
         skip: (page - 1) * size,
         take: size,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
-          category: true
-        }
+          category: true,
+        },
       }),
-      prisma.product.count({ where })
+      prisma.product.count({ where }),
     ]);
-    
+
     // Obter todas as categorias para o filtro
     const categories = await prisma.category.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
-    
+
     return NextResponse.json({
-      data: products.map(product => ({
+      data: products.map((product) => ({
         ...product,
         priceCents: product.priceCents,
         stockEnabled: product.stockEnabled,
         productType: product.productType,
         variableProduct: product.variableProduct,
-        createdAt: product.createdAt.toISOString().split('T')[0],
-        categoryId: product.categoryId
+        createdAt: product.createdAt.toISOString().split("T")[0],
+        categoryId: product.categoryId,
       })),
-      categories: categories.map(category => ({
+      categories: categories.map((category) => ({
         id: category.id,
-        name: category.name
+        name: category.name,
       })),
       pagination: {
         page,
         size,
         total,
-        pages: Math.ceil(total / size)
-      }
+        pages: Math.ceil(total / size),
+      },
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error("Error fetching products:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch products' },
+      { error: "Failed to fetch products" },
       { status: 500 }
     );
   }
@@ -98,15 +98,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+
     // Validação básica
     if (!body.name) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
-    
+
     const product = await prisma.product.create({
       data: {
         name: body.name,
@@ -117,25 +114,17 @@ export async function POST(request: Request) {
         stockEnabled: body.stockEnabled || false,
         stock: body.stockEnabled && body.stock ? parseInt(body.stock) : null,
         imageUrl: body.imageUrl,
-        productType: body.productType || 'sellable',
+        productType: body.productType || "sellable",
         variableProduct: body.variableProduct || false,
-        active: body.active !== undefined ? body.active : true
-      }
+        active: body.active !== undefined ? body.active : true,
+      },
     });
-    
-    return NextResponse.json({
-      ...product,
-      priceCents: product.priceCents,
-      stockEnabled: product.stockEnabled,
-      productType: product.productType,
-      variableProduct: product.variableProduct,
-      createdAt: product.createdAt.toISOString().split('T')[0],
-      categoryId: product.categoryId
-    });
+
+    return NextResponse.json(product);
   } catch (error) {
-    console.error('Error creating product:', error);
+    console.error("Error creating product:", error);
     return NextResponse.json(
-      { error: 'Failed to create product' },
+      { error: "Failed to create product" },
       { status: 500 }
     );
   }
@@ -145,22 +134,19 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { id, ...data } = body;
-    
+
     if (!id) {
       return NextResponse.json(
-        { error: 'Product ID is required' },
+        { error: "Product ID is required" },
         { status: 400 }
       );
     }
-    
+
     // Validação básica
     if (!data.name) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
-    
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -172,25 +158,17 @@ export async function PUT(request: Request) {
         stockEnabled: data.stockEnabled || false,
         stock: data.stockEnabled && data.stock ? parseInt(data.stock) : null,
         imageUrl: data.imageUrl,
-        productType: data.productType || 'sellable',
+        productType: data.productType || "sellable",
         variableProduct: data.variableProduct || false,
-        active: data.active !== undefined ? data.active : true
-      }
+        active: data.active !== undefined ? data.active : true,
+      },
     });
-    
-    return NextResponse.json({
-      ...product,
-      priceCents: product.priceCents,
-      stockEnabled: product.stockEnabled,
-      productType: product.productType,
-      variableProduct: product.variableProduct,
-      createdAt: product.createdAt.toISOString().split('T')[0],
-      categoryId: product.categoryId
-    });
+
+    return NextResponse.json(product);
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.error("Error updating product:", error);
     return NextResponse.json(
-      { error: 'Failed to update product' },
+      { error: "Failed to update product" },
       { status: 500 }
     );
   }
@@ -199,24 +177,24 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
+    const id = searchParams.get("id");
+
     if (!id) {
       return NextResponse.json(
-        { error: 'Product ID is required' },
+        { error: "Product ID is required" },
         { status: 400 }
       );
     }
-    
+
     await prisma.product.delete({
-      where: { id }
+      where: { id },
     });
-    
-    return NextResponse.json({ message: 'Product deleted successfully' });
+
+    return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error("Error deleting product:", error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { error: "Failed to delete product" },
       { status: 500 }
     );
   }

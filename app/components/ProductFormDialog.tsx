@@ -155,14 +155,22 @@ export function ProductFormDialog({
                   type="text"
                   placeholder="R$ 25,00"
                   value={
-                    formData.priceCents &&
-                    formData.priceCents !== "" &&
-                    !isNaN(parseInt(formData.priceCents)) &&
-                    parseInt(formData.priceCents) > 0
-                      ? formatPriceToReais(parseInt(formData.priceCents))
+                    formData.priceCents
+                      ? (Number(formData.priceCents) / 100).toLocaleString(
+                          "pt-BR",
+                          { style: "currency", currency: "BRL" }
+                        )
                       : ""
                   }
-                  onChange={(e) => handlePriceChange(e.target.value)}
+                  onChange={(e) => {
+                    // Remove tudo que não for número
+                    const onlyNums = e.target.value.replace(/\D/g, "");
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      priceCents: onlyNums,
+                    }));
+                  }}
+                  inputMode="numeric"
                   className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                   required
                 />
