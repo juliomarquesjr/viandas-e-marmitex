@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  Barcode as BarcodeIcon,
   Check,
   Edit,
   Package,
@@ -10,23 +11,21 @@ import {
   Search,
   Trash2,
   User,
-  X
+  X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
+import React, { useEffect, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
 
 type Customer = {
   id: string;
@@ -42,7 +41,7 @@ type Customer = {
 
 export default function AdminCustomersPage() {
   const { showToast } = useToast();
-  
+
   // Estados de dados
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +63,7 @@ export default function AdminCustomersPage() {
     city: "",
     state: "",
     zip: "",
-    active: true
+    active: true,
   });
 
   // Estados de alerta
@@ -74,7 +73,9 @@ export default function AdminCustomersPage() {
 
   // Estados de filtros e busca
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -83,12 +84,14 @@ export default function AdminCustomersPage() {
   const loadCustomers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/customers?q=${searchTerm}&status=${statusFilter}`);
-      if (!response.ok) throw new Error('Failed to fetch customers');
+      const response = await fetch(
+        `/api/customers?q=${searchTerm}&status=${statusFilter}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch customers");
       const result = await response.json();
       setCustomers(result.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load customers');
+      setError(err instanceof Error ? err.message : "Failed to load customers");
     } finally {
       setLoading(false);
     }
@@ -114,7 +117,7 @@ export default function AdminCustomersPage() {
       city: "",
       state: "",
       zip: "",
-      active: true
+      active: true,
     });
   };
 
@@ -135,7 +138,7 @@ export default function AdminCustomersPage() {
         city: address.city || "",
         state: address.state || "",
         zip: address.zip || "",
-        active: customer.active
+        active: customer.active,
       });
     } else {
       setEditingCustomer(null);
@@ -152,18 +155,18 @@ export default function AdminCustomersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validação básica
     if (!formData.name.trim()) {
-      alert('Por favor, informe o nome do cliente.');
+      alert("Por favor, informe o nome do cliente.");
       return;
     }
-    
+
     if (!formData.phone.trim()) {
-      alert('Por favor, informe o telefone do cliente.');
+      alert("Por favor, informe o telefone do cliente.");
       return;
     }
-    
+
     try {
       // Monta o objeto de endereço
       const address = {
@@ -173,90 +176,109 @@ export default function AdminCustomersPage() {
         neighborhood: formData.neighborhood,
         city: formData.city,
         state: formData.state,
-        zip: formData.zip
+        zip: formData.zip,
       };
-      
+
       const customerData = {
         name: formData.name,
         phone: formData.phone,
         email: formData.email || undefined,
         doc: formData.doc || undefined,
         barcode: formData.barcode || undefined,
-        address: Object.values(address).some(v => v) ? address : undefined,
-        active: formData.active
+        address: Object.values(address).some((v) => v) ? address : undefined,
+        active: formData.active,
       };
-      
+
       if (editingCustomer) {
         // Editar cliente existente
         const response = await fetch(`/api/customers`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editingCustomer.id, ...customerData })
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingCustomer.id, ...customerData }),
         });
-        
-        if (!response.ok) throw new Error('Failed to update customer');
+
+        if (!response.ok) throw new Error("Failed to update customer");
         const updatedCustomer = await response.json();
-        
+
         // Verificar se o código de barras foi alterado
-        if (editingCustomer.barcode !== updatedCustomer.barcode && updatedCustomer.barcode) {
-          setConfirmMessage(`Atenção: O código de barras do cliente será alterado para ${updatedCustomer.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`);
+        if (
+          editingCustomer.barcode !== updatedCustomer.barcode &&
+          updatedCustomer.barcode
+        ) {
+          setConfirmMessage(
+            `Atenção: O código de barras do cliente será alterado para ${updatedCustomer.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`
+          );
           setPendingAction(() => () => {
-            setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+            setCustomers((prev) =>
+              prev.map((c) =>
+                c.id === updatedCustomer.id ? updatedCustomer : c
+              )
+            );
             showToast("Cliente atualizado com sucesso!", "success");
           });
           setIsConfirmOpen(true);
         } else {
-          setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+          setCustomers((prev) =>
+            prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+          );
           showToast("Cliente atualizado com sucesso!", "success");
           closeForm();
         }
       } else {
         // Criar novo cliente
         const response = await fetch(`/api/customers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(customerData)
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(customerData),
         });
-        
-        if (!response.ok) throw new Error('Failed to create customer');
+
+        if (!response.ok) throw new Error("Failed to create customer");
         const newCustomer = await response.json();
-        
+
         // Verificar se o código de barras foi definido
         if (newCustomer.barcode) {
-          setConfirmMessage(`Atenção: O código de barras do cliente será definido como ${newCustomer.barcode}.`);
+          setConfirmMessage(
+            `Atenção: O código de barras do cliente será definido como ${newCustomer.barcode}.`
+          );
           setPendingAction(() => () => {
-            setCustomers(prev => [...prev, newCustomer]);
+            setCustomers((prev) => [...prev, newCustomer]);
             showToast("Cliente cadastrado com sucesso!", "success");
           });
           setIsConfirmOpen(true);
         } else {
-          setCustomers(prev => [...prev, newCustomer]);
+          setCustomers((prev) => [...prev, newCustomer]);
           showToast("Cliente cadastrado com sucesso!", "success");
           closeForm();
         }
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to save customer', "error");
+      showToast(
+        err instanceof Error ? err.message : "Failed to save customer",
+        "error"
+      );
     }
   };
 
   const deleteCustomer = async (id: string) => {
     try {
       const response = await fetch(`/api/customers?id=${id}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      
-      if (!response.ok) throw new Error('Failed to delete customer');
-      setCustomers(prev => prev.filter(c => c.id !== id));
+
+      if (!response.ok) throw new Error("Failed to delete customer");
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
       setDeleteConfirm(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete customer');
+      alert(err instanceof Error ? err.message : "Failed to delete customer");
     }
   };
 
   const getStatusInfo = (active: boolean) => {
-    return active 
-      ? { label: "Ativo", color: "bg-green-100 text-green-700 border-green-200" }
+    return active
+      ? {
+          label: "Ativo",
+          color: "bg-green-100 text-green-700 border-green-200",
+        }
       : { label: "Inativo", color: "bg-red-100 text-red-700 border-red-200" };
   };
 
@@ -269,15 +291,83 @@ export default function AdminCustomersPage() {
     closeForm();
   };
 
+  // Função para gerar e baixar o código de barras
+  const downloadBarcode = async (customer: Customer) => {
+    if (!customer.barcode) {
+      alert("Este cliente não possui um código de barras definido.");
+      return;
+    }
+
+    try {
+      // Usar uma API online para gerar o código de barras
+      const barcodeUrl = `https://barcodeapi.org/api/codabar/${customer.barcode}`;
+
+      // Criar um elemento de imagem
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+
+      img.onload = () => {
+        // Criar um canvas para desenhar a imagem
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          alert("Não foi possível gerar o código de barras.");
+          return;
+        }
+
+        // Definir o tamanho do canvas
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Desenhar a imagem no canvas
+        ctx.drawImage(img, 0, 0);
+
+        // Converter o canvas para blob e baixar
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `barcode-${customer.name.replace(/\s+/g, "-")}-${
+              customer.barcode
+            }.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        });
+      };
+
+      img.onerror = () => {
+        alert("Erro ao gerar o código de barras.");
+      };
+
+      // Iniciar o carregamento da imagem
+      img.src = barcodeUrl;
+    } catch (error) {
+      alert("Erro ao gerar o código de barras.");
+      console.error(error);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Clientes</h1>
-          <p className="text-gray-600">Cadastre e gerencie os clientes do estabelecimento</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gerenciamento de Clientes
+          </h1>
+          <p className="text-gray-600">
+            Cadastre e gerencie os clientes do estabelecimento
+          </p>
         </div>
-        <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+        <Button
+          onClick={() => openForm()}
+          className="bg-primary hover:bg-primary/90"
+        >
           <Plus className="h-5 w-5 mr-2" />
           Novo Cliente
         </Button>
@@ -290,7 +380,9 @@ export default function AdminCustomersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600">Total</p>
-                <p className="text-3xl font-bold text-blue-900">{customers.length}</p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {customers.length}
+                </p>
               </div>
               <User className="h-12 w-12 text-blue-600" />
             </div>
@@ -303,7 +395,7 @@ export default function AdminCustomersPage() {
               <div>
                 <p className="text-sm font-medium text-green-600">Ativos</p>
                 <p className="text-3xl font-bold text-green-900">
-                  {customers.filter(c => c.active).length}
+                  {customers.filter((c) => c.active).length}
                 </p>
               </div>
               <Check className="h-12 w-12 text-green-600" />
@@ -317,7 +409,7 @@ export default function AdminCustomersPage() {
               <div>
                 <p className="text-sm font-medium text-orange-600">Inativos</p>
                 <p className="text-3xl font-bold text-orange-900">
-                  {customers.filter(c => !c.active).length}
+                  {customers.filter((c) => !c.active).length}
                 </p>
               </div>
               <X className="h-12 w-12 text-orange-600" />
@@ -331,7 +423,7 @@ export default function AdminCustomersPage() {
               <div>
                 <p className="text-sm font-medium text-purple-600">Com Email</p>
                 <p className="text-3xl font-bold text-purple-900">
-                  {customers.filter(c => c.email).length}
+                  {customers.filter((c) => c.email).length}
                 </p>
               </div>
               <User className="h-12 w-12 text-purple-600" />
@@ -362,7 +454,9 @@ export default function AdminCustomersPage() {
         <div className="flex items-center gap-2">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as "all" | "active" | "inactive")
+            }
             className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
           >
             <option value="all">Todos os Status</option>
@@ -387,9 +481,12 @@ export default function AdminCustomersPage() {
       {/* Tabela de Clientes */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">Lista de Clientes</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-900">
+            Lista de Clientes
+          </CardTitle>
           <CardDescription>
-            {customers.length} cliente{customers.length !== 1 ? 's' : ''} encontrado{customers.length !== 1 ? 's' : ''}
+            {customers.length} cliente{customers.length !== 1 ? "s" : ""}{" "}
+            encontrado{customers.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -403,9 +500,14 @@ export default function AdminCustomersPage() {
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar clientes</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Erro ao carregar clientes
+              </h3>
               <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={loadCustomers} className="bg-primary hover:bg-primary/90">
+              <Button
+                onClick={loadCustomers}
+                className="bg-primary hover:bg-primary/90"
+              >
                 Tentar novamente
               </Button>
             </div>
@@ -414,16 +516,32 @@ export default function AdminCustomersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Cliente</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Contato</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Documento</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Cliente
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Contato
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Documento
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Código de Barras
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {customers.map((customer) => (
-                    <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                    <tr
+                      key={customer.id}
+                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                    >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -431,12 +549,18 @@ export default function AdminCustomersPage() {
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">
-                              <a href={`/admin/customers/${customer.id}`} className="hover:underline">
+                              <a
+                                href={`/admin/customers/${customer.id}`}
+                                className="hover:underline"
+                              >
                                 {customer.name}
                               </a>
                             </div>
                             <div className="text-xs text-gray-500">
-                              Cadastrado em {new Date(customer.createdAt).toLocaleDateString('pt-BR')}
+                              Cadastrado em{" "}
+                              {new Date(customer.createdAt).toLocaleDateString(
+                                "pt-BR"
+                              )}
                             </div>
                           </div>
                         </div>
@@ -463,10 +587,30 @@ export default function AdminCustomersPage() {
                       </td>
 
                       <td className="py-4 px-4">
+                        {customer.barcode ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadBarcode(customer)}
+                            className="flex items-center gap-2"
+                          >
+                            <BarcodeIcon className="h-4 w-4" />
+                            Download
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">
+                            Sem código
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4">
                         {(() => {
                           const statusInfo = getStatusInfo(customer.active);
                           return (
-                            <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
+                            <Badge
+                              className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}
+                            >
                               {statusInfo.label}
                             </Badge>
                           );
@@ -483,7 +627,7 @@ export default function AdminCustomersPage() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -502,15 +646,19 @@ export default function AdminCustomersPage() {
               {customers.length === 0 && (
                 <div className="text-center py-12">
                   <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cliente encontrado</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Nenhum cliente encontrado
+                  </h3>
                   <p className="text-gray-600 mb-4">
                     {searchTerm || statusFilter !== "all"
-                      ? "Tente ajustar os filtros de busca" 
-                      : "Comece cadastrando o primeiro cliente"
-                    }
+                      ? "Tente ajustar os filtros de busca"
+                      : "Comece cadastrando o primeiro cliente"}
                   </p>
                   {!searchTerm && statusFilter === "all" && (
-                    <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+                    <Button
+                      onClick={() => openForm()}
+                      className="bg-primary hover:bg-primary/90"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Cadastrar Cliente
                     </Button>
@@ -533,7 +681,9 @@ export default function AdminCustomersPage() {
                     {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
                   </CardTitle>
                   <CardDescription>
-                    {editingCustomer ? "Atualize as informações do cliente" : "Preencha os dados para cadastrar um novo cliente"}
+                    {editingCustomer
+                      ? "Atualize as informações do cliente"
+                      : "Preencha os dados para cadastrar um novo cliente"}
                   </CardDescription>
                 </div>
                 <Button
@@ -546,50 +696,78 @@ export default function AdminCustomersPage() {
                 </Button>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Nome *</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Nome *
+                    </label>
                     <Input
                       placeholder="Nome completo"
                       value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Telefone *</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Telefone *
+                    </label>
                     <Input
                       placeholder="(00) 00000-0000"
                       value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          phone: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Email</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Email
+                    </label>
                     <Input
                       type="email"
                       placeholder="cliente@email.com"
                       value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Código de Barras</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Código de Barras
+                    </label>
                     <div className="flex gap-2">
                       <Input
                         placeholder="0123456789012"
                         value={formData.barcode}
-                        onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            barcode: e.target.value,
+                          }))
+                        }
                         className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                       />
                       <Button
@@ -598,9 +776,15 @@ export default function AdminCustomersPage() {
                         onClick={() => {
                           // Gerar código de barras no range 1-3 (iniciando com 1, 2 ou 3)
                           const prefix = Math.floor(Math.random() * 3) + 1; // 1, 2 ou 3
-                          const randomSuffix = Math.floor(Math.random() * 1000000000000);
-                          const randomBarcode = prefix * 1000000000000 + randomSuffix;
-                          setFormData(prev => ({ ...prev, barcode: randomBarcode.toString() }));
+                          const randomSuffix = Math.floor(
+                            Math.random() * 1000000000000
+                          );
+                          const randomBarcode =
+                            prefix * 1000000000000 + randomSuffix;
+                          setFormData((prev) => ({
+                            ...prev,
+                            barcode: randomBarcode.toString(),
+                          }));
                         }}
                         className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
                         title="Gerar código de barras aleatório"
@@ -611,81 +795,137 @@ export default function AdminCustomersPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Documento (CPF/CNPJ)</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Documento (CPF/CNPJ)
+                    </label>
                     <Input
                       placeholder="000.000.000-00"
                       value={formData.doc}
-                      onChange={(e) => setFormData(prev => ({ ...prev, doc: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          doc: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">CEP</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      CEP
+                    </label>
                     <Input
                       placeholder="00000-000"
                       value={formData.zip}
-                      onChange={(e) => setFormData(prev => ({ ...prev, zip: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          zip: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Estado</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Estado
+                    </label>
                     <Input
                       placeholder="UF"
                       value={formData.state}
-                      onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          state: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Cidade</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Cidade
+                    </label>
                     <Input
                       placeholder="Cidade"
                       value={formData.city}
-                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          city: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Bairro</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Bairro
+                    </label>
                     <Input
                       placeholder="Bairro"
                       value={formData.neighborhood}
-                      onChange={(e) => setFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          neighborhood: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Rua</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Rua
+                    </label>
                     <Input
                       placeholder="Nome da rua"
                       value={formData.street}
-                      onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          street: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Número</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Número
+                    </label>
                     <Input
                       placeholder="Número"
                       value={formData.number}
-                      onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          number: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Complemento</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Complemento
+                    </label>
                     <Input
                       placeholder="Complemento"
                       value={formData.complement}
-                      onChange={(e) => setFormData(prev => ({ ...prev, complement: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          complement: e.target.value,
+                        }))
+                      }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
@@ -697,12 +937,19 @@ export default function AdminCustomersPage() {
                       <input
                         type="checkbox"
                         checked={formData.active}
-                        onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            active: e.target.checked,
+                          }))
+                        }
                         className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
                       />
                       <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
                     </div>
-                    <span className="text-sm font-medium text-gray-700">Cliente ativo</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Cliente ativo
+                    </span>
                   </label>
                 </div>
 
@@ -739,12 +986,15 @@ export default function AdminCustomersPage() {
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <CardTitle className="text-lg font-semibold text-gray-900">Confirmar Exclusão</CardTitle>
+              <CardTitle className="text-lg font-semibold text-gray-900">
+                Confirmar Exclusão
+              </CardTitle>
               <CardDescription>
-                Tem certeza que deseja remover este cliente? Esta ação não pode ser desfeita.
+                Tem certeza que deseja remover este cliente? Esta ação não pode
+                ser desfeita.
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent className="p-6">
               <div className="flex justify-end gap-3">
                 <Button

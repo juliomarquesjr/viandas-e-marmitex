@@ -18,7 +18,9 @@ import {
   TrendingUp,
   Banknote,
   QrCode,
-  IdCard
+  IdCard,
+  Barcode as BarcodeIcon,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
@@ -30,6 +32,7 @@ type Customer = {
   phone: string;
   email?: string;
   doc?: string;
+  barcode?: string;
   address?: any;
   active: boolean;
   createdAt: string;
@@ -202,6 +205,65 @@ export default function CustomerDetailPage() {
     }
   };
 
+  // Função para gerar e baixar o código de barras
+  const downloadBarcode = async () => {
+    if (!customer || !customer.barcode) {
+      alert("Este cliente não possui um código de barras definido.");
+      return;
+    }
+
+    try {
+      // Usar uma API online para gerar o código de barras
+      const barcodeUrl = `https://barcodeapi.org/api/ean13/${customer.barcode}`;
+      
+      // Criar um elemento de imagem
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      
+      img.onload = () => {
+        // Criar um canvas para desenhar a imagem
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        if (!ctx) {
+          alert("Não foi possível gerar o código de barras.");
+          return;
+        }
+        
+        // Definir o tamanho do canvas
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Desenhar a imagem no canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Converter o canvas para blob e baixar
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `barcode-${customer.name.replace(/\s+/g, "-")}-${customer.barcode}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        });
+      };
+      
+      img.onerror = () => {
+        alert("Erro ao gerar o código de barras.");
+      };
+      
+      // Iniciar o carregamento da imagem
+      img.src = barcodeUrl;
+    } catch (error) {
+      alert("Erro ao gerar o código de barras.");
+      console.error(error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -278,6 +340,22 @@ export default function CustomerDetailPage() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="font-medium">Documento:</span>
                     <span>{customer.doc}</span>
+                  </div>
+                )}
+                {customer.barcode && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <BarcodeIcon className="h-4 w-4" />
+                    <span className="font-medium">Código de Barras:</span>
+                    <span>{customer.barcode}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadBarcode}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download
+                    </Button>
                   </div>
                 )}
               </div>
