@@ -74,11 +74,44 @@ export default function AdminProductsPage() {
     product_type: "sellable" as Product["product_type"],
     variable_product: false
   });
+  const [isUploading, setIsUploading] = useState(false);
 
   // Estados de alerta
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  // Função para lidar com o upload de arquivos
+  const handleFileUpload = async (file: File) => {
+    console.log('Iniciando upload do arquivo:', file.name);
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      console.log('FormData criado');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      console.log('Resposta do servidor:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('Erro na resposta:', errorData);
+        throw new Error(errorData.error || 'Falha no upload');
+      }
+
+      const { url } = await response.json();
+      console.log('URL recebida:', url);
+      setFormData(prev => ({ ...prev, image_url: url }));
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      alert(error instanceof Error ? error.message : 'Falha no upload da imagem');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Estados de filtros e busca
   const [searchTerm, setSearchTerm] = useState("");
@@ -813,13 +846,39 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">URL da Imagem</label>
-                    <Input
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      value={formData.image_url}
-                      onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                    />
+                    <label className="text-sm font-medium text-gray-700">Imagem do Produto</label>
+                    <div className="space-y-3">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file);
+                          }
+                        }}
+                        disabled={isUploading}
+                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      />
+                      {isUploading && (
+                        <div className="text-sm text-muted-foreground">Enviando imagem...</div>
+                      )}
+                      {formData.image_url && (
+                        <div className="mt-2">
+                          <img 
+                            src={formData.image_url} 
+                            alt="Preview" 
+                            className="h-20 w-20 rounded-md object-cover"
+                          />
+                        </div>
+                      )}
+                      <Input
+                        placeholder="ou insira uma URL diretamente"
+                        value={formData.image_url}
+                        onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
+                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      />
+                    </div>
                   </div>
                 </div>
 
