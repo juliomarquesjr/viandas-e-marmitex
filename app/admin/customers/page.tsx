@@ -300,7 +300,7 @@ export default function AdminCustomersPage() {
 
     try {
       // Usar uma API online para gerar o código de barras
-      const barcodeUrl = `https://barcodeapi.org/api/codabar/${customer.barcode}`;
+      const barcodeUrl = `https://barcodeapi.org/api/code128/${customer.barcode}`;
 
       // Criar um elemento de imagem
       const img = new Image();

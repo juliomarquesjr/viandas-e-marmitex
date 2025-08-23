@@ -240,7 +240,7 @@ export default function AdminProductsPage() {
 
     try {
       // Usar uma API online para gerar o código de barras
-      const barcodeUrl = `https://barcodeapi.org/api/codabar/${product.barcode}`;
+      const barcodeUrl = `https://barcodeapi.org/api/code128/${product.barcode}`;
       
       // Criar um elemento de imagem
       const img = new Image();
