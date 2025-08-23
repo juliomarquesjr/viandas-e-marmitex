@@ -237,6 +237,32 @@ export default function PDVPage() {
     }
   }, []);
 
+  /**
+   * Função auxiliar para resetar o estado do PDV e recarregar produtos
+   * É chamada após finalizar uma venda ou iniciar uma nova venda
+   * para garantir que os estoques sejam atualizados
+   */
+  const resetPDVAndRefreshProducts = useCallback(async () => {
+    // Resetar o estado do PDV
+    setCart([]);
+    setSelectedIndex(null);
+    setQuery("");
+    setDiscount(null);
+    setDiscountValue(0);
+    setSelectedPayment(null);
+    setSelectedCustomer(null);
+    setPaymentOpen(false);
+    setDiscountOpen(false);
+    setCashReceived("");
+    setChange(0);
+    
+    // Recarregar produtos para atualizar estoques
+    await fetchProducts();
+    
+    // Focar no input de pesquisa
+    inputRef.current?.focus();
+  }, [fetchProducts]);
+
   const handleGlobalKeys = useCallback(
     (e: KeyboardEvent) => {
       const isCtrlK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
@@ -324,21 +350,12 @@ export default function PDVPage() {
         if (cart.length > 0) {
           setNewSaleConfirmOpen(true);
         } else {
-          setCart([]);
-          setSelectedIndex(null);
-          setQuery("");
-          setDiscount(null);
-          setDiscountValue(0);
-          setSelectedPayment(null);
-          setSelectedCustomer(null);
-          setPaymentOpen(false);
-          setDiscountOpen(false);
-          inputRef.current?.focus();
+          resetPDVAndRefreshProducts();
         }
         return;
       }
     },
-    [cart.length, selectedIndex]
+    [cart.length, selectedIndex, resetPDVAndRefreshProducts]
   );
 
   useEffect(() => {
@@ -365,6 +382,8 @@ export default function PDVPage() {
 
   const finalizeSale = useCallback(async () => {
     setIsFinalizing(true);
+    let saleSuccess = false;
+    
     // Registrar a venda na API
     try {
       const items = cart.map((item) => ({
@@ -407,23 +426,29 @@ export default function PDVPage() {
       if (!response.ok) {
         throw new Error("Failed to create order");
       }
+      
+      saleSuccess = true;
+      
     } catch (error) {
       console.error("Error creating order:", error);
       // Mesmo que ocorra um erro, continuamos com o fluxo normal
     }
 
-    // Resetar o estado do PDV
-    setCart([]);
-    setSelectedIndex(null);
-    setQuery("");
-    setDiscount(null);
-    setDiscountValue(0);
-    setSelectedPayment(null);
-    setPaymentOpen(false);
-    setCashReceived("");
-    setChange(0);
-    inputRef.current?.focus();
+    // Resetar o PDV e atualizar produtos
+    // Isso garante que os estoques sejam atualizados após a venda
+    await resetPDVAndRefreshProducts();
+    
     setIsFinalizing(false);
+    
+    // Mostrar feedback visual de sucesso se a venda foi bem-sucedida
+    if (saleSuccess) {
+      // Reproduzir som de sucesso (usar o mesmo beep por enquanto)
+      playBeepSound();
+      
+      // Opcional: mostrar toast de sucesso ou mensagem
+      // Por enquanto, apenas log no console
+      console.log("Venda finalizada com sucesso!");
+    }
   }, [
     cart,
     subtotal,
@@ -433,6 +458,8 @@ export default function PDVPage() {
     selectedPayment,
     cashReceived,
     change,
+    resetPDVAndRefreshProducts,
+    playBeepSound,
   ]);
 
   const handleFinalizePayment = useCallback(() => {
@@ -528,16 +555,7 @@ export default function PDVPage() {
               onClick={() => {
                 if (cart.length > 0) setNewSaleConfirmOpen(true);
                 else {
-                  setCart([]);
-                  setSelectedIndex(null);
-                  setQuery("");
-                  setDiscount(null);
-                  setDiscountValue(0);
-                  setSelectedPayment(null);
-                  setSelectedCustomer(null);
-                  setPaymentOpen(false);
-                  setDiscountOpen(false);
-                  inputRef.current?.focus();
+                  resetPDVAndRefreshProducts();
                 }
               }}
             >
@@ -1240,16 +1258,7 @@ export default function PDVPage() {
                 <Button
                   onClick={() => {
                     setNewSaleConfirmOpen(false);
-                    setCart([]);
-                    setSelectedIndex(null);
-                    setQuery("");
-                    setDiscount(null);
-                    setDiscountValue(0);
-                    setSelectedPayment(null);
-                    setSelectedCustomer(null);
-                    setPaymentOpen(false);
-                    setDiscountOpen(false);
-                    inputRef.current?.focus();
+                    resetPDVAndRefreshProducts();
                   }}
                 >
                   Nova venda
