@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Kbd } from "../components/ui/kbd";
-import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, Boxes, ShoppingCart, LogOut, Image as ImageIcon } from "lucide-react";
+import { HelpCircle, Search, CreditCard, Percent, User, Plus, Minus, Trash2, CircleDollarSign, QrCode, Wallet, ChefHat, Maximize2, RefreshCcw, ClipboardList, ShoppingCart, LogOut, Image as ImageIcon, AlertCircle, Boxes } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -681,7 +681,7 @@ export default function PDVPage() {
               setChange(0);
             }
           }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-3xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl">Pagamento</DialogTitle>
                 <DialogDescription>
@@ -689,105 +689,156 @@ export default function PDVPage() {
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Dinheiro", icon: CircleDollarSign },
-                  { label: "Cartão Débito", icon: CreditCard },
-                  { label: "Cartão Crédito", icon: CreditCard },
-                  { label: "PIX", icon: QrCode },
-                  { label: "Ficha do Cliente", icon: ClipboardList },
-                ].map((m) => (
-                  <Button
-                    key={m.label}
-                    variant={selectedPayment === m.label ? "default" : "outline"}
-                    className="h-14 flex flex-col items-center justify-center gap-1 py-2"
-                    onClick={() => {
-                      setSelectedPayment(m.label);
-                      // Reset cash fields when changing payment method
-                      if (m.label !== "Dinheiro") {
-                        setCashReceived("");
-                        setChange(0);
-                      }
-                    }}
-                  >
-                    <m.icon className="h-5 w-5" />
-                    <span className="text-xs">{m.label}</span>
-                  </Button>
-                ))}
-              </div>
-              
-              {selectedPayment === "Dinheiro" && (
-                <div className="mt-4 space-y-4 rounded-lg bg-muted p-4">
-                  <h3 className="font-medium">Pagamento em Dinheiro</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Total da Compra</label>
-                      <div className="rounded-md bg-background p-3 text-center text-lg font-semibold">
-                        R$ {total.toFixed(2)}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="cashReceived" className="text-sm font-medium">
-                        Valor Recebido
-                      </label>
-                      <Input
-                        id="cashReceived"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        min="0"
-                        value={cashReceived}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setCashReceived(value);
-                          
-                          // Calculate change
-                          if (value && !isNaN(parseFloat(value))) {
-                            const received = parseFloat(value);
-                            const changeAmount = Math.max(0, received - total);
-                            setChange(changeAmount);
-                          } else {
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Formas de pagamento */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Formas de Pagamento</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Dinheiro", icon: CircleDollarSign },
+                      { label: "Cartão Débito", icon: CreditCard },
+                      { label: "Cartão Crédito", icon: CreditCard },
+                      { label: "PIX", icon: QrCode },
+                      { label: "Ficha do Cliente", icon: ClipboardList },
+                    ].map((m) => (
+                      <Button
+                        key={m.label}
+                        variant={selectedPayment === m.label ? "default" : "outline"}
+                        className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md"
+                        onClick={() => {
+                          setSelectedPayment(m.label);
+                          // Reset cash fields when changing payment method
+                          if (m.label !== "Dinheiro") {
+                            setCashReceived("");
                             setChange(0);
                           }
                         }}
-                        placeholder="0.00"
-                        className="text-lg"
-                      />
-                    </div>
+                      >
+                        <m.icon className="h-6 w-6" />
+                        <span className="text-sm font-medium">{m.label}</span>
+                      </Button>
+                    ))}
                   </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Troco
-                    </label>
-                    <div className={`rounded-md p-3 text-center text-lg font-semibold ${
-                      change > 0 ? "bg-green-100 text-green-800" : "bg-background"
-                    }`}>
-                      R$ {change.toFixed(2)}
-                    </div>
-                  </div>
-                  
-                  {cashReceived && parseFloat(cashReceived) > 0 && parseFloat(cashReceived) < total && (
-                    <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-                      O valor recebido é menor que o total da compra.
-                    </div>
-                  )}
                 </div>
-              )}
-              
-              {selectedPayment === "Ficha do Cliente" && (
-                <div className="mt-3 rounded-md bg-blue-50 p-3 text-sm">
-                  {selectedCustomer ? (
-                    <span>
-                      Esta venda será lançada na ficha de <span className="font-medium">{selectedCustomer.name}</span>.
-                    </span>
+                
+                {/* Detalhes do pagamento */}
+                <div className="transition-all duration-300 ease-in-out">
+                  {selectedPayment === "Dinheiro" ? (
+                    <div className="bg-muted rounded-xl p-5 h-full animate-in fade-in slide-in-from-right-4 duration-300">
+                      <h3 className="text-lg font-semibold mb-4">Pagamento em Dinheiro</h3>
+                      
+                      <div className="space-y-5">
+                        <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                          <span className="text-muted-foreground">Total da Compra</span>
+                          <span className="text-xl font-bold">R$ {total.toFixed(2)}</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label htmlFor="cashReceived" className="text-sm font-medium">
+                            Valor Recebido
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">R$</span>
+                            <Input
+                              id="cashReceived"
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              value={cashReceived}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setCashReceived(value);
+                                
+                                // Calculate change
+                                if (value && !isNaN(parseFloat(value))) {
+                                  const received = parseFloat(value);
+                                  const changeAmount = Math.max(0, received - total);
+                                  setChange(changeAmount);
+                                } else {
+                                  setChange(0);
+                                }
+                              }}
+                              placeholder="0,00"
+                              className="pl-10 text-lg h-12"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
+                          <span className="text-green-800 font-medium">Troco</span>
+                          <span className="text-xl font-bold text-green-900">R$ {change.toFixed(2)}</span>
+                        </div>
+                        
+                        {cashReceived && parseFloat(cashReceived) > 0 && parseFloat(cashReceived) < total && (
+                          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                              <span>O valor recebido é menor que o total da compra.</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : selectedPayment === "Ficha do Cliente" ? (
+                    <div className="bg-blue-50 rounded-xl p-5 h-full border border-blue-200 animate-in fade-in slide-in-from-right-4 duration-300">
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5" />
+                        Ficha do Cliente
+                      </h3>
+                      <div className="text-sm text-blue-800">
+                        {selectedCustomer ? (
+                          <div className="space-y-3">
+                            <p>
+                              Esta venda será lançada na ficha de <span className="font-bold">{selectedCustomer.name}</span>.
+                            </p>
+                            <div className="p-3 bg-blue-100 rounded-lg">
+                              <p className="font-medium">Informações do Cliente:</p>
+                              <p className="mt-1">{selectedCustomer.phone}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <span>Nenhum cliente selecionado.</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : selectedPayment ? (
+                    <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                      <div className="mb-3 p-3 bg-background rounded-full">
+                        {(() => {
+                          const method = [
+                            { label: "Cartão Débito", icon: CreditCard },
+                            { label: "Cartão Crédito", icon: CreditCard },
+                            { label: "PIX", icon: QrCode },
+                          ].find(m => m.label === selectedPayment);
+                          
+                          return method ? (
+                            <method.icon className="h-8 w-8 text-primary" />
+                          ) : null;
+                        })()}
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Pagamento com {selectedPayment}</h3>
+                      <p className="text-muted-foreground">
+                        O total da compra é <span className="font-bold">R$ {total.toFixed(2)}</span>.
+                        Clique em "Finalizar" para concluir a venda.
+                      </p>
+                    </div>
                   ) : (
-                    <span className="text-muted-foreground">Nenhum cliente selecionado.</span>
+                    <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                      <div className="space-y-3">
+                        <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
+                        <h3 className="text-lg font-medium">Selecione uma forma de pagamento</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Escolha uma das opções ao lado para prosseguir com o pagamento.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
+              </div>
               
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <Button
