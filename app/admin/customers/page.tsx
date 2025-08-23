@@ -5,6 +5,7 @@ import {
   Barcode as BarcodeIcon,
   Check,
   Edit,
+  MoreVertical,
   Package,
   Phone,
   Plus,
@@ -13,7 +14,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { Badge } from "../../components/ui/badge";
@@ -26,6 +27,96 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+
+// Menu de opções por cliente
+function CustomerActionsMenu({
+  onEdit,
+  onDelete,
+  onDownload,
+  hasBarcode,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  onDownload: () => void;
+  hasBarcode: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 p-0"
+        aria-label="Ações do cliente"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreVertical className="h-5 w-5 text-gray-500" />
+      </Button>
+      {open && (
+        <div 
+          role="menu"
+          className="absolute right-0 z-50 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
+        >
+          {hasBarcode && (
+            <button
+              role="menuitem"
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+              onClick={() => {
+                setOpen(false);
+                onDownload();
+              }}
+            >
+              <BarcodeIcon className="h-4 w-4 mr-2 text-blue-500" />
+              Código de Barras
+            </button>
+          )}
+          <div className="border-t border-gray-100 my-1"></div>
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            <Edit className="h-4 w-4 mr-2 text-blue-500" /> Editar
+          </button>
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Remover
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Customer = {
   id: string;
@@ -525,9 +616,7 @@ export default function AdminCustomersPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Documento
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
-                      Código de Barras
-                    </th>
+
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Status
                     </th>
@@ -586,23 +675,7 @@ export default function AdminCustomersPage() {
                         </div>
                       </td>
 
-                      <td className="py-4 px-4">
-                        {customer.barcode ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadBarcode(customer)}
-                            className="flex items-center gap-2"
-                          >
-                            <BarcodeIcon className="h-4 w-4" />
-                            Download
-                          </Button>
-                        ) : (
-                          <span className="text-gray-500 text-sm">
-                            Sem código
-                          </span>
-                        )}
-                      </td>
+
 
                       <td className="py-4 px-4">
                         {(() => {
@@ -618,25 +691,12 @@ export default function AdminCustomersPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openForm(customer)}
-                            className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteConfirm(customer.id)}
-                            className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <CustomerActionsMenu
+                          onEdit={() => openForm(customer)}
+                          onDelete={() => setDeleteConfirm(customer.id)}
+                          onDownload={() => downloadBarcode(customer)}
+                          hasBarcode={!!customer.barcode}
+                        />
                       </td>
                     </tr>
                   ))}

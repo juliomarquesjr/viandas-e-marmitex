@@ -441,8 +441,27 @@ export default function AdminProductsPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete product");
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete product");
+      }
+      
+      const result = await response.json();
+      
+      if (result.deactivated) {
+        // Atualizar o produto para inativo em vez de removê-lo
+        setProducts((prev) => 
+          prev.map((p) => 
+            p.id === id ? { ...p, active: false } : p
+          )
+        );
+        showToast("Produto desativado com sucesso (possui vendas associadas)", "warning");
+      } else {
+        // Remover o produto da lista
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        showToast("Produto excluído com sucesso", "success");
+      }
+      
       setDeleteConfirm(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete product");

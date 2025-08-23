@@ -187,11 +187,33 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.product.delete({
-      where: { id },
+    // Verificar se o produto tem vendas associadas
+    const orderItemCount = await prisma.orderItem.count({
+      where: { productId: id }
     });
 
-    return NextResponse.json({ message: "Product deleted successfully" });
+    if (orderItemCount > 0) {
+      // Se tiver vendas, fazer exclusão lógica (marcar como inativo)
+      await prisma.product.update({
+        where: { id },
+        data: { active: false }
+      });
+      
+      return NextResponse.json({ 
+        message: "Product deactivated successfully (has associated sales)", 
+        deactivated: true 
+      });
+    } else {
+      // Se não tiver vendas, excluir fisicamente
+      await prisma.product.delete({
+        where: { id },
+      });
+      
+      return NextResponse.json({ 
+        message: "Product deleted successfully",
+        deactivated: false
+      });
+    }
   } catch (error) {
     console.error("Error deleting product:", error);
     return NextResponse.json(
