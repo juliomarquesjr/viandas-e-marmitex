@@ -70,6 +70,7 @@ export async function GET(request: Request) {
         ...product,
         priceCents: product.priceCents,
         stockEnabled: product.stockEnabled,
+        stock: product.stock,
         productType: product.productType,
         variableProduct: product.variableProduct,
         createdAt: product.createdAt.toISOString().split("T")[0],

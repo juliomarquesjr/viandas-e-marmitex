@@ -123,6 +123,35 @@ export async function POST(request: Request) {
       );
     }
     
+    // Verificar estoque antes de criar o pedido
+    for (const item of body.items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId },
+        select: { 
+          id: true, 
+          name: true, 
+          stockEnabled: true, 
+          stock: true 
+        }
+      });
+      
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product with ID ${item.productId} not found` },
+          { status: 400 }
+        );
+      }
+      
+      if (product.stockEnabled && product.stock !== null) {
+        if (product.stock < item.quantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock for product: ${product.name}` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+    
     // Calcular totais
     let subtotalCents = 0;
     const itemsData = body.items.map((item: any) => {
@@ -151,40 +180,68 @@ export async function POST(request: Request) {
       additionalData.changeCents = body.changeCents;
     }
     
-    // Criar pedido
-    const order = await prisma.order.create({
-      data: {
-        customerId: body.customerId || null,
-        status,
-        subtotalCents,
-        discountCents,
-        deliveryFeeCents,
-        totalCents,
-        paymentMethod: body.paymentMethod || null,
-        ...additionalData,
-        items: {
-          create: itemsData
-        }
-      },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true
+    // Criar pedido e atualizar estoque em uma transação
+    const order = await prisma.$transaction(async (prisma) => {
+      // Criar pedido
+      const newOrder = await prisma.order.create({
+        data: {
+          customerId: body.customerId || null,
+          status,
+          subtotalCents,
+          discountCents,
+          deliveryFeeCents,
+          totalCents,
+          paymentMethod: body.paymentMethod || null,
+          ...additionalData,
+          items: {
+            create: itemsData
           }
         },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              phone: true
+            }
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true
+                }
               }
             }
           }
         }
+      });
+      
+      // Atualizar estoque dos produtos
+      for (const item of body.items) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { 
+            id: true, 
+            stockEnabled: true, 
+            stock: true 
+          }
+        });
+        
+        if (product && product.stockEnabled && product.stock !== null) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: {
+              stock: {
+                decrement: item.quantity
+              }
+            }
+          });
+        }
       }
+      
+      return newOrder;
     });
     
     return NextResponse.json(order);

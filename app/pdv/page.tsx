@@ -54,6 +54,8 @@ type Product = {
   imageUrl?: string;
   active: boolean;
   productType: "sellable" | "addon";
+  stockEnabled?: boolean;
+  stock?: number;
 };
 
 // New type for payment data
@@ -690,6 +692,11 @@ export default function PDVPage() {
                                         ? `Cód: ${product.barcode}`
                                         : "Sem código"}
                                     </div>
+                                    {product.stockEnabled && product.stock !== undefined && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Estoque: {product.stock} unid.
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
                                     R$ {price.toFixed(2)}
@@ -786,6 +793,11 @@ export default function PDVPage() {
                                         ? `Cód: ${product.barcode}`
                                         : "Sem código"}
                                     </div>
+                                    {product.stockEnabled && product.stock !== undefined && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Estoque: {product.stock} unid.
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
                                     R$ {price.toFixed(2)}
