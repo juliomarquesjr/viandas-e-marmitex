@@ -1,12 +1,15 @@
 "use client";
 
 import {
+  Banknote,
   Check,
   CheckCircle,
   Clock,
   CreditCard,
   Filter,
+  IdCard,
   Package,
+  QrCode,
   Receipt,
   Search,
   Trash2,
@@ -14,9 +17,6 @@ import {
   User,
   X,
   XCircle,
-  Banknote,
-  QrCode,
-  IdCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/ui/badge";
@@ -99,6 +99,8 @@ const paymentMethodMap = {
   "cartão crédito": { label: "Cartão de Crédito", icon: CreditCard },
   "cartao debito": { label: "Cartão de Débito", icon: CreditCard },
   "cartao credito": { label: "Cartão de Crédito", icon: CreditCard },
+  cartãocrédito: { label: "Cartão de Crédito", icon: CreditCard },
+  cartãodébito: { label: "Cartão de Débito", icon: CreditCard },
 };
 
 export default function AdminOrdersPage() {

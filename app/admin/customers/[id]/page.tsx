@@ -80,6 +80,7 @@ const paymentMethodMap = {
   "cartão crédito": { label: "Cartão de Crédito", icon: CreditCard },
   "cartao debito": { label: "Cartão de Débito", icon: CreditCard },
   "cartao credito": { label: "Cartão de Crédito", icon: CreditCard },
+  "cartãocrédito": { label: "Cartão de Crédito", icon: CreditCard },
 };
 
 export default function CustomerDetailPage() {
