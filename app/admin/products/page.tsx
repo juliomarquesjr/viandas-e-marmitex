@@ -11,8 +11,10 @@ import {
   Plus,
   Search,
   Trash2,
+  Barcode as BarcodeIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import React from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DeleteProductDialog } from "../../components/DeleteProductDialog";
 import { ProductFormDialog } from "../../components/ProductFormDialog";
@@ -227,6 +229,65 @@ export default function AdminProductsPage() {
       imageUrl: "",
       productType: "sellable",
     });
+  };
+
+  // Função para gerar e baixar o código de barras
+  const downloadBarcode = async (product: Product) => {
+    if (!product.barcode) {
+      alert("Este produto não possui um código de barras definido.");
+      return;
+    }
+
+    try {
+      // Usar uma API online para gerar o código de barras
+      const barcodeUrl = `https://barcodeapi.org/api/codabar/${product.barcode}`;
+      
+      // Criar um elemento de imagem
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      
+      img.onload = () => {
+        // Criar um canvas para desenhar a imagem
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        
+        if (!ctx) {
+          alert("Não foi possível gerar o código de barras.");
+          return;
+        }
+        
+        // Definir o tamanho do canvas
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Desenhar a imagem no canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Converter o canvas para blob e baixar
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `barcode-${product.name.replace(/\s+/g, "-")}-${product.barcode}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        });
+      };
+      
+      img.onerror = () => {
+        alert("Erro ao gerar o código de barras.");
+      };
+      
+      // Iniciar o carregamento da imagem
+      img.src = barcodeUrl;
+    } catch (error) {
+      alert("Erro ao gerar o código de barras.");
+      console.error(error);
+    }
   };
 
   const openForm = (product?: Product) => {
@@ -643,12 +704,15 @@ export default function AdminProductsPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Preço
                     </th>
-
+                    
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Estoque
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Código de Barras
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Ações
@@ -744,6 +808,21 @@ export default function AdminProductsPage() {
                             </Badge>
                           );
                         })()}
+                      </td>
+                      <td className="py-4 px-4">
+                        {product.barcode ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadBarcode(product)}
+                            className="flex items-center gap-2"
+                          >
+                            <BarcodeIcon className="h-4 w-4" />
+                            Download
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">Sem código</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
                         <ProductActionsMenu
