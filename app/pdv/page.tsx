@@ -53,6 +53,7 @@ type Product = {
   barcode?: string;
   imageUrl?: string;
   active: boolean;
+  productType: "sellable" | "addon";
 };
 
 // New type for payment data
@@ -574,111 +575,230 @@ export default function PDVPage() {
             <span>Produtos</span>
             <div className="h-px flex-1 bg-border" />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-6">
             {loadingProducts ? (
-              Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm animate-pulse"
-                >
-                  <div className="h-24 w-24 flex-shrink-0 rounded-md bg-gray-200" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="h-4 w-24 rounded bg-gray-200 mb-2"></div>
-                        <div className="h-3 w-32 rounded bg-gray-200"></div>
+              Array.from({ length: 3 }).map((_, groupIndex) => (
+                <div key={groupIndex} className="space-y-3">
+                  <div className="h-6 w-32 rounded bg-gray-200 animate-pulse"></div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm animate-pulse"
+                      >
+                        <div className="h-24 w-24 flex-shrink-0 rounded-md bg-gray-200" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="h-4 w-24 rounded bg-gray-200 mb-2"></div>
+                              <div className="h-3 w-32 rounded bg-gray-200"></div>
+                            </div>
+                            <div className="h-6 w-16 rounded-full bg-gray-200"></div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="h-6 w-16 rounded-full bg-gray-200"></div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               ))
             ) : products.length === 0 ? (
-              <div className="col-span-3 grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+              <div className="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
                 <div>Nenhum produto cadastrado.</div>
               </div>
             ) : (
-              products.map((product) => {
-                const hasImage = product.imageUrl; // usar imagem real se disponível
-                const imgSrc = hasImage
-                  ? product.imageUrl
-                  : "/product-placeholder.svg";
-                const price = product.priceCents / 100; // converter centavos para reais
+              <>
+                {/* Produtos Vendáveis */}
+                {products.filter((p) => p.productType === "sellable").length >
+                  0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Produtos Vendáveis
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {products
+                        .filter((p) => p.productType === "sellable")
+                        .map((product) => {
+                          const hasImage = product.imageUrl; // usar imagem real se disponível
+                          const imgSrc = hasImage
+                            ? product.imageUrl
+                            : "/product-placeholder.svg";
+                          const price = product.priceCents / 100; // converter centavos para reais
 
-                return (
-                  <button
-                    key={product.id}
-                    onClick={() => {
-                      // Adicionar produto ao carrinho
-                      setCart((prev) => {
-                        const existingIndex = prev.findIndex(
-                          (item) => item.id === product.id
-                        );
-                        if (existingIndex >= 0) {
-                          const updated = [...prev];
-                          updated[existingIndex] = {
-                            ...updated[existingIndex],
-                            qty: updated[existingIndex].qty + 1,
-                          };
-                          setSelectedIndex(existingIndex);
-                          return updated;
-                        }
-                        const item: CartItem = {
-                          id: product.id,
-                          name: product.name,
-                          price,
-                          qty: 1,
-                        };
-                        setSelectedIndex(prev.length);
-                        return [...prev, item];
-                      });
-                      // Reproduzir som de beep
-                      playBeepSound();
-                      setQuery("");
-                      inputRef.current?.focus();
-                    }}
-                    className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-                      {hasImage ? (
-                        <img
-                          src={imgSrc}
-                          alt={product.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            // Se a imagem falhar, mostrar o placeholder
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = "none";
-                            target.parentElement!.innerHTML =
-                              '<div class="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image h-8 w-8 text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
-                          }}
-                        />
-                      ) : (
-                        <ImageIcon className="h-8 w-8 text-gray-400" />
-                      )}
+                          return (
+                            <button
+                              key={product.id}
+                              onClick={() => {
+                                // Adicionar produto ao carrinho
+                                setCart((prev) => {
+                                  const existingIndex = prev.findIndex(
+                                    (item) => item.id === product.id
+                                  );
+                                  if (existingIndex >= 0) {
+                                    const updated = [...prev];
+                                    updated[existingIndex] = {
+                                      ...updated[existingIndex],
+                                      qty: updated[existingIndex].qty + 1,
+                                    };
+                                    setSelectedIndex(existingIndex);
+                                    return updated;
+                                  }
+                                  const item: CartItem = {
+                                    id: product.id,
+                                    name: product.name,
+                                    price,
+                                    qty: 1,
+                                  };
+                                  setSelectedIndex(prev.length);
+                                  return [...prev, item];
+                                });
+                                // Reproduzir som de beep
+                                playBeepSound();
+                                setQuery("");
+                                inputRef.current?.focus();
+                              }}
+                              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {hasImage ? (
+                                  <img
+                                    src={imgSrc}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      // Se a imagem falhar, mostrar o placeholder
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                      target.parentElement!.innerHTML =
+                                        '<div class="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image h-8 w-8 text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
+                                    }}
+                                  />
+                                ) : (
+                                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-base font-semibold">
+                                      {product.name}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {product.barcode
+                                        ? `Cód: ${product.barcode}`
+                                        : "Sem código"}
+                                    </div>
+                                  </div>
+                                  <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
+                                    R$ {price.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-base font-semibold">
-                            {product.name}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {product.barcode
-                              ? `Cód: ${product.barcode}`
-                              : "Sem código"}
-                          </div>
-                        </div>
-                        <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
-                          R$ {price.toFixed(2)}
-                        </div>
-                      </div>
+                  </div>
+                )}
+
+                {/* Adicionais */}
+                {products.filter((p) => p.productType === "addon").length >
+                  0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Adicionais
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {products
+                        .filter((p) => p.productType === "addon")
+                        .map((product) => {
+                          const hasImage = product.imageUrl; // usar imagem real se disponível
+                          const imgSrc = hasImage
+                            ? product.imageUrl
+                            : "/product-placeholder.svg";
+                          const price = product.priceCents / 100; // converter centavos para reais
+
+                          return (
+                            <button
+                              key={product.id}
+                              onClick={() => {
+                                // Adicionar produto ao carrinho
+                                setCart((prev) => {
+                                  const existingIndex = prev.findIndex(
+                                    (item) => item.id === product.id
+                                  );
+                                  if (existingIndex >= 0) {
+                                    const updated = [...prev];
+                                    updated[existingIndex] = {
+                                      ...updated[existingIndex],
+                                      qty: updated[existingIndex].qty + 1,
+                                    };
+                                    setSelectedIndex(existingIndex);
+                                    return updated;
+                                  }
+                                  const item: CartItem = {
+                                    id: product.id,
+                                    name: product.name,
+                                    price,
+                                    qty: 1,
+                                  };
+                                  setSelectedIndex(prev.length);
+                                  return [...prev, item];
+                                });
+                                // Reproduzir som de beep
+                                playBeepSound();
+                                setQuery("");
+                                inputRef.current?.focus();
+                              }}
+                              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {hasImage ? (
+                                  <img
+                                    src={imgSrc}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      // Se a imagem falhar, mostrar o placeholder
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                      target.parentElement!.innerHTML =
+                                        '<div class="h-24 w-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image h-8 w-8 text-gray-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>';
+                                    }}
+                                  />
+                                ) : (
+                                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-base font-semibold">
+                                      {product.name}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {product.barcode
+                                        ? `Cód: ${product.barcode}`
+                                        : "Sem código"}
+                                    </div>
+                                  </div>
+                                  <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
+                                    R$ {price.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
                     </div>
-                  </button>
-                );
-              })
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>
