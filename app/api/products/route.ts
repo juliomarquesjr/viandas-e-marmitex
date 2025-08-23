@@ -68,12 +68,12 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: products.map(product => ({
         ...product,
-        price_cents: product.priceCents,
-        stock_enabled: product.stockEnabled,
-        product_type: product.productType,
-        variable_product: product.variableProduct,
-        created_at: product.createdAt.toISOString().split('T')[0],
-        category_id: product.categoryId
+        priceCents: product.priceCents,
+        stockEnabled: product.stockEnabled,
+        productType: product.productType,
+        variableProduct: product.variableProduct,
+        createdAt: product.createdAt.toISOString().split('T')[0],
+        categoryId: product.categoryId
       })),
       categories: categories.map(category => ({
         id: category.id,
@@ -111,26 +111,26 @@ export async function POST(request: Request) {
       data: {
         name: body.name,
         barcode: body.barcode,
-        categoryId: body.category_id || null,
-        priceCents: parseInt(body.price_cents) || 0,
+        categoryId: body.categoryId || null,
+        priceCents: parseInt(body.priceCents) || 0,
         description: body.description,
-        stockEnabled: body.stock_enabled || false,
-        stock: body.stock_enabled && body.stock ? parseInt(body.stock) : null,
-        imageUrl: body.image_url,
-        productType: body.product_type || 'sellable',
-        variableProduct: body.variable_product || false,
+        stockEnabled: body.stockEnabled || false,
+        stock: body.stockEnabled && body.stock ? parseInt(body.stock) : null,
+        imageUrl: body.imageUrl,
+        productType: body.productType || 'sellable',
+        variableProduct: body.variableProduct || false,
         active: body.active !== undefined ? body.active : true
       }
     });
     
     return NextResponse.json({
       ...product,
-      price_cents: product.priceCents,
-      stock_enabled: product.stockEnabled,
-      product_type: product.productType,
-      variable_product: product.variableProduct,
-      created_at: product.createdAt.toISOString().split('T')[0],
-      category_id: product.categoryId
+      priceCents: product.priceCents,
+      stockEnabled: product.stockEnabled,
+      productType: product.productType,
+      variableProduct: product.variableProduct,
+      createdAt: product.createdAt.toISOString().split('T')[0],
+      categoryId: product.categoryId
     });
   } catch (error) {
     console.error('Error creating product:', error);
@@ -166,26 +166,26 @@ export async function PUT(request: Request) {
       data: {
         name: data.name,
         barcode: data.barcode,
-        categoryId: data.category_id || null,
-        priceCents: parseInt(data.price_cents) || 0,
+        categoryId: data.categoryId || null,
+        priceCents: parseInt(data.priceCents) || 0,
         description: data.description,
-        stockEnabled: data.stock_enabled || false,
-        stock: data.stock_enabled && data.stock ? parseInt(data.stock) : null,
-        imageUrl: data.image_url,
-        productType: data.product_type || 'sellable',
-        variableProduct: data.variable_product || false,
+        stockEnabled: data.stockEnabled || false,
+        stock: data.stockEnabled && data.stock ? parseInt(data.stock) : null,
+        imageUrl: data.imageUrl,
+        productType: data.productType || 'sellable',
+        variableProduct: data.variableProduct || false,
         active: data.active !== undefined ? data.active : true
       }
     });
     
     return NextResponse.json({
       ...product,
-      price_cents: product.priceCents,
-      stock_enabled: product.stockEnabled,
-      product_type: product.productType,
-      variable_product: product.variableProduct,
-      created_at: product.createdAt.toISOString().split('T')[0],
-      category_id: product.categoryId
+      priceCents: product.priceCents,
+      stockEnabled: product.stockEnabled,
+      productType: product.productType,
+      variableProduct: product.variableProduct,
+      createdAt: product.createdAt.toISOString().split('T')[0],
+      categoryId: product.categoryId
     });
   } catch (error) {
     console.error('Error updating product:', error);

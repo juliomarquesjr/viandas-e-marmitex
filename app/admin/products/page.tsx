@@ -10,48 +10,47 @@ import {
   Plus,
   Search,
   Trash2,
-  X
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DeleteProductDialog } from "../../components/DeleteProductDialog";
+import { ProductFormDialog } from "../../components/ProductFormDialog";
+import { useToast } from "../../components/Toast";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { useToast } from "../../components/Toast";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
 
-type Product = {
+export type Product = {
   id: string;
   name: string;
   barcode?: string;
-  category_id?: string;
-  price_cents: number;
+  categoryId?: string;
+  priceCents: number;
   active: boolean;
-  created_at: string;
+  createdAt: string;
   description?: string;
-  stock_enabled: boolean;
+  stockEnabled: boolean;
   stock?: number;
-  image_url?: string;
-  product_type: "sellable" | "addon";
-  variable_product: boolean;
+  imageUrl?: string;
+  productType: "sellable" | "addon";
+  variableProduct: boolean;
 };
 
-type Category = {
+export type Category = {
   id: string;
   name: string;
 };
 
 export default function AdminProductsPage() {
   const { showToast } = useToast();
-  
+
   // Estados de dados
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -65,14 +64,14 @@ export default function AdminProductsPage() {
     name: "",
     barcode: "",
     category_id: "",
-    price_cents: "",
+    priceCents: "",
     description: "",
-    stock_enabled: false,
+    stockEnabled: false,
     stock: "",
     active: true,
-    image_url: "",
-    product_type: "sellable" as Product["product_type"],
-    variable_product: false
+    imageUrl: "",
+    productType: "sellable" as Product["productType"],
+    variableProduct: false,
   });
   const [isUploading, setIsUploading] = useState(false);
 
@@ -83,31 +82,33 @@ export default function AdminProductsPage() {
 
   // Função para lidar com o upload de arquivos
   const handleFileUpload = async (file: File) => {
-    console.log('Iniciando upload do arquivo:', file.name);
+    console.log("Iniciando upload do arquivo:", file.name);
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      console.log('FormData criado');
+      formData.append("file", file);
+      console.log("FormData criado");
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
-      console.log('Resposta do servidor:', response.status);
+      console.log("Resposta do servidor:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('Erro na resposta:', errorData);
-        throw new Error(errorData.error || 'Falha no upload');
+        console.log("Erro na resposta:", errorData);
+        throw new Error(errorData.error || "Falha no upload");
       }
 
       const { url } = await response.json();
-      console.log('URL recebida:', url);
-      setFormData(prev => ({ ...prev, image_url: url }));
+      console.log("URL recebida:", url);
+      setFormData((prev) => ({ ...prev, image_url: url }));
     } catch (error) {
-      console.error('Erro no upload:', error);
-      alert(error instanceof Error ? error.message : 'Falha no upload da imagem');
+      console.error("Erro no upload:", error);
+      alert(
+        error instanceof Error ? error.message : "Falha no upload da imagem"
+      );
     } finally {
       setIsUploading(false);
     }
@@ -116,9 +117,15 @@ export default function AdminProductsPage() {
   // Estados de filtros e busca
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "sellable" | "addon">("all");
-  const [variableFilter, setVariableFilter] = useState<"all" | "variable" | "standard">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "sellable" | "addon">(
+    "all"
+  );
+  const [variableFilter, setVariableFilter] = useState<
+    "all" | "variable" | "standard"
+  >("all");
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -130,12 +137,12 @@ export default function AdminProductsPage() {
       const response = await fetch(
         `/api/products?q=${searchTerm}&category=${categoryFilter}&status=${statusFilter}&type=${typeFilter}&variable=${variableFilter}`
       );
-      if (!response.ok) throw new Error('Failed to fetch products');
+      if (!response.ok) throw new Error("Failed to fetch products");
       const result = await response.json();
       setProducts(result.data);
       setCategories(result.categories);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load products');
+      setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -152,14 +159,14 @@ export default function AdminProductsPage() {
       name: "",
       barcode: "",
       category_id: "",
-      price_cents: "",
+      priceCents: "",
       description: "",
-      stock_enabled: false,
+      stockEnabled: false,
       stock: "",
       active: true,
-      image_url: "",
-      product_type: "sellable",
-      variable_product: false
+      imageUrl: "",
+      productType: "sellable",
+      variableProduct: false,
     });
   };
 
@@ -169,15 +176,15 @@ export default function AdminProductsPage() {
       setFormData({
         name: product.name,
         barcode: product.barcode || "",
-        category_id: product.category_id || "",
-        price_cents: product.price_cents.toString(),
+        category_id: product.categoryId || "",
+        priceCents: product.priceCents.toString(),
         description: product.description || "",
-        stock_enabled: product.stock_enabled,
+        stockEnabled: product.stockEnabled,
         stock: product.stock?.toString() || "",
-        variable_product: product.variable_product,
+        variableProduct: product.variableProduct,
         active: product.active,
-        image_url: product.image_url || "",
-        product_type: product.product_type
+        imageUrl: product.imageUrl || "",
+        productType: product.productType,
       });
     } else {
       setEditingProduct(null);
@@ -194,113 +201,141 @@ export default function AdminProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validação do preço
-    const priceCents = parseInt(formData.price_cents);
-    if (!formData.price_cents || isNaN(priceCents) || priceCents <= 0) {
-      alert('Por favor, insira um preço válido maior que zero.');
+    const priceCents = parseInt(formData.priceCents);
+    if (!formData.priceCents || isNaN(priceCents) || priceCents <= 0) {
+      alert("Por favor, insira um preço válido maior que zero.");
       return;
     }
-    
+
     try {
       const productData = {
         name: formData.name,
         barcode: formData.barcode || undefined,
         category_id: formData.category_id || undefined,
-        price_cents: parseInt(formData.price_cents),
+        price_cents: parseInt(formData.priceCents),
         description: formData.description || undefined,
-        stock_enabled: formData.stock_enabled,
-        stock: formData.stock_enabled && formData.stock ? parseInt(formData.stock) : undefined,
+        stock_enabled: formData.stockEnabled,
+        stock:
+          formData.stockEnabled && formData.stock
+            ? parseInt(formData.stock)
+            : undefined,
         active: formData.active,
-        image_url: formData.image_url || undefined,
-        product_type: formData.product_type,
-        variable_product: formData.variable_product
+        image_url: formData.imageUrl || undefined,
+        product_type: formData.productType,
+        variable_product: formData.variableProduct,
       };
-      
+
       if (editingProduct) {
         // Editar produto existente
         const response = await fetch(`/api/products`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editingProduct.id, ...productData })
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingProduct.id, ...productData }),
         });
-        
-        if (!response.ok) throw new Error('Failed to update product');
+
+        if (!response.ok) throw new Error("Failed to update product");
         const updatedProduct = await response.json();
-        
+
         // Verificar se o código de barras foi alterado
-        if (editingProduct.barcode !== updatedProduct.barcode && updatedProduct.barcode) {
-          setConfirmMessage(`Atenção: O código de barras do produto será alterado para ${updatedProduct.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`);
+        if (
+          editingProduct.barcode !== updatedProduct.barcode &&
+          updatedProduct.barcode
+        ) {
+          setConfirmMessage(
+            `Atenção: O código de barras do produto será alterado para ${updatedProduct.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`
+          );
           setPendingAction(() => () => {
-            setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+            setProducts((prev) =>
+              prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+            );
             showToast("Produto atualizado com sucesso!", "success");
           });
           setIsConfirmOpen(true);
         } else {
-          setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+          setProducts((prev) =>
+            prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+          );
           showToast("Produto atualizado com sucesso!", "success");
           closeForm();
         }
       } else {
         // Criar novo produto
         const response = await fetch(`/api/products`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(productData)
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
         });
-        
-        if (!response.ok) throw new Error('Failed to create product');
+
+        if (!response.ok) throw new Error("Failed to create product");
         const newProduct = await response.json();
-        
+
         // Verificar se o código de barras foi definido
         if (newProduct.barcode) {
-          setConfirmMessage(`Atenção: O código de barras do produto será definido como ${newProduct.barcode}.`);
+          setConfirmMessage(
+            `Atenção: O código de barras do produto será definido como ${newProduct.barcode}.`
+          );
           setPendingAction(() => () => {
-            setProducts(prev => [...prev, newProduct]);
+            setProducts((prev) => [...prev, newProduct]);
             showToast("Produto cadastrado com sucesso!", "success");
           });
           setIsConfirmOpen(true);
         } else {
-          setProducts(prev => [...prev, newProduct]);
+          setProducts((prev) => [...prev, newProduct]);
           showToast("Produto cadastrado com sucesso!", "success");
           closeForm();
         }
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to save product', "error");
+      showToast(
+        err instanceof Error ? err.message : "Failed to save product",
+        "error"
+      );
     }
   };
 
   const deleteProduct = async (id: string) => {
     try {
       const response = await fetch(`/api/products?id=${id}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      
-      if (!response.ok) throw new Error('Failed to delete product');
-      setProducts(prev => prev.filter(p => p.id !== id));
+
+      if (!response.ok) throw new Error("Failed to delete product");
+      setProducts((prev) => prev.filter((p) => p.id !== id));
       setDeleteConfirm(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete product');
+      alert(err instanceof Error ? err.message : "Failed to delete product");
     }
   };
 
   const getCategoryName = (categoryId?: string) => {
     if (!categoryId) return "Sem categoria";
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : "Categoria não encontrada";
   };
 
   const getStatusInfo = (active: boolean) => {
-    return active 
-      ? { label: "Ativo", color: "bg-green-100 text-green-700 border-green-200" }
+    return active
+      ? {
+          label: "Ativo",
+          color: "bg-green-100 text-green-700 border-green-200",
+        }
       : { label: "Inativo", color: "bg-red-100 text-red-700 border-red-200" };
   };
 
-  const getTypeInfo = (type: Product["product_type"]) => {
+  const getTypeInfo = (type: Product["productType"]) => {
     return type === "sellable"
-      ? { label: "Vendável", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Package }
-      : { label: "Adicional", color: "bg-orange-100 text-orange-700 border-orange-200", icon: Plus };
+      ? {
+          label: "Vendável",
+          color: "bg-blue-100 text-blue-700 border-blue-200",
+          icon: Package,
+        }
+      : {
+          label: "Adicional",
+          color: "bg-orange-100 text-orange-700 border-orange-200",
+          icon: Plus,
+        };
   };
 
   const handleConfirmAction = () => {
@@ -315,44 +350,44 @@ export default function AdminProductsPage() {
   // Funções para formatação de preço
   const formatPriceToReais = (cents: number): string => {
     if (!cents || isNaN(cents) || cents <= 0) return "R$ 0,00";
-    return (cents / 100).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2
+    return (cents / 100).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
     });
   };
 
   const formatReaisToCents = (reais: string): number => {
     // Remove todos os caracteres não numéricos exceto vírgula e ponto
-    const cleanValue = reais.replace(/[^\d,.-]/g, '');
-    
+    const cleanValue = reais.replace(/[^\d,.-]/g, "");
+
     // Se não há valor numérico, retorna 0
     if (!cleanValue) return 0;
-    
+
     // Substitui vírgula por ponto para conversão
-    const numericValue = parseFloat(cleanValue.replace(',', '.'));
-    
+    const numericValue = parseFloat(cleanValue.replace(",", "."));
+
     // Se não é um número válido, retorna 0
     if (isNaN(numericValue)) return 0;
-    
+
     // Converte para centavos
     return Math.round(numericValue * 100);
   };
 
   const handlePriceChange = (value: string) => {
     // Remove tudo exceto números, vírgula e ponto
-    const cleanValue = value.replace(/[^\d,.-]/g, '');
-    
+    const cleanValue = value.replace(/[^\d,.-]/g, "");
+
     // Se não há valor, limpa o campo
     if (!cleanValue) {
-      setFormData(prev => ({ ...prev, price_cents: "" }));
+      setFormData((prev) => ({ ...prev, price_cents: "" }));
       return;
     }
 
     // Converte para centavos e atualiza o estado
     const cents = formatReaisToCents(cleanValue);
     if (cents >= 0) {
-      setFormData(prev => ({ ...prev, price_cents: cents.toString() }));
+      setFormData((prev) => ({ ...prev, price_cents: cents.toString() }));
     }
   };
 
@@ -361,10 +396,17 @@ export default function AdminProductsPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Produtos</h1>
-          <p className="text-gray-600">Cadastre e gerencie o catálogo de produtos</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gerenciamento de Produtos
+          </h1>
+          <p className="text-gray-600">
+            Cadastre e gerencie o catálogo de produtos
+          </p>
         </div>
-        <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
+        <Button
+          onClick={() => openForm()}
+          className="bg-primary hover:bg-primary/90"
+        >
           <Plus className="h-5 w-5 mr-2" />
           Novo Produto
         </Button>
@@ -377,7 +419,9 @@ export default function AdminProductsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600">Total</p>
-                <p className="text-3xl font-bold text-blue-900">{products.length}</p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {products.length}
+                </p>
               </div>
               <Package className="h-12 w-12 text-blue-600" />
             </div>
@@ -390,7 +434,7 @@ export default function AdminProductsPage() {
               <div>
                 <p className="text-sm font-medium text-green-600">Vendáveis</p>
                 <p className="text-3xl font-bold text-green-900">
-                  {products.filter(p => p.product_type === "sellable").length}
+                  {products.filter((p) => p.productType === "sellable").length}
                 </p>
               </div>
               <Package className="h-12 w-12 text-green-600" />
@@ -402,9 +446,11 @@ export default function AdminProductsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600">Adicionais</p>
+                <p className="text-sm font-medium text-orange-600">
+                  Adicionais
+                </p>
                 <p className="text-3xl font-bold text-orange-900">
-                  {products.filter(p => p.product_type === "addon").length}
+                  {products.filter((p) => p.productType === "addon").length}
                 </p>
               </div>
               <Plus className="h-12 w-12 text-orange-600" />
@@ -418,7 +464,7 @@ export default function AdminProductsPage() {
               <div>
                 <p className="text-sm font-medium text-purple-600">Ativos</p>
                 <p className="text-3xl font-bold text-purple-900">
-                  {products.filter(p => p.active).length}
+                  {products.filter((p) => p.active).length}
                 </p>
               </div>
               <Check className="h-12 w-12 text-purple-600" />
@@ -430,9 +476,14 @@ export default function AdminProductsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-600">Valor Total</p>
+                <p className="text-sm font-medium text-emerald-600">
+                  Valor Total
+                </p>
                 <p className="text-3xl font-bold text-emerald-900">
-                  R$ {(products.reduce((sum, p) => sum + p.price_cents, 0) / 100).toLocaleString('pt-BR')}
+                  R${" "}
+                  {(
+                    products.reduce((sum, p) => sum + p.priceCents, 0) / 100
+                  ).toLocaleString("pt-BR")}
                 </p>
               </div>
               <DollarSign className="h-12 w-12 text-emerald-600" />
@@ -467,14 +518,18 @@ export default function AdminProductsPage() {
             className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
           >
             <option value="all">Todas as Categorias</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>{category.name}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
             ))}
           </select>
 
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as "all" | "sellable" | "addon")}
+            onChange={(e) =>
+              setTypeFilter(e.target.value as "all" | "sellable" | "addon")
+            }
             className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
           >
             <option value="all">Todos os Tipos</option>
@@ -484,7 +539,11 @@ export default function AdminProductsPage() {
 
           <select
             value={variableFilter}
-            onChange={(e) => setVariableFilter(e.target.value as "all" | "variable" | "standard")}
+            onChange={(e) =>
+              setVariableFilter(
+                e.target.value as "all" | "variable" | "standard"
+              )
+            }
             className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
           >
             <option value="all">Todas as Variações</option>
@@ -494,7 +553,9 @@ export default function AdminProductsPage() {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as "all" | "active" | "inactive")
+            }
             className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
           >
             <option value="all">Todos os Status</option>
@@ -522,9 +583,12 @@ export default function AdminProductsPage() {
       {/* Tabela de Produtos */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">Catálogo de Produtos</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-900">
+            Catálogo de Produtos
+          </CardTitle>
           <CardDescription>
-            {products.length} produto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
+            {products.length} produto{products.length !== 1 ? "s" : ""}{" "}
+            encontrado{products.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -538,9 +602,14 @@ export default function AdminProductsPage() {
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar produtos</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Erro ao carregar produtos
+              </h3>
               <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={loadProducts} className="bg-primary hover:bg-primary/90">
+              <Button
+                onClick={loadProducts}
+                className="bg-primary hover:bg-primary/90"
+              >
                 Tentar novamente
               </Button>
             </div>
@@ -549,25 +618,44 @@ export default function AdminProductsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Produto</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Categoria</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Tipo</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Preço</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Variações</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Estoque</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Ações</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Produto
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Categoria
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Tipo
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Preço
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Variações
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Estoque
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
-                    <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                    <tr
+                      key={product.id}
+                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                    >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                            {product.image_url ? (
-                              <img 
-                                src={product.image_url} 
+                            {product.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
                                 alt={product.name}
                                 className="h-full w-full object-cover"
                               />
@@ -576,7 +664,9 @@ export default function AdminProductsPage() {
                             )}
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">{product.name}</div>
+                            <div className="font-medium text-gray-900">
+                              {product.name}
+                            </div>
                             {product.description && (
                               <div className="text-sm text-gray-500 truncate max-w-xs">
                                 {product.description}
@@ -587,14 +677,18 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">{getCategoryName(product.category_id)}</div>
+                        <div className="text-sm text-gray-700">
+                          {getCategoryName(product.categoryId)}
+                        </div>
                       </td>
                       <td className="py-4 px-4">
                         {(() => {
-                          const typeInfo = getTypeInfo(product.product_type);
+                          const typeInfo = getTypeInfo(product.productType);
                           const Icon = typeInfo.icon;
                           return (
-                            <Badge className={`${typeInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit`}>
+                            <Badge
+                              className={`${typeInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit`}
+                            >
                               <Icon className="h-3 w-3" />
                               {typeInfo.label}
                             </Badge>
@@ -603,12 +697,12 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-lg font-semibold text-gray-900">
-                          {formatPriceToReais(product.price_cents || 0)}
+                          {formatPriceToReais(product.priceCents || 0)}
                         </div>
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-sm text-gray-700">
-                          {product.variable_product ? (
+                          {product.variableProduct ? (
                             <Badge className="bg-purple-100 text-purple-700 border-purple-200 border px-3 py-1 rounded-full text-xs font-medium">
                               Com variações
                             </Badge>
@@ -621,15 +715,21 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-sm text-gray-700">
-                          {product.stock_enabled ? (
+                          {product.stockEnabled ? (
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span>{product.stock !== undefined ? product.stock : 0}</span>
+                              <span>
+                                {product.stock !== undefined
+                                  ? product.stock
+                                  : 0}
+                              </span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                              <span className="text-gray-500">Sem controle</span>
+                              <span className="text-gray-500">
+                                Sem controle
+                              </span>
                             </div>
                           )}
                         </div>
@@ -638,7 +738,9 @@ export default function AdminProductsPage() {
                         {(() => {
                           const statusInfo = getStatusInfo(product.active);
                           return (
-                            <Badge className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}>
+                            <Badge
+                              className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}
+                            >
                               {statusInfo.label}
                             </Badge>
                           );
@@ -654,7 +756,7 @@ export default function AdminProductsPage() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -673,19 +775,31 @@ export default function AdminProductsPage() {
               {products.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum produto encontrado</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Nenhum produto encontrado
+                  </h3>
                   <p className="text-gray-600 mb-4">
-                    {searchTerm || categoryFilter !== "all" || statusFilter !== "all" || typeFilter !== "all" || variableFilter !== "all"
-                      ? "Tente ajustar os filtros de busca" 
-                      : "Comece cadastrando o primeiro produto do catálogo"
-                    }
+                    {searchTerm ||
+                    categoryFilter !== "all" ||
+                    statusFilter !== "all" ||
+                    typeFilter !== "all" ||
+                    variableFilter !== "all"
+                      ? "Tente ajustar os filtros de busca"
+                      : "Comece cadastrando o primeiro produto do catálogo"}
                   </p>
-                  {!searchTerm && categoryFilter === "all" && statusFilter === "all" && typeFilter === "all" && variableFilter === "all" && (
-                    <Button onClick={() => openForm()} className="bg-primary hover:bg-primary/90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Cadastrar Produto
-                    </Button>
-                  )}
+                  {!searchTerm &&
+                    categoryFilter === "all" &&
+                    statusFilter === "all" &&
+                    typeFilter === "all" &&
+                    variableFilter === "all" && (
+                      <Button
+                        onClick={() => openForm()}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Cadastrar Produto
+                      </Button>
+                    )}
                 </div>
               )}
             </div>
@@ -694,279 +808,28 @@ export default function AdminProductsPage() {
       </Card>
 
       {/* Modal de Formulário */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
-            <CardHeader className="border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-semibold">
-                    {editingProduct ? "Editar Produto" : "Novo Produto"}
-                  </CardTitle>
-                  <CardDescription>
-                    {editingProduct ? "Atualize as informações do produto" : "Preencha os dados para cadastrar um novo produto"}
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeForm}
-                  className="h-8 w-8 rounded-lg hover:bg-gray-100"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Nome do Produto *</label>
-                    <Input
-                      placeholder="Digite o nome do produto"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Código de Barras</label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="7891234567890"
-                        value={formData.barcode}
-                        onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
-                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          // Gerar código de barras no range 5-7 (iniciando com 5, 6 ou 7)
-                          const prefix = Math.floor(Math.random() * 3) + 5; // 5, 6 ou 7
-                          const randomSuffix = Math.floor(Math.random() * 1000000000000);
-                          const randomBarcode = prefix * 1000000000000 + randomSuffix;
-                          setFormData(prev => ({ ...prev, barcode: randomBarcode.toString() }));
-                        }}
-                        className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
-                        title="Gerar código de barras aleatório"
-                      >
-                        <Package className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Categoria</label>
-                    <select
-                      value={formData.category_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                    >
-                      <option value="">Selecione uma categoria</option>
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>{category.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Preço *</label>
-                    <Input
-                      type="text"
-                      placeholder="R$ 25,00"
-                      value={formData.price_cents && formData.price_cents !== "" && !isNaN(parseInt(formData.price_cents)) && parseInt(formData.price_cents) > 0 ? formatPriceToReais(parseInt(formData.price_cents)) : ""}
-                      onChange={(e) => handlePriceChange(e.target.value)}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Controle de Estoque</label>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.stock_enabled}
-                            onChange={(e) => setFormData(prev => ({ ...prev, stock_enabled: e.target.checked }))}
-                            className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                          />
-                          <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                        </div>
-                        <span className="text-sm text-gray-700">Ativar controle de estoque</span>
-                      </label>
-                    </div>
-                    {formData.stock_enabled && (
-                      <div className="mt-2">
-                        <Input
-                          type="number"
-                          placeholder="50"
-                          value={formData.stock}
-                          onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))}
-                          className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Tipo de Produto *</label>
-                    <select
-                      value={formData.product_type}
-                      onChange={(e) => setFormData(prev => ({ ...prev, product_type: e.target.value as Product["product_type"] }))}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                      required
-                    >
-                      <option value="sellable">Produto Vendável</option>
-                      <option value="addon">Adicional/Complemento</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Produto Variável</label>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.variable_product}
-                            onChange={(e) => setFormData(prev => ({ ...prev, variable_product: e.target.checked }))}
-                            className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                          />
-                          <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                        </div>
-                        <span className="text-sm text-gray-700">Produto com variações (tamanhos, cores, etc.)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Imagem do Produto</label>
-                    <div className="space-y-3">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleFileUpload(file);
-                          }
-                        }}
-                        disabled={isUploading}
-                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      />
-                      {isUploading && (
-                        <div className="text-sm text-muted-foreground">Enviando imagem...</div>
-                      )}
-                      {formData.image_url && (
-                        <div className="mt-2">
-                          <img 
-                            src={formData.image_url} 
-                            alt="Preview" 
-                            className="h-20 w-20 rounded-md object-cover"
-                          />
-                        </div>
-                      )}
-                      <Input
-                        placeholder="ou insira uma URL diretamente"
-                        value={formData.image_url}
-                        onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
-                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Descrição</label>
-                  <Input
-                    placeholder="Descrição detalhada do produto"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.active}
-                        onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
-                        className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                      />
-                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">Produto ativo</span>
-                  </label>
-                </div>
-
-                {/* Separator */}
-                <div className="border-t border-gray-200 my-6"></div>
-
-                <div className="flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeForm}
-                    className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-                  >
-                    {editingProduct ? "Atualizar" : "Cadastrar"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <ProductFormDialog
+        open={isFormOpen}
+        onClose={closeForm}
+        onSubmit={handleSubmit}
+        formData={formData}
+        setFormData={setFormData}
+        isUploading={isUploading}
+        categories={categories}
+        editingProduct={editingProduct}
+        handleFileUpload={handleFileUpload}
+        handlePriceChange={handlePriceChange}
+        formatPriceToReais={formatPriceToReais}
+      />
 
       {/* Modal de Confirmação de Exclusão */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white shadow-2xl border-0">
-            <CardHeader className="text-center border-b border-gray-200">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              </div>
-              <CardTitle className="text-lg font-semibold text-gray-900">Confirmar Exclusão</CardTitle>
-              <CardDescription>
-                Tem certeza que deseja remover este produto? Esta ação não pode ser desfeita.
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="p-6">
-              <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteConfirm(null)}
-                  className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={() => deleteProduct(deleteConfirm)}
-                  className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <DeleteProductDialog
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={() => {
+          if (deleteConfirm) deleteProduct(deleteConfirm);
+        }}
+      />
 
       {/* Diálogo de Confirmação */}
       <ConfirmDialog
