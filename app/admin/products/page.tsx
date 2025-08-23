@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  Barcode as BarcodeIcon,
   Check,
   DollarSign,
   Edit,
@@ -11,10 +12,8 @@ import {
   Plus,
   Search,
   Trash2,
-  Barcode as BarcodeIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DeleteProductDialog } from "../../components/DeleteProductDialog";
 import { ProductFormDialog } from "../../components/ProductFormDialog";
@@ -33,9 +32,13 @@ import { Input } from "../../components/ui/input";
 function ProductActionsMenu({
   onEdit,
   onDelete,
+  onDownload,
+  hasBarcode,
 }: {
   onEdit: () => void;
   onDelete: () => void;
+  onDownload: () => void;
+  hasBarcode: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,7 +72,19 @@ function ProductActionsMenu({
         <MoreVertical className="h-5 w-5 text-gray-500" />
       </Button>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in">
+        <div className="absolute right-0 z-20 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in">
+          {hasBarcode && (
+            <button
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => {
+                setOpen(false);
+                onDownload();
+              }}
+            >
+              <BarcodeIcon className="h-4 w-4 mr-2 text-blue-500" />
+              Etiqueta
+            </button>
+          )}
           <button
             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             onClick={() => {
@@ -241,35 +256,37 @@ export default function AdminProductsPage() {
     try {
       // Usar uma API online para gerar o código de barras
       const barcodeUrl = `https://barcodeapi.org/api/code128/${product.barcode}`;
-      
+
       // Criar um elemento de imagem
       const img = new Image();
       img.crossOrigin = "Anonymous";
-      
+
       img.onload = () => {
         // Criar um canvas para desenhar a imagem
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
-        
+
         if (!ctx) {
           alert("Não foi possível gerar o código de barras.");
           return;
         }
-        
+
         // Definir o tamanho do canvas
         canvas.width = img.width;
         canvas.height = img.height;
-        
+
         // Desenhar a imagem no canvas
         ctx.drawImage(img, 0, 0);
-        
+
         // Converter o canvas para blob e baixar
         canvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `barcode-${product.name.replace(/\s+/g, "-")}-${product.barcode}.png`;
+            a.download = `barcode-${product.name.replace(/\s+/g, "-")}-${
+              product.barcode
+            }.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -277,11 +294,11 @@ export default function AdminProductsPage() {
           }
         });
       };
-      
+
       img.onerror = () => {
         alert("Erro ao gerar o código de barras.");
       };
-      
+
       // Iniciar o carregamento da imagem
       img.src = barcodeUrl;
     } catch (error) {
@@ -704,16 +721,14 @@ export default function AdminProductsPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Preço
                     </th>
-                    
+
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Estoque
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Status
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
-                      Código de Barras
-                    </th>
+
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Ações
                     </th>
@@ -809,25 +824,13 @@ export default function AdminProductsPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-4 px-4">
-                        {product.barcode ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadBarcode(product)}
-                            className="flex items-center gap-2"
-                          >
-                            <BarcodeIcon className="h-4 w-4" />
-                            Download
-                          </Button>
-                        ) : (
-                          <span className="text-gray-500 text-sm">Sem código</span>
-                        )}
-                      </td>
+
                       <td className="py-4 px-4">
                         <ProductActionsMenu
                           onEdit={() => openForm(product)}
                           onDelete={() => setDeleteConfirm(product.id)}
+                          onDownload={() => downloadBarcode(product)}
+                          hasBarcode={!!product.barcode}
                         />
                       </td>
                     </tr>
