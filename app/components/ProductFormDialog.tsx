@@ -1,4 +1,16 @@
-import { X } from "lucide-react";
+"use client";
+
+import {
+  Barcode,
+  FileText,
+  Image,
+  Package,
+  Tag,
+  ToggleRight,
+  Wallet,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Category, Product } from "../admin/products/page";
 import { Button } from "./ui/button";
 import {
@@ -9,6 +21,8 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 
 interface ProductFormDialogProps {
   open: boolean;
@@ -20,7 +34,6 @@ interface ProductFormDialogProps {
   categories: Category[];
   editingProduct: Product | null;
   handleFileUpload: (file: File) => void;
-  handlePriceChange: (value: string) => void;
   formatPriceToReais: (cents: number) => string;
 }
 
@@ -34,20 +47,94 @@ export function ProductFormDialog({
   categories,
   editingProduct,
   handleFileUpload,
-  handlePriceChange,
   formatPriceToReais,
 }: ProductFormDialogProps) {
-  if (!open) return null;
+  const [isClient, setIsClient] = useState(false);
+  const [displayPrice, setDisplayPrice] = useState("");
+
+  useEffect(() => {
+    setIsClient(true);
+
+    // Inicializa o displayPrice com o valor formatado
+    if (formData.priceCents) {
+      const cents = parseInt(formData.priceCents) || 0;
+      setDisplayPrice(formatPriceToReais(cents));
+    } else {
+      setDisplayPrice("");
+    }
+  }, [formData.priceCents, formatPriceToReais]);
+
+  if (!open || !isClient) return null;
+
+  const updateFormData = (field: string, value: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Função para formatar o valor digitado como moeda
+  const formatCurrencyInput = (value: string): string => {
+    // Remove tudo exceto números
+    let cleanValue = value.replace(/\D/g, "");
+
+    // Limita o valor máximo para evitar overflow
+    if (cleanValue.length > 10) {
+      cleanValue = cleanValue.substring(0, 10);
+    }
+
+    // Converte para número e formata como moeda
+    const numericValue = parseInt(cleanValue) || 0;
+    const formatted = (numericValue / 100).toFixed(2);
+
+    // Adiciona separador de milhares e vírgula decimal
+    return `R$ ${formatted
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+      .replace(".", ",")}`;
+  };
+
+  // Função para converter o valor formatado em centavos
+  const convertToCents = (formattedValue: string): number => {
+    // Remove "R$ " e substitui vírgula por ponto
+    const cleanValue = formattedValue
+      .replace("R$ ", "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    return Math.round(parseFloat(cleanValue) * 100);
+  };
+
+  // Função para lidar com a mudança no campo de preço
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+
+    // Atualiza o displayPrice com o valor formatado
+    const formattedValue = rawValue ? formatCurrencyInput(rawValue) : "";
+    setDisplayPrice(formattedValue);
+
+    // Converte para centavos e atualiza o formData
+    const cents = rawValue ? convertToCents(formattedValue) : 0;
+    updateFormData("priceCents", cents.toString());
+  };
+
+  const generateRandomBarcode = () => {
+    const prefix = Math.floor(Math.random() * 3) + 5;
+    const randomSuffix = Math.floor(Math.random() * 1000000000000);
+    const randomBarcode = prefix * 1000000000000 + randomSuffix;
+    updateFormData("barcode", randomBarcode.toString());
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
-        <CardHeader className="border-b border-gray-200">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <Card className="w-full max-w-3xl max-h-[80vh] bg-white shadow-2xl border-0 my-8 flex flex-col">
+        {/* Header fixo */}
+        <CardHeader className="border-b border-gray-200 sticky top-0 z-20 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold">
+              <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                <Package className="h-6 w-6 text-primary" />
                 {editingProduct ? "Editar Produto" : "Novo Produto"}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-base">
                 {editingProduct
                   ? "Atualize as informações do produto"
                   : "Preencha os dados para cadastrar um novo produto"}
@@ -57,321 +144,365 @@ export function ProductFormDialog({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-8 w-8 rounded-lg hover:bg-gray-100"
+              className="h-10 w-10 rounded-lg hover:bg-gray-100"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
-          <form onSubmit={onSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Nome do Produto *
-                </label>
-                <Input
-                  placeholder="Digite o nome do produto"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev: any) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Código de Barras
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="7891234567890"
-                    value={formData.barcode}
-                    onChange={(e) =>
-                      setFormData((prev: any) => ({
-                        ...prev,
-                        barcode: e.target.value,
-                      }))
-                    }
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const prefix = Math.floor(Math.random() * 3) + 5;
-                      const randomSuffix = Math.floor(
-                        Math.random() * 1000000000000
-                      );
-                      const randomBarcode =
-                        prefix * 1000000000000 + randomSuffix;
-                      setFormData((prev: any) => ({
-                        ...prev,
-                        barcode: randomBarcode.toString(),
-                      }));
-                    }}
-                    className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
-                    title="Gerar código de barras aleatório"
-                  >
-                    {/* Ícone de código de barras */}
-                    <span className="font-bold">#</span>
-                  </Button>
+        {/* Conteúdo scrollável */}
+        <div className="flex-1 overflow-y-auto">
+          <CardContent className="p-6">
+            <form
+              id="product-form-modal"
+              onSubmit={onSubmit}
+              className="space-y-6"
+            >
+              {/* Seção Informações Básicas */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Informações Básicas
+                  </h3>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Categoria
-                </label>
-                <select
-                  value={formData.category_id}
-                  onChange={(e) =>
-                    setFormData((prev: any) => ({
-                      ...prev,
-                      category_id: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                >
-                  <option value="">Selecione uma categoria</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Preço *
-                </label>
-                <Input
-                  type="text"
-                  placeholder="R$ 25,00"
-                  value={
-                    formData.priceCents
-                      ? (Number(formData.priceCents) / 100).toLocaleString(
-                          "pt-BR",
-                          { style: "currency", currency: "BRL" }
-                        )
-                      : ""
-                  }
-                  onChange={(e) => {
-                    // Remove tudo que não for número
-                    const onlyNums = e.target.value.replace(/\D/g, "");
-                    setFormData((prev: any) => ({
-                      ...prev,
-                      priceCents: onlyNums,
-                    }));
-                  }}
-                  inputMode="numeric"
-                  className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Controle de Estoque
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.stockEnabled}
-                        onChange={(e) =>
-                          setFormData((prev: any) => ({
-                            ...prev,
-                            stockEnabled: e.target.checked,
-                          }))
-                        }
-                        className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                      />
-                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                    </div>
-                    <span className="text-sm text-gray-700">
-                      Ativar controle de estoque
-                    </span>
-                  </label>
-                </div>
-                {formData.stockEnabled && (
-                  <div className="mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="name"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Nome do Produto <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      type="number"
-                      placeholder="50"
-                      value={formData.stock}
+                      id="name"
+                      placeholder="Digite o nome do produto"
+                      value={formData.name || ""}
+                      onChange={(e) => updateFormData("name", e.target.value)}
+                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="barcode"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Código de Barras
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="barcode"
+                        placeholder="7891234567890"
+                        value={formData.barcode || ""}
+                        onChange={(e) =>
+                          updateFormData("barcode", e.target.value)
+                        }
+                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={generateRandomBarcode}
+                        className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
+                        title="Gerar código de barras aleatório"
+                      >
+                        <Barcode className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="category"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Categoria
+                    </Label>
+                    <select
+                      id="category"
+                      value={formData.category_id || ""}
                       onChange={(e) =>
-                        setFormData((prev: any) => ({
-                          ...prev,
-                          stock: e.target.value,
-                        }))
+                        updateFormData("category_id", e.target.value)
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="price"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Preço <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <input
+                        id="price"
+                        value={displayPrice}
+                        onChange={handlePriceChange}
+                        className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
+                    {formData.priceCents &&
+                      parseInt(formData.priceCents) > 0 && (
+                        <p className="text-sm text-gray-500">
+                          Valor em centavos: {formData.priceCents}
+                        </p>
+                      )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção Tipo */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                  <Tag className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-gray-800">Tipo</h3>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="productType"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Tipo de Produto <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="productType"
+                    value={formData.productType || "sellable"}
+                    onChange={(e) =>
+                      updateFormData("productType", e.target.value)
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
+                    required
+                  >
+                    <option value="sellable">Produto Vendável</option>
+                    <option value="addon">Adicional/Complemento</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Seção Estoque */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Estoque
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 flex items-end">
+                    <div className="flex items-center justify-between w-full">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Controle de Estoque
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!formData.stockEnabled}
+                            onChange={(e) =>
+                              updateFormData("stockEnabled", e.target.checked)
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Ative para controlar a quantidade em estoque
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="stock"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Quantidade em Estoque
+                    </Label>
+                    <Input
+                      id="stock"
+                      type="number"
+                      min="0"
+                      disabled={!formData.stockEnabled}
+                      placeholder="0"
+                      value={formData.stock || ""}
+                      onChange={(e) => updateFormData("stock", e.target.value)}
+                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção Imagem */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                  <Image className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Imagem do Produto
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Upload de Imagem
+                    </Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file);
+                        }
+                      }}
+                      disabled={isUploading}
+                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                    />
+                    {isUploading && (
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
+                        Enviando imagem...
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label
+                      htmlFor="imageUrl"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      URL da Imagem
+                    </Label>
+                    <Input
+                      id="imageUrl"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                      value={formData.imageUrl || ""}
+                      onChange={(e) =>
+                        updateFormData("imageUrl", e.target.value)
                       }
                       className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
                     />
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Tipo de Produto *
-                </label>
-                <select
-                  value={formData.productType}
-                  onChange={(e) =>
-                    setFormData((prev: any) => ({
-                      ...prev,
-                      productType: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                  required
-                >
-                  <option value="sellable">Produto Vendável</option>
-                  <option value="addon">Adicional/Complemento</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Produto Variável
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.variableProduct}
-                        onChange={(e) =>
-                          setFormData((prev: any) => ({
-                            ...prev,
-                            variableProduct: e.target.checked,
-                          }))
-                        }
-                        className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                      />
-                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                    </div>
-                    <span className="text-sm text-gray-700">
-                      Produto com variações (tamanhos, cores, etc.)
-                    </span>
-                  </label>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Imagem do Produto
-                </label>
-                <div className="space-y-3">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handleFileUpload(file);
-                      }
-                    }}
-                    disabled={isUploading}
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                  />
-                  {isUploading && (
-                    <div className="text-sm text-muted-foreground">
-                      Enviando imagem...
-                    </div>
-                  )}
-                  {formData.imageUrl && (
-                    <div className="mt-2">
+                {formData.imageUrl && (
+                  <div className="mt-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Preview
+                    </Label>
+                    <div className="mt-2 flex justify-center">
                       <img
                         src={formData.imageUrl}
                         alt="Preview"
-                        className="h-20 w-20 rounded-md object-cover"
+                        className="h-32 w-32 rounded-md object-cover border border-gray-200"
                       />
                     </div>
-                  )}
-                  <Input
-                    placeholder="ou insira uma URL diretamente"
-                    value={formData.imageUrl}
+                  </div>
+                )}
+              </div>
+
+              {/* Seção Descrição */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Descrição
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="description"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Descrição Detalhada
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descreva detalhes importantes sobre o produto"
+                    value={formData.description || ""}
                     onChange={(e) =>
-                      setFormData((prev: any) => ({
-                        ...prev,
-                        imageUrl: e.target.value,
-                      }))
+                      updateFormData("description", e.target.value)
                     }
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20 min-h-[100px]"
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Descrição
-              </label>
-              <Input
-                placeholder="Descrição detalhada do produto"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev: any) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.active}
-                    onChange={(e) =>
-                      setFormData((prev: any) => ({
-                        ...prev,
-                        active: e.target.checked,
-                      }))
-                    }
-                    className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
-                  />
-                  <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+              {/* Seção Status */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2">
+                  <div className="flex items-center gap-2">
+                    <ToggleRight className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Status
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="active"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Produto Ativo
+                    </Label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        id="active"
+                        type="checkbox"
+                        checked={!!formData.active}
+                        onChange={(e) =>
+                          updateFormData("active", e.target.checked)
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-gray-700">
-                  Produto ativo
-                </span>
-              </label>
-            </div>
+                <p className="text-sm text-gray-500">
+                  Produtos inativos não aparecem no catálogo para os clientes
+                </p>
+              </div>
 
-            {/* Separator */}
-            <div className="border-t border-gray-200 my-6"></div>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-              >
-                {editingProduct ? "Atualizar" : "Cadastrar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
+              {/* Botões de Ação - removido daqui, vai para o rodapé fixo */}
+            </form>
+          </CardContent>
+        </div>
+        {/* Rodapé fixo */}
+        <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="product-form-modal"
+            className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
+          >
+            {editingProduct ? "Atualizar Produto" : "Cadastrar Produto"}
+          </Button>
+        </div>
       </Card>
     </div>
   );

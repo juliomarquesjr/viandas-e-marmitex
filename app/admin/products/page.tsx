@@ -6,12 +6,13 @@ import {
   DollarSign,
   Edit,
   Image as ImageIcon,
+  MoreVertical,
   Package,
   Plus,
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DeleteProductDialog } from "../../components/DeleteProductDialog";
 import { ProductFormDialog } from "../../components/ProductFormDialog";
@@ -26,6 +27,70 @@ import {
   CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+// Menu de opções por produto
+function ProductActionsMenu({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 p-0"
+        aria-label="Mais opções"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreVertical className="h-5 w-5 text-gray-500" />
+      </Button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in">
+          <button
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            <Edit className="h-4 w-4 mr-2 text-blue-500" /> Editar
+          </button>
+          <button
+            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Remover
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export type Product = {
   id: string;
@@ -40,7 +105,6 @@ export type Product = {
   stock?: number;
   imageUrl?: string;
   productType: "sellable" | "addon";
-  variableProduct: boolean;
 };
 
 export type Category = {
@@ -71,7 +135,6 @@ export default function AdminProductsPage() {
     active: true,
     imageUrl: "",
     productType: "sellable" as Product["productType"],
-    variableProduct: false,
   });
   const [isUploading, setIsUploading] = useState(false);
 
@@ -103,7 +166,7 @@ export default function AdminProductsPage() {
 
       const { url } = await response.json();
       console.log("URL recebida:", url);
-      setFormData((prev) => ({ ...prev, image_url: url }));
+      setFormData((prev) => ({ ...prev, imageUrl: url }));
     } catch (error) {
       console.error("Erro no upload:", error);
       alert(
@@ -123,9 +186,6 @@ export default function AdminProductsPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "sellable" | "addon">(
     "all"
   );
-  const [variableFilter, setVariableFilter] = useState<
-    "all" | "variable" | "standard"
-  >("all");
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -135,7 +195,7 @@ export default function AdminProductsPage() {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/products?q=${searchTerm}&category=${categoryFilter}&status=${statusFilter}&type=${typeFilter}&variable=${variableFilter}`
+        `/api/products?q=${searchTerm}&category=${categoryFilter}&status=${statusFilter}&type=${typeFilter}`
       );
       if (!response.ok) throw new Error("Failed to fetch products");
       const result = await response.json();
@@ -151,7 +211,7 @@ export default function AdminProductsPage() {
   // Carregar produtos na montagem e quando filtros mudarem
   useEffect(() => {
     loadProducts();
-  }, [searchTerm, categoryFilter, statusFilter, typeFilter, variableFilter]);
+  }, [searchTerm, categoryFilter, statusFilter, typeFilter]);
 
   // Funções auxiliares
   const resetForm = () => {
@@ -166,7 +226,6 @@ export default function AdminProductsPage() {
       active: true,
       imageUrl: "",
       productType: "sellable",
-      variableProduct: false,
     });
   };
 
@@ -181,7 +240,6 @@ export default function AdminProductsPage() {
         description: product.description || "",
         stockEnabled: product.stockEnabled,
         stock: product.stock?.toString() || "",
-        variableProduct: product.variableProduct,
         active: product.active,
         imageUrl: product.imageUrl || "",
         productType: product.productType,
@@ -202,9 +260,14 @@ export default function AdminProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Converter o preço formatado para centavos
+    let priceCents = 0;
+    if (formData.priceCents) {
+      priceCents = parseInt(formData.priceCents);
+    }
+
     // Validação do preço
-    const priceCents = parseInt(formData.priceCents);
-    if (!formData.priceCents || isNaN(priceCents) || priceCents <= 0) {
+    if (isNaN(priceCents) || priceCents <= 0) {
       alert("Por favor, insira um preço válido maior que zero.");
       return;
     }
@@ -213,18 +276,17 @@ export default function AdminProductsPage() {
       const productData = {
         name: formData.name,
         barcode: formData.barcode || undefined,
-        category_id: formData.category_id || undefined,
-        price_cents: parseInt(formData.priceCents),
+        categoryId: formData.category_id || undefined,
+        priceCents: priceCents,
         description: formData.description || undefined,
-        stock_enabled: formData.stockEnabled,
+        stockEnabled: formData.stockEnabled,
         stock:
           formData.stockEnabled && formData.stock
             ? parseInt(formData.stock)
             : undefined,
         active: formData.active,
-        image_url: formData.imageUrl || undefined,
-        product_type: formData.productType,
-        variable_product: formData.variableProduct,
+        imageUrl: formData.imageUrl || undefined,
+        productType: formData.productType,
       };
 
       if (editingProduct) {
@@ -355,40 +417,6 @@ export default function AdminProductsPage() {
       currency: "BRL",
       minimumFractionDigits: 2,
     });
-  };
-
-  const formatReaisToCents = (reais: string): number => {
-    // Remove todos os caracteres não numéricos exceto vírgula e ponto
-    const cleanValue = reais.replace(/[^\d,.-]/g, "");
-
-    // Se não há valor numérico, retorna 0
-    if (!cleanValue) return 0;
-
-    // Substitui vírgula por ponto para conversão
-    const numericValue = parseFloat(cleanValue.replace(",", "."));
-
-    // Se não é um número válido, retorna 0
-    if (isNaN(numericValue)) return 0;
-
-    // Converte para centavos
-    return Math.round(numericValue * 100);
-  };
-
-  const handlePriceChange = (value: string) => {
-    // Remove tudo exceto números, vírgula e ponto
-    const cleanValue = value.replace(/[^\d,.-]/g, "");
-
-    // Se não há valor, limpa o campo
-    if (!cleanValue) {
-      setFormData((prev) => ({ ...prev, price_cents: "" }));
-      return;
-    }
-
-    // Converte para centavos e atualiza o estado
-    const cents = formatReaisToCents(cleanValue);
-    if (cents >= 0) {
-      setFormData((prev) => ({ ...prev, price_cents: cents.toString() }));
-    }
   };
 
   return (
@@ -538,20 +566,6 @@ export default function AdminProductsPage() {
           </select>
 
           <select
-            value={variableFilter}
-            onChange={(e) =>
-              setVariableFilter(
-                e.target.value as "all" | "variable" | "standard"
-              )
-            }
-            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-          >
-            <option value="all">Todas as Variações</option>
-            <option value="variable">Com Variações</option>
-            <option value="standard">Padrão</option>
-          </select>
-
-          <select
             value={statusFilter}
             onChange={(e) =>
               setStatusFilter(e.target.value as "all" | "active" | "inactive")
@@ -571,7 +585,6 @@ export default function AdminProductsPage() {
               setCategoryFilter("all");
               setStatusFilter("all");
               setTypeFilter("all");
-              setVariableFilter("all");
             }}
             className="h-8 px-3 text-xs border-gray-200 text-gray-600 hover:bg-gray-50"
           >
@@ -630,9 +643,7 @@ export default function AdminProductsPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Preço
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
-                      Variações
-                    </th>
+
                     <th className="text-left py-3 px-4 font-medium text-gray-700">
                       Estoque
                     </th>
@@ -700,19 +711,7 @@ export default function AdminProductsPage() {
                           {formatPriceToReais(product.priceCents || 0)}
                         </div>
                       </td>
-                      <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
-                          {product.variableProduct ? (
-                            <Badge className="bg-purple-100 text-purple-700 border-purple-200 border px-3 py-1 rounded-full text-xs font-medium">
-                              Com variações
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-gray-100 text-gray-600 border-gray-200 border px-3 py-1 rounded-full text-xs font-medium">
-                              Padrão
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
+
                       <td className="py-4 px-4">
                         <div className="text-sm text-gray-700">
                           {product.stockEnabled ? (
@@ -747,25 +746,10 @@ export default function AdminProductsPage() {
                         })()}
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openForm(product)}
-                            className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteConfirm(product.id)}
-                            className="h-8 px-3 rounded-lg border-red-200 text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <ProductActionsMenu
+                          onEdit={() => openForm(product)}
+                          onDelete={() => setDeleteConfirm(product.id)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -782,16 +766,14 @@ export default function AdminProductsPage() {
                     {searchTerm ||
                     categoryFilter !== "all" ||
                     statusFilter !== "all" ||
-                    typeFilter !== "all" ||
-                    variableFilter !== "all"
+                    typeFilter !== "all"
                       ? "Tente ajustar os filtros de busca"
                       : "Comece cadastrando o primeiro produto do catálogo"}
                   </p>
                   {!searchTerm &&
                     categoryFilter === "all" &&
                     statusFilter === "all" &&
-                    typeFilter === "all" &&
-                    variableFilter === "all" && (
+                    typeFilter === "all" && (
                       <Button
                         onClick={() => openForm()}
                         className="bg-primary hover:bg-primary/90"
@@ -818,7 +800,6 @@ export default function AdminProductsPage() {
         categories={categories}
         editingProduct={editingProduct}
         handleFileUpload={handleFileUpload}
-        handlePriceChange={handlePriceChange}
         formatPriceToReais={formatPriceToReais}
       />
 
