@@ -131,6 +131,62 @@ export default function PDVPage() {
     setChangeCustomerConfirmOpen(false);
   };
 
+  /**
+   * Verifica se um produto pode ser adicionado ao carrinho
+   * Produtos com estoque zero ou menor não podem ser adicionados
+   */
+  const canAddProductToCart = useCallback((product: Product) => {
+    // Se o controle de estoque não estiver habilitado, sempre permite
+    if (!product.stockEnabled) return true;
+    
+    // Se o estoque for undefined, não permite (erro de configuração)
+    if (product.stock === undefined) return false;
+    
+    // Se o estoque for zero ou menor, não permite
+    return product.stock > 0;
+  }, []);
+
+  /**
+   * Função para adicionar produto ao carrinho com validação de estoque
+   */
+  const handleAddProductToCart = useCallback((product: Product) => {
+    // Verificar se o produto pode ser adicionado
+    if (!canAddProductToCart(product)) {
+      // Opcional: mostrar mensagem de erro ou alerta
+      console.log(`Produto ${product.name} não pode ser adicionado - estoque insuficiente`);
+      return;
+    }
+
+    // Adicionar produto ao carrinho
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.id === product.id
+      );
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          qty: updated[existingIndex].qty + 1,
+        };
+        setSelectedIndex(existingIndex);
+        return updated;
+      }
+      const item: CartItem = {
+        id: product.id,
+        name: product.name,
+        price: product.priceCents / 100,
+        qty: 1,
+      };
+      setSelectedIndex(prev.length);
+      return [...prev, item];
+    });
+    
+    // Reproduzir som de beep
+    playBeepSound();
+    setQuery("");
+    inputRef.current?.focus();
+  }, [canAddProductToCart, playBeepSound]);
+
   useEffect(() => {
     if (query.trim() !== "") {
       // Verificar se é um código de barras de cliente (começa com 1, 2 ou 3)
@@ -175,37 +231,21 @@ export default function PDVPage() {
         );
 
         if (product) {
-          // Adicionar produto ao carrinho automaticamente
-          setCart((prev) => {
-            const existingIndex = prev.findIndex(
-              (item) => item.id === product.id
-            );
-            if (existingIndex >= 0) {
-              const updated = [...prev];
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                qty: updated[existingIndex].qty + 1,
-              };
-              setSelectedIndex(existingIndex);
-              return updated;
-            }
-            const item: CartItem = {
-              id: product.id,
-              name: product.name,
-              price: product.priceCents / 100,
-              qty: 1,
-            };
-            setSelectedIndex(prev.length);
-            return [...prev, item];
-          });
-          // Reproduzir som de beep
-          playBeepSound();
-          setQuery("");
-          inputRef.current?.focus();
+          // Verificar se o produto pode ser adicionado ao carrinho
+          if (canAddProductToCart(product)) {
+            // Adicionar produto ao carrinho automaticamente
+            handleAddProductToCart(product);
+          } else {
+            // Produto não pode ser adicionado - estoque insuficiente
+            console.log(`Produto ${product.name} não pode ser adicionado - estoque insuficiente`);
+            // Opcional: mostrar mensagem de erro ou alerta visual
+            setQuery("");
+            inputRef.current?.focus();
+          }
         }
       }
     }
-  }, [query, products, playBeepSound, handleSelectCustomer, selectedCustomer]);
+  }, [query, products, playBeepSound, handleSelectCustomer, selectedCustomer, canAddProductToCart, handleAddProductToCart]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -228,14 +268,6 @@ export default function PDVPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
-  const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  }, []);
 
   /**
    * Função auxiliar para resetar o estado do PDV e recarregar produtos
@@ -262,6 +294,14 @@ export default function PDVPage() {
     // Focar no input de pesquisa
     inputRef.current?.focus();
   }, [fetchProducts]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
   const handleGlobalKeys = useCallback(
     (e: KeyboardEvent) => {
@@ -647,36 +687,13 @@ export default function PDVPage() {
                           return (
                             <button
                               key={product.id}
-                              onClick={() => {
-                                // Adicionar produto ao carrinho
-                                setCart((prev) => {
-                                  const existingIndex = prev.findIndex(
-                                    (item) => item.id === product.id
-                                  );
-                                  if (existingIndex >= 0) {
-                                    const updated = [...prev];
-                                    updated[existingIndex] = {
-                                      ...updated[existingIndex],
-                                      qty: updated[existingIndex].qty + 1,
-                                    };
-                                    setSelectedIndex(existingIndex);
-                                    return updated;
-                                  }
-                                  const item: CartItem = {
-                                    id: product.id,
-                                    name: product.name,
-                                    price,
-                                    qty: 1,
-                                  };
-                                  setSelectedIndex(prev.length);
-                                  return [...prev, item];
-                                });
-                                // Reproduzir som de beep
-                                playBeepSound();
-                                setQuery("");
-                                inputRef.current?.focus();
-                              }}
-                              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+                              onClick={() => handleAddProductToCart(product)}
+                              disabled={!canAddProductToCart(product)}
+                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition ${
+                                canAddProductToCart(product)
+                                  ? "border-border bg-card hover:bg-accent hover:shadow-md"
+                                  : "border-red-200 bg-red-50 cursor-not-allowed opacity-60"
+                              }`}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -705,19 +722,30 @@ export default function PDVPage() {
                                     <div className="truncate text-base font-semibold">
                                       {product.name}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {product.barcode
-                                        ? `Cód: ${product.barcode}`
-                                        : "Sem código"}
-                                    </div>
+
                                     {product.stockEnabled && product.stock !== undefined && (
-                                      <div className="text-xs text-muted-foreground mt-1">
+                                      <div className={`text-xs mt-1 ${
+                                        product.stock > 0 
+                                          ? "text-muted-foreground" 
+                                          : "text-red-600 font-medium"
+                                      }`}>
                                         Estoque: {product.stock} unid.
+                                        {product.stock === 0 && (
+                                          <span className="ml-1 text-red-500">• Esgotado</span>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                  <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
-                                    R$ {price.toFixed(2)}
+                                  <div className="flex flex-col items-end gap-2">
+                                    <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
+                                      R$ {price.toFixed(2)}
+                                    </div>
+                                    {!canAddProductToCart(product) && (
+                                      <div className="flex items-center gap-1 text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Indisponível
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -748,36 +776,13 @@ export default function PDVPage() {
                           return (
                             <button
                               key={product.id}
-                              onClick={() => {
-                                // Adicionar produto ao carrinho
-                                setCart((prev) => {
-                                  const existingIndex = prev.findIndex(
-                                    (item) => item.id === product.id
-                                  );
-                                  if (existingIndex >= 0) {
-                                    const updated = [...prev];
-                                    updated[existingIndex] = {
-                                      ...updated[existingIndex],
-                                      qty: updated[existingIndex].qty + 1,
-                                    };
-                                    setSelectedIndex(existingIndex);
-                                    return updated;
-                                  }
-                                  const item: CartItem = {
-                                    id: product.id,
-                                    name: product.name,
-                                    price,
-                                    qty: 1,
-                                  };
-                                  setSelectedIndex(prev.length);
-                                  return [...prev, item];
-                                });
-                                // Reproduzir som de beep
-                                playBeepSound();
-                                setQuery("");
-                                inputRef.current?.focus();
-                              }}
-                              className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:bg-accent hover:shadow-md"
+                              onClick={() => handleAddProductToCart(product)}
+                              disabled={!canAddProductToCart(product)}
+                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition ${
+                                canAddProductToCart(product)
+                                  ? "border-border bg-card hover:bg-accent hover:shadow-md"
+                                  : "border-red-200 bg-red-50 cursor-not-allowed opacity-60"
+                              }`}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <div className="h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -806,19 +811,30 @@ export default function PDVPage() {
                                     <div className="truncate text-base font-semibold">
                                       {product.name}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {product.barcode
-                                        ? `Cód: ${product.barcode}`
-                                        : "Sem código"}
-                                    </div>
+
                                     {product.stockEnabled && product.stock !== undefined && (
-                                      <div className="text-xs text-muted-foreground mt-1">
+                                      <div className={`text-xs mt-1 ${
+                                        product.stock > 0 
+                                          ? "text-muted-foreground" 
+                                          : "text-red-600 font-medium"
+                                      }`}>
                                         Estoque: {product.stock} unid.
+                                        {product.stock === 0 && (
+                                          <span className="ml-1 text-red-500">• Esgotado</span>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                  <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
-                                    R$ {price.toFixed(2)}
+                                  <div className="flex flex-col items-end gap-2">
+                                    <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
+                                      R$ {price.toFixed(2)}
+                                    </div>
+                                    {!canAddProductToCart(product) && (
+                                      <div className="flex items-center gap-1 text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Indisponível
+                                      </div>
+                                      )}
                                   </div>
                                 </div>
                               </div>
