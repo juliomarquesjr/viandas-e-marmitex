@@ -1,8 +1,18 @@
 "use client";
 
+import { SalesFilter } from "@/app/components/sales/SalesFilter";
+import { AnimatedCard } from "@/app/components/ui/animated-card";
+import { Badge } from "@/app/components/ui/badge";
+import { Button } from "@/app/components/ui/button";
+import {
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/app/components/ui/card";
+import { motion } from "framer-motion";
 import {
   Banknote,
-  Calendar,
   Check,
   CheckCircle,
   Clock,
@@ -11,7 +21,6 @@ import {
   Package,
   QrCode,
   Receipt,
-  Search,
   Trash2,
   Truck,
   User,
@@ -19,17 +28,8 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
 
 type Order = {
   id: string;
@@ -112,28 +112,27 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
-  const [quickDateFilter, setQuickDateFilter] = useState<string>("all");
-  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [filters, setFilters] = useState({
+    searchTerm: "",
+    dateRange: { start: "", end: "" }
+  });
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
 
-      if (dateFilter.start) {
-        params.append("startDate", dateFilter.start);
+      if (filters.dateRange.start) {
+        params.append("startDate", filters.dateRange.start);
       }
 
-      if (dateFilter.end) {
-        params.append("endDate", dateFilter.end);
+      if (filters.dateRange.end) {
+        params.append("endDate", filters.dateRange.end);
       }
 
       const response = await fetch(`/api/orders?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
-
 
       setOrders(result.data);
     } catch (err) {
@@ -145,7 +144,11 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-  }, [dateFilter]);
+  }, [filters.dateRange]);
+
+  const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
+    setFilters(newFilters);
+  };
 
   const formatCurrency = (cents: number | null) => {
     if (cents === null || cents === undefined) return "N/A";
@@ -153,83 +156,6 @@ export default function AdminOrdersPage() {
       style: "currency",
       currency: "BRL",
     }).format(cents / 100);
-  };
-
-  // Funções para filtros de data rápidos
-  const getQuickDateRange = (filter: string) => {
-    // Usar fuso horário local para evitar problemas de UTC
-    const today = new Date();
-    
-    // Criar datas no fuso horário local (sem conversão UTC)
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    // Função para formatar data no formato YYYY-MM-DD sem conversão UTC
-    const formatDateLocal = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    
-    switch (filter) {
-      case "today":
-        return {
-          start: formatDateLocal(startOfDay),
-          end: formatDateLocal(startOfDay)
-        };
-        
-      case "yesterday":
-        const yesterday = new Date(startOfDay);
-        yesterday.setDate(yesterday.getDate() - 1);
-        return {
-          start: formatDateLocal(yesterday),
-          end: formatDateLocal(yesterday)
-        };
-        
-      case "week":
-        const startOfWeek = new Date(startOfDay);
-        startOfWeek.setDate(startOfWeek.getDate() - 7);
-        return {
-          start: formatDateLocal(startOfWeek),
-          end: formatDateLocal(startOfDay)
-        };
-        
-      case "month":
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        return {
-          start: formatDateLocal(startOfMonth),
-          end: formatDateLocal(startOfDay)
-        };
-        
-      default:
-        return { start: "", end: "" };
-    }
-  };
-
-  const handleQuickDateFilter = (filter: string) => {
-    setQuickDateFilter(filter);
-    
-    if (filter === "custom") {
-      setShowCustomDatePicker(true);
-      // Não alterar as datas automaticamente para permitir seleção manual
-    } else {
-      const range = getQuickDateRange(filter);
-      setDateFilter(range);
-      setShowCustomDatePicker(false);
-    }
-  };
-
-  const handleCustomDateApply = () => {
-    if (dateFilter.start && dateFilter.end) {
-      setQuickDateFilter("custom");
-      setShowCustomDatePicker(false);
-    }
-  };
-
-  const handleCustomDateCancel = () => {
-    setShowCustomDatePicker(false);
-    setQuickDateFilter("all");
-    setDateFilter({ start: "", end: "" });
   };
 
   const deleteOrder = async (orderId: string) => {
@@ -323,16 +249,16 @@ export default function AdminOrdersPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Gerenciamento de Vendas
           </h1>
-          <p className="text-gray-600">Acompanhe todas as vendas realizadas</p>
+          <p className="text-muted-foreground">Acompanhe todas as vendas realizadas</p>
         </div>
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AnimatedCard delay={0.1}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -346,9 +272,9 @@ export default function AdminOrdersPage() {
               <Receipt className="h-12 w-12 text-blue-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <AnimatedCard delay={0.2}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -365,9 +291,9 @@ export default function AdminOrdersPage() {
               <Check className="h-12 w-12 text-green-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+        <AnimatedCard delay={0.3}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -381,9 +307,9 @@ export default function AdminOrdersPage() {
               <Clock className="h-12 w-12 text-amber-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <AnimatedCard delay={0.4}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -399,133 +325,18 @@ export default function AdminOrdersPage() {
               <CreditCard className="h-12 w-12 text-purple-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm overflow-hidden">
-        {/* Filtros Rápidos de Data */}
-        <div className="p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 mr-2">Período:</span>
-            {[
-              { key: "all", label: "Todas", icon: Calendar },
-              { key: "today", label: "Hoje", icon: Calendar },
-              { key: "yesterday", label: "Ontem", icon: Calendar },
-              { key: "week", label: "Semana", icon: Calendar },
-              { key: "month", label: "Mês", icon: Calendar },
-              { key: "custom", label: "Personalizado", icon: Calendar }
-            ].map((filter) => (
-              <Button
-                key={filter.key}
-                variant={quickDateFilter === filter.key ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleQuickDateFilter(filter.key)}
-                className={`h-8 px-3 text-xs font-medium transition-all duration-200 ${
-                  quickDateFilter === filter.key
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
-                }`}
-              >
-                <filter.icon className="h-3 w-3 mr-1" />
-                {filter.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Busca */}
-        <div className="px-4 pb-4">
-          <div className="flex justify-end">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Buscar por cliente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Seletor de Datas Personalizadas - Compacto */}
-        {showCustomDatePicker && (
-          <div className="border-t border-gray-100 bg-gray-50/30">
-            <div className="p-4">
-              <div className="max-w-2xl mx-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
-                    Período Personalizado
-                  </h4>
-                  <Button
-                    onClick={handleCustomDateCancel}
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  {/* Data Início */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-gray-600">Data Início</label>
-                    <Input
-                      type="date"
-                      value={dateFilter.start}
-                      onChange={(e) => setDateFilter((prev) => ({ ...prev, start: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-                    />
-                  </div>
-
-                  {/* Data Fim */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-gray-600">Data Fim</label>
-                    <Input
-                      type="date"
-                      value={dateFilter.end}
-                      onChange={(e) => setDateFilter((prev) => ({ ...prev, end: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-                    />
-                  </div>
-
-                  {/* Botão Aplicar */}
-                  <div className="space-y-2">
-                    <Button
-                      onClick={handleCustomDateApply}
-                      disabled={!dateFilter.start || !dateFilter.end}
-                      size="sm"
-                      className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Aplicar
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Preview compacto */}
-                {dateFilter.start && dateFilter.end && (
-                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs text-blue-800 text-center">
-                      Período: {new Date(dateFilter.start).toLocaleDateString('pt-BR')} → {new Date(dateFilter.end).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-
+      <AnimatedCard>
+        <SalesFilter onFilterChange={handleFilterChange} />
+      </AnimatedCard>
 
       {/* Tabela de Pedidos */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
+      <AnimatedCard>
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">
+          <CardTitle className="text-2xl font-bold text-foreground">
             Lista de Vendas
           </CardTitle>
           <CardDescription>
@@ -537,17 +348,17 @@ export default function AdminOrdersPage() {
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-gray-600">Carregando vendas...</p>
+              <p className="mt-4 text-muted-foreground">Carregando vendas...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                 <X className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 Erro ao carregar vendas
               </h3>
-              <p className="text-gray-600 mb-4">{error}</p>
+              <p className="text-muted-foreground mb-4">{error}</p>
               <Button
                 onClick={loadOrders}
                 className="bg-primary hover:bg-primary/90"
@@ -559,68 +370,74 @@ export default function AdminOrdersPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  <tr className="border-b border-border">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Pedido
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Cliente
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Itens
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Valor
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Pagamento
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Status
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Data
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Ações
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order) => {
+                  {orders.map((order, index) => {
                     const StatusIcon = getStatusInfo(order.status).icon;
                     return (
-                      <tr
+                      <motion.tr
                         key={order.id}
-                        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className={`border-b border-border hover:bg-accent/50 transition-colors ${
                           order.paymentMethod === "ficha_payment" 
-                            ? "bg-green-50/80 hover:bg-green-100/80" 
+                            ? "bg-green-50/50 hover:bg-green-100/50" 
                             : ""
                         }`}
                       >
                         <td className="py-4 px-4">
-                          <div className="font-mono text-sm text-gray-600">
+                          <div className="font-mono text-sm text-muted-foreground">
                             #{order.id.slice(0, 8)}
                           </div>
                         </td>
 
                         <td className="py-4 px-4">
                           {order.customer ? (
-                            <div className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                <User className="h-4 w-4 text-primary" />
+                            <Link 
+                              href={`/admin/customers/${order.customer.id}`}
+                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors"
+                            >
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
                               </div>
                               <div>
-                                <div className="font-medium text-gray-900 text-sm">
+                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors">
                                   {order.customer.name}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-muted-foreground">
                                   {order.customer.phone}
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           ) : (
-                            <div className="text-gray-500 text-sm">
+                            <div className="text-muted-foreground text-sm">
                               Sem cliente
                             </div>
                           )}
@@ -628,16 +445,16 @@ export default function AdminOrdersPage() {
 
                         <td className="py-4 px-4">
                           {order.paymentMethod === "ficha_payment" ? (
-                            <div className="text-sm text-gray-700">
+                            <div className="text-sm text-foreground font-medium">
                               Entrada de Valores
                             </div>
                           ) : (
                             <>
-                              <div className="text-sm text-gray-700">
+                              <div className="text-sm text-foreground font-medium">
                                 {order.items.length} item
                                 {order.items.length !== 1 ? "s" : ""}
                               </div>
-                              <div className="text-xs text-gray-500 truncate max-w-xs">
+                              <div className="text-xs text-muted-foreground truncate max-w-xs">
                                 {order.items
                                   .map((item) => item.product.name)
                                   .join(", ")}
@@ -647,18 +464,18 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">
+                          <div className="font-bold text-foreground">
                             {formatCurrency(order.totalCents)}
                           </div>
                           {order.discountCents > 0 && (
-                            <div className="text-xs text-red-600">
+                            <div className="text-xs text-red-600 font-medium">
                               -{formatCurrency(order.discountCents)}
                             </div>
                           )}
                           {order.paymentMethod === "dinheiro" &&
                             order.cashReceivedCents != null &&
                             order.changeCents != null && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 <div>
                                   Recebido:{" "}
                                   {formatCurrency(order.cashReceivedCents)}
@@ -680,13 +497,13 @@ export default function AdminOrdersPage() {
                               if (Icon) {
                                 return (
                                   <div className="flex flex-col items-center gap-1">
-                                    <Icon className="h-5 w-5 text-gray-700" />
-                                    <span className="text-xs text-gray-600">{label}</span>
+                                    <Icon className="h-5 w-5 text-foreground" />
+                                    <span className="text-xs text-muted-foreground">{label}</span>
                                   </div>
                                 );
                               } else {
                                 return (
-                                  <div className="text-sm text-gray-700 text-center">
+                                  <div className="text-sm text-foreground text-center">
                                     {label}
                                   </div>
                                 );
@@ -699,15 +516,15 @@ export default function AdminOrdersPage() {
                           <Badge
                             className={`${
                               getStatusInfo(order.status).color
-                            } border px-2 py-1 rounded-full text-xs font-medium gap-1`}
+                            } border px-3 py-1.5 rounded-full text-xs font-medium gap-1.5`}
                           >
-                            <StatusIcon className="h-3 w-3" />
+                            <StatusIcon className="h-3.5 w-3.5" />
                             {getStatusInfo(order.status).label}
                           </Badge>
                         </td>
 
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-700">
+                          <div className="text-sm text-foreground">
                             {formatDate(order.createdAt)}
                           </div>
                         </td>
@@ -716,13 +533,13 @@ export default function AdminOrdersPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => deleteOrder(order.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
                             title="Excluir venda"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -730,12 +547,12 @@ export default function AdminOrdersPage() {
 
               {orders.length === 0 && (
                 <div className="text-center py-12">
-                  <Receipt className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Receipt className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     Nenhuma venda encontrada
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    {dateFilter.start || dateFilter.end
+                  <p className="text-muted-foreground mb-4">
+                    {filters.dateRange.start || filters.dateRange.end
                       ? "Tente ajustar os filtros de busca"
                       : "Ainda não há vendas registradas"}
                   </p>
@@ -744,7 +561,7 @@ export default function AdminOrdersPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </AnimatedCard>
     </div>
   );
 }
