@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { useToast } from "../components/Toast";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = {
@@ -74,6 +75,7 @@ export default function PDVPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isPaymentOpen, setPaymentOpen] = useState(false);
+  const { showToast } = useToast();
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
@@ -108,6 +110,26 @@ export default function PDVPage() {
         .catch((e) => console.log("Erro ao reproduzir som:", e));
     }
   }, []);
+
+  // Função para validar código de barras
+  const validateBarcode = useCallback((code: string) => {
+    // Verificar se tem exatamente 13 dígitos
+    if (code.length !== 13) return false;
+    
+    // Verificar se contém apenas números
+    return /^\d{13}$/.test(code);
+  }, []);
+
+  // Função para limpar campo de query
+  const clearQueryField = useCallback(() => {
+    setQuery("");
+    inputRef.current?.focus();
+  }, []);
+
+  // Função para mostrar toast de erro
+  const showErrorToast = useCallback((message: string) => {
+    showToast(message, "error");
+  }, [showToast]);
 
   const handleSelectCustomer = (customer: Customer) => {
     // Se já houver um cliente selecionado, mostrar confirmação antes de trocar
@@ -275,89 +297,109 @@ export default function PDVPage() {
 
   useEffect(() => {
     if (query.trim() !== "") {
-      // Verificar se é um código de barras de cliente (começa com 1, 2 ou 3)
-      const isCustomerBarcode = /^[1-3]/.test(query.trim());
+      const trimmedQuery = query.trim();
+      
+      // Verificar se é um código de barras válido (13 dígitos)
+      if (trimmedQuery.length === 13) {
+        // Verificar se é um código de barras de cliente (começa com 1, 2 ou 3)
+        const isCustomerBarcode = /^[1-3]/.test(trimmedQuery);
 
-      if (isCustomerBarcode) {
-        // Procurar cliente pelo código de barras
-        const fetchCustomerByBarcode = async () => {
-          try {
-            const response = await fetch(
-              `/api/customers?q=${encodeURIComponent(query.trim())}`
-            );
-            if (!response.ok) throw new Error("Failed to fetch customer");
-            const result = await response.json();
-            const customer = result.data.find(
-              (c: Customer) => c.barcode === query.trim()
-            );
-
-            if (customer) {
-              // Selecionar cliente automaticamente (irá mostrar confirmação se necessário)
-              handleSelectCustomer(customer);
-              playBeepSound();
-              setQuery("");
-              inputRef.current?.focus();
-            }
-          } catch (error) {
-            console.error("Error fetching customer by barcode:", error);
-          }
-        };
-
-        fetchCustomerByBarcode();
-        return;
-      }
-
-      // Verificar se é um código de barras de produto (começa com 5, 6 ou 7)
-      const isProductBarcode = /^[5-7]/.test(query.trim());
-
-      if (isProductBarcode) {
-        // Procurar produto somente pelo código de barras completo
-        const product = products.find(
-          (p) => p.barcode && p.barcode === query.trim()
-        );
-
-        if (product) {
-          // Verificar se o produto pode ser adicionado ao carrinho
-          if (canAddProductToCart(product)) {
-            // Adicionar produto ao carrinho automaticamente
-            setCart((prev) => {
-              const existingIndex = prev.findIndex(
-                (item) => item.id === product.id
+        if (isCustomerBarcode) {
+          // Procurar cliente pelo código de barras
+          const fetchCustomerByBarcode = async () => {
+            try {
+              const response = await fetch(
+                `/api/customers?q=${encodeURIComponent(trimmedQuery)}`
               );
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = {
-                  ...updated[existingIndex],
-                  qty: updated[existingIndex].qty + 1,
-                };
-                setSelectedIndex(existingIndex);
-                return updated;
+              if (!response.ok) throw new Error("Failed to fetch customer");
+              const result = await response.json();
+              const customer = result.data.find(
+                (c: Customer) => c.barcode === trimmedQuery
+              );
+
+              if (customer) {
+                // Selecionar cliente automaticamente (irá mostrar confirmação se necessário)
+                handleSelectCustomer(customer);
+                playBeepSound();
+                clearQueryField();
+              } else {
+                // Cliente não encontrado
+                showErrorToast("Cliente não encontrado com este código de barras");
+                // Limpar campo apenas se for código numérico
+                if (validateBarcode(trimmedQuery)) {
+                  clearQueryField();
+                }
               }
-              const item: CartItem = {
-                id: product.id,
-                name: product.name,
-                price: product.priceCents / 100,
-                qty: 1,
-              };
-              setSelectedIndex(prev.length);
-              return [...prev, item];
-            });
-            
-            // Reproduzir som de beep
-            playBeepSound();
-            setQuery("");
-            inputRef.current?.focus();
+            } catch (error) {
+              console.error("Error fetching customer by barcode:", error);
+              showErrorToast("Erro ao buscar cliente");
+              if (validateBarcode(trimmedQuery)) {
+                clearQueryField();
+              }
+            }
+          };
+
+          fetchCustomerByBarcode();
+          return;
+        }
+
+        // Verificar se é um código de barras de produto (começa com 5, 6 ou 7)
+        const isProductBarcode = /^[5-7]/.test(trimmedQuery);
+
+        if (isProductBarcode) {
+          // Procurar produto somente pelo código de barras completo
+          const product = products.find(
+            (p) => p.barcode && p.barcode === trimmedQuery
+          );
+
+          if (product) {
+            // Verificar se o produto pode ser adicionado ao carrinho
+            if (canAddProductToCart(product)) {
+              // Adicionar produto ao carrinho automaticamente
+              setCart((prev) => {
+                const existingIndex = prev.findIndex(
+                  (item) => item.id === product.id
+                );
+                if (existingIndex >= 0) {
+                  const updated = [...prev];
+                  updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    qty: updated[existingIndex].qty + 1,
+                  };
+                  setSelectedIndex(existingIndex);
+                  return updated;
+                }
+                const item: CartItem = {
+                  id: product.id,
+                  name: product.name,
+                  price: product.priceCents / 100,
+                  qty: 1,
+                };
+                setSelectedIndex(prev.length);
+                return [...prev, item];
+              });
+              
+              // Reproduzir som de beep
+              playBeepSound();
+              clearQueryField();
+            } else {
+              // Produto não pode ser adicionado - estoque insuficiente
+              showErrorToast(`Produto ${product.name} não pode ser adicionado - estoque insuficiente`);
+              if (validateBarcode(trimmedQuery)) {
+                clearQueryField();
+              }
+            }
           } else {
-            // Produto não pode ser adicionado - estoque insuficiente
-            console.log(`Produto ${product.name} não pode ser adicionado - estoque insuficiente`);
-            // Opcional: mostrar mensagem de erro ou alerta visual
-            setQuery("");
-            inputRef.current?.focus();
+            // Produto não encontrado
+            showErrorToast("Produto não encontrado com este código de barras");
+            if (validateBarcode(trimmedQuery)) {
+              clearQueryField();
+            }
           }
         }
       }
     }
-  }, [query, products, playBeepSound, handleSelectCustomer, canAddProductToCart]);
+  }, [query, products, playBeepSound, handleSelectCustomer, canAddProductToCart, validateBarcode, clearQueryField, showErrorToast]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -740,8 +782,9 @@ export default function PDVPage() {
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Código de barras"
+                placeholder="Código de barras (13 dígitos)"
                 className="pl-9"
+                maxLength={13}
               />
             </div>
           </div>
