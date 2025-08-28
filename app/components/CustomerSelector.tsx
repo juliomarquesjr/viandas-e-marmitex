@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Button } from "./ui/button";
-import { User, X } from "lucide-react";
+import { Package, User, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CustomerSelectorDialog } from "./CustomerSelectorDialog";
+import { Button } from "./ui/button";
 
 type Customer = {
   id: string;
@@ -24,10 +24,12 @@ export function CustomerSelector({
   onSelect,
   selectedCustomer,
   onRemove,
+  presetProductsLoaded,
 }: {
   onSelect: (customer: Customer) => void;
   selectedCustomer: Customer | null;
   onRemove: () => void;
+  presetProductsLoaded?: boolean;
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -51,6 +53,12 @@ export function CustomerSelector({
               <div className="text-sm text-muted-foreground mt-1">
                 {selectedCustomer.phone || selectedCustomer.email || "Sem contato"}
               </div>
+              {presetProductsLoaded && (
+                <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  Produtos do preset carregados
+                </div>
+              )}
             </div>
           </div>
           <Button 

@@ -7,6 +7,7 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 - **PDV (Ponto de Venda)**: Interface para realização de vendas
 - **Gestão de Produtos**: Cadastro e gerenciamento de produtos e categorias
 - **Gestão de Clientes**: Cadastro e gerenciamento de clientes
+- **Presets de Produtos**: Configuração automática de produtos para clientes frequentes
 - **Gestão de Usuários**: Cadastro e gerenciamento de usuários (Administradores e PDV)
 - **Gestão de Pedidos**: Acompanhamento de pedidos
 - **Relatórios**: Análise de vendas e desempenho

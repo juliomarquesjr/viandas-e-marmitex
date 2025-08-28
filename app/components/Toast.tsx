@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Check, X, AlertCircle, Info } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Check, Info, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -32,15 +32,15 @@ const Toast = ({ id, message, type, onClose }: ToastProps) => {
   const getBackgroundColor = () => {
     switch (type) {
       case "success":
-        return "bg-green-50 border-green-200";
+        return "bg-green-100 border-green-300 shadow-green-200/50";
       case "error":
-        return "bg-red-50 border-red-200";
+        return "bg-red-100 border-red-300 shadow-red-200/50";
       case "warning":
-        return "bg-yellow-50 border-yellow-200";
+        return "bg-yellow-100 border-yellow-300 shadow-yellow-200/50";
       case "info":
-        return "bg-blue-50 border-blue-200";
+        return "bg-blue-100 border-blue-300 shadow-blue-200/50";
       default:
-        return "bg-white border-gray-200";
+        return "bg-white border-gray-300 shadow-gray-200/50";
     }
   };
 
@@ -57,11 +57,11 @@ const Toast = ({ id, message, type, onClose }: ToastProps) => {
       initial={{ opacity: 0, y: 50, scale: 0.3 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-      className={`flex items-start gap-3 rounded-lg border p-4 shadow-lg ${getBackgroundColor()}`}
+      className={`flex items-start gap-3 rounded-lg border p-4 shadow-2xl ${getBackgroundColor()}`}
     >
       {getIcon()}
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900">{message}</p>
+        <p className="text-sm font-semibold text-gray-900">{message}</p>
       </div>
       <button
         onClick={() => onClose(id)}
@@ -111,7 +111,7 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
   return (
     <>
       {children}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      <div className="fixed top-4 right-4 z-[9999] space-y-2">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast

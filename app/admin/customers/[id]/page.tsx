@@ -1,34 +1,47 @@
 "use client";
 
 import {
-  ArrowLeft,
-  Banknote,
-  Barcode as BarcodeIcon,
-  Clock,
-  CreditCard,
-  Download,
-  IdCard,
-  Mail,
-  MapPin,
-  Package,
-  Phone,
-  QrCode,
-  Receipt,
-  Trash2,
-  TrendingUp,
-  User,
+    AlertCircle,
+    ArrowLeft,
+    Banknote,
+    Barcode as BarcodeIcon,
+    Clock,
+    CreditCard,
+    Download,
+    IdCard,
+    Mail,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    QrCode,
+    Receipt,
+    Trash2,
+    TrendingUp,
+    User,
+    Wallet,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../../components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "../../../components/ui/dialog";
+import { Input } from "../../../components/ui/input";
 
 type Customer = {
   id: string;
@@ -73,6 +86,7 @@ const paymentMethodMap = {
   debit: { label: "Cartão de Débito", icon: CreditCard },
   pix: { label: "PIX", icon: QrCode },
   invoice: { label: "Ficha do Cliente", icon: IdCard },
+  ficha_payment: { label: "Pagamento de Ficha", icon: Wallet },
   dinheiro: { label: "Dinheiro", icon: Banknote },
   "ficha do cliente": { label: "Ficha do Cliente", icon: IdCard },
   fichadocliente: { label: "Ficha do Cliente", icon: IdCard },
@@ -92,9 +106,16 @@ export default function CustomerDetailPage() {
     pendingAmount: 0,
     last30DaysAmount: 0,
     totalOrders: 0,
+    balanceAmount: 0, // Novo campo para saldo devedor
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [cashReceived, setCashReceived] = useState("");
+  const [change, setChange] = useState(0);
 
   const loadCustomer = async () => {
     try {
@@ -112,8 +133,13 @@ export default function CustomerDetailPage() {
       const ordersData = await ordersResponse.json();
       setOrders(ordersData.data);
 
+      // Carregar saldo devedor
+      const balanceResponse = await fetch(`/api/ficha-payments?customerId=${params.id}`);
+      if (!balanceResponse.ok) throw new Error("Failed to fetch balance");
+      const balanceData = await balanceResponse.json();
+
       // Calcular estatísticas
-      calculateStats(ordersData.data);
+      calculateStats(ordersData.data, balanceData.balanceCents);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -121,7 +147,7 @@ export default function CustomerDetailPage() {
     }
   };
 
-  const calculateStats = (ordersData: Order[]) => {
+  const calculateStats = (ordersData: Order[], balanceCents: number) => {
     // Valor total das compras pendentes
     const pendingAmount = ordersData
       .filter((order) => order.status === "pending")
@@ -142,6 +168,7 @@ export default function CustomerDetailPage() {
       pendingAmount,
       last30DaysAmount,
       totalOrders,
+      balanceAmount: balanceCents, // Saldo devedor
     });
   };
 
@@ -211,7 +238,7 @@ export default function CustomerDetailPage() {
       setOrders((prev) => prev.filter((order) => order.id !== orderId));
 
       // Recalcular estatísticas
-      calculateStats(orders.filter((order) => order.id !== orderId));
+      calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
     } catch (error) {
       console.error("Error deleting order:", error);
       alert("Erro ao excluir venda. Por favor, tente novamente.");
@@ -276,6 +303,59 @@ export default function CustomerDetailPage() {
     } catch (error) {
       alert("Erro ao gerar o código de barras.");
       console.error(error);
+    }
+  };
+
+  // Função para registrar pagamento de ficha
+  const handleFichaPayment = async () => {
+    if (!customer || !paymentAmount || !selectedPaymentMethod) return;
+
+    try {
+      const amountCents = Math.round(parseFloat(paymentAmount) * 100);
+      
+      if (amountCents <= 0) {
+        alert("Por favor, informe um valor válido.");
+        return;
+      }
+
+      // Preparar dados do pagamento
+      const paymentData: any = {
+        customerId: customer.id,
+        amountCents,
+        paymentMethod: selectedPaymentMethod,
+      };
+
+      // Adicionar dados específicos para pagamento em dinheiro
+      if (selectedPaymentMethod === "cash" && cashReceived) {
+        const cashReceivedCents = Math.round(parseFloat(cashReceived) * 100);
+        const changeCents = Math.max(0, cashReceivedCents - amountCents);
+        
+        paymentData.cashReceivedCents = cashReceivedCents;
+        paymentData.changeCents = changeCents;
+      }
+
+      const response = await fetch("/api/ficha-payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(paymentData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create ficha payment");
+      }
+
+      // Fechar o diálogo e recarregar os dados
+      setIsPaymentDialogOpen(false);
+      setPaymentAmount("");
+      setSelectedPaymentMethod("");
+      setCashReceived("");
+      setChange(0);
+      loadCustomer();
+    } catch (error) {
+      console.error("Error creating ficha payment:", error);
+      alert("Erro ao registrar pagamento. Por favor, tente novamente.");
     }
   };
 
@@ -430,7 +510,7 @@ export default function CustomerDetailPage() {
       </Card>
 
       {/* Novos Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -478,6 +558,285 @@ export default function CustomerDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Novo card para saldo devedor */}
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600">
+                  Saldo Devedor
+                </p>
+                <p className={`text-xl font-bold ${stats.balanceAmount > 0 ? 'text-red-900' : 'text-green-900'}`}>
+                  {formatCurrency(stats.balanceAmount)}
+                </p>
+              </div>
+              <Wallet className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+              {/* Gerenciamento de Presets de Produtos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Preset de Produtos
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Configure produtos que serão adicionados automaticamente ao carrinho quando este cliente for selecionado no PDV.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => setIsPresetModalOpen(true)}
+              variant="outline"
+              className="w-full"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Gerenciar Presets de Produtos
+            </Button>
+          </CardContent>
+        </Card>
+
+      {/* Botão para adicionar pagamento */}
+      <div className="flex justify-end">
+        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary hover:bg-primary/90">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Pagamento
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Adicionar Pagamento à Ficha</DialogTitle>
+              <DialogDescription>
+                Registre um pagamento para reduzir o saldo devedor do cliente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Formas de pagamento */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  Formas de Pagamento
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Dinheiro", value: "cash", icon: Banknote },
+                    { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                    { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                    { label: "PIX", value: "pix", icon: QrCode },
+                  ].map((method) => (
+                    <Button
+                      key={method.value}
+                      variant={
+                        selectedPaymentMethod === method.value ? "default" : "outline"
+                      }
+                      className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md"
+                      onClick={() => {
+                        setSelectedPaymentMethod(method.value);
+                        // Reset cash fields when changing payment method
+                        if (method.value !== "cash") {
+                          setCashReceived("");
+                          setChange(0);
+                        }
+                      }}
+                    >
+                      <method.icon className="h-6 w-6" />
+                      <span className="text-sm font-medium">{method.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detalhes do pagamento */}
+              <div className="transition-all duration-300 ease-in-out">
+                {selectedPaymentMethod === "cash" ? (
+                  <div className="bg-muted rounded-xl p-5 h-full animate-in fade-in slide-in-from-right-4 duration-300">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Pagamento em Dinheiro
+                    </h3>
+
+                    <div className="space-y-5">
+                      <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                        <span className="text-muted-foreground">
+                          Valor do Pagamento
+                        </span>
+                        <span className="text-xl font-bold">
+                          R$ {parseFloat(paymentAmount || "0").toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="cashReceived"
+                          className="text-sm font-medium"
+                        >
+                          Valor Recebido
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                            R$
+                          </span>
+                          <Input
+                            id="cashReceived"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={cashReceived}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setCashReceived(value);
+
+                              // Calculate change
+                              if (value && !isNaN(parseFloat(value)) && paymentAmount) {
+                                const received = parseFloat(value);
+                                const payment = parseFloat(paymentAmount);
+                                const changeAmount = Math.max(
+                                  0,
+                                  received - payment
+                                );
+                                setChange(changeAmount);
+                              } else {
+                                setChange(0);
+                              }
+                            }}
+                            placeholder="0,00"
+                            className="pl-10 text-lg h-12"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
+                        <span className="text-green-800 font-medium">
+                          Troco
+                        </span>
+                        <span className="text-xl font-bold text-green-900">
+                          R$ {change.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {cashReceived &&
+                        parseFloat(cashReceived) > 0 &&
+                        paymentAmount &&
+                        parseFloat(cashReceived) < parseFloat(paymentAmount) && (
+                          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                              <span>
+                                O valor recebido é menor que o valor do pagamento.
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                ) : selectedPaymentMethod ? (
+                  <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="mb-3 p-3 bg-background rounded-full">
+                      {(() => {
+                        const method = [
+                          { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                          { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                          { label: "PIX", value: "pix", icon: QrCode },
+                        ].find((m) => m.value === selectedPaymentMethod);
+
+                        return method ? (
+                          <method.icon className="h-8 w-8 text-primary" />
+                        ) : null;
+                      })()}
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">
+                      Pagamento com {selectedPaymentMethod === "debit" ? "Cartão Débito" : 
+                                   selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      O valor do pagamento é{" "}
+                      <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
+                      . Confirme os dados e clique em "Registrar Pagamento" para concluir.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="space-y-3">
+                      <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
+                      <h3 className="text-lg font-medium">
+                        Selecione uma forma de pagamento
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Escolha uma das opções ao lado para prosseguir com o
+                        pagamento.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Valor do Pagamento
+                </label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                    R$
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={paymentAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPaymentAmount(value);
+                      
+                      // Recalculate change if cash payment
+                      if (selectedPaymentMethod === "cash" && cashReceived && value) {
+                        const received = parseFloat(cashReceived);
+                        const payment = parseFloat(value);
+                        const changeAmount = Math.max(0, received - payment);
+                        setChange(changeAmount);
+                      }
+                    }}
+                    placeholder="0,00"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsPaymentDialogOpen(false);
+                    setSelectedPaymentMethod("");
+                    setPaymentAmount("");
+                    setCashReceived("");
+                    setChange(0);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleFichaPayment}
+                  disabled={
+                    !paymentAmount || 
+                    parseFloat(paymentAmount) <= 0 ||
+                    !selectedPaymentMethod ||
+                    (selectedPaymentMethod === "cash" && 
+                     (!cashReceived || 
+                      parseFloat(cashReceived) < parseFloat(paymentAmount || "0")))
+                  }
+                >
+                  Registrar Pagamento
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Histórico de Compras */}
@@ -524,7 +883,11 @@ export default function CustomerDetailPage() {
                   {orders.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                      className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                        order.paymentMethod === "ficha_payment" 
+                          ? "bg-green-50/80 hover:bg-green-100/80" 
+                          : ""
+                      }`}
                     >
                       <td className="py-4 px-4">
                         <div className="font-mono text-sm text-gray-600">
@@ -533,15 +896,23 @@ export default function CustomerDetailPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
-                          {order.items.length} item
-                          {order.items.length !== 1 ? "s" : ""}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate max-w-xs">
-                          {order.items
-                            .map((item) => item.product.name)
-                            .join(", ")}
-                        </div>
+                        {order.paymentMethod === "ficha_payment" ? (
+                          <div className="text-sm text-gray-700">
+                            Entrada de Valores
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-sm text-gray-700">
+                              {order.items.length} item
+                              {order.items.length !== 1 ? "s" : ""}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate max-w-xs">
+                              {order.items
+                                .map((item) => item.product.name)
+                                .join(", ")}
+                            </div>
+                          </>
+                        )}
                       </td>
 
                       <td className="py-4 px-4">
@@ -569,9 +940,8 @@ export default function CustomerDetailPage() {
 
                       <td className="py-4 px-4">
                         <Badge
-                          className={`${
-                            getStatusInfo(order.status).color
-                          } border px-2 py-1 rounded-full text-xs font-medium`}
+                          className={`${getStatusInfo(order.status).color
+                            } border px-2 py-1 rounded-full text-xs font-medium`}
                         >
                           {getStatusInfo(order.status).label}
                         </Badge>
@@ -611,6 +981,14 @@ export default function CustomerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Presets de Produtos */}
+      <CustomerPresetModal
+        isOpen={isPresetModalOpen}
+        onClose={() => setIsPresetModalOpen(false)}
+        customerId={customer.id}
+        customerName={customer.name}
+      />
     </div>
   );
 }

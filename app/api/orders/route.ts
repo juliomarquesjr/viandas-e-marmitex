@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
 // GET - Listar pedidos com filtros
 export async function GET(request: Request) {
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
     
     // Determinar status baseado no método de pagamento
-    const status = body.paymentMethod === 'invoice' || body.paymentMethod === 'fichadocliente' ? 'pending' : 'confirmed';
+    const status = body.paymentMethod === 'invoice' ? 'pending' : 'confirmed';
     
     // Preparar dados adicionais de pagamento
     const additionalData: any = {};
@@ -274,12 +274,25 @@ export async function PUT(request: Request) {
       );
     }
     
+    // Preparar dados para atualização
+    const updateData: any = {};
+    
+    if (body.status) {
+      updateData.status = body.status;
+    }
+    
+    if (body.paymentMethod) {
+      updateData.paymentMethod = body.paymentMethod;
+    }
+    
+    // Se for um pagamento de ficha, vincular ao pedido original
+    if (body.fichaPaymentForOrderId) {
+      updateData.fichaPaymentForOrderId = body.fichaPaymentForOrderId;
+    }
+    
     const order = await prisma.order.update({
       where: { id: body.id },
-      data: {
-        status: body.status,
-        paymentMethod: body.paymentMethod
-      },
+      data: updateData,
       include: {
         customer: {
           select: {

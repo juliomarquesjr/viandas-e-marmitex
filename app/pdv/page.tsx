@@ -7,7 +7,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   CreditCard,
-  HelpCircle,
+
   Image as ImageIcon,
   LogOut,
   Maximize2,
@@ -74,10 +74,11 @@ export default function PDVPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isPaymentOpen, setPaymentOpen] = useState(false);
-  const [isHelpOpen, setHelpOpen] = useState(false);
+
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
   );
+  const [presetProductsLoaded, setPresetProductsLoaded] = useState(false);
   const [isDiscountOpen, setDiscountOpen] = useState(false);
   const [discount, setDiscount] = useState<{
     type: "percent" | "amount";
@@ -115,6 +116,8 @@ export default function PDVPage() {
       setChangeCustomerConfirmOpen(true);
     } else {
       setSelectedCustomer(customer);
+      // Carregar presets do cliente automaticamente
+      loadCustomerPresets(customer.id);
     }
   };
 
@@ -122,6 +125,8 @@ export default function PDVPage() {
     if (pendingCustomer) {
       setSelectedCustomer(pendingCustomer);
       setPendingCustomer(null);
+      // Carregar presets do novo cliente
+      loadCustomerPresets(pendingCustomer.id);
     }
     setChangeCustomerConfirmOpen(false);
   };
@@ -130,6 +135,87 @@ export default function PDVPage() {
     setPendingCustomer(null);
     setChangeCustomerConfirmOpen(false);
   };
+
+  /**
+   * Carrega os presets de produtos de um cliente e os adiciona ao carrinho
+   */
+  const loadCustomerPresets = async (customerId: string) => {
+    try {
+      const response = await fetch(`/api/customers/${customerId}/presets`);
+      if (response.ok) {
+        const result = await response.json();
+        const presets = result.data || [];
+        
+        if (presets.length > 0) {
+          // Adicionar produtos dos presets ao carrinho
+          const newItems: CartItem[] = [];
+          
+          presets.forEach((preset: any) => {
+            const product = preset.product;
+            if (product && product.active) {
+              // Verificar se o produto pode ser adicionado (estoque)
+              if (canAddProductToPreset(product, preset.quantity)) {
+                newItems.push({
+                  id: product.id,
+                  name: product.name,
+                  price: product.priceCents / 100,
+                  qty: preset.quantity,
+                });
+              }
+            }
+          });
+          
+          if (newItems.length > 0) {
+            // Adicionar ao carrinho existente, somando quantidades se o produto já existir
+            setCart((prevCart) => {
+              const updatedCart = [...prevCart];
+              
+              newItems.forEach((newItem) => {
+                const existingIndex = updatedCart.findIndex(
+                  (item) => item.id === newItem.id
+                );
+                
+                if (existingIndex >= 0) {
+                  // Produto já existe no carrinho, somar quantidade
+                  updatedCart[existingIndex].qty += newItem.qty;
+                } else {
+                  // Produto não existe, adicionar novo
+                  updatedCart.push(newItem);
+                }
+              });
+              
+              return updatedCart;
+            });
+            
+            // Mostrar feedback visual
+            console.log(`${newItems.length} produtos do preset foram adicionados ao carrinho`);
+            setPresetProductsLoaded(true);
+          } else {
+            setPresetProductsLoaded(false);
+          }
+        } else {
+          setPresetProductsLoaded(false);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao carregar presets do cliente:", error);
+      setPresetProductsLoaded(false);
+    }
+  };
+
+  /**
+   * Verifica se um produto pode ser adicionado ao preset (validação de estoque)
+   */
+  const canAddProductToPreset = useCallback((product: Product, quantity: number) => {
+    // Se o controle de estoque não estiver habilitado, sempre permite
+    if (!product.stockEnabled) return true;
+    
+    // Se o estoque for undefined, não permite (erro de configuração)
+    if (product.stock === undefined) return false;
+    
+    // Verificar se há estoque suficiente para a quantidade solicitada
+    return product.stock >= quantity;
+  }, []);
 
   /**
    * Verifica se um produto pode ser adicionado ao carrinho
@@ -234,7 +320,33 @@ export default function PDVPage() {
           // Verificar se o produto pode ser adicionado ao carrinho
           if (canAddProductToCart(product)) {
             // Adicionar produto ao carrinho automaticamente
-            handleAddProductToCart(product);
+            setCart((prev) => {
+              const existingIndex = prev.findIndex(
+                (item) => item.id === product.id
+              );
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  qty: updated[existingIndex].qty + 1,
+                };
+                setSelectedIndex(existingIndex);
+                return updated;
+              }
+              const item: CartItem = {
+                id: product.id,
+                name: product.name,
+                price: product.priceCents / 100,
+                qty: 1,
+              };
+              setSelectedIndex(prev.length);
+              return [...prev, item];
+            });
+            
+            // Reproduzir som de beep
+            playBeepSound();
+            setQuery("");
+            inputRef.current?.focus();
           } else {
             // Produto não pode ser adicionado - estoque insuficiente
             console.log(`Produto ${product.name} não pode ser adicionado - estoque insuficiente`);
@@ -245,7 +357,7 @@ export default function PDVPage() {
         }
       }
     }
-  }, [query, products, playBeepSound, handleSelectCustomer, selectedCustomer, canAddProductToCart, handleAddProductToCart]);
+  }, [query, products, playBeepSound, handleSelectCustomer, canAddProductToCart]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -311,11 +423,7 @@ export default function PDVPage() {
         inputRef.current?.focus();
         return;
       }
-      if (e.key === "F1") {
-        e.preventDefault();
-        setHelpOpen(true);
-        return;
-      }
+
       if (e.key === "F2") {
         e.preventDefault();
         if (cart.length === 0) return;
@@ -443,8 +551,20 @@ export default function PDVPage() {
         subtotalCents,
         discountCents,
         totalCents,
-        paymentMethod:
-          selectedPayment?.toLowerCase().replace(/\s+/g, "") || null,
+        paymentMethod: (() => {
+          if (!selectedPayment) return null;
+          
+          // Mapear os métodos de pagamento para os valores do enum
+          const paymentMethodMap: { [key: string]: string } = {
+            "Dinheiro": "cash",
+            "Cartão Crédito": "credit",
+            "Cartão Débito": "debit",
+            "PIX": "pix",
+            "Ficha do Cliente": "invoice"
+          };
+          
+          return paymentMethodMap[selectedPayment] || null;
+        })(),
       };
 
       // Add cash payment data if applicable
@@ -515,6 +635,7 @@ export default function PDVPage() {
 
   const handleRemoveCustomer = () => {
     setSelectedCustomer(null);
+    setPresetProductsLoaded(false);
   };
 
   return (
@@ -576,13 +697,7 @@ export default function PDVPage() {
             >
               <User className="h-4 w-4" /> Cliente (F3)
             </Button>
-            <Button
-              variant="outline"
-              className="h-9 gap-2"
-              onClick={() => setHelpOpen(true)}
-            >
-              <HelpCircle className="h-4 w-4" /> Ajuda (F1)
-            </Button>
+
             <Button
               variant="outline"
               className="h-9 gap-2"
@@ -862,6 +977,7 @@ export default function PDVPage() {
             onSelect={handleSelectCustomer}
             selectedCustomer={selectedCustomer}
             onRemove={handleRemoveCustomer}
+            presetProductsLoaded={presetProductsLoaded}
           />
 
           <div className="space-y-1 overflow-auto pr-2">

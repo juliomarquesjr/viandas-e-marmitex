@@ -15,6 +15,7 @@ import {
   Trash2,
   Truck,
   User,
+  Wallet,
   X,
   XCircle,
 } from "lucide-react";
@@ -87,11 +88,15 @@ const statusMap = {
 };
 
 const paymentMethodMap = {
+  // Valores do enum PaymentMethod
   cash: { label: "Dinheiro", icon: Banknote },
   credit: { label: "Cartão de Crédito", icon: CreditCard },
   debit: { label: "Cartão de Débito", icon: CreditCard },
   pix: { label: "PIX", icon: QrCode },
   invoice: { label: "Ficha do Cliente", icon: IdCard },
+  ficha_payment: { label: "Pagamento de Ficha", icon: Wallet },
+  
+  // Valores antigos/alternativos para compatibilidade
   dinheiro: { label: "Dinheiro", icon: Banknote },
   "ficha do cliente": { label: "Ficha do Cliente", icon: IdCard },
   "fichadocliente": { label: "Ficha do Cliente", icon: IdCard },
@@ -206,12 +211,42 @@ export default function AdminOrdersPage() {
 
   const getPaymentMethodLabel = (method: string | null) => {
     if (!method) return "Não especificado";
-    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.label || method;
+    
+    // Verificar se o método está no mapeamento
+    const hasMethod = method in paymentMethodMap;
+    
+    if (hasMethod) {
+      return paymentMethodMap[method as keyof typeof paymentMethodMap].label;
+    } else {
+      // Tentar acessar diretamente
+      const directAccess = (paymentMethodMap as any)[method];
+      
+      if (directAccess && directAccess.label) {
+        return directAccess.label;
+      }
+      
+      return method;
+    }
   };
 
   const getPaymentMethodIcon = (method: string | null) => {
     if (!method) return null;
-    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.icon;
+    
+    // Verificar se o método está no mapeamento
+    const hasMethod = method in paymentMethodMap;
+    
+    if (hasMethod) {
+      return paymentMethodMap[method as keyof typeof paymentMethodMap].icon;
+    } else {
+      // Tentar acessar diretamente
+      const directAccess = (paymentMethodMap as any)[method];
+      
+      if (directAccess && directAccess.icon) {
+        return directAccess.icon;
+      }
+      
+      return null;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -455,7 +490,11 @@ export default function AdminOrdersPage() {
                     return (
                       <tr
                         key={order.id}
-                        className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
+                          order.paymentMethod === "ficha_payment" 
+                            ? "bg-green-50/80 hover:bg-green-100/80" 
+                            : ""
+                        }`}
                       >
                         <td className="py-4 px-4">
                           <div className="font-mono text-sm text-gray-600">
@@ -486,15 +525,23 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
-                          <div className="text-sm text-gray-700">
-                            {order.items.length} item
-                            {order.items.length !== 1 ? "s" : ""}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate max-w-xs">
-                            {order.items
-                              .map((item) => item.product.name)
-                              .join(", ")}
-                          </div>
+                          {order.paymentMethod === "ficha_payment" ? (
+                            <div className="text-sm text-gray-700">
+                              Entrada de Valores
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700">
+                                {order.items.length} item
+                                {order.items.length !== 1 ? "s" : ""}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate max-w-xs">
+                                {order.items
+                                  .map((item) => item.product.name)
+                                  .join(", ")}
+                              </div>
+                            </>
+                          )}
                         </td>
 
                         <td className="py-4 px-4">
@@ -524,14 +571,24 @@ export default function AdminOrdersPage() {
                         <td className="py-4 px-4">
                           <div className="flex items-center justify-center">
                             {(() => {
-                              const Icon = getPaymentMethodIcon(order.paymentMethod);
-                              return Icon ? (
-                                <Icon className="h-5 w-5 text-gray-700" />
-                              ) : (
-                                <div className="text-sm text-gray-700">
-                                  {getPaymentMethodLabel(order.paymentMethod)}
-                                </div>
-                              );
+                              const paymentMethod = order.paymentMethod;
+                              const Icon = getPaymentMethodIcon(paymentMethod);
+                              const label = getPaymentMethodLabel(paymentMethod);
+                              
+                              if (Icon) {
+                                return (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Icon className="h-5 w-5 text-gray-700" />
+                                    <span className="text-xs text-gray-600">{label}</span>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="text-sm text-gray-700 text-center">
+                                    {label}
+                                  </div>
+                                );
+                              }
                             })()}
                           </div>
                         </td>
