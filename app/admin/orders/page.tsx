@@ -2,11 +2,11 @@
 
 import {
   Banknote,
+  Calendar,
   Check,
   CheckCircle,
   Clock,
   CreditCard,
-  Filter,
   IdCard,
   Package,
   QrCode,
@@ -113,18 +113,14 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
-  const [showFilters, setShowFilters] = useState(false);
+  const [quickDateFilter, setQuickDateFilter] = useState<string>("all");
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-
-      if (statusFilter !== "all") {
-        params.append("status", statusFilter);
-      }
 
       if (dateFilter.start) {
         params.append("startDate", dateFilter.start);
@@ -137,22 +133,8 @@ export default function AdminOrdersPage() {
       const response = await fetch(`/api/orders?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
-      console.log("Orders data:", result.data); // Log para depuração
 
-      // Verificar se os campos de pagamento estão presentes
-      result.data.forEach((order: any) => {
-        if (order.paymentMethod === "cash") {
-          console.log(
-            `Order ${order.id}: cashReceivedCents=${order.cashReceivedCents}, changeCents=${order.changeCents}`
-          );
-          console.log(
-            "Types:",
-            typeof order.cashReceivedCents,
-            typeof order.changeCents
-          );
-          console.log("Values:", order.cashReceivedCents, order.changeCents);
-        }
-      });
+
       setOrders(result.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load orders");
@@ -163,7 +145,7 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-  }, [statusFilter, dateFilter]);
+  }, [dateFilter]);
 
   const formatCurrency = (cents: number | null) => {
     if (cents === null || cents === undefined) return "N/A";
@@ -171,6 +153,83 @@ export default function AdminOrdersPage() {
       style: "currency",
       currency: "BRL",
     }).format(cents / 100);
+  };
+
+  // Funções para filtros de data rápidos
+  const getQuickDateRange = (filter: string) => {
+    // Usar fuso horário local para evitar problemas de UTC
+    const today = new Date();
+    
+    // Criar datas no fuso horário local (sem conversão UTC)
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    // Função para formatar data no formato YYYY-MM-DD sem conversão UTC
+    const formatDateLocal = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    switch (filter) {
+      case "today":
+        return {
+          start: formatDateLocal(startOfDay),
+          end: formatDateLocal(startOfDay)
+        };
+        
+      case "yesterday":
+        const yesterday = new Date(startOfDay);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return {
+          start: formatDateLocal(yesterday),
+          end: formatDateLocal(yesterday)
+        };
+        
+      case "week":
+        const startOfWeek = new Date(startOfDay);
+        startOfWeek.setDate(startOfWeek.getDate() - 7);
+        return {
+          start: formatDateLocal(startOfWeek),
+          end: formatDateLocal(startOfDay)
+        };
+        
+      case "month":
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        return {
+          start: formatDateLocal(startOfMonth),
+          end: formatDateLocal(startOfDay)
+        };
+        
+      default:
+        return { start: "", end: "" };
+    }
+  };
+
+  const handleQuickDateFilter = (filter: string) => {
+    setQuickDateFilter(filter);
+    
+    if (filter === "custom") {
+      setShowCustomDatePicker(true);
+      // Não alterar as datas automaticamente para permitir seleção manual
+    } else {
+      const range = getQuickDateRange(filter);
+      setDateFilter(range);
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  const handleCustomDateApply = () => {
+    if (dateFilter.start && dateFilter.end) {
+      setQuickDateFilter("custom");
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  const handleCustomDateCancel = () => {
+    setShowCustomDatePicker(false);
+    setQuickDateFilter("all");
+    setDateFilter({ start: "", end: "" });
   };
 
   const deleteOrder = async (orderId: string) => {
@@ -344,81 +403,124 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm">
-        {/* Busca Principal */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Buscar por cliente..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-          />
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm overflow-hidden">
+        {/* Filtros Rápidos de Data */}
+        <div className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 mr-2">Período:</span>
+            {[
+              { key: "all", label: "Todas", icon: Calendar },
+              { key: "today", label: "Hoje", icon: Calendar },
+              { key: "yesterday", label: "Ontem", icon: Calendar },
+              { key: "week", label: "Semana", icon: Calendar },
+              { key: "month", label: "Mês", icon: Calendar },
+              { key: "custom", label: "Personalizado", icon: Calendar }
+            ].map((filter) => (
+              <Button
+                key={filter.key}
+                variant={quickDateFilter === filter.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleQuickDateFilter(filter.key)}
+                className={`h-8 px-3 text-xs font-medium transition-all duration-200 ${
+                  quickDateFilter === filter.key
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
+                }`}
+              >
+                <filter.icon className="h-3 w-3 mr-1" />
+                {filter.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {/* Filtros e Ações */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="h-8 px-3 text-xs border-gray-200 text-gray-600 hover:bg-gray-50 gap-1"
-          >
-            <Filter className="h-3 w-3" />
-            Filtros
-          </Button>
+        {/* Busca */}
+        <div className="px-4 pb-4">
+          <div className="flex justify-end">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Buscar por cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              />
+            </div>
+          </div>
         </div>
+
+        {/* Seletor de Datas Personalizadas - Compacto */}
+        {showCustomDatePicker && (
+          <div className="border-t border-gray-100 bg-gray-50/30">
+            <div className="p-4">
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    Período Personalizado
+                  </h4>
+                  <Button
+                    onClick={handleCustomDateCancel}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  {/* Data Início */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-600">Data Início</label>
+                    <Input
+                      type="date"
+                      value={dateFilter.start}
+                      onChange={(e) => setDateFilter((prev) => ({ ...prev, start: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
+                    />
+                  </div>
+
+                  {/* Data Fim */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-600">Data Fim</label>
+                    <Input
+                      type="date"
+                      value={dateFilter.end}
+                      onChange={(e) => setDateFilter((prev) => ({ ...prev, end: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
+                    />
+                  </div>
+
+                  {/* Botão Aplicar */}
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleCustomDateApply}
+                      disabled={!dateFilter.start || !dateFilter.end}
+                      size="sm"
+                      className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Preview compacto */}
+                {dateFilter.start && dateFilter.end && (
+                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800 text-center">
+                      Período: {new Date(dateFilter.start).toLocaleDateString('pt-BR')} → {new Date(dateFilter.end).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Filtros Expandidos */}
-      {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="pending">Pendente</option>
-              <option value="confirmed">Confirmado</option>
-              <option value="preparing">Preparando</option>
-              <option value="ready">Pronto</option>
-              <option value="delivered">Entregue</option>
-              <option value="cancelled">Cancelado</option>
-            </select>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Data Início
-            </label>
-            <Input
-              type="date"
-              value={dateFilter.start}
-              onChange={(e) =>
-                setDateFilter((prev) => ({ ...prev, start: e.target.value }))
-              }
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              Data Fim
-            </label>
-            <Input
-              type="date"
-              value={dateFilter.end}
-              onChange={(e) =>
-                setDateFilter((prev) => ({ ...prev, end: e.target.value }))
-              }
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Tabela de Pedidos */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
@@ -633,9 +735,7 @@ export default function AdminOrdersPage() {
                     Nenhuma venda encontrada
                   </h3>
                   <p className="text-gray-600 mb-4">
-                    {statusFilter !== "all" ||
-                    dateFilter.start ||
-                    dateFilter.end
+                    {dateFilter.start || dateFilter.end
                       ? "Tente ajustar os filtros de busca"
                       : "Ainda não há vendas registradas"}
                   </p>

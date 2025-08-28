@@ -30,10 +30,16 @@ export async function GET(request: Request) {
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        where.createdAt.gte = new Date(startDate);
+        // Criar data no fuso horário local para evitar problemas de UTC
+        const [year, month, day] = startDate.split('-').map(Number);
+        const startDateTime = new Date(year, month - 1, day, 0, 0, 0, 0); // Início do dia local
+        where.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        where.createdAt.lte = new Date(endDate);
+        // Criar data no fuso horário local para evitar problemas de UTC
+        const [year, month, day] = endDate.split('-').map(Number);
+        const endDateTime = new Date(year, month - 1, day, 23, 59, 59, 999); // Fim do dia local
+        where.createdAt.lte = endDateTime;
       }
     }
     
@@ -76,13 +82,7 @@ export async function GET(request: Request) {
       prisma.order.count({ where })
     ]);
     
-    // Log para depuração
-    console.log('Orders fetched:', orders.map(order => ({
-      id: order.id,
-      paymentMethod: order.paymentMethod,
-      cashReceivedCents: order.cashReceivedCents,
-      changeCents: order.changeCents
-    })));
+
     
     return NextResponse.json({
       data: orders,
