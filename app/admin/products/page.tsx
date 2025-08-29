@@ -1,33 +1,35 @@
 "use client";
 
+import { motion } from "framer-motion";
 import {
-  AlertCircle,
-  Barcode as BarcodeIcon,
-  Check,
-  DollarSign,
-  Edit,
-  Image as ImageIcon,
-  MoreVertical,
-  Package,
-  Plus,
-  Search,
-  Trash2,
+    Barcode as BarcodeIcon,
+    Check,
+    DollarSign,
+    Edit,
+    Image as ImageIcon,
+    MoreVertical,
+    Package,
+    Plus,
+    Search,
+    Trash2,
+    X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DeleteProductDialog } from "../../components/DeleteProductDialog";
 import { ProductFormDialog } from "../../components/ProductFormDialog";
 import { useToast } from "../../components/Toast";
+import { AnimatedCard } from "../../components/ui/animated-card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+
 // Menu de opções por produto
 function ProductActionsMenu({
   onEdit,
@@ -69,13 +71,13 @@ function ProductActionsMenu({
         aria-label="Mais opções"
         onClick={() => setOpen((v) => !v)}
       >
-        <MoreVertical className="h-5 w-5 text-gray-500" />
+        <MoreVertical className="h-5 w-5 text-muted-foreground" />
       </Button>
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in">
+        <div className="absolute right-0 z-20 mt-2 w-36 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in">
           {hasBarcode && (
             <button
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
               onClick={() => {
                 setOpen(false);
                 onDownload();
@@ -86,7 +88,7 @@ function ProductActionsMenu({
             </button>
           )}
           <button
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
             onClick={() => {
               setOpen(false);
               onEdit();
@@ -521,12 +523,10 @@ export default function AdminProductsPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Gerenciamento de Produtos
           </h1>
-          <p className="text-gray-600">
-            Cadastre e gerencie o catálogo de produtos
-          </p>
+          <p className="text-muted-foreground">Cadastre e gerencie o catálogo de produtos</p>
         </div>
         <Button
           onClick={() => openForm()}
@@ -538,12 +538,14 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AnimatedCard delay={0.1}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">Total</p>
+                <p className="text-sm font-medium text-blue-600">
+                  Total de Produtos
+                </p>
                 <p className="text-3xl font-bold text-blue-900">
                   {products.length}
                 </p>
@@ -551,13 +553,15 @@ export default function AdminProductsPage() {
               <Package className="h-12 w-12 text-blue-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <AnimatedCard delay={0.2}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">Vendáveis</p>
+                <p className="text-sm font-medium text-green-600">
+                  Produtos Vendáveis
+                </p>
                 <p className="text-3xl font-bold text-green-900">
                   {products.filter((p) => p.productType === "sellable").length}
                 </p>
@@ -565,157 +569,166 @@ export default function AdminProductsPage() {
               <Package className="h-12 w-12 text-green-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+        <AnimatedCard delay={0.3}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600">
-                  Adicionais
+                <p className="text-sm font-medium text-amber-600">
+                  Produtos Ativos
                 </p>
-                <p className="text-3xl font-bold text-orange-900">
-                  {products.filter((p) => p.productType === "addon").length}
-                </p>
-              </div>
-              <Plus className="h-12 w-12 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">Ativos</p>
-                <p className="text-3xl font-bold text-purple-900">
+                <p className="text-3xl font-bold text-amber-900">
                   {products.filter((p) => p.active).length}
                 </p>
               </div>
-              <Check className="h-12 w-12 text-purple-600" />
+              <Check className="h-12 w-12 text-amber-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+        <AnimatedCard delay={0.4}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-600">
+                <p className="text-sm font-medium text-purple-600">
                   Valor Total
                 </p>
-                <p className="text-3xl font-bold text-emerald-900">
-                  R${" "}
-                  {(
-                    products.reduce((sum, p) => sum + p.priceCents, 0) / 100
-                  ).toLocaleString("pt-BR")}
+                <p className="text-3xl font-bold text-purple-900">
+                  {formatPriceToReais(products.reduce((sum, p) => sum + p.priceCents, 0))}
                 </p>
               </div>
-              <DollarSign className="h-12 w-12 text-emerald-600" />
+              <DollarSign className="h-12 w-12 text-purple-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
-      {/* Barra de Busca e Filtros Compacta */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm">
-        {/* Busca Principal */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Buscar produtos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-          />
-          {searchTerm && (
-            <Badge className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
-              {products.length}
-            </Badge>
-          )}
-        </div>
+      {/* Barra de Busca e Filtros */}
+      <AnimatedCard>
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            {/* Busca Principal */}
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produtos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 text-sm"
+              />
+              {searchTerm && (
+                <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
+                  {products.length}
+                </Badge>
+              )}
+            </div>
 
-        {/* Filtros e Ações */}
-        <div className="flex items-center gap-2">
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-          >
-            <option value="all">Todas as Categorias</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+            {/* Filtros e Ações */}
+            <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+              <div className="relative">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-40"
+                >
+                  <option value="all">Todas as Categorias</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
 
-          <select
-            value={typeFilter}
-            onChange={(e) =>
-              setTypeFilter(e.target.value as "all" | "sellable" | "addon")
-            }
-            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-          >
-            <option value="all">Todos os Tipos</option>
-            <option value="sellable">Vendáveis</option>
-            <option value="addon">Adicionais</option>
-          </select>
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) =>
+                    setTypeFilter(e.target.value as "all" | "sellable" | "addon")
+                  }
+                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-36"
+                >
+                  <option value="all">Todos os Tipos</option>
+                  <option value="sellable">Vendáveis</option>
+                  <option value="addon">Adicionais</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as "all" | "active" | "inactive")
-            }
-            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-          >
-            <option value="all">Todos os Status</option>
-            <option value="active">Ativo</option>
-            <option value="inactive">Inativo</option>
-          </select>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as "all" | "active" | "inactive")
+                  }
+                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-32"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSearchTerm("");
-              setCategoryFilter("all");
-              setStatusFilter("all");
-              setTypeFilter("all");
-            }}
-            className="h-8 px-3 text-xs border-gray-200 text-gray-600 hover:bg-gray-50"
-          >
-            Limpar
-          </Button>
-        </div>
-      </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("");
+                  setCategoryFilter("all");
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                }}
+                className="h-9 px-3 text-sm"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </AnimatedCard>
 
       {/* Tabela de Produtos */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
+      <AnimatedCard>
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">
+          <CardTitle className="text-2xl font-bold text-foreground">
             Catálogo de Produtos
           </CardTitle>
           <CardDescription>
-            {products.length} produto{products.length !== 1 ? "s" : ""}{" "}
-            encontrado{products.length !== 1 ? "s" : ""}
+            {products.length} produto{products.length !== 1 ? "s" : ""} encontrado
+            {products.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-gray-600">Carregando produtos...</p>
+              <p className="mt-4 text-muted-foreground">Carregando produtos...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
+                <X className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 Erro ao carregar produtos
               </h3>
-              <p className="text-gray-600 mb-4">{error}</p>
+              <p className="text-muted-foreground mb-4">{error}</p>
               <Button
                 onClick={loadProducts}
                 className="bg-primary hover:bg-primary/90"
@@ -727,41 +740,42 @@ export default function AdminProductsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  <tr className="border-b border-border">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Produto
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Categoria
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Tipo
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Preço
                     </th>
-
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Estoque
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Status
                     </th>
-
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Ações
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => (
-                    <tr
+                  {products.map((product, index) => (
+                    <motion.tr
                       key={product.id}
-                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="border-b border-border hover:bg-accent/50 transition-colors"
                     >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                          <div className="h-12 w-12 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
@@ -769,15 +783,15 @@ export default function AdminProductsPage() {
                                 className="h-full w-full object-cover"
                               />
                             ) : (
-                              <ImageIcon className="h-6 w-6 text-gray-400" />
+                              <ImageIcon className="h-6 w-6 text-muted-foreground" />
                             )}
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-foreground">
                               {product.name}
                             </div>
                             {product.description && (
-                              <div className="text-sm text-gray-500 truncate max-w-xs">
+                              <div className="text-sm text-muted-foreground truncate max-w-xs">
                                 {product.description}
                               </div>
                             )}
@@ -786,7 +800,7 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
+                        <div className="text-sm text-foreground">
                           {getCategoryName(product.categoryId)}
                         </div>
                       </td>
@@ -796,22 +810,22 @@ export default function AdminProductsPage() {
                           const Icon = typeInfo.icon;
                           return (
                             <Badge
-                              className={`${typeInfo.color} border px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit`}
+                              className={`${typeInfo.color} border px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 w-fit`}
                             >
-                              <Icon className="h-3 w-3" />
+                              <Icon className="h-3.5 w-3.5" />
                               {typeInfo.label}
                             </Badge>
                           );
                         })()}
                       </td>
                       <td className="py-4 px-4">
-                        <div className="text-lg font-semibold text-gray-900">
+                        <div className="text-lg font-semibold text-foreground">
                           {formatPriceToReais(product.priceCents || 0)}
                         </div>
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
+                        <div className="text-sm text-foreground">
                           {product.stockEnabled ? (
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -824,7 +838,7 @@ export default function AdminProductsPage() {
                           ) : (
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                              <span className="text-gray-500">
+                              <span className="text-muted-foreground">
                                 Sem controle
                               </span>
                             </div>
@@ -836,7 +850,7 @@ export default function AdminProductsPage() {
                           const statusInfo = getStatusInfo(product.active);
                           return (
                             <Badge
-                              className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}
+                              className={`${statusInfo.color} border px-3 py-1.5 rounded-full text-xs font-medium`}
                             >
                               {statusInfo.label}
                             </Badge>
@@ -852,18 +866,18 @@ export default function AdminProductsPage() {
                           hasBarcode={!!product.barcode}
                         />
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>
 
               {products.length === 0 && (
                 <div className="text-center py-12">
-                  <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     Nenhum produto encontrado
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     {searchTerm ||
                     categoryFilter !== "all" ||
                     statusFilter !== "all" ||
@@ -888,7 +902,7 @@ export default function AdminProductsPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </AnimatedCard>
 
       {/* Modal de Formulário */}
       <ProductFormDialog

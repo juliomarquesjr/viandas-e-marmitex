@@ -1,30 +1,30 @@
 "use client";
 
+import { motion } from "framer-motion";
 import {
-  AlertCircle,
-  Barcode as BarcodeIcon,
-  Check,
-  Edit,
-  MoreVertical,
-  Package,
-  Phone,
-  Plus,
-  Search,
-  Trash2,
-  User,
-  X,
+    Barcode as BarcodeIcon,
+    Check,
+    Edit,
+    MoreVertical,
+    Package,
+    Phone,
+    Plus,
+    Search,
+    Trash2,
+    User,
+    X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
+import { AnimatedCard } from "../../components/ui/animated-card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 
@@ -71,17 +71,17 @@ function CustomerActionsMenu({
         aria-haspopup="true"
         onClick={() => setOpen((v) => !v)}
       >
-        <MoreVertical className="h-5 w-5 text-gray-500" />
+        <MoreVertical className="h-5 w-5 text-muted-foreground" />
       </Button>
       {open && (
         <div 
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
+          className="absolute right-0 z-50 mt-2 w-36 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
         >
           {hasBarcode && (
             <button
               role="menuitem"
-              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+              className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
               onClick={() => {
                 setOpen(false);
                 onDownload();
@@ -91,10 +91,10 @@ function CustomerActionsMenu({
               Código de Barras
             </button>
           )}
-          <div className="border-t border-gray-100 my-1"></div>
+          <div className="border-t border-border my-1"></div>
           <button
             role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
             onClick={() => {
               setOpen(false);
               onEdit();
@@ -448,10 +448,10 @@ export default function AdminCustomersPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             Gerenciamento de Clientes
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Cadastre e gerencie os clientes do estabelecimento
           </p>
         </div>
@@ -465,12 +465,14 @@ export default function AdminCustomersPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AnimatedCard delay={0.1}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">Total</p>
+                <p className="text-sm font-medium text-blue-600">
+                  Total de Clientes
+                </p>
                 <p className="text-3xl font-bold text-blue-900">
                   {customers.length}
                 </p>
@@ -478,13 +480,15 @@ export default function AdminCustomersPage() {
               <User className="h-12 w-12 text-blue-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <AnimatedCard delay={0.2}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">Ativos</p>
+                <p className="text-sm font-medium text-green-600">
+                  Clientes Ativos
+                </p>
                 <p className="text-3xl font-bold text-green-900">
                   {customers.filter((c) => c.active).length}
                 </p>
@@ -492,27 +496,31 @@ export default function AdminCustomersPage() {
               <Check className="h-12 w-12 text-green-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+        <AnimatedCard delay={0.3}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600">Inativos</p>
-                <p className="text-3xl font-bold text-orange-900">
+                <p className="text-sm font-medium text-amber-600">
+                  Clientes Inativos
+                </p>
+                <p className="text-3xl font-bold text-amber-900">
                   {customers.filter((c) => !c.active).length}
                 </p>
               </div>
-              <X className="h-12 w-12 text-orange-600" />
+              <X className="h-12 w-12 text-amber-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <AnimatedCard delay={0.4}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">Com Email</p>
+                <p className="text-sm font-medium text-purple-600">
+                  Com Email
+                </p>
                 <p className="text-3xl font-bold text-purple-900">
                   {customers.filter((c) => c.email).length}
                 </p>
@@ -520,81 +528,93 @@ export default function AdminCustomersPage() {
               <User className="h-12 w-12 text-purple-600" />
             </div>
           </CardContent>
-        </Card>
+        </AnimatedCard>
       </div>
 
-      {/* Barra de Busca e Filtros Compacta */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 shadow-sm">
-        {/* Busca Principal */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Buscar clientes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 text-sm border-gray-200 bg-white/80 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-          />
-          {searchTerm && (
-            <Badge className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
-              {customers.length}
-            </Badge>
-          )}
-        </div>
+      {/* Barra de Busca e Filtros */}
+      <AnimatedCard>
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+            {/* Busca Principal */}
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar clientes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 text-sm"
+              />
+              {searchTerm && (
+                <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
+                  {customers.length}
+                </Badge>
+              )}
+            </div>
 
-        {/* Filtros e Ações */}
-        <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as "all" | "active" | "inactive")
-            }
-            className="px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white/80 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-100 focus:border-blue-400"
-          >
-            <option value="all">Todos os Status</option>
-            <option value="active">Ativo</option>
-            <option value="inactive">Inativo</option>
-          </select>
+            {/* Filtros e Ações */}
+            <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as "all" | "active" | "inactive")
+                  }
+                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-32"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setSearchTerm("");
-              setStatusFilter("all");
-            }}
-            className="h-8 px-3 text-xs border-gray-200 text-gray-600 hover:bg-gray-50"
-          >
-            Limpar
-          </Button>
-        </div>
-      </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+                className="h-9 px-3 text-sm"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </AnimatedCard>
 
       {/* Tabela de Clientes */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
+      <AnimatedCard>
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">
+          <CardTitle className="text-2xl font-bold text-foreground">
             Lista de Clientes
           </CardTitle>
           <CardDescription>
-            {customers.length} cliente{customers.length !== 1 ? "s" : ""}{" "}
-            encontrado{customers.length !== 1 ? "s" : ""}
+            {customers.length} cliente{customers.length !== 1 ? "s" : ""} encontrado
+            {customers.length !== 1 ? "s" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-gray-600">Carregando clientes...</p>
+              <p className="mt-4 text-muted-foreground">Carregando clientes...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
+                <X className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 Erro ao carregar clientes
               </h3>
-              <p className="text-gray-600 mb-4">{error}</p>
+              <p className="text-muted-foreground mb-4">{error}</p>
               <Button
                 onClick={loadCustomers}
                 className="bg-primary hover:bg-primary/90"
@@ -606,30 +626,32 @@ export default function AdminCustomersPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  <tr className="border-b border-border">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Cliente
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Contato
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Documento
                     </th>
-
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Status
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Ações
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.map((customer) => (
-                    <tr
+                  {customers.map((customer, index) => (
+                    <motion.tr
                       key={customer.id}
-                      className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="border-b border-border hover:bg-accent/50 transition-colors"
                     >
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
@@ -637,7 +659,7 @@ export default function AdminCustomersPage() {
                             <User className="h-5 w-5 text-primary" />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-foreground">
                               <a
                                 href={`/admin/customers/${customer.id}`}
                                 className="hover:underline"
@@ -645,7 +667,7 @@ export default function AdminCustomersPage() {
                                 {customer.name}
                               </a>
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-muted-foreground">
                               Cadastrado em{" "}
                               {new Date(customer.createdAt).toLocaleDateString(
                                 "pt-BR"
@@ -657,12 +679,12 @@ export default function AdminCustomersPage() {
 
                       <td className="py-4 px-4">
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-sm text-gray-700">
+                          <div className="flex items-center gap-1 text-sm text-foreground">
                             <Phone className="h-4 w-4" />
                             {customer.phone}
                           </div>
                           {customer.email && (
-                            <div className="text-sm text-gray-600 truncate max-w-xs">
+                            <div className="text-sm text-muted-foreground truncate max-w-xs">
                               {customer.email}
                             </div>
                           )}
@@ -670,19 +692,17 @@ export default function AdminCustomersPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        <div className="text-sm text-gray-700">
+                        <div className="text-sm text-foreground">
                           {customer.doc || "-"}
                         </div>
                       </td>
-
-
 
                       <td className="py-4 px-4">
                         {(() => {
                           const statusInfo = getStatusInfo(customer.active);
                           return (
                             <Badge
-                              className={`${statusInfo.color} border px-3 py-1 rounded-full text-xs font-medium`}
+                              className={`${statusInfo.color} border px-3 py-1.5 rounded-full text-xs font-medium`}
                             >
                               {statusInfo.label}
                             </Badge>
@@ -698,18 +718,18 @@ export default function AdminCustomersPage() {
                           hasBarcode={!!customer.barcode}
                         />
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>
 
               {customers.length === 0 && (
                 <div className="text-center py-12">
-                  <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <User className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
                     Nenhum cliente encontrado
                   </h3>
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-muted-foreground mb-4">
                     {searchTerm || statusFilter !== "all"
                       ? "Tente ajustar os filtros de busca"
                       : "Comece cadastrando o primeiro cliente"}
@@ -728,40 +748,40 @@ export default function AdminCustomersPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </AnimatedCard>
 
       {/* Modal de Formulário */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
-            <CardHeader className="border-b border-gray-200">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background shadow-2xl border border-border rounded-lg">
+            <div className="border-b border-border p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-semibold">
+                  <h2 className="text-xl font-semibold text-foreground">
                     {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
-                  </CardTitle>
-                  <CardDescription>
+                  </h2>
+                  <p className="text-muted-foreground">
                     {editingCustomer
                       ? "Atualize as informações do cliente"
                       : "Preencha os dados para cadastrar um novo cliente"}
-                  </CardDescription>
+                  </p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={closeForm}
-                  className="h-8 w-8 rounded-lg hover:bg-gray-100"
+                  className="h-8 w-8 rounded-lg hover:bg-accent"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="p-6">
+            <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Nome *
                     </label>
                     <Input
@@ -773,13 +793,13 @@ export default function AdminCustomersPage() {
                           name: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Telefone *
                     </label>
                     <Input
@@ -791,13 +811,13 @@ export default function AdminCustomersPage() {
                           phone: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Email
                     </label>
                     <Input
@@ -810,12 +830,12 @@ export default function AdminCustomersPage() {
                           email: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Código de Barras
                     </label>
                     <div className="flex gap-2">
@@ -828,7 +848,7 @@ export default function AdminCustomersPage() {
                             barcode: e.target.value,
                           }))
                         }
-                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                        className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                       />
                       <Button
                         type="button"
@@ -846,7 +866,7 @@ export default function AdminCustomersPage() {
                             barcode: randomBarcode.toString(),
                           }));
                         }}
-                        className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
+                        className="px-3 py-2 border-input hover:bg-accent text-xs"
                         title="Gerar código de barras aleatório"
                       >
                         <Package className="h-4 w-4" />
@@ -855,7 +875,7 @@ export default function AdminCustomersPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Documento (CPF/CNPJ)
                     </label>
                     <Input
@@ -867,12 +887,12 @@ export default function AdminCustomersPage() {
                           doc: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       CEP
                     </label>
                     <Input
@@ -884,12 +904,12 @@ export default function AdminCustomersPage() {
                           zip: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Estado
                     </label>
                     <Input
@@ -901,12 +921,12 @@ export default function AdminCustomersPage() {
                           state: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Cidade
                     </label>
                     <Input
@@ -918,12 +938,12 @@ export default function AdminCustomersPage() {
                           city: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Bairro
                     </label>
                     <Input
@@ -935,12 +955,12 @@ export default function AdminCustomersPage() {
                           neighborhood: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Rua
                     </label>
                     <Input
@@ -952,12 +972,12 @@ export default function AdminCustomersPage() {
                           street: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Número
                     </label>
                     <Input
@@ -969,12 +989,12 @@ export default function AdminCustomersPage() {
                           number: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Complemento
                     </label>
                     <Input
@@ -986,14 +1006,14 @@ export default function AdminCustomersPage() {
                           complement: e.target.value,
                         }))
                       }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
+                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2">
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
+                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                       <input
                         type="checkbox"
                         checked={formData.active}
@@ -1003,25 +1023,25 @@ export default function AdminCustomersPage() {
                             active: e.target.checked,
                           }))
                         }
-                        className="peer h-6 w-11 rounded-full border-2 border-gray-300 bg-gray-200 transition-colors checked:border-primary checked:bg-primary focus:outline-none focus:ring-0"
+                        className="peer h-6 w-11 rounded-full border-2 border-input bg-muted transition-colors checked:border-ring checked:bg-ring focus:outline-none focus:ring-0"
                       />
-                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></span>
+                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform peer-checked:translate-x-5"></span>
                     </div>
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-foreground">
                       Cliente ativo
                     </span>
                   </label>
                 </div>
 
                 {/* Separator */}
-                <div className="border-t border-gray-200 my-6"></div>
+                <div className="border-t border-border my-6"></div>
 
                 <div className="flex justify-end gap-3">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={closeForm}
-                    className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
+                    className="px-6 py-2 rounded-lg border-input hover:bg-accent"
                   >
                     Cancelar
                   </Button>
@@ -1033,34 +1053,34 @@ export default function AdminCustomersPage() {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Modal de Confirmação de Exclusão */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white shadow-2xl border-0">
-            <CardHeader className="text-center border-b border-gray-200">
+          <div className="w-full max-w-md bg-background shadow-2xl border border-border rounded-lg">
+            <div className="text-center border-b border-border p-6">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
+                <X className="h-6 w-6 text-red-600" />
               </div>
-              <CardTitle className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 Confirmar Exclusão
-              </CardTitle>
-              <CardDescription>
+              </h3>
+              <p className="text-muted-foreground">
                 Tem certeza que deseja remover este cliente? Esta ação não pode
                 ser desfeita.
-              </CardDescription>
-            </CardHeader>
+              </p>
+            </div>
 
-            <CardContent className="p-6">
+            <div className="p-6">
               <div className="flex justify-end gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setDeleteConfirm(null)}
-                  className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
+                  className="px-6 py-2 rounded-lg border-input hover:bg-accent"
                 >
                   Cancelar
                 </Button>
@@ -1072,8 +1092,8 @@ export default function AdminCustomersPage() {
                   Excluir
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
