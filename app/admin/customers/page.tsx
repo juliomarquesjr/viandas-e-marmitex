@@ -759,7 +759,7 @@ export default function AdminCustomersPage() {
 
                       <td className="py-4 px-4">
                         <div className="text-sm text-foreground">
-                          {customer.address ? (
+                          {customer.address && customer.address.street ? (
                             <div className="flex items-center gap-1">
                               <MapPin className="h-4 w-4 text-muted-foreground" />
                               <span>
@@ -770,10 +770,11 @@ export default function AdminCustomersPage() {
                               </span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">-</span>
-                            </div>
+                            <Badge
+                              className="bg-yellow-50 text-yellow-700 border-yellow-200 border px-3 py-1.5 rounded-full text-xs font-medium"
+                            >
+                              Não possui
+                            </Badge>
                           )}
                         </div>
                       </td>
