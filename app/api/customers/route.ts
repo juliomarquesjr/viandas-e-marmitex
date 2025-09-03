@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const size = parseInt(searchParams.get('size') || '10');
+    const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : null;
+    const size = searchParams.get('size') ? parseInt(searchParams.get('size')!) : null;
     const status = searchParams.get('status') || 'all';
     
     const where: any = {};
@@ -29,11 +29,16 @@ export async function GET(request: Request) {
       where.active = false;
     }
     
+    // Se não especificar paginação, retornar todos os clientes
+    const shouldPaginate = page !== null && size !== null;
+    
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
         where,
-        skip: (page - 1) * size,
-        take: size,
+        ...(shouldPaginate && {
+          skip: (page - 1) * size,
+          take: size,
+        }),
         orderBy: { createdAt: 'desc' }
       }),
       prisma.customer.count({ where })
@@ -41,12 +46,14 @@ export async function GET(request: Request) {
     
     return NextResponse.json({
       data: customers,
-      pagination: {
-        page,
-        size,
-        total,
-        pages: Math.ceil(total / size)
-      }
+      ...(shouldPaginate && {
+        pagination: {
+          page,
+          size,
+          total,
+          pages: Math.ceil(total / size)
+        }
+      })
     });
   } catch (error) {
     console.error('Error fetching customers:', error);

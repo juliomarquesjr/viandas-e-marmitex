@@ -5,8 +5,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") || "";
-    const page = parseInt(searchParams.get("page") || "1");
-    const size = parseInt(searchParams.get("size") || "10");
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!) : null;
+    const size = searchParams.get("size") ? parseInt(searchParams.get("size")!) : null;
     const category = searchParams.get("category") || "all";
     const status = searchParams.get("status") || "all";
     const type = searchParams.get("type") || "all";
@@ -47,11 +47,16 @@ export async function GET(request: Request) {
       where.variableProduct = false;
     }
 
+    // Se não especificar paginação, retornar todos os produtos
+    const shouldPaginate = page !== null && size !== null;
+    
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        skip: (page - 1) * size,
-        take: size,
+        ...(shouldPaginate && {
+          skip: (page - 1) * size,
+          take: size,
+        }),
         orderBy: { createdAt: "desc" },
         include: {
           category: true,
@@ -80,12 +85,14 @@ export async function GET(request: Request) {
         id: category.id,
         name: category.name,
       })),
-      pagination: {
-        page,
-        size,
-        total,
-        pages: Math.ceil(total / size),
-      },
+      ...(shouldPaginate && {
+        pagination: {
+          page,
+          size,
+          total,
+          pages: Math.ceil(total / size),
+        },
+      }),
     });
   } catch (error) {
     console.error("Error fetching products:", error);

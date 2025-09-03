@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/app/components/ui/button";
+import { Separator } from "@/app/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
     BarChart3,
     ChefHat,
@@ -8,21 +11,17 @@ import {
     Menu,
     Package,
     Receipt,
-    Search,
     Settings,
     ShoppingCart,
+    User,
     Users,
-    X,
-    User
+    X
 } from "lucide-react";
+import { Session } from "next-auth";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/app/components/ui/button";
-import { Separator } from "@/app/components/ui/separator";
-import { useSession, signOut } from "next-auth/react";
-import { Session } from "next-auth";
 
 // Definir o tipo extendido para a sessão
 interface ExtendedSession extends Session {
@@ -159,7 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Desktop Layout */}
-      <div className="grid min-h-screen grid-rows-[auto_1fr]">
+      <div className="flex flex-col min-h-screen">
         {/* Enhanced Topbar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/80 backdrop-blur-xl p-6 shadow-lg">
           <div className="flex items-center gap-6">
@@ -198,15 +197,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Menu className="h-7 w-7 text-primary transition-transform duration-300" />
             </Button>
             
-            {/* Search Bar - Design Compacto */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/80 border border-gray-200/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
-              <Search className="h-4 w-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Buscar..."
-                className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder:text-gray-500 w-64 focus:outline-none focus:ring-0"
-              />
-            </div>
+
           </div>
 
           {/* Right Side Actions */}
@@ -252,7 +243,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <div className="grid grid-cols-[auto_1fr]">
+        <div className="flex flex-1">
           {/* Enhanced Sidebar */}
           <aside className={cn(
             "hidden lg:block border-r border-white/20 bg-white/60 backdrop-blur-xl transition-all duration-500 ease-in-out shadow-xl",
@@ -290,7 +281,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </aside>
 
           {/* Content Area */}
-          <main className="min-h-0 p-8">
+          <main className="flex-1 overflow-auto p-8">
             {children}
           </main>
         </div>

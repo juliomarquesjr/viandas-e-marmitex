@@ -2,17 +2,19 @@
 
 import { motion } from "framer-motion";
 import {
-    Barcode as BarcodeIcon,
-    Check,
-    DollarSign,
-    Edit,
-    Image as ImageIcon,
-    MoreVertical,
-    Package,
-    Plus,
-    Search,
-    Trash2,
-    X,
+  Barcode as BarcodeIcon,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Edit,
+  Image as ImageIcon,
+  MoreVertical,
+  Package,
+  Plus,
+  Search,
+  Trash2,
+  X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -23,10 +25,10 @@ import { AnimatedCard } from "../../components/ui/animated-card";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 
@@ -206,6 +208,11 @@ export default function AdminProductsPage() {
     "all"
   );
 
+  // Estados de paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const itemsPerPageOptions = [5, 10, 20, 50];
+
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -230,7 +237,14 @@ export default function AdminProductsPage() {
   // Carregar produtos na montagem e quando filtros mudarem
   useEffect(() => {
     loadProducts();
+    // Resetar para a primeira página quando filtros mudarem
+    setCurrentPage(1);
   }, [searchTerm, categoryFilter, statusFilter, typeFilter]);
+
+  // Resetar para a primeira página quando mudar itens por página
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   // Funções auxiliares
   const resetForm = () => {
@@ -518,8 +532,32 @@ export default function AdminProductsPage() {
     });
   };
 
+  // Funções de paginação
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = products.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -626,6 +664,26 @@ export default function AdminProductsPage() {
 
             {/* Filtros e Ações */}
             <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+              {/* Seletor de itens por página */}
+              <div className="relative">
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-32"
+                >
+                  {itemsPerPageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option} por página
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+
               <div className="relative">
                 <select
                   value={categoryFilter}
@@ -711,7 +769,7 @@ export default function AdminProductsPage() {
           </CardTitle>
           <CardDescription>
             {products.length} produto{products.length !== 1 ? "s" : ""} encontrado
-            {products.length !== 1 ? "s" : ""}
+            {products.length !== 1 ? "s" : ""} • Página {currentPage} de {totalPages}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -737,8 +795,8 @@ export default function AdminProductsPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="w-full">
+              <table className="w-full table-auto">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-4 px-4 font-semibold text-foreground">
@@ -765,7 +823,7 @@ export default function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product, index) => (
+                  {currentProducts.map((product, index) => (
                     <motion.tr
                       key={product.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -871,7 +929,7 @@ export default function AdminProductsPage() {
                 </tbody>
               </table>
 
-              {products.length === 0 && (
+              {currentProducts.length === 0 && products.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">
@@ -903,6 +961,121 @@ export default function AdminProductsPage() {
           )}
         </CardContent>
       </AnimatedCard>
+
+      {/* Componente de Paginação */}
+      {products.length > 0 && totalPages > 1 && (
+        <AnimatedCard>
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Informações da paginação */}
+              <div className="text-sm text-muted-foreground">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, products.length)} de {products.length} produtos
+              </div>
+
+              {/* Navegação de páginas */}
+              <div className="flex items-center gap-2">
+                {/* Botão Anterior */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="h-9 w-9 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {/* Números das páginas */}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages = [];
+                    const maxVisiblePages = 5;
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                    // Ajustar se estivermos no final
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+
+                    // Primeira página e reticências
+                    if (startPage > 1) {
+                      pages.push(
+                        <Button
+                          key={1}
+                          variant={currentPage === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(1)}
+                          className="h-9 w-9 p-0"
+                        >
+                          1
+                        </Button>
+                      );
+                      if (startPage > 2) {
+                        pages.push(
+                          <span key="ellipsis1" className="px-2 text-muted-foreground">
+                            ...
+                          </span>
+                        );
+                      }
+                    }
+
+                    // Páginas do meio
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <Button
+                          key={i}
+                          variant={currentPage === i ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(i)}
+                          className="h-9 w-9 p-0"
+                        >
+                          {i}
+                        </Button>
+                      );
+                    }
+
+                    // Última página e reticências
+                    if (endPage < totalPages) {
+                      if (endPage < totalPages - 1) {
+                        pages.push(
+                          <span key="ellipsis2" className="px-2 text-muted-foreground">
+                            ...
+                          </span>
+                        );
+                      }
+                      pages.push(
+                        <Button
+                          key={totalPages}
+                          variant={currentPage === totalPages ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(totalPages)}
+                          className="h-9 w-9 p-0"
+                        >
+                          {totalPages}
+                        </Button>
+                      );
+                    }
+
+                    return pages;
+                  })()}
+                </div>
+
+                {/* Botão Próximo */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="h-9 w-9 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </AnimatedCard>
+      )}
 
       {/* Modal de Formulário */}
       <ProductFormDialog
