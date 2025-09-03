@@ -6,7 +6,6 @@ import {
     Package,
     Plus,
     Save,
-    ShoppingCart,
     Trash2,
     X
 } from "lucide-react";
@@ -14,8 +13,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "./Toast";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
 type Product = {
@@ -52,12 +50,13 @@ export function CustomerPresetModal({
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+
   const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPreset, setEditingPreset] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState(1);
+  const [showProductList, setShowProductList] = useState(false);
 
   // Buscar presets existentes
   const fetchPresets = async () => {
@@ -78,7 +77,12 @@ export function CustomerPresetModal({
   // Buscar produtos disponíveis
   const fetchProducts = async () => {
     try {
-      const response = await fetch("/api/products?active=true");
+      const response = await fetch("/api/products?active=true", {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (response.ok) {
         const result = await response.json();
         setAvailableProducts(result.data || []);
@@ -95,11 +99,16 @@ export function CustomerPresetModal({
     }
   }, [isOpen, customerId]);
 
-  // Filtrar produtos baseado na busca
-  const filteredProducts = availableProducts.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.barcode && product.barcode.includes(searchQuery))
-  );
+  // Filtrar produtos baseado na busca (busca em tempo real)
+  const filteredProducts = availableProducts.filter(product => {
+    if (!searchQuery.trim()) return false; // Só mostra produtos quando há busca
+    
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      product.name.toLowerCase().includes(query) ||
+      (product.barcode && product.barcode.includes(query))
+    );
+  });
 
   // Adicionar produto ao preset
   const addProductToPreset = () => {
@@ -123,7 +132,16 @@ export function CustomerPresetModal({
     setPresets([...presets, newPreset as CustomerPreset]);
     setSelectedProductId("");
     setQuantity(1);
-    setShowAddForm(false);
+    setSearchQuery("");
+    
+    showToast(`✅ ${product.name} adicionado ao preset com sucesso!`, "success");
+  };
+
+  // Função para selecionar produto e fechar a lista
+  const selectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setSearchQuery(""); // Limpa a busca para fechar a lista
+    setShowProductList(false); // Fecha a lista de produtos
   };
 
   // Iniciar edição de quantidade
@@ -224,29 +242,32 @@ export function CustomerPresetModal({
 
   const handleClose = () => {
     // Resetar estados ao fechar
-    setShowAddForm(false);
     setSelectedProductId("");
     setQuantity(1);
     setSearchQuery("");
     setEditingPreset(null);
     setEditQuantity(1);
+    setShowProductList(false);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Preset de Produtos - {customerName}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto p-0">
+        {/* Header fixo */}
+        <div className="border-b border-gray-200 sticky top-0 z-20 bg-white px-6 py-4">
+          <div>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Package className="h-6 w-6 text-primary" />
+              Preset de Produtos
+            </DialogTitle>
+            <p className="text-base text-muted-foreground mt-1">
+              Configure produtos para {customerName}
+            </p>
+          </div>
+        </div>
 
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Configure produtos que serão adicionados automaticamente ao carrinho quando este cliente for selecionado no PDV.
-          </p>
+        <div className="px-6 py-4 space-y-3">
 
           {loading ? (
             <div className="text-center py-8">Carregando presets...</div>
@@ -254,77 +275,80 @@ export function CustomerPresetModal({
             <>
               {/* Lista de presets atuais */}
               {presets.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Produtos configurados:</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Produtos configurados ({presets.length})
+                    </h4>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={clearAllPresets}
                       disabled={saving}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Limpar todos
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Limpar
                     </Button>
                   </div>
                   
-                  <div className="grid gap-3">
+                  <div className="max-h-32 overflow-y-auto space-y-1">
                     {presets.map((preset) => (
                       <div
                         key={preset.productId}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                        className="flex items-center justify-between p-2 border rounded bg-muted/20 hover:bg-muted/40 transition-colors"
                       >
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Package className="h-6 w-6 text-primary" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium">{preset.product.name}</div>
-                            <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{preset.product.name}</div>
+                            <div className="text-xs text-muted-foreground">
                               {formatPrice(preset.product.priceCents)}
-                              {preset.product.barcode && ` • ${preset.product.barcode}`}
                             </div>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
                           {/* Edição de quantidade */}
                           {editingPreset === preset.productId ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <Input
                                 type="number"
                                 min="1"
+                                max="99"
                                 value={editQuantity}
                                 onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
-                                className="w-20"
+                                className="w-12 h-6 text-xs text-center"
                               />
                               <Button
                                 size="sm"
                                 onClick={() => saveEditQuantity(preset.productId)}
                                 disabled={editQuantity <= 0}
+                                className="h-6 w-6 p-0"
                               >
-                                <Check className="h-4 w-4" />
+                                <Check className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={cancelEdit}
+                                className="h-6 w-6 p-0"
                               >
-                                <X className="h-4 w-4" />
+                                <X className="h-3 w-3" />
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="subtle" className="text-sm">
-                                Qtd: {preset.quantity}
+                            <div className="flex items-center gap-1">
+                              <Badge variant="subtle" className="text-xs h-5 px-1">
+                                {preset.quantity}
                               </Badge>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => startEditQuantity(preset)}
                                 title="Editar quantidade"
+                                className="h-6 w-6 p-0"
                               >
-                                <Edit3 className="h-4 w-4" />
+                                <Edit3 className="h-3 w-3" />
                               </Button>
                             </div>
                           )}
@@ -336,8 +360,9 @@ export function CustomerPresetModal({
                             onClick={() => removeProductFromPreset(preset.productId)}
                             disabled={saving}
                             title="Remover produto"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
@@ -345,130 +370,157 @@ export function CustomerPresetModal({
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Package className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Nenhum produto configurado</p>
-                  <p className="text-sm">Clique em "Adicionar Produto" para começar</p>
+                <div className="text-center py-4 text-muted-foreground">
+                  <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nenhum produto configurado</p>
                 </div>
               )}
 
               {/* Formulário para adicionar produto */}
-              {showAddForm ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <span>Adicionar Produto</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowAddForm(false)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Buscar produto por nome ou código de barras..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                      
-                      {searchQuery && (
-                        <div className="max-h-48 overflow-y-auto border rounded-lg">
-                          {filteredProducts.length > 0 ? (
-                            filteredProducts.map((product) => (
-                              <button
-                                key={product.id}
-                                onClick={() => setSelectedProductId(product.id)}
-                                className={`w-full p-3 text-left hover:bg-muted/50 transition-colors ${
-                                  selectedProductId === product.id ? 'bg-primary/10 border-l-2 border-l-primary' : ''
-                                }`}
-                              >
-                                <div className="font-medium">{product.name}</div>
-                                <div className="text-sm text-muted-foreground">
+              <div className="space-y-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-primary" />
+                  <span className="text-base font-semibold text-primary">Adicionar Produto</span>
+                </div>
+                
+                {/* Campo de busca */}
+                <div className="relative">
+                  <Input
+                    placeholder="Digite o nome, código de barras ou descrição do produto..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowProductList(e.target.value.trim().length > 0);
+                      if (e.target.value.trim().length === 0) {
+                        setSelectedProductId('');
+                      }
+                    }}
+                    className="w-full pr-8 h-9 border-primary/30 focus:border-primary"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedProductId('');
+                        setShowProductList(false);
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista de resultados da busca */}
+                {showProductList && searchQuery.trim() && (
+                  <div className="max-h-32 overflow-y-auto border rounded bg-background">
+                    {filteredProducts.length > 0 ? (
+                      <div className="space-y-1 p-1">
+                        {filteredProducts.map((product) => (
+                          <button
+                            key={product.id}
+                            onClick={() => selectProduct(product.id)}
+                            className={`w-full p-2 text-left hover:bg-muted/50 transition-colors rounded text-xs ${
+                              selectedProductId === product.id 
+                                ? 'bg-primary/10 border-l-2 border-l-primary' 
+                                : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{product.name}</div>
+                                <div className="text-muted-foreground">
                                   {formatPrice(product.priceCents)}
                                   {product.barcode && ` • ${product.barcode}`}
                                 </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="p-3 text-sm text-muted-foreground">
-                              Nenhum produto encontrado
+                              </div>
+                              {selectedProductId === product.id && (
+                                <Check className="h-3 w-3 text-primary flex-shrink-0" />
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedProductId && (
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                            className="w-24"
-                          />
-                          <span className="text-sm text-muted-foreground">quantidade</span>
-                        </div>
-                        
-                        <Button
-                          onClick={addProductToPreset}
-                          disabled={!selectedProductId || quantity <= 0}
-                          className="flex-1"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar ao Preset
-                        </Button>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 text-center text-xs text-muted-foreground">
+                        Nenhum produto encontrado
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <Button
-                  onClick={() => setShowAddForm(true)}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Produto
-                </Button>
-              )}
-
-              {/* Botões de ação */}
-              {presets.length > 0 && (
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button
-                    onClick={savePresets}
-                    disabled={saving}
-                    className="flex-1"
-                    size="lg"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? "Salvando..." : "Salvar Presets"}
-                  </Button>
-                </div>
-              )}
-
-              {/* Informações sobre o preset */}
-              {presets.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <ShoppingCart className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium">Como funciona:</p>
-                      <p>Quando este cliente for selecionado no PDV, os produtos configurados acima serão adicionados automaticamente ao carrinho.</p>
-                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Produto selecionado e quantidade */}
+                {selectedProductId && (
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-primary/30 shadow-sm">
+                    {(() => {
+                      const selectedProduct = availableProducts.find(p => p.id === selectedProductId);
+                      return selectedProduct ? (
+                        <>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold truncate text-primary">{selectedProduct.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatPrice(selectedProduct.priceCents)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium text-muted-foreground">Qtd:</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={quantity}
+                              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                              className="w-14 h-7 text-xs text-center border-primary/30"
+                            />
+                          </div>
+                          <Button
+                            onClick={addProductToPreset}
+                            disabled={quantity <= 0}
+                            size="sm"
+                            className="h-7 px-3 text-xs bg-primary hover:bg-primary/90"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar
+                          </Button>
+                        </>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+
+                {/* Instruções quando não há busca */}
+                {!searchQuery.trim() && !selectedProductId && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground">Digite acima para buscar produtos</p>
+                    <p className="text-xs text-muted-foreground">Busque por nome, código de barras ou descrição</p>
+                  </div>
+                )}
+              </div>
+
             </>
           )}
         </div>
+
+        {/* Rodapé fixo */}
+        {presets.length > 0 && (
+          <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={savePresets}
+              disabled={saving}
+              className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Salvando..." : "Salvar Presets"}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
