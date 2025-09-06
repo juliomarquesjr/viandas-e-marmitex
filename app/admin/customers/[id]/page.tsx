@@ -8,12 +8,14 @@ import {
     Clock,
     CreditCard,
     Download,
+    FileText,
     IdCard,
     Mail,
     MapPin,
     Package,
     Phone,
     Plus,
+    Printer,
     QrCode,
     Receipt,
     Trash2,
@@ -116,6 +118,9 @@ export default function CustomerDetailPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [cashReceived, setCashReceived] = useState("");
   const [change, setChange] = useState(0);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState("");
+  const [reportEndDate, setReportEndDate] = useState("");
 
   const loadCustomer = async () => {
     try {
@@ -359,6 +364,47 @@ export default function CustomerDetailPage() {
     }
   };
 
+  // Function to generate and open the customer report
+  const generateReport = () => {
+    if (!customer || !reportStartDate || !reportEndDate) {
+      alert("Por favor, preencha todas as datas para gerar o relatório.");
+      return;
+    }
+
+    if (new Date(reportStartDate) > new Date(reportEndDate)) {
+      alert("A data inicial não pode ser maior que a data final.");
+      return;
+    }
+
+    // Build the report URL
+    const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${reportStartDate}&endDate=${reportEndDate}`;
+    
+    // Open in new tab
+    window.open(reportUrl, '_blank');
+    
+    // Close the dialog
+    setIsReportDialogOpen(false);
+    setReportStartDate("");
+    setReportEndDate("");
+  };
+
+  // Set default dates (last 30 days)
+  const setDefaultDates = () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    setReportEndDate(today.toISOString().split('T')[0]);
+    setReportStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+  };
+
+  // Set default dates when dialog opens
+  useEffect(() => {
+    if (isReportDialogOpen && !reportStartDate && !reportEndDate) {
+      setDefaultDates();
+    }
+  }, [isReportDialogOpen]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -600,8 +646,87 @@ export default function CustomerDetailPage() {
           </CardContent>
         </Card>
 
-      {/* Botão para adicionar pagamento */}
-      <div className="flex justify-end">
+      {/* Botões de ação */}
+      <div className="flex justify-end gap-3">
+        {/* Botão de Relatório */}
+        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+              <FileText className="h-4 w-4 mr-2" />
+              Relatório de Fechamento
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Printer className="h-5 w-5" />
+                Relatório de Fechamento
+              </DialogTitle>
+              <DialogDescription>
+                Gere um relatório imprimível com o consumo e saldo do cliente por período.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="startDate" className="text-sm font-medium">
+                  Data Inicial
+                </label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                  max={reportEndDate || undefined}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="endDate" className="text-sm font-medium">
+                  Data Final
+                </label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                  min={reportStartDate || undefined}
+                />
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Período pré-definido:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={setDefaultDates}
+                  className="text-xs"
+                >
+                  Últimos 30 dias
+                </Button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsReportDialogOpen(false);
+                    setReportStartDate("");
+                    setReportEndDate("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={generateReport}
+                  disabled={!reportStartDate || !reportEndDate}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Gerar Relatório
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Botão de Pagamento */}
         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90">
