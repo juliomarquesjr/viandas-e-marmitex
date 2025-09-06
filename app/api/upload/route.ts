@@ -1,7 +1,44 @@
-import { put } from '@vercel/blob';
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { del, put } from '@vercel/blob';
+import crypto from 'crypto';
+import { getServerSession } from 'next-auth';
+import { NextResponse } from 'next/server';
+import sharp from 'sharp';
+
+// Function to generate hash-based filename
+function generateHashedFilename(originalName: string, fileBuffer: Buffer): string {
+  // Get file extension
+  const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
+  
+  // Generate hash from file content and timestamp
+  const timestamp = Date.now().toString();
+  const contentHash = crypto.createHash('md5').update(fileBuffer).digest('hex');
+  const timeHash = crypto.createHash('md5').update(timestamp).digest('hex').substring(0, 8);
+  
+  // Combine hashes to create unique filename
+  const hashedName = `product_${contentHash.substring(0, 16)}_${timeHash}.webp`; // Always use WebP for optimization
+  
+  return hashedName;
+}
+
+// Function to optimize image using Sharp
+async function optimizeImage(fileBuffer: Buffer, maxWidth: number = 800, maxHeight: number = 800): Promise<Buffer> {
+  try {
+    const optimizedBuffer = await sharp(fileBuffer)
+      .resize(maxWidth, maxHeight, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: 85 }) // Convert to WebP with 85% quality
+      .toBuffer();
+    
+    return optimizedBuffer;
+  } catch (error) {
+    console.error('Error optimizing image:', error);
+    // Fallback: return original buffer
+    return fileBuffer;
+  }
+}
 
 export async function POST(request: Request) {
   console.log('Recebendo requisição de upload');
@@ -22,7 +59,9 @@ export async function POST(request: Request) {
       console.log('FormData recebido:', [...formData.entries()]);
       
       const file = formData.get('file') as File;
+      const oldImageUrl = formData.get('oldImageUrl') as string;
       console.log('Arquivo recebido:', file?.name, file?.size, file?.type);
+      console.log('URL da imagem antiga:', oldImageUrl);
 
       if (!file) {
         console.log('Nenhum arquivo enviado');
@@ -54,12 +93,38 @@ export async function POST(request: Request) {
         }, { status: 500 });
       }
 
-      // Fazer upload para o Vercel Blob
+      // Convert file to buffer for hashing and optimization
+      const arrayBuffer = await file.arrayBuffer();
+      const originalBuffer = Buffer.from(arrayBuffer);
+      
+      // Optimize the image
+      console.log('Optimizing image...');
+      const optimizedBuffer = await optimizeImage(originalBuffer);
+      console.log(`Image optimized: ${originalBuffer.length} bytes -> ${optimizedBuffer.length} bytes`);
+      
+      // Generate hashed filename
+      const hashedFilename = generateHashedFilename(file.name, originalBuffer);
+      console.log('Generated filename:', hashedFilename);
+
+      // Upload optimized buffer directly to Vercel Blob
       console.log('Iniciando upload para Vercel Blob');
-      const blob = await put(file.name, file, {
+      const blob = await put(hashedFilename, optimizedBuffer, {
         access: 'public',
+        contentType: 'image/webp'
       });
       console.log('Upload concluído:', blob.url);
+
+      // Delete old image if it exists and upload was successful
+      if (oldImageUrl && oldImageUrl.trim()) {
+        try {
+          console.log('Deletando imagem antiga:', oldImageUrl);
+          await del(oldImageUrl);
+          console.log('Imagem antiga deletada com sucesso');
+        } catch (deleteError) {
+          console.warn('Aviso: Não foi possível deletar a imagem antiga:', deleteError);
+          // Don't fail the upload if old image deletion fails
+        }
+      }
 
       return NextResponse.json({ url: blob.url });
     } catch (formError: any) {
@@ -82,6 +147,42 @@ export async function POST(request: Request) {
     console.error('Stack trace:', error.stack);
     return NextResponse.json({ 
       error: 'Falha no upload: ' + (error.message || 'Erro desconhecido') 
+    }, { status: 500 });
+  }
+}
+
+// DELETE - Remove image from Vercel Blob storage
+export async function DELETE(request: Request) {
+  try {
+    // Verificar autenticação
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { imageUrl } = body;
+
+    if (!imageUrl) {
+      return NextResponse.json({ error: 'URL da imagem é obrigatória' }, { status: 400 });
+    }
+
+    try {
+      console.log('Deletando imagem:', imageUrl);
+      await del(imageUrl);
+      console.log('Imagem deletada com sucesso');
+      return NextResponse.json({ message: 'Imagem deletada com sucesso' });
+    } catch (deleteError) {
+      console.error('Erro ao deletar imagem:', deleteError);
+      return NextResponse.json({ 
+        error: 'Não foi possível deletar a imagem' 
+      }, { status: 500 });
+    }
+  } catch (error: any) {
+    console.error('Erro na requisição DELETE:', error);
+    return NextResponse.json({ 
+      error: 'Erro interno do servidor' 
     }, { status: 500 });
   }
 }

@@ -1,24 +1,28 @@
 "use client";
 
 import {
-  Barcode,
-  FileText,
-  Image,
-  Package,
-  Tag,
-  ToggleRight,
-  Wallet,
-  X,
+    Barcode,
+    Edit3,
+    FileText,
+    Image,
+    Package,
+    Tag,
+    ToggleRight,
+    Trash2,
+    Upload,
+    Wallet,
+    X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Category, Product } from "../admin/products/page";
+import { ImageCropModal } from "./ImageCropModal";
 import { Button } from "./ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -51,6 +55,8 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const [isClient, setIsClient] = useState(false);
   const [displayPrice, setDisplayPrice] = useState("");
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -121,6 +127,38 @@ export function ProductFormDialog({
     const randomSuffix = Math.floor(Math.random() * 1000000000000);
     const randomBarcode = prefix * 1000000000000 + randomSuffix;
     updateFormData("barcode", randomBarcode.toString());
+  };
+
+  // Handle cropped image upload
+  const handleCroppedImageUpload = async (croppedImageFile: File) => {
+    setIsUploadingImage(true);
+    try {
+      await handleFileUpload(croppedImageFile);
+    } catch (error) {
+      console.error('Error uploading cropped image:', error);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Remove current image
+  const removeImage = async () => {
+    const imageUrl = formData.imageUrl;
+    updateFormData("imageUrl", "");
+    
+    // Optionally delete the image from storage
+    if (imageUrl) {
+      try {
+        await fetch('/api/upload', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl })
+        });
+      } catch (error) {
+        console.warn('Could not delete image from storage:', error);
+        // Don\'t show error to user as the main action (removing from form) succeeded
+      }
+    }
   };
 
   return (
@@ -358,64 +396,90 @@ export function ProductFormDialog({
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Upload de Imagem
-                    </Label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileUpload(file);
-                        }
-                      }}
-                      disabled={isUploading}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                    />
-                    {isUploading && (
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
-                        Enviando imagem...
+                <div className="space-y-4">
+                  {formData.imageUrl ? (
+                    // Image preview with edit/remove options
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Imagem Atual
+                      </Label>
+                      <div className="relative">
+                        <div className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <img
+                            src={formData.imageUrl}
+                            alt="Produto"
+                            className="h-24 w-24 rounded-lg object-cover border border-gray-300"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <p className="text-sm text-gray-600">
+                              Imagem carregada com sucesso
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsCropModalOpen(true)}
+                                className="flex items-center gap-2"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                                Editar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={removeImage}
+                                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Remover
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label
-                      htmlFor="imageUrl"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      URL da Imagem
-                    </Label>
-                    <Input
-                      id="imageUrl"
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      value={formData.imageUrl || ""}
-                      onChange={(e) =>
-                        updateFormData("imageUrl", e.target.value)
-                      }
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-
-                {formData.imageUrl && (
-                  <div className="mt-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Preview
-                    </Label>
-                    <div className="mt-2 flex justify-center">
-                      <img
-                        src={formData.imageUrl}
-                        alt="Preview"
-                        className="h-32 w-32 rounded-md object-cover border border-gray-200"
-                      />
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    // Upload area when no image
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Adicionar Imagem
+                      </Label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <h4 className="text-lg font-medium text-gray-900 mb-2">
+                          Selecione uma imagem
+                        </h4>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Clique para selecionar e editar uma imagem do produto
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCropModalOpen(true)}
+                          disabled={isUploadingImage || isUploading}
+                          className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+                        >
+                          {isUploadingImage || isUploading ? (
+                            <>
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-2" />
+                              Escolher e Editar Imagem
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-xs text-gray-400 mt-3">
+                          Formatos suportados: JPG, PNG, WEBP, GIF (máx. 5MB)
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Seção Descrição */}
@@ -504,6 +568,17 @@ export function ProductFormDialog({
           </Button>
         </div>
       </Card>
+      
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        onClose={() => setIsCropModalOpen(false)}
+        onCropComplete={handleCroppedImageUpload}
+        onUploadStart={() => setIsUploadingImage(true)}
+        aspectRatio={1} // Square aspect ratio for product images
+        maxWidth={800}
+        maxHeight={800}
+      />
     </div>
   );
 }

@@ -169,13 +169,19 @@ export default function AdminProductsPage() {
     console.log("Iniciando upload do arquivo:", file.name);
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      
+      // Include old image URL for deletion if it exists
+      if (formData.imageUrl) {
+        uploadFormData.append("oldImageUrl", formData.imageUrl);
+      }
+      
       console.log("FormData criado");
 
       const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: uploadFormData,
       });
       console.log("Resposta do servidor:", response.status);
 
