@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { del } from '@vercel/blob';
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -155,6 +156,19 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // Get current product to check for old image
+    const currentProduct = await prisma.product.findUnique({
+      where: { id },
+      select: { imageUrl: true }
+    });
+
+    if (!currentProduct) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -171,6 +185,20 @@ export async function PUT(request: Request) {
         active: data.active !== undefined ? data.active : true,
       },
     });
+
+    // Delete old image if it exists and is different from new image
+    if (currentProduct.imageUrl && 
+        currentProduct.imageUrl !== data.imageUrl && 
+        currentProduct.imageUrl.trim()) {
+      try {
+        console.log('Deletando imagem antiga do produto:', currentProduct.imageUrl);
+        await del(currentProduct.imageUrl);
+        console.log('Imagem antiga do produto deletada com sucesso');
+      } catch (deleteError) {
+        console.warn('Aviso: Não foi possível deletar a imagem antiga do produto:', deleteError);
+        // Don't fail the product update if old image deletion fails
+      }
+    }
 
     return NextResponse.json(product);
   } catch (error) {
@@ -212,9 +240,28 @@ export async function DELETE(request: Request) {
       });
     } else {
       // Se não tiver vendas, excluir fisicamente
+      // First, get the product to check if it has an image
+      const product = await prisma.product.findUnique({
+        where: { id },
+        select: { imageUrl: true }
+      });
+
+      // Delete the product from database first
       await prisma.product.delete({
         where: { id },
       });
+
+      // Then try to delete the image from Vercel Blob (non-blocking)
+      if (product?.imageUrl) {
+        try {
+          console.log('Deletando imagem do produto:', product.imageUrl);
+          await del(product.imageUrl);
+          console.log('Imagem do produto deletada com sucesso');
+        } catch (deleteError) {
+          console.warn('Aviso: Não foi possível deletar a imagem do produto:', deleteError);
+          // Don't fail the product deletion if image deletion fails
+        }
+      }
       
       return NextResponse.json({ 
         message: "Product deleted successfully",
