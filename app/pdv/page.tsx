@@ -862,9 +862,9 @@ export default function PDVPage() {
                               key={product.id}
                               onClick={() => handleAddProductToCart(product)}
                               disabled={!canAddProductToCart(product)}
-                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition ${
+                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition-all duration-200 ${
                                 canAddProductToCart(product)
-                                  ? "border-border bg-card hover:bg-accent hover:shadow-md"
+                                  ? "border-border bg-card hover:bg-accent hover:shadow-lg hover:scale-[1.02] hover:border-primary/30 cursor-pointer"
                                   : "border-red-200 bg-red-50 cursor-not-allowed opacity-60"
                               }`}
                             >
@@ -955,9 +955,9 @@ export default function PDVPage() {
                               key={product.id}
                               onClick={() => handleAddProductToCart(product)}
                               disabled={!canAddProductToCart(product)}
-                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition ${
+                              className={`group flex items-center gap-4 rounded-xl border p-3 text-left shadow-sm transition-all duration-200 ${
                                 canAddProductToCart(product)
-                                  ? "border-border bg-card hover:bg-accent hover:shadow-md"
+                                  ? "border-border bg-card hover:bg-accent hover:shadow-lg hover:scale-[1.02] hover:border-primary/30 cursor-pointer"
                                   : "border-red-200 bg-red-50 cursor-not-allowed opacity-60"
                               }`}
                             >
