@@ -1,27 +1,27 @@
 "use client";
 
 import {
-    AlertCircle,
-    ArrowLeft,
-    Banknote,
-    Barcode as BarcodeIcon,
-    Clock,
-    CreditCard,
-    Download,
-    FileText,
-    IdCard,
-    Mail,
-    MapPin,
-    Package,
-    Phone,
-    Plus,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    TrendingUp,
-    User,
-    Wallet,
+  AlertCircle,
+  ArrowLeft,
+  Banknote,
+  Barcode as BarcodeIcon,
+  Clock,
+  CreditCard,
+  Download,
+  FileText,
+  IdCard,
+  Mail,
+  MapPin,
+  Package,
+  Phone,
+  Plus,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  TrendingUp,
+  User,
+  Wallet,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,19 +29,19 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../../components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -376,20 +376,36 @@ export default function CustomerDetailPage() {
       return;
     }
 
+    // Debug log to trace the dates being sent
+    console.log('generateReport - Sending dates:', {
+      customerId: customer.id,
+      startDate: reportStartDate,
+      endDate: reportEndDate
+    });
+
     // Build the report URL
     const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${reportStartDate}&endDate=${reportEndDate}`;
+    
+    console.log('generateReport - Report URL:', reportUrl);
     
     // Open in new tab
     window.open(reportUrl, '_blank');
     
     // Close the dialog
     setIsReportDialogOpen(false);
-    setReportStartDate("");
-    setReportEndDate("");
+    // Keep the dates for the next time user opens the dialog
   };
 
-  // Set default dates (last 30 days)
-  const setDefaultDates = () => {
+  // Set default dates (last 30 days) with optional confirmation
+  const setDefaultDates = (confirm = false) => {
+    // If dates are already filled and not confirming, ask for confirmation
+    if (!confirm && (reportStartDate || reportEndDate)) {
+      if (window.confirm('Isso irá substituir as datas atuais pelos últimos 30 dias. Deseja continuar?')) {
+        setDefaultDates(true);
+      }
+      return;
+    }
+    
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
@@ -398,12 +414,12 @@ export default function CustomerDetailPage() {
     setReportStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
   };
 
-  // Set default dates when dialog opens
+  // Set default dates when dialog opens (only if both dates are empty)
   useEffect(() => {
     if (isReportDialogOpen && !reportStartDate && !reportEndDate) {
       setDefaultDates();
     }
-  }, [isReportDialogOpen]);
+  }, [isReportDialogOpen, reportStartDate, reportEndDate]);
 
   if (loading) {
     return (
@@ -696,7 +712,7 @@ export default function CustomerDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={setDefaultDates}
+                  onClick={() => setDefaultDates()}
                   className="text-xs"
                 >
                   Últimos 30 dias
@@ -707,8 +723,6 @@ export default function CustomerDetailPage() {
                   variant="outline"
                   onClick={() => {
                     setIsReportDialogOpen(false);
-                    setReportStartDate("");
-                    setReportEndDate("");
                   }}
                 >
                   Cancelar

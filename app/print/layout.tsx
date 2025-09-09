@@ -169,6 +169,58 @@ export default function PrintLayout({
           .w-6-12 { width: 50%; }
           .w-8-12 { width: 66.666667%; }
           
+          .w-1-4 { width: 25%; }
+          .w-1-3 { width: 33.333333%; }
+          .w-1-2 { width: 50%; }
+          .w-2-3 { width: 66.666667%; }
+          .w-3-4 { width: 75%; }
+          
+          .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          
+          .max-w-xs { max-width: 20rem; }
+          .max-w-sm { max-width: 24rem; }
+          
+          .border-l-4 { border-left: 4px solid; }
+          .border-l-blue-500 { border-left-color: #3b82f6; }
+          .border-l-green-500 { border-left-color: #10b981; }
+          .border-l-yellow-500 { border-left-color: #f59e0b; }
+          .border-l-red-500 { border-left-color: #ef4444; }
+          
+          .bg-blue-100 { background-color: #dbeafe; }
+          .bg-green-100 { background-color: #dcfce7; }
+          .bg-yellow-100 { background-color: #fef3c7; }
+          .bg-red-100 { background-color: #fee2e2; }
+          .bg-orange-100 { background-color: #fed7aa; }
+          
+          .text-blue-800 { color: #1e40af; }
+          .text-green-800 { color: #166534; }
+          .text-yellow-800 { color: #92400e; }
+          .text-red-800 { color: #991b1b; }
+          .text-orange-800 { color: #9a3412; }
+          .text-orange-600 { color: #ea580c; }
+          .text-yellow-600 { color: #d97706; }
+          
+          .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+          .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+          
+          .min-h-screen { min-height: 100vh; }
+          
+          .space-y-1 > * + * { margin-top: 0.25rem; }
+          
+          .transition-colors { transition-property: color, background-color, border-color; }
+          .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+          
+          .overflow-hidden { overflow: hidden; }
+          
+          .pb-2 { padding-bottom: 0.5rem; }
+          .pb-4 { padding-bottom: 1rem; }
+          
+          .border-gray-300 { border-color: #d1d5db; }
+          
           @media print {
             .print-container {
               box-shadow: none !important;

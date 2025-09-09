@@ -38,6 +38,13 @@ export async function GET(
       );
     }
 
+    // Debug log to trace the issue
+    console.log('Report API - Received parameters:', {
+      customerId,
+      startDate,
+      endDate
+    });
+
     // Verify customer exists
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
