@@ -875,29 +875,33 @@ export default function PDVPage() {
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-col gap-2">
                                   <div className="min-w-0">
-                                    <div className="truncate text-base font-semibold">
+                                    <div className="text-base font-semibold leading-tight line-clamp-2 min-h-[2.5rem]">
                                       {product.name}
                                     </div>
-
-                                    {product.stockEnabled && product.stock !== undefined && (
-                                      <div className={`text-xs mt-1 ${
-                                        product.stock > 0 
-                                          ? "text-muted-foreground" 
-                                          : "text-red-600 font-medium"
-                                      }`}>
-                                        Estoque: {product.stock} unid.
-                                        {product.stock === 0 && (
-                                          <span className="ml-1 text-red-500">• Esgotado</span>
-                                        )}
-                                      </div>
-                                    )}
                                   </div>
-                                  <div className="flex flex-col items-end gap-2">
-                                    <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
-                                      R$ {price.toFixed(2)}
+                                  
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
+                                        R$ {price.toFixed(2)}
+                                      </div>
+                                      
+                                      {product.stockEnabled && product.stock !== undefined && (
+                                        <div className={`text-xs ${
+                                          product.stock > 0 
+                                            ? "text-muted-foreground" 
+                                            : "text-red-600 font-medium"
+                                        }`}>
+                                          Estoque: {product.stock} unid.
+                                          {product.stock === 0 && (
+                                            <span className="ml-1 text-red-500">• Esgotado</span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
+                                    
                                     {!canAddProductToCart(product) && (
                                       <div className="flex items-center gap-1 text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
                                         <AlertCircle className="h-3 w-3" />
@@ -964,35 +968,39 @@ export default function PDVPage() {
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-col gap-2">
                                   <div className="min-w-0">
-                                    <div className="truncate text-base font-semibold">
+                                    <div className="text-base font-semibold leading-tight line-clamp-2 min-h-[2.5rem]">
                                       {product.name}
                                     </div>
-
-                                    {product.stockEnabled && product.stock !== undefined && (
-                                      <div className={`text-xs mt-1 ${
-                                        product.stock > 0 
-                                          ? "text-muted-foreground" 
-                                          : "text-red-600 font-medium"
-                                      }`}>
-                                        Estoque: {product.stock} unid.
-                                        {product.stock === 0 && (
-                                          <span className="ml-1 text-red-500">• Esgotado</span>
-                                        )}
-                                      </div>
-                                    )}
                                   </div>
-                                  <div className="flex flex-col items-end gap-2">
-                                    <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm">
-                                      R$ {price.toFixed(2)}
+                                  
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
+                                        R$ {price.toFixed(2)}
+                                      </div>
+                                      
+                                      {product.stockEnabled && product.stock !== undefined && (
+                                        <div className={`text-xs ${
+                                          product.stock > 0 
+                                            ? "text-muted-foreground" 
+                                            : "text-red-600 font-medium"
+                                        }`}>
+                                          Estoque: {product.stock} unid.
+                                          {product.stock === 0 && (
+                                            <span className="ml-1 text-red-500">• Esgotado</span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
+                                    
                                     {!canAddProductToCart(product) && (
                                       <div className="flex items-center gap-1 text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
                                         <AlertCircle className="h-3 w-3" />
                                         Indisponível
                                       </div>
-                                      )}
+                                    )}
                                   </div>
                                 </div>
                               </div>
