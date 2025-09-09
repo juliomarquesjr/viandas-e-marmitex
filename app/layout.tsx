@@ -1,7 +1,7 @@
+import { Providers } from "@/app/components/Providers";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/app/components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +16,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Viandas",
   description: "PDV e gerenciamento para delivery de marmitas",
+  icons: {
+    icon: [
+      { url: "/img/icon.png", type: "image/png" },
+    ],
+    apple: {
+      url: "/img/icon.png",
+      type: "image/png",
+    },
+  },
 };
 
 export default function RootLayout({

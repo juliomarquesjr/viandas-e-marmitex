@@ -17,10 +17,11 @@ import {
   QrCode,
   RefreshCcw,
   Search,
+  Settings,
   ShoppingCart,
   Trash2,
   User,
-  Wallet,
+  Wallet
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -87,9 +88,10 @@ export default function PDVPage() {
     value: number;
   } | null>(null);
   const [discountType, setDiscountType] = useState<"percent" | "amount">(
-    "percent"
+    "amount"
   );
   const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountInputValue, setDiscountInputValue] = useState<string>("");
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [isNewSaleConfirmOpen, setNewSaleConfirmOpen] = useState(false);
   const [isChangeCustomerConfirmOpen, setChangeCustomerConfirmOpen] =
@@ -728,6 +730,19 @@ export default function PDVPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {/* Admin Back Button - Only visible for admin users */}
+            {session?.user?.role === "admin" && (
+              <Button
+                variant="outline"
+                className="h-9 gap-2"
+                onClick={() => window.location.href = "/admin"}
+                aria-label="Voltar ao admin"
+                title="Voltar ao admin"
+              >
+                <Settings className="h-4 w-4" /> Admin
+              </Button>
+            )}
+            
             <Button
               variant="outline"
               className="h-9 gap-2"
@@ -1462,36 +1477,67 @@ export default function PDVPage() {
               <div className="grid gap-3">
                 <div className="flex gap-2">
                   <Button
-                    variant={discountType === "percent" ? "default" : "outline"}
-                    onClick={() => setDiscountType("percent")}
-                    className="h-9"
-                  >
-                    Percentual (%)
-                  </Button>
-                  <Button
                     variant={discountType === "amount" ? "default" : "outline"}
-                    onClick={() => setDiscountType("amount")}
+                    onClick={() => {
+                      setDiscountType("amount");
+                      setDiscountValue(0);
+                      setDiscountInputValue("");
+                    }}
                     className="h-9"
                   >
                     Valor (R$)
                   </Button>
+                  <Button
+                    variant={discountType === "percent" ? "default" : "outline"}
+                    onClick={() => {
+                      setDiscountType("percent");
+                      setDiscountValue(0);
+                      setDiscountInputValue("");
+                    }}
+                    className="h-9"
+                  >
+                    Percentual (%)
+                  </Button>
                 </div>
                 <div className="grid gap-1">
                   <Input
-                    type="number"
-                    inputMode="decimal"
+                    type={discountType === "percent" ? "number" : "text"}
+                    inputMode={discountType === "percent" ? "numeric" : "decimal"}
                     step={discountType === "percent" ? 1 : 0.01}
                     min={0}
                     max={discountType === "percent" ? 100 : undefined}
-                    value={Number.isNaN(discountValue) ? 0 : discountValue}
-                    onChange={(e) =>
-                      setDiscountValue(parseFloat(e.target.value || "0"))
-                    }
-                    placeholder={
-                      discountType === "percent"
-                        ? "Ex.: 10 (para 10%)"
-                        : "Ex.: 5.00"
-                    }
+                    value={discountType === "percent" ? (Number.isNaN(discountValue) ? 0 : discountValue) : discountInputValue}
+                    onChange={(e) => {
+                      if (discountType === "percent") {
+                        setDiscountValue(parseFloat(e.target.value || "0"));
+                      } else {
+                        // Aplicar máscara monetária para valor
+                        let value = e.target.value;
+                        
+                        // Remove tudo que não é dígito
+                        value = value.replace(/\D/g, '');
+                        
+                        // Converte para número (centavos)
+                        let numValue = parseInt(value || '0');
+                        
+                        // Converte centavos para reais
+                        let realValue = numValue / 100;
+                        
+                        // Formata como moeda brasileira
+                        let formattedValue = realValue.toLocaleString('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                          minimumFractionDigits: 2
+                        });
+                        
+                        // Remove o símbolo R$ para exibir apenas o valor
+                        formattedValue = formattedValue.replace('R$\u00A0', '');
+                        
+                        setDiscountInputValue(formattedValue);
+                        setDiscountValue(realValue);
+                      }
+                    }}
+                    placeholder={discountType === "percent" ? "Ex.: 10 (para 10%)" : "Ex.: 5,00"}
                   />
                   {discountType === "percent" ? (
                     <span className="text-xs text-muted-foreground">
@@ -1509,6 +1555,7 @@ export default function PDVPage() {
                     onClick={() => {
                       setDiscount(null);
                       setDiscountValue(0);
+                      setDiscountInputValue("");
                     }}
                   >
                     Remover desconto
@@ -1516,7 +1563,11 @@ export default function PDVPage() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => setDiscountOpen(false)}
+                      onClick={() => {
+                        setDiscountOpen(false);
+                        // Reset input value when closing
+                        setDiscountInputValue("");
+                      }}
                     >
                       Cancelar
                     </Button>
