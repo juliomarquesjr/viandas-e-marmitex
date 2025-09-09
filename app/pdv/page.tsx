@@ -26,6 +26,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { CustomerSelector } from "../components/CustomerSelector";
+import { useToast } from "../components/Toast";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Clock } from "../components/ui/clock";
@@ -37,7 +38,6 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { useToast } from "../components/Toast";
 
 type CartItem = { id: string; name: string; price: number; qty: number };
 type Customer = {
@@ -768,14 +768,14 @@ export default function PDVPage() {
           </div>
         </div>
       </header>
-      <main className="grid lg:grid-cols-[2fr_1fr] gap-4 p-4">
-        <section className="space-y-4">
-          <div className="flex items-center gap-3 text-lg font-semibold text-foreground">
+      <main className="grid lg:grid-cols-[2fr_1fr] gap-4 p-4 h-[calc(100vh-120px)]">
+        <section className="flex flex-col space-y-4 min-h-0">
+          <div className="flex items-center gap-3 text-lg font-semibold text-foreground flex-shrink-0">
             <Search className="h-5 w-5 text-primary" />
             <span>Pesquisa</span>
             <div className="h-px flex-1 bg-border" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="relative w-full">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -788,12 +788,12 @@ export default function PDVPage() {
               />
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-3 text-lg font-semibold text-foreground">
+          <div className="mt-2 flex items-center gap-3 text-lg font-semibold text-foreground flex-shrink-0">
             <Boxes className="h-5 w-5 text-primary" />
             <span>Produtos</span>
             <div className="h-px flex-1 bg-border" />
           </div>
-          <div className="space-y-6">
+          <div className="space-y-6 overflow-y-auto flex-1 pr-2">
             {loadingProducts ? (
               Array.from({ length: 3 }).map((_, groupIndex) => (
                 <div key={groupIndex} className="space-y-3">
@@ -1007,7 +1007,7 @@ export default function PDVPage() {
           </div>
         </section>
 
-        <aside className="grid grid-rows-[auto_1fr_auto] gap-3 rounded-lg border border-border bg-card p-3">
+        <aside className="grid grid-rows-[auto_1fr_auto] gap-3 rounded-lg border border-border bg-card p-3 h-full">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-md bg-primary/5 px-2 py-1 text-sm font-medium">
               <ShoppingCart className="h-4 w-4 text-primary" />
@@ -1023,7 +1023,7 @@ export default function PDVPage() {
             presetProductsLoaded={presetProductsLoaded}
           />
 
-          <div className="space-y-1 overflow-auto pr-2">
+          <div className="space-y-1 overflow-y-auto pr-2 max-h-[400px]">
             {cart.length === 0 && (
               <div className="grid place-items-center rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
                 <div>
