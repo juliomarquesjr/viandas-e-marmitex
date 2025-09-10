@@ -1,27 +1,27 @@
 "use client";
 
 import {
-  AlertCircle,
-  ArrowLeft,
-  Banknote,
-  Barcode as BarcodeIcon,
-  Clock,
-  CreditCard,
-  Download,
-  FileText,
-  IdCard,
-  Mail,
-  MapPin,
-  Package,
-  Phone,
-  Plus,
-  Printer,
-  QrCode,
-  Receipt,
-  Trash2,
-  TrendingUp,
-  User,
-  Wallet,
+    AlertCircle,
+    ArrowLeft,
+    Banknote,
+    Barcode as BarcodeIcon,
+    Clock,
+    CreditCard,
+    Download,
+    FileText,
+    IdCard,
+    Mail,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    TrendingUp,
+    User,
+    Wallet,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,19 +29,19 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../../components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -396,6 +396,29 @@ export default function CustomerDetailPage() {
     // Keep the dates for the next time user opens the dialog
   };
 
+  // Function to generate and open the thermal customer report
+  const generateThermalReport = () => {
+    if (!customer || !reportStartDate || !reportEndDate) {
+      alert("Por favor, preencha todas as datas para gerar o relatório.");
+      return;
+    }
+
+    if (new Date(reportStartDate) > new Date(reportEndDate)) {
+      alert("A data inicial não pode ser maior que a data final.");
+      return;
+    }
+
+    // Build the thermal report URL
+    const thermalReportUrl = `/print/customer-report-thermal?customerId=${customer.id}&startDate=${reportStartDate}&endDate=${reportEndDate}`;
+    
+    // Open in new tab
+    window.open(thermalReportUrl, '_blank');
+    
+    // Close the dialog
+    setIsReportDialogOpen(false);
+    // Keep the dates for the next time user opens the dialog
+  };
+
   // Set default dates (last 30 days) with optional confirmation
   const setDefaultDates = (confirm = false) => {
     // If dates are already filled and not confirming, ask for confirmation
@@ -672,69 +695,85 @@ export default function CustomerDetailPage() {
               Relatório de Fechamento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Printer className="h-5 w-5" />
                 Relatório de Fechamento
               </DialogTitle>
               <DialogDescription>
-                Gere um relatório imprimível com o consumo e saldo do cliente por período.
+                Gere um relatório imprimível com o consumo e saldo do cliente por período. Escolha entre impressão completa ou térmica.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="startDate" className="text-sm font-medium">
-                  Data Inicial
-                </label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={reportStartDate}
-                  onChange={(e) => setReportStartDate(e.target.value)}
-                  max={reportEndDate || undefined}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="endDate" className="text-sm font-medium">
-                  Data Final
-                </label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={reportEndDate}
-                  onChange={(e) => setReportEndDate(e.target.value)}
-                  min={reportStartDate || undefined}
-                />
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">Período pré-definido:</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDefaultDates()}
-                  className="text-xs"
-                >
-                  Últimos 30 dias
-                </Button>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsReportDialogOpen(false);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={generateReport}
-                  disabled={!reportStartDate || !reportEndDate}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Gerar Relatório
-                </Button>
+            <div className="space-y-4 p-1">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="startDate" className="text-sm font-medium">
+                    Data Inicial
+                  </label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={reportStartDate}
+                    onChange={(e) => setReportStartDate(e.target.value)}
+                    max={reportEndDate || undefined}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="endDate" className="text-sm font-medium">
+                    Data Final
+                  </label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={reportEndDate}
+                    onChange={(e) => setReportEndDate(e.target.value)}
+                    min={reportStartDate || undefined}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Período pré-definido:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDefaultDates()}
+                    className="text-xs"
+                  >
+                    Últimos 30 dias
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsReportDialogOpen(false);
+                      }}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={generateThermalReport}
+                      disabled={!reportStartDate || !reportEndDate}
+                      variant="outline"
+                      className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50"
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Impressão Térmica
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={generateReport}
+                    disabled={!reportStartDate || !reportEndDate}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Relatório Completo
+                  </Button>
+                </div>
               </div>
             </div>
           </DialogContent>
