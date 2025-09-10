@@ -60,6 +60,8 @@ type Customer = {
 type Order = {
   id: string;
   status: string;
+  subtotalCents: number;
+  discountCents: number;
   totalCents: number;
   paymentMethod: string | null;
   createdAt: string;
@@ -1097,6 +1099,16 @@ export default function CustomerDetailPage() {
                         <div className="font-medium text-gray-900">
                           {formatCurrency(order.totalCents)}
                         </div>
+                        {order.discountCents > 0 && (
+                          <div className="text-xs text-red-600 font-medium">
+                            Desconto: -{formatCurrency(order.discountCents)}
+                          </div>
+                        )}
+                        {order.subtotalCents > 0 && order.discountCents > 0 && (
+                          <div className="text-xs text-gray-500">
+                            Subtotal: {formatCurrency(order.subtotalCents)}
+                          </div>
+                        )}
                       </td>
 
                       <td className="py-4 px-4">

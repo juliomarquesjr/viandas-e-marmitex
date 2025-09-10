@@ -28,6 +28,8 @@ type OrderItem = {
 type Order = {
   id: string;
   status: string;
+  subtotalCents: number;
+  discountCents: number;
   totalCents: number;
   paymentMethod: string | null;
   createdAt: string;
@@ -309,6 +311,21 @@ function CustomerReportThermalContent() {
                 {transaction.description.length > 40 
                   ? `${transaction.description.substring(0, 37)}...` 
                   : transaction.description}
+                
+                {/* Show discount info for consumption transactions */}
+                {transaction.type === 'consumption' && (() => {
+                  const order = details.periodOrders.find(o => o.id === transaction.id);
+                  if (order && order.discountCents > 0) {
+                    return (
+                      <div style={{fontSize: '7px', color: '#666', marginTop: '2px'}}>
+                        Desc: -{formatCurrency(order.discountCents)}
+                        <br />
+                        Subtot: {formatCurrency(order.subtotalCents)}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               
               {index < allTransactions.length - 1 && (

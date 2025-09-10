@@ -28,6 +28,8 @@ type OrderItem = {
 type Order = {
   id: string;
   status: string;
+  subtotalCents: number;
+  discountCents: number;
   totalCents: number;
   paymentMethod: string | null;
   createdAt: string;
@@ -389,8 +391,21 @@ function CustomerReportContent() {
                       </span>
                     </td>
                     <td className="p-3 text-sm">
-                      <div className="max-w-xs truncate" title={transaction.description}>
+                      <div className="max-w-xs" title={transaction.description}>
                         {transaction.description}
+                        {transaction.type === 'consumption' && (() => {
+                          const order = details.periodOrders.find(o => o.id === transaction.id);
+                          if (order && order.discountCents > 0) {
+                            return (
+                              <div className="text-xs text-red-600 mt-1">
+                                Desconto: -{formatCurrency(order.discountCents)}
+                                <br />
+                                Subtotal: {formatCurrency(order.subtotalCents)}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </td>
                     <td className="p-3 text-center">
