@@ -180,6 +180,21 @@ export async function POST(request: Request) {
       additionalData.changeCents = body.changeCents;
     }
     
+    // Se uma data customizada foi fornecida (apenas para admins), usar ela
+    if (body.customSaleDate) {
+      // Criar data no fuso horário local para evitar problemas de UTC
+      const [year, month, day] = body.customSaleDate.split('-').map(Number);
+      const customDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Meio-dia local
+      
+      // Validar que a data não é futura
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+      
+      if (customDate <= today) {
+        additionalData.createdAt = customDate;
+      }
+    }
+    
     // Criar pedido e atualizar estoque em uma transação
     const order = await prisma.$transaction(async (prisma) => {
       // Criar pedido

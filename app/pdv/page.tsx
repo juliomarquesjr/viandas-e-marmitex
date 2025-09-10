@@ -1,27 +1,27 @@
 "use client";
 
 import {
-  AlertCircle,
-  Boxes,
-  ChefHat,
-  CircleDollarSign,
-  ClipboardList,
-  CreditCard,
+    AlertCircle,
+    Boxes,
+    Calendar,
+    ChefHat,
+    CircleDollarSign,
+    ClipboardList,
+    CreditCard,
 
-  Image as ImageIcon,
-  LogOut,
-  Maximize2,
-  Minus,
-  Percent,
-  Plus,
-  QrCode,
-  RefreshCcw,
-  Search,
-  Settings,
-  ShoppingCart,
-  Trash2,
-  User,
-  Wallet
+    Image as ImageIcon,
+    LogOut,
+    Minus,
+    Percent,
+    Plus,
+    QrCode,
+    RefreshCcw,
+    Search,
+    Settings,
+    ShoppingCart,
+    Trash2,
+    User,
+    Wallet
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,11 +32,11 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Clock } from "../components/ui/clock";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 
@@ -96,12 +96,20 @@ export default function PDVPage() {
   const [isNewSaleConfirmOpen, setNewSaleConfirmOpen] = useState(false);
   const [isChangeCustomerConfirmOpen, setChangeCustomerConfirmOpen] =
     useState(false);
+  const [isDateModalOpen, setDateModalOpen] = useState(false);
   const [pendingCustomer, setPendingCustomer] = useState<Customer | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [cashReceived, setCashReceived] = useState<string>("");
   const [change, setChange] = useState<number>(0);
+  const [customSaleDate, setCustomSaleDate] = useState<string>(""); // Data customizada para admin
   const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
+
+  // Obter data de hoje no formato YYYY-MM-DD
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
   // Função para reproduzir som
   const playBeepSound = useCallback(() => {
@@ -443,6 +451,7 @@ export default function PDVPage() {
     setDiscountOpen(false);
     setCashReceived("");
     setChange(0);
+    setCustomSaleDate(""); // Reset custom sale date
     
     // Recarregar produtos para atualizar estoques
     await fetchProducts();
@@ -458,6 +467,15 @@ export default function PDVPage() {
       document.documentElement.requestFullscreen().catch(() => {});
     }
   }, []);
+
+  // Função para formatar data para exibição
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return "Hoje";
+    // Criar data no fuso local para evitar problemas de UTC
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('pt-BR');
+  };
 
   const handleGlobalKeys = useCallback(
     (e: KeyboardEvent) => {
@@ -484,15 +502,6 @@ export default function PDVPage() {
         e.preventDefault();
         // Disparar evento personalizado para o CustomerSelector
         window.dispatchEvent(new CustomEvent("openCustomerSelector"));
-        return;
-      }
-      if (e.key === "F11") {
-        e.preventDefault();
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        } else {
-          document.documentElement.requestFullscreen().catch(() => {});
-        }
         return;
       }
       if (e.key === "Delete" && selectedIndex !== null) {
@@ -617,6 +626,11 @@ export default function PDVPage() {
           parseFloat(cashReceived) * 100
         );
         paymentData.changeCents = Math.round(change * 100);
+      }
+
+      // Add custom sale date if provided by admin
+      if (session?.user?.role === "admin" && customSaleDate) {
+        paymentData.customSaleDate = customSaleDate;
       }
 
       const response = await fetch("/api/orders", {
@@ -755,13 +769,18 @@ export default function PDVPage() {
               <User className="h-4 w-4" /> Cliente (F3)
             </Button>
 
-            <Button
-              variant="outline"
-              className="h-9 gap-2"
-              onClick={toggleFullscreen}
-            >
-              <Maximize2 className="h-4 w-4" /> Tela cheia (F11)
-            </Button>
+            {/* Botão Alterar Data - Apenas para Admins */}
+            {session?.user?.role === "admin" && (
+              <Button
+                variant="outline"
+                className="h-9 gap-2"
+                onClick={() => setDateModalOpen(true)}
+                aria-label="Alterar data da venda"
+                title="Alterar data da venda"
+              >
+                <Calendar className="h-4 w-4" /> {formatDisplayDate(customSaleDate)}
+              </Button>
+            )}
             <Button
               className="h-9 gap-2"
               onClick={() => {
@@ -1606,6 +1625,65 @@ export default function PDVPage() {
             confirmText="Alterar cliente"
             cancelText="Manter atual"
           />
+
+          {/* Modal de Alteração de Data da Venda */}
+          <Dialog open={isDateModalOpen} onOpenChange={setDateModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Alterar Data da Venda
+                </DialogTitle>
+                <DialogDescription>
+                  Selecione a data em que a venda foi realizada. Apenas datas passadas são permitidas.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Data da Venda</label>
+                  <Input
+                    type="date"
+                    value={customSaleDate || getTodayDate()}
+                    onChange={(e) => setCustomSaleDate(e.target.value)}
+                    max={getTodayDate()} // Não permite datas futuras
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {customSaleDate 
+                      ? `Data selecionada: ${formatDisplayDate(customSaleDate)}` 
+                      : "Usando data de hoje"}
+                  </p>
+                </div>
+
+                {customSaleDate && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      <strong>Atenção:</strong> Esta venda será registrada com a data {formatDisplayDate(customSaleDate)}.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCustomSaleDate("");
+                  }}
+                  className="flex-1"
+                >
+                  Usar Hoje
+                </Button>
+                <Button
+                  onClick={() => setDateModalOpen(false)}
+                  className="flex-1"
+                >
+                  Confirmar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </aside>
       </main>
     </div>
