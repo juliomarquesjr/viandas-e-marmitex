@@ -1,0 +1,457 @@
+"use client";
+
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+
+type OrderItem = {
+  id: string;
+  quantity: number;
+  priceCents: number;
+  product: {
+    id: string;
+    name: string;
+  };
+};
+
+type Order = {
+  id: string;
+  status: string;
+  subtotalCents: number;
+  discountCents: number;
+  totalCents: number;
+  paymentMethod: string | null;
+  createdAt: string;
+  cashReceivedCents?: number;
+  changeCents?: number;
+  items: OrderItem[];
+  customer?: {
+    id: string;
+    name: string;
+    phone?: string;
+  };
+};
+
+function ThermalReceiptContent() {
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get('orderId');
+
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadOrder = async () => {
+      if (!orderId) {
+        setError('ID do pedido não fornecido');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/orders/${orderId}`);
+
+        if (!response.ok) {
+          throw new Error('Falha ao carregar pedido');
+        }
+
+        const data = await response.json();
+        setOrder(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrder();
+  }, [orderId]);
+
+  // Auto print when page loads
+  useEffect(() => {
+    if (order && !loading && !error) {
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    }
+  }, [order, loading, error]);
+
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(cents / 100);
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getPaymentMethodLabel = (method: string | null) => {
+    const methodMap: { [key: string]: string } = {
+      'cash': 'Dinheiro',
+      'credit': 'Cartão Crédito',
+      'debit': 'Cartão Débito',
+      'pix': 'PIX',
+      'invoice': 'Ficha do Cliente'
+    };
+    return method ? methodMap[method] || method : 'Não informado';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-sm mb-2">Carregando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-red-600">
+          <div className="text-sm mb-2">Erro ao carregar</div>
+          <div className="text-xs">{error || 'Pedido não encontrado'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="thermal-receipt">
+      {/* Header */}
+      <div className="thermal-header">
+        <div className="thermal-title">
+          VIANDAS E MARMITEX
+        </div>
+        <div className="thermal-subtitle">
+          CUPOM NÃO FISCAL
+        </div>
+        <div className="thermal-date">
+          {formatDateTime(order.createdAt)}
+        </div>
+      </div>
+
+      {/* Customer Info */}
+      {order.customer && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">
+            CLIENTE:
+          </div>
+          <div className="thermal-text">
+            {order.customer.name}
+          </div>
+          {order.customer.phone && (
+            <div className="thermal-text">
+              Tel: {order.customer.phone}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Order Items */}
+      <div className="thermal-section">
+        <div className="thermal-section-title">
+          ITENS:
+        </div>
+        
+        {order.items.map((item, index) => (
+          <div key={item.id} className="thermal-item">
+            <div className="thermal-item-header">
+              <span className="thermal-item-name">
+                {item.product.name.length > 30 
+                  ? `${item.product.name.substring(0, 27)}...` 
+                  : item.product.name}
+              </span>
+            </div>
+            
+            <div className="thermal-item-details">
+              <span>{item.quantity}x {formatCurrency(item.priceCents)}</span>
+              <span className="thermal-item-total">
+                {formatCurrency(item.quantity * item.priceCents)}
+              </span>
+            </div>
+            
+            {index < order.items.length - 1 && (
+              <div className="thermal-divider"></div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Totals */}
+      <div className="thermal-section">
+        <div className="thermal-section-title">
+          TOTAIS:
+        </div>
+        
+        <div className="thermal-row">
+          <span>Subtotal:</span>
+          <span className="thermal-value">
+            {formatCurrency(order.subtotalCents)}
+          </span>
+        </div>
+        
+        {order.discountCents > 0 && (
+          <div className="thermal-row">
+            <span>Desconto:</span>
+            <span className="thermal-value">
+              -{formatCurrency(order.discountCents)}
+            </span>
+          </div>
+        )}
+        
+        <div className="thermal-row thermal-total">
+          <span>TOTAL:</span>
+          <span className="thermal-value">
+            {formatCurrency(order.totalCents)}
+          </span>
+        </div>
+      </div>
+
+      {/* Payment Info */}
+      <div className="thermal-section">
+        <div className="thermal-section-title">
+          PAGAMENTO:
+        </div>
+        
+        <div className="thermal-row">
+          <span>Forma:</span>
+          <span className="thermal-value">
+            {getPaymentMethodLabel(order.paymentMethod)}
+          </span>
+        </div>
+        
+        {order.paymentMethod === 'cash' && order.cashReceivedCents && (
+          <>
+            <div className="thermal-row">
+              <span>Recebido:</span>
+              <span className="thermal-value">
+                {formatCurrency(order.cashReceivedCents)}
+              </span>
+            </div>
+            {order.changeCents && order.changeCents > 0 && (
+              <div className="thermal-row">
+                <span>Troco:</span>
+                <span className="thermal-value">
+                  {formatCurrency(order.changeCents)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="thermal-footer">
+        <div style={{fontWeight: '900', fontSize: '12px', color: '#333'}}>Pedido #{order.id.slice(-8).toUpperCase()}</div>
+        <div className="thermal-separator">
+          ================================
+        </div>
+      </div>
+
+      {/* Print button for screen view */}
+      <div className="no-print thermal-print-btn">
+        <button
+          onClick={() => window.print()}
+          className="thermal-btn"
+        >
+          Imprimir Recibo
+        </button>
+      </div>
+
+      {/* Thermal receipt specific styles */}
+      <style jsx global>{`
+        .thermal-receipt {
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          font-weight: bold;
+          line-height: 1.4;
+          max-width: 280px;
+          margin: 0 auto;
+          padding: 8px;
+          background: white;
+        }
+        
+        .thermal-header {
+          text-align: center;
+          margin-bottom: 8px;
+          border-bottom: 1px dashed #333;
+          padding-bottom: 6px;
+        }
+        
+        .thermal-title {
+          font-size: 16px;
+          font-weight: bold;
+          margin-bottom: 2px;
+        }
+        
+        .thermal-subtitle {
+          font-size: 13px;
+          margin-bottom: 2px;
+        }
+        
+        .thermal-date {
+          font-size: 12px;
+        }
+        
+        .thermal-section {
+          margin-bottom: 8px;
+          border-bottom: 1px dashed #333;
+          padding-bottom: 6px;
+        }
+        
+        .thermal-section-title {
+          font-size: 13px;
+          font-weight: bold;
+          margin-bottom: 4px;
+        }
+        
+        .thermal-text {
+          font-size: 12px;
+          font-weight: bold;
+          margin-bottom: 2px;
+        }
+        
+        .thermal-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          font-weight: bold;
+          margin-bottom: 2px;
+        }
+        
+        .thermal-total {
+          font-size: 14px;
+          font-weight: 900;
+          border-top: 1px solid #333;
+          padding-top: 4px;
+          margin-top: 4px;
+        }
+        
+        .thermal-value {
+          font-weight: 900;
+        }
+        
+        .thermal-item {
+          margin-bottom: 4px;
+          font-size: 12px;
+          font-weight: bold;
+        }
+        
+        .thermal-item-header {
+          margin-bottom: 2px;
+        }
+        
+        .thermal-item-name {
+          font-size: 12px;
+          font-weight: bold;
+        }
+        
+        .thermal-item-details {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          font-weight: bold;
+        }
+        
+        .thermal-item-total {
+          font-weight: 900;
+        }
+        
+        .thermal-divider {
+          border-bottom: 1px dotted #ccc;
+          margin: 4px 0;
+        }
+        
+        .thermal-footer {
+          text-align: center;
+          font-size: 12px;
+          font-weight: 900;
+          color: #333;
+          margin-top: 8px;
+          padding-top: 6px;
+          border-top: 2px solid #333;
+        }
+        
+        .thermal-separator {
+          margin: 8px 0;
+          font-weight: 900;
+          font-size: 12px;
+          color: #000;
+        }
+        
+        .thermal-print-btn {
+          text-align: center;
+          margin-top: 16px;
+        }
+        
+        .thermal-btn {
+          background-color: #2563eb;
+          color: white;
+          padding: 8px 16px;
+          border-radius: 6px;
+          border: none;
+          font-size: 12px;
+          cursor: pointer;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .thermal-btn:hover {
+          background-color: #1d4ed8;
+        }
+        
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          
+          .no-print {
+            display: none !important;
+          }
+          
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .thermal-receipt {
+            max-width: none;
+            width: 58mm;
+            margin: 0;
+            padding: 2mm;
+          }
+          
+          @page {
+            size: 58mm auto;
+            margin: 0;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default function ThermalReceiptPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-sm mb-2">Carregando...</div>
+        </div>
+      </div>
+    }>
+      <ThermalReceiptContent />
+    </Suspense>
+  );
+}

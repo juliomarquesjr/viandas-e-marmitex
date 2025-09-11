@@ -5,28 +5,29 @@ import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-  Banknote,
-  Check,
-  CheckCircle,
-  Clock,
-  CreditCard,
-  IdCard,
-  Package,
-  QrCode,
-  Receipt,
-  Trash2,
-  Truck,
-  User,
-  Wallet,
-  X,
-  XCircle,
+    Banknote,
+    Check,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    IdCard,
+    Package,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    Truck,
+    User,
+    Wallet,
+    X,
+    XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -182,6 +183,12 @@ export default function AdminOrdersPage() {
       console.error("Error deleting order:", error);
       alert("Erro ao excluir venda. Por favor, tente novamente.");
     }
+  };
+
+  // Função para imprimir recibo térmico
+  const printThermalReceipt = (orderId: string) => {
+    const receiptUrl = `/print/receipt-thermal?orderId=${orderId}`;
+    window.open(receiptUrl, '_blank');
   };
 
   const getStatusInfo = (status: string) => {
@@ -529,15 +536,29 @@ export default function AdminOrdersPage() {
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteOrder(order.id)}
-                            className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
-                            title="Excluir venda"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {/* Botão de Imprimir Recibo */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => printThermalReceipt(order.id)}
+                              className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-border"
+                              title="Imprimir recibo térmico"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            
+                            {/* Botão de Excluir */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteOrder(order.id)}
+                              className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
+                              title="Excluir venda"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </motion.tr>
                     );

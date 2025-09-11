@@ -27,6 +27,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { CustomerSelector } from "../components/CustomerSelector";
+import { ReceiptModal } from "../components/ReceiptModal";
 import { useToast } from "../components/Toast";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -77,6 +78,8 @@ export default function PDVPage() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isPaymentOpen, setPaymentOpen] = useState(false);
   const { showToast } = useToast();
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [isReceiptModalOpen, setReceiptModalOpen] = useState(false);
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
@@ -452,6 +455,8 @@ export default function PDVPage() {
     setCashReceived("");
     setChange(0);
     setCustomSaleDate(""); // Reset custom sale date
+    setLastOrderId(null);
+    setReceiptModalOpen(false);
     
     // Recarregar produtos para atualizar estoques
     await fetchProducts();
@@ -584,6 +589,7 @@ export default function PDVPage() {
   const finalizeSale = useCallback(async () => {
     setIsFinalizing(true);
     let saleSuccess = false;
+    let createdOrderId: string | null = null;
     
     // Registrar a venda na API
     try {
@@ -645,6 +651,8 @@ export default function PDVPage() {
         throw new Error("Failed to create order");
       }
       
+      const createdOrder = await response.json();
+      createdOrderId = createdOrder.id;
       saleSuccess = true;
       
     } catch (error) {
@@ -659,9 +667,13 @@ export default function PDVPage() {
     setIsFinalizing(false);
     
     // Mostrar feedback visual de sucesso se a venda foi bem-sucedida
-    if (saleSuccess) {
+    if (saleSuccess && createdOrderId) {
       // Reproduzir som de sucesso (usar o mesmo beep por enquanto)
       playBeepSound();
+      
+      // Armazenar o ID da última venda e abrir modal de recibo
+      setLastOrderId(createdOrderId);
+      setReceiptModalOpen(true);
       
       // Opcional: mostrar toast de sucesso ou mensagem
       // Por enquanto, apenas log no console
@@ -678,6 +690,8 @@ export default function PDVPage() {
     change,
     resetPDVAndRefreshProducts,
     playBeepSound,
+    session?.user?.role,
+    customSaleDate,
   ]);
 
   const handleFinalizePayment = useCallback(() => {
@@ -1686,6 +1700,13 @@ export default function PDVPage() {
           </Dialog>
         </aside>
       </main>
+
+      {/* Modal de Recibo */}
+      <ReceiptModal
+        open={isReceiptModalOpen}
+        onOpenChange={setReceiptModalOpen}
+        orderId={lastOrderId}
+      />
     </div>
   );
 }
