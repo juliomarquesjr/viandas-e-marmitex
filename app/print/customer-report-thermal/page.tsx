@@ -234,7 +234,7 @@ function CustomerReportThermalContent() {
           VIANDAS E MARMITEX
         </div>
         <div className="thermal-subtitle">
-          FECHAMENTO DE CONTA
+          RESUMO DE CLIENTE
         </div>
         <div className="thermal-period">
           {formatDate(period.startDate)} a {formatDate(period.endDate)}
@@ -303,9 +303,7 @@ function CustomerReportThermalContent() {
                 </span>
               </div>
               
-              <div className="thermal-transaction-type">
-                {transaction.type === 'payment' ? 'PAGAMENTO' : 'CONSUMO'} - {transaction.status === 'confirmed' ? 'CONF' : transaction.status === 'pending' ? 'PEND' : transaction.status.toUpperCase()}
-              </div>
+              {/* Removed transaction type line to simplify thermal print */}
               
               <div className="thermal-description">
                 {transaction.description.length > 40 
@@ -317,7 +315,7 @@ function CustomerReportThermalContent() {
                   const order = details.periodOrders.find(o => o.id === transaction.id);
                   if (order && order.discountCents > 0) {
                     return (
-                      <div style={{fontSize: '7px', color: '#666', marginTop: '2px'}}>
+                      <div style={{fontSize: '9px', color: '#666', marginTop: '2px', fontWeight: 'bold'}}>
                         Desc: -{formatCurrency(order.discountCents)}
                         <br />
                         Subtot: {formatCurrency(order.subtotalCents)}
@@ -338,14 +336,8 @@ function CustomerReportThermalContent() {
 
       {/* Footer */}
       <div className="thermal-footer">
-        <div>Gerado em:</div>
-        <div>{formatDateTime(metadata.generatedAt)}</div>
-        <div className="thermal-separator">
-          ================================
-        </div>
-        <div className="thermal-thanks">
-          OBRIGADO PELA PREFERÊNCIA!
-        </div>
+        <div style={{fontWeight: '900', fontSize: '12px', color: '#000'}}>Gerado em:</div>
+        <div style={{fontWeight: '900', fontSize: '12px', color: '#000'}}>{formatDateTime(metadata.generatedAt)}</div>
       </div>
 
       {/* Print button for screen view */}
@@ -362,8 +354,9 @@ function CustomerReportThermalContent() {
       <style jsx global>{`
         .thermal-report {
           font-family: 'Courier New', monospace;
-          font-size: 12px;
-          line-height: 1.3;
+          font-size: 14px;
+          font-weight: bold;
+          line-height: 1.4;
           max-width: 280px;
           margin: 0 auto;
           padding: 8px;
@@ -378,18 +371,18 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-title {
-          font-size: 14px;
+          font-size: 16px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 11px;
+          font-size: 13px;
           margin-bottom: 2px;
         }
         
         .thermal-period {
-          font-size: 10px;
+          font-size: 12px;
         }
         
         .thermal-section {
@@ -399,39 +392,43 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-section-title {
-          font-size: 11px;
+          font-size: 13px;
           font-weight: bold;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 10px;
+          font-size: 12px;
+          font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 10px;
+          font-size: 12px;
+          font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-value {
-          font-weight: bold;
+          font-weight: 900;
         }
         
         .thermal-transaction {
           margin-bottom: 6px;
-          font-size: 9px;
+          font-size: 11px;
+          font-weight: bold;
         }
         
         .thermal-date {
-          font-size: 9px;
+          font-size: 11px;
+          font-weight: bold;
         }
         
         .thermal-transaction-value {
-          font-weight: bold;
-          font-size: 10px;
+          font-weight: 900;
+          font-size: 12px;
         }
         
         .thermal-transaction-type {
@@ -441,7 +438,8 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-description {
-          font-size: 8px;
+          font-size: 10px;
+          font-weight: bold;
           word-wrap: break-word;
         }
         
@@ -452,20 +450,18 @@ function CustomerReportThermalContent() {
         
         .thermal-footer {
           text-align: center;
-          font-size: 8px;
-          color: #666;
+          font-size: 12px;
+          font-weight: 900;
+          color: #333;
           margin-top: 8px;
           padding-top: 6px;
-          border-top: 1px dashed #333;
         }
         
         .thermal-separator {
-          margin: 6px 0;
-        }
-        
-        .thermal-thanks {
-          margin-top: 4px;
-          font-weight: bold;
+          margin: 8px 0;
+          font-weight: 900;
+          font-size: 12px;
+          color: #000;
         }
         
         .thermal-print-btn {
