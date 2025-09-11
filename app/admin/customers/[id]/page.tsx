@@ -19,7 +19,6 @@ import {
     QrCode,
     Receipt,
     Trash2,
-    TrendingUp,
     User,
     Wallet,
 } from "lucide-react";
@@ -108,9 +107,8 @@ export default function CustomerDetailPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState({
     pendingAmount: 0,
-    last30DaysAmount: 0,
     totalOrders: 0,
-    balanceAmount: 0, // Novo campo para saldo devedor
+    balanceAmount: 0, // Saldo devedor
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,20 +158,11 @@ export default function CustomerDetailPage() {
       .filter((order) => order.status === "pending")
       .reduce((sum, order) => sum + order.totalCents, 0);
 
-    // Total de compras nos últimos 30 dias
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const last30DaysAmount = ordersData
-      .filter((order) => new Date(order.createdAt) >= thirtyDaysAgo)
-      .reduce((sum, order) => sum + order.totalCents, 0);
-
     // Total de pedidos
     const totalOrders = ordersData.length;
 
     setStats({
       pendingAmount,
-      last30DaysAmount,
       totalOrders,
       balanceAmount: balanceCents, // Saldo devedor
     });
@@ -597,7 +586,7 @@ export default function CustomerDetailPage() {
       </Card>
 
       {/* Novos Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -610,22 +599,6 @@ export default function CustomerDetailPage() {
                 </p>
               </div>
               <Clock className="h-8 w-8 text-amber-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">
-                  Últimos 30 Dias
-                </p>
-                <p className="text-xl font-bold text-blue-900">
-                  {formatCurrency(stats.last30DaysAmount)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -664,31 +637,17 @@ export default function CustomerDetailPage() {
         </Card>
       </div>
 
-              {/* Gerenciamento de Presets de Produtos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Preset de Produtos
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Configure produtos que serão adicionados automaticamente ao carrinho quando este cliente for selecionado no PDV.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => setIsPresetModalOpen(true)}
-              variant="outline"
-              className="w-full"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Gerenciar Presets de Produtos
-            </Button>
-          </CardContent>
-        </Card>
-
       {/* Botões de ação */}
       <div className="flex justify-end gap-3">
+        {/* Botão de Preset */}
+        <Button
+          onClick={() => setIsPresetModalOpen(true)}
+          variant="outline"
+          className="border-green-200 text-green-700 hover:bg-green-50"
+        >
+          <Package className="h-4 w-4 mr-2" />
+          Presets de Produtos
+        </Button>
         {/* Botão de Relatório */}
         <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
           <DialogTrigger asChild>
