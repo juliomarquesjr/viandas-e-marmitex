@@ -113,7 +113,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
               <div>
                 <div className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                  Viandas
+                  Comida Caseira
                 </div>
                 <div className="text-sm text-muted-foreground">Admin Panel</div>
               </div>
@@ -177,7 +177,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
               <div className="hidden sm:block">
                 <div className="font-bold text-2xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                  Viandas & Marmitex
+                  Comida Caseira
                 </div>
                 <div className="text-sm text-muted-foreground">Painel Administrativo</div>
               </div>
@@ -266,7 +266,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="text-center">
                   {!sidebarCollapsed && (
                     <div className="text-sm text-muted-foreground mb-3 font-medium">
-                      Sistema Viandas
+                      Comida Caseira
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground bg-white/30 rounded-lg px-3 py-2 font-medium">

@@ -724,7 +724,7 @@ export default function PDVPage() {
             </div>
             <div className="hidden sm:block">
               <div className="font-bold text-2xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Viandas & Marmitex
+                Comida Caseira
               </div>
               <div className="text-sm text-muted-foreground">
                 Ponto de Venda
