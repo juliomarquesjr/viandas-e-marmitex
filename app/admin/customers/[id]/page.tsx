@@ -10,7 +10,6 @@ import {
     Download,
     FileText,
     IdCard,
-    Mail,
     MapPin,
     Package,
     Phone,
@@ -20,7 +19,7 @@ import {
     Receipt,
     Trash2,
     User,
-    Wallet,
+    Wallet
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -121,6 +120,16 @@ export default function CustomerDetailPage() {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
+  
+  // Estados para filtro de pedidos
+  const [orderFilter, setOrderFilter] = useState("current-month");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [filteredStats, setFilteredStats] = useState({
+    pendingAmount: 0,
+    totalOrders: 0,
+  });
 
   const loadCustomer = async () => {
     try {
@@ -167,6 +176,65 @@ export default function CustomerDetailPage() {
       balanceAmount: balanceCents, // Saldo devedor
     });
   };
+
+  // Função para filtrar pedidos por período
+  const filterOrdersByPeriod = (orders: Order[], filterType: string) => {
+    if (filterType === "all") return orders;
+    
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // Fim do mês atual
+
+    switch (filterType) {
+      case "current-month":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Início do mês atual
+        break;
+      case "previous-month":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); // Início do mês anterior
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59); // Fim do mês anterior
+        break;
+      case "custom":
+        if (!customStartDate || !customEndDate) return orders;
+        startDate = new Date(customStartDate + "T00:00:00");
+        endDate = new Date(customEndDate + "T23:59:59");
+        break;
+      default:
+        return orders;
+    }
+
+    return orders.filter((order) => {
+      const orderDate = new Date(order.createdAt);
+      return orderDate >= startDate && orderDate <= endDate;
+    });
+  };
+
+  // Função para alterar o filtro
+  const handleFilterChange = (newFilter: string) => {
+    setOrderFilter(newFilter);
+    // Reset custom dates when changing from custom filter
+    if (newFilter !== "custom") {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
+
+  // Aplicar filtros aos pedidos
+  useEffect(() => {
+    const filtered = filterOrdersByPeriod(orders, orderFilter);
+    setFilteredOrders(filtered);
+    
+    // Calcular estatísticas dos pedidos filtrados
+    const pendingAmount = filtered
+      .filter((order) => order.status === "pending")
+      .reduce((sum, order) => sum + order.totalCents, 0);
+    
+    const totalOrders = filtered.length;
+    
+    setFilteredStats({
+      pendingAmount,
+      totalOrders,
+    });
+  }, [orders, orderFilter, customStartDate, customEndDate]);
 
   useEffect(() => {
     if (params.id) {
@@ -487,510 +555,698 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => router.back()}
-          className="h-10 w-10 rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Detalhes do Cliente
-          </h1>
-          <p className="text-gray-600">Informações e histórico de compras</p>
-        </div>
-      </div>
-
-      {/* Informações do Cliente */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">
-            Informações Pessoais
-          </CardTitle>
-          <CardDescription>Detalhes cadastrais do cliente</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
+      {/* Informações do Cliente - Redesigned */}
+      <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 backdrop-blur-sm border border-white/40 shadow-xl rounded-2xl overflow-hidden">
+        {/* Header com gradiente */}
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 border-b border-white/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => router.back()}
+                className="h-10 w-10 rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="relative">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                  <User className="h-7 w-7 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1">
+                  <Badge 
+                    variant={customer.active ? "default" : "outline"}
+                    className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${
+                      customer.active 
+                        ? "bg-green-500 text-white border-green-600" 
+                        : "bg-gray-100 text-gray-600 border-gray-300"
+                    }`}
+                  >
+                    {customer.active ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  {customer.name}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Cliente desde {formatDate(customer.createdAt).split(' ')[0]}
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">
-                {customer.name}
-              </h2>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="h-4 w-4" />
-                  <span>{customer.phone}</span>
+          </div>
+        </div>
+
+        {/* Conteúdo Principal */}
+        <div className="p-4">
+          {/* Informações Compactas em Linha */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Contato */}
+            <div className="p-3 bg-white/70 rounded-xl border border-white/50">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-6 w-6 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Phone className="h-3 w-3 text-green-600" />
+                </div>
+                <h4 className="text-sm font-semibold text-gray-900">Contato</h4>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Telefone</p>
+                  <p className="text-sm font-semibold text-gray-900">{customer.phone}</p>
                 </div>
                 {customer.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="h-4 w-4" />
-                    <span>{customer.email}</span>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Email</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate" title={customer.email}>{customer.email}</p>
                   </div>
                 )}
                 {customer.doc && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">Documento:</span>
-                    <span>{customer.doc}</span>
-                  </div>
-                )}
-                {customer.barcode && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <BarcodeIcon className="h-4 w-4" />
-                    <span className="font-medium">Código de Barras:</span>
-                    <span>{customer.barcode}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadBarcode}
-                      className="h-6 px-2 text-xs"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Download
-                    </Button>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Documento</p>
+                    <p className="text-sm font-semibold text-gray-900">{customer.doc}</p>
                   </div>
                 )}
               </div>
             </div>
-            <Badge variant={customer.active ? "default" : "outline"}>
-              {customer.active ? "Ativo" : "Inativo"}
-            </Badge>
-          </div>
 
-          {customer.address && (
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+            {/* Código de Barras */}
+            <div className="p-3 bg-white/70 rounded-xl border border-white/50">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-6 w-6 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <BarcodeIcon className="h-3 w-3 text-orange-600" />
+                </div>
+                <h4 className="text-sm font-semibold text-gray-900">Identificação</h4>
+              </div>
+              {customer.barcode ? (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Código de Barras</p>
+                    <p className="text-sm font-semibold text-gray-900 font-mono">{customer.barcode}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadBarcode}
+                    className="h-7 px-2 text-xs rounded-lg hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 transition-all duration-200 w-full"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Download
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-4">
+                  <p className="text-xs text-gray-500">Sem código cadastrado</p>
+                </div>
+              )}
+            </div>
+
+            {/* Endereço */}
+            <div className="p-3 bg-white/70 rounded-xl border border-white/50 md:col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-6 w-6 rounded-lg bg-red-100 flex items-center justify-center">
+                  <MapPin className="h-3 w-3 text-red-600" />
+                </div>
+                <h4 className="text-sm font-semibold text-gray-900">Endereço</h4>
+              </div>
+              {customer.address ? (
                 <div>
-                  <h3 className="font-medium text-gray-900">Endereço</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {customer.address.street} {customer.address.number}
-                    {customer.address.complement &&
-                      `, ${customer.address.complement}`}
-                    <br />
-                    {customer.address.neighborhood}, {customer.address.city} -{" "}
-                    {customer.address.state}
-                    <br />
-                    CEP: {customer.address.zip}
+                  <div className="text-xs text-gray-700 leading-relaxed space-y-1">
+                    <p className="font-medium">
+                      {customer.address.street}, {customer.address.number}
+                      {customer.address.complement && ` - ${customer.address.complement}`}
+                    </p>
+                    <p>
+                      {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
+                    </p>
+                    <p className="text-gray-600">CEP: {customer.address.zip}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-4">
+                  <p className="text-xs text-gray-500">Sem endereço cadastrado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Seção de Estatísticas e Ações */}
+      <div className="bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 backdrop-blur-sm border border-white/40 shadow-xl rounded-2xl overflow-hidden">
+        {/* Header da Seção */}
+        <div className="bg-gradient-to-r from-slate-100/80 via-slate-50/60 to-transparent p-4 border-b border-white/30">
+          <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            Resumo e Ações
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">Estatísticas financeiras e opções disponíveis</p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Cards de Estatísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Compras Pendentes */}
+            <div className="group relative bg-gradient-to-br from-amber-50/80 to-amber-100/60 backdrop-blur-sm border border-amber-200/50 rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 to-amber-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative space-y-2">
+                {/* Primeira linha - Título com ícone */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                      <Clock className="h-2.5 w-2.5 text-amber-600" />
+                    </div>
+                    <p className="text-xs font-semibold text-amber-700">
+                      Compras Pendentes
+                    </p>
+                  </div>
+                  <div className="h-6 w-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <Clock className="h-3 w-3 text-amber-600" />
+                  </div>
+                </div>
+                {/* Segunda linha - Filtro e valor */}
+                <div className="space-y-1">
+                  {orderFilter !== 'all' && (
+                    <p className="text-xs text-amber-600/80">
+                      {orderFilter === 'current-month' ? 'Mês Atual' : 
+                       orderFilter === 'previous-month' ? 'Mês Anterior' : 'Período Filtrado'}
+                    </p>
+                  )}
+                  <p className="text-lg font-bold text-amber-900">
+                    {formatCurrency(filteredStats.pendingAmount)}
                   </p>
                 </div>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Novos Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-600">
-                  Compras Pendentes
-                </p>
-                <p className="text-xl font-bold text-amber-900">
-                  {formatCurrency(stats.pendingAmount)}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-amber-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">
-                  Total de Pedidos
-                </p>
-                <p className="text-xl font-bold text-purple-900">
-                  {stats.totalOrders}
-                </p>
-              </div>
-              <Receipt className="h-8 w-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Novo card para saldo devedor */}
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-600">
-                  Saldo Devedor
-                </p>
-                <p className={`text-xl font-bold ${stats.balanceAmount > 0 ? 'text-red-900' : 'text-green-900'}`}>
-                  {formatCurrency(stats.balanceAmount)}
-                </p>
-              </div>
-              <Wallet className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Botões de ação */}
-      <div className="flex justify-end gap-3">
-        {/* Botão de Preset */}
-        <Button
-          onClick={() => setIsPresetModalOpen(true)}
-          variant="outline"
-          className="border-green-200 text-green-700 hover:bg-green-50"
-        >
-          <Package className="h-4 w-4 mr-2" />
-          Presets de Produtos
-        </Button>
-        {/* Botão de Relatório */}
-        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-              <FileText className="h-4 w-4 mr-2" />
-              Relatório de Fechamento
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md mx-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Printer className="h-5 w-5" />
-                Relatório de Fechamento
-              </DialogTitle>
-              <DialogDescription>
-                Gere um relatório imprimível com o consumo e saldo do cliente por período. Escolha entre impressão completa ou térmica.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 p-1">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="startDate" className="text-sm font-medium">
-                    Data Inicial
-                  </label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={reportStartDate}
-                    onChange={(e) => setReportStartDate(e.target.value)}
-                    max={reportEndDate || undefined}
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="endDate" className="text-sm font-medium">
-                    Data Final
-                  </label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={reportEndDate}
-                    onChange={(e) => setReportEndDate(e.target.value)}
-                    min={reportStartDate || undefined}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-600">Período pré-definido:</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDefaultDates()}
-                    className="text-xs"
-                  >
-                    Últimos 30 dias
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2 pt-2">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsReportDialogOpen(false);
-                      }}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={generateThermalReport}
-                      disabled={!reportStartDate || !reportEndDate}
-                      variant="outline"
-                      className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50"
-                    >
-                      <Printer className="h-4 w-4 mr-2" />
-                      Impressão Térmica
-                    </Button>
+            {/* Total de Pedidos */}
+            <div className="group relative bg-gradient-to-br from-purple-50/80 to-purple-100/60 backdrop-blur-sm border border-purple-200/50 rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 to-purple-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative space-y-2">
+                {/* Primeira linha - Título com ícone */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                      <Receipt className="h-2.5 w-2.5 text-purple-600" />
+                    </div>
+                    <p className="text-xs font-semibold text-purple-700">
+                      Total de Pedidos
+                    </p>
                   </div>
-                  <Button
-                    onClick={generateReport}
-                    disabled={!reportStartDate || !reportEndDate}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Relatório Completo
-                  </Button>
+                  <div className="h-6 w-6 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <Receipt className="h-3 w-3 text-purple-600" />
+                  </div>
+                </div>
+                {/* Segunda linha - Filtro e valor */}
+                <div className="space-y-1">
+                  {orderFilter !== 'all' && (
+                    <p className="text-xs text-purple-600/80">
+                      {orderFilter === 'current-month' ? 'Mês Atual' : 
+                       orderFilter === 'previous-month' ? 'Mês Anterior' : 'Período Filtrado'}
+                    </p>
+                  )}
+                  <p className="text-lg font-bold text-purple-900">
+                    {filteredStats.totalOrders}
+                  </p>
                 </div>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Botão de Pagamento */}
-        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Pagamento
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Adicionar Pagamento à Ficha</DialogTitle>
-              <DialogDescription>
-                Registre um pagamento para reduzir o saldo devedor do cliente.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Formas de pagamento */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">
-                  Formas de Pagamento
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Dinheiro", value: "cash", icon: Banknote },
-                    { label: "Cartão Débito", value: "debit", icon: CreditCard },
-                    { label: "Cartão Crédito", value: "credit", icon: CreditCard },
-                    { label: "PIX", value: "pix", icon: QrCode },
-                  ].map((method) => (
-                    <Button
-                      key={method.value}
-                      variant={
-                        selectedPaymentMethod === method.value ? "default" : "outline"
-                      }
-                      className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md"
-                      onClick={() => {
-                        setSelectedPaymentMethod(method.value);
-                        // Reset cash fields when changing payment method
-                        if (method.value !== "cash") {
-                          setCashReceived("");
-                          setChange(0);
-                        }
-                      }}
-                    >
-                      <method.icon className="h-6 w-6" />
-                      <span className="text-sm font-medium">{method.label}</span>
-                    </Button>
-                  ))}
+            {/* Saldo Devedor/Crédito */}
+            <div className={`group relative backdrop-blur-sm border rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] ${
+              stats.balanceAmount > 0 
+                ? 'bg-gradient-to-br from-red-50/80 to-red-100/60 border-red-200/50' 
+                : 'bg-gradient-to-br from-green-50/80 to-green-100/60 border-green-200/50'
+            }`}>
+              <div className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                stats.balanceAmount > 0
+                  ? 'bg-gradient-to-br from-red-400/5 to-red-600/5'
+                  : 'bg-gradient-to-br from-green-400/5 to-green-600/5'
+              }`} />
+              <div className="relative space-y-2">
+                {/* Primeira linha - Título com ícone */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`h-5 w-5 rounded-lg flex items-center justify-center ${
+                      stats.balanceAmount > 0
+                        ? 'bg-red-500/20'
+                        : 'bg-green-500/20'
+                    }`}>
+                      <Wallet className={`h-2.5 w-2.5 ${
+                        stats.balanceAmount > 0 ? 'text-red-600' : 'text-green-600'
+                      }`} />
+                    </div>
+                    <p className={`text-xs font-semibold ${
+                      stats.balanceAmount > 0 ? 'text-red-700' : 'text-green-700'
+                    }`}>
+                      {stats.balanceAmount > 0 ? 'Saldo Devedor' : 'Crédito Disponível'}
+                    </p>
+                  </div>
+                  <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${
+                    stats.balanceAmount > 0
+                      ? 'bg-red-500/10'
+                      : 'bg-green-500/10'
+                  }`}>
+                    <Wallet className={`h-3 w-3 ${
+                      stats.balanceAmount > 0 ? 'text-red-600' : 'text-green-600'
+                    }`} />
+                  </div>
+                </div>
+                {/* Segunda linha - Filtro e valor */}
+                <div className="space-y-1">
+                  <p className={`text-xs ${
+                    stats.balanceAmount > 0 ? 'text-red-600/80' : 'text-green-600/80'
+                  }`}>
+                    Histórico Completo
+                  </p>
+                  <p className={`text-lg font-bold ${
+                    stats.balanceAmount > 0 ? 'text-red-900' : 'text-green-900'
+                  }`}>
+                    {formatCurrency(Math.abs(stats.balanceAmount))}
+                  </p>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Detalhes do pagamento */}
-              <div className="transition-all duration-300 ease-in-out">
-                {selectedPaymentMethod === "cash" ? (
-                  <div className="bg-muted rounded-xl p-5 h-full animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h3 className="text-lg font-semibold mb-4">
-                      Pagamento em Dinheiro
-                    </h3>
+          {/* Botões de Ação */}
+          <div className="border-t border-white/30 pt-6">
+            <div className="flex flex-wrap justify-end gap-3">
+              {/* Botão de Preset */}
+              <button
+                onClick={() => setIsPresetModalOpen(true)}
+                className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-green-200 hover:border-green-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-md bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                    <Package className="h-3 w-3 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-green-700 group-hover:text-green-800">Presets de Produtos</p>
+                    <p className="text-xs text-green-600/80 group-hover:text-green-700">Configurar favoritos</p>
+                  </div>
+                </div>
+              </button>
 
-                    <div className="space-y-5">
-                      <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-                        <span className="text-muted-foreground">
-                          Valor do Pagamento
-                        </span>
-                        <span className="text-xl font-bold">
-                          R$ {parseFloat(paymentAmount || "0").toFixed(2)}
-                        </span>
+              {/* Botão de Relatório */}
+              <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+                <DialogTrigger asChild>
+                  <button className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 rounded-md bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                        <FileText className="h-3 w-3 text-blue-600" />
                       </div>
-
+                      <div className="text-left">
+                        <p className="text-xs font-semibold text-blue-700 group-hover:text-blue-800">Relatório de Fechamento</p>
+                        <p className="text-xs text-blue-600/80 group-hover:text-blue-700">Gerar relatório</p>
+                      </div>
+                    </div>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md mx-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Printer className="h-5 w-5" />
+                      Relatório de Fechamento
+                    </DialogTitle>
+                    <DialogDescription>
+                      Gere um relatório imprimível com o consumo e saldo do cliente por período. Escolha entre impressão completa ou térmica.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 p-1">
+                    <div className="grid gap-4">
                       <div className="space-y-2">
-                        <label
-                          htmlFor="cashReceived"
-                          className="text-sm font-medium"
-                        >
-                          Valor Recebido
+                        <label htmlFor="startDate" className="text-sm font-medium">
+                          Data Inicial
                         </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                            R$
-                          </span>
-                          <Input
-                            id="cashReceived"
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min="0"
-                            value={cashReceived}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setCashReceived(value);
-
-                              // Calculate change
-                              if (value && !isNaN(parseFloat(value)) && paymentAmount) {
-                                const received = parseFloat(value);
-                                const payment = parseFloat(paymentAmount);
-                                const changeAmount = Math.max(
-                                  0,
-                                  received - payment
-                                );
-                                setChange(changeAmount);
-                              } else {
-                                setChange(0);
-                              }
+                        <Input
+                          id="startDate"
+                          type="date"
+                          value={reportStartDate}
+                          onChange={(e) => setReportStartDate(e.target.value)}
+                          max={reportEndDate || undefined}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="endDate" className="text-sm font-medium">
+                          Data Final
+                        </label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          value={reportEndDate}
+                          onChange={(e) => setReportEndDate(e.target.value)}
+                          min={reportStartDate || undefined}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-gray-600">Período pré-definido:</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDefaultDates()}
+                          className="text-xs"
+                        >
+                          Últimos 30 dias
+                        </Button>
+                      </div>
+                      <div className="flex flex-col gap-2 pt-2">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsReportDialogOpen(false);
                             }}
-                            placeholder="0,00"
-                            className="pl-10 text-lg h-12"
-                          />
+                            className="flex-1"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={generateThermalReport}
+                            disabled={!reportStartDate || !reportEndDate}
+                            variant="outline"
+                            className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50"
+                          >
+                            <Printer className="h-4 w-4 mr-2" />
+                            Impressão Térmica
+                          </Button>
                         </div>
+                        <Button
+                          onClick={generateReport}
+                          disabled={!reportStartDate || !reportEndDate}
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Printer className="h-4 w-4 mr-2" />
+                          Relatório Completo
+                        </Button>
                       </div>
-
-                      <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
-                        <span className="text-green-800 font-medium">
-                          Troco
-                        </span>
-                        <span className="text-xl font-bold text-green-900">
-                          R$ {change.toFixed(2)}
-                        </span>
-                      </div>
-
-                      {cashReceived &&
-                        parseFloat(cashReceived) > 0 &&
-                        paymentAmount &&
-                        parseFloat(cashReceived) < parseFloat(paymentAmount) && (
-                          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                              <span>
-                                O valor recebido é menor que o valor do pagamento.
-                              </span>
-                            </div>
-                          </div>
-                        )}
                     </div>
                   </div>
-                ) : selectedPaymentMethod ? (
-                  <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="mb-3 p-3 bg-background rounded-full">
-                      {(() => {
-                        const method = [
+                </DialogContent>
+              </Dialog>
+
+              {/* Botão de Pagamento - Principal */}
+              <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                <DialogTrigger asChild>
+                  <button className="group relative px-5 py-2.5 bg-primary hover:bg-primary/90 border-2 border-primary/20 hover:border-primary/40 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 rounded-md bg-white/20 flex items-center justify-center">
+                        <Plus className="h-3 w-3 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-semibold text-white">Adicionar Pagamento</p>
+                        <p className="text-xs text-white/90">Registrar na ficha</p>
+                      </div>
+                    </div>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Pagamento à Ficha</DialogTitle>
+                    <DialogDescription>
+                      Registre um pagamento para reduzir o saldo devedor do cliente.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Formas de pagamento */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Formas de Pagamento
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { label: "Dinheiro", value: "cash", icon: Banknote },
                           { label: "Cartão Débito", value: "debit", icon: CreditCard },
                           { label: "Cartão Crédito", value: "credit", icon: CreditCard },
                           { label: "PIX", value: "pix", icon: QrCode },
-                        ].find((m) => m.value === selectedPaymentMethod);
-
-                        return method ? (
-                          <method.icon className="h-8 w-8 text-primary" />
-                        ) : null;
-                      })()}
+                        ].map((method) => (
+                          <Button
+                            key={method.value}
+                            variant={
+                              selectedPaymentMethod === method.value ? "default" : "outline"
+                            }
+                            className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md"
+                            onClick={() => {
+                              setSelectedPaymentMethod(method.value);
+                              // Reset cash fields when changing payment method
+                              if (method.value !== "cash") {
+                                setCashReceived("");
+                                setChange(0);
+                              }
+                            }}
+                          >
+                            <method.icon className="h-6 w-6" />
+                            <span className="text-sm font-medium">{method.label}</span>
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">
-                      Pagamento com {selectedPaymentMethod === "debit" ? "Cartão Débito" : 
-                                   selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      O valor do pagamento é{" "}
-                      <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
-                      . Confirme os dados e clique em "Registrar Pagamento" para concluir.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="space-y-3">
-                      <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
-                      <h3 className="text-lg font-medium">
-                        Selecione uma forma de pagamento
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Escolha uma das opções ao lado para prosseguir com o
-                        pagamento.
-                      </p>
+
+                    {/* Detalhes do pagamento */}
+                    <div className="transition-all duration-300 ease-in-out">
+                      {selectedPaymentMethod === "cash" ? (
+                        <div className="bg-muted rounded-xl p-5 h-full animate-in fade-in slide-in-from-right-4 duration-300">
+                          <h3 className="text-lg font-semibold mb-4">
+                            Pagamento em Dinheiro
+                          </h3>
+
+                          <div className="space-y-5">
+                            <div className="flex justify-between items-center p-4 bg-background rounded-lg">
+                              <span className="text-muted-foreground">
+                                Valor do Pagamento
+                              </span>
+                              <span className="text-xl font-bold">
+                                R$ {parseFloat(paymentAmount || "0").toFixed(2)}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label
+                                htmlFor="cashReceived"
+                                className="text-sm font-medium"
+                              >
+                                Valor Recebido
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                                  R$
+                                </span>
+                                <Input
+                                  id="cashReceived"
+                                  type="number"
+                                  inputMode="decimal"
+                                  step="0.01"
+                                  min="0"
+                                  value={cashReceived}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setCashReceived(value);
+
+                                    // Calculate change
+                                    if (value && !isNaN(parseFloat(value)) && paymentAmount) {
+                                      const received = parseFloat(value);
+                                      const payment = parseFloat(paymentAmount);
+                                      const changeAmount = Math.max(
+                                        0,
+                                        received - payment
+                                      );
+                                      setChange(changeAmount);
+                                    } else {
+                                      setChange(0);
+                                    }
+                                  }}
+                                  placeholder="0,00"
+                                  className="pl-10 text-lg h-12"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
+                              <span className="text-green-800 font-medium">
+                                Troco
+                              </span>
+                              <span className="text-xl font-bold text-green-900">
+                                R$ {change.toFixed(2)}
+                              </span>
+                            </div>
+
+                            {cashReceived &&
+                              parseFloat(cashReceived) > 0 &&
+                              paymentAmount &&
+                              parseFloat(cashReceived) < parseFloat(paymentAmount) && (
+                                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                    <span>
+                                      O valor recebido é menor que o valor do pagamento.
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      ) : selectedPaymentMethod ? (
+                        <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                          <div className="mb-3 p-3 bg-background rounded-full">
+                            {(() => {
+                              const method = [
+                                { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                                { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                                { label: "PIX", value: "pix", icon: QrCode },
+                              ].find((m) => m.value === selectedPaymentMethod);
+
+                              return method ? (
+                                <method.icon className="h-8 w-8 text-primary" />
+                              ) : null;
+                            })()} 
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2">
+                            Pagamento com {selectedPaymentMethod === "debit" ? "Cartão Débito" : 
+                                         selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"}
+                          </h3>
+                          <p className="text-muted-foreground">
+                            O valor do pagamento é{" "}
+                            <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
+                            . Confirme os dados e clique em "Registrar Pagamento" para concluir.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                          <div className="space-y-3">
+                            <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
+                            <h3 className="text-lg font-medium">
+                              Selecione uma forma de pagamento
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Escolha uma das opções ao lado para prosseguir com o
+                              pagamento.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Valor do Pagamento
-                </label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                    R$
-                  </span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={paymentAmount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setPaymentAmount(value);
-                      
-                      // Recalculate change if cash payment
-                      if (selectedPaymentMethod === "cash" && cashReceived && value) {
-                        const received = parseFloat(cashReceived);
-                        const payment = parseFloat(value);
-                        const changeAmount = Math.max(0, received - payment);
-                        setChange(changeAmount);
-                      }
-                    }}
-                    placeholder="0,00"
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsPaymentDialogOpen(false);
-                    setSelectedPaymentMethod("");
-                    setPaymentAmount("");
-                    setCashReceived("");
-                    setChange(0);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={handleFichaPayment}
-                  disabled={
-                    !paymentAmount || 
-                    parseFloat(paymentAmount) <= 0 ||
-                    !selectedPaymentMethod ||
-                    (selectedPaymentMethod === "cash" && 
-                     (!cashReceived || 
-                      parseFloat(cashReceived) < parseFloat(paymentAmount || "0")))
-                  }
-                >
-                  Registrar Pagamento
-                </Button>
-              </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Valor do Pagamento
+                      </label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          R$
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentAmount}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setPaymentAmount(value);
+                            
+                            // Recalculate change if cash payment
+                            if (selectedPaymentMethod === "cash" && cashReceived && value) {
+                              const received = parseFloat(cashReceived);
+                              const payment = parseFloat(value);
+                              const changeAmount = Math.max(0, received - payment);
+                              setChange(changeAmount);
+                            }
+                          }}
+                          placeholder="0,00"
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsPaymentDialogOpen(false);
+                          setSelectedPaymentMethod("");
+                          setPaymentAmount("");
+                          setCashReceived("");
+                          setChange(0);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button 
+                        onClick={handleFichaPayment}
+                        disabled={
+                          !paymentAmount || 
+                          (parseFloat(paymentAmount) <= 0) ||
+                          !selectedPaymentMethod ||
+                          (selectedPaymentMethod === "cash" && 
+                           (!cashReceived || 
+                            (parseFloat(cashReceived) < parseFloat(paymentAmount || "0"))))
+                        }
+                      >
+                        Registrar Pagamento
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
       </div>
 
       {/* Histórico de Compras */}
       <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900">
-            Histórico de Compras
-          </CardTitle>
-          <CardDescription>
-            {orders.length} compra{orders.length !== 1 ? "s" : ""} realizada
-            {orders.length !== 1 ? "s" : ""}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold text-gray-900">
+                Histórico de Compras
+              </CardTitle>
+              <CardDescription>
+                {filteredOrders.length} de {orders.length} compra{filteredOrders.length !== 1 ? "s" : ""} exibida{filteredOrders.length !== 1 ? "s" : ""}
+              </CardDescription>
+            </div>
+            
+            {/* Filtros */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Filtrar por:</label>
+                <select
+                  value={orderFilter}
+                  onChange={(e) => handleFilterChange(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="current-month">Mês Atual</option>
+                  <option value="previous-month">Mês Anterior</option>
+                  <option value="custom">Filtro Personalizado</option>
+                  <option value="all">Todos os Pedidos</option>
+                </select>
+              </div>
+              
+              {orderFilter === "custom" && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="text-sm w-36"
+                    placeholder="Data inicial"
+                  />
+                  <span className="text-gray-500 text-sm">até</span>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="text-sm w-36"
+                    placeholder="Data final"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {orders.length > 0 ? (
+          {filteredOrders.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -1019,7 +1275,7 @@ export default function CustomerDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((order) => (
+                  {filteredOrders.map((order) => (
                     <tr
                       key={order.id}
                       className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
@@ -1121,10 +1377,13 @@ export default function CustomerDetailPage() {
             <div className="text-center py-12">
               <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Nenhuma compra registrada
+                {orders.length === 0 ? "Nenhuma compra registrada" : "Nenhuma compra encontrada"}
               </h3>
               <p className="text-gray-600">
-                Este cliente ainda não realizou nenhuma compra.
+                {orders.length === 0 
+                  ? "Este cliente ainda não realizou nenhuma compra."
+                  : "Nenhuma compra encontrada para o período selecionado."
+                }
               </p>
             </div>
           )}
