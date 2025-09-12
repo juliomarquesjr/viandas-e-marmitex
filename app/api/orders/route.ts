@@ -43,6 +43,11 @@ export async function GET(request: Request) {
       }
     }
     
+    // Excluir pagamentos de ficha da lista de vendas
+    where.paymentMethod = {
+      not: 'ficha_payment'
+    };
+    
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,

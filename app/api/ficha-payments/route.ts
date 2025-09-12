@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
 // POST - Registrar pagamento de ficha
 export async function POST(request: Request) {
@@ -125,7 +125,15 @@ export async function GET(request: Request) {
       },
       select: {
         id: true,
-        totalCents: true
+        totalCents: true,
+        createdAt: true,
+        status: true,
+        paymentMethod: true,
+        cashReceivedCents: true,
+        changeCents: true
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
@@ -146,6 +154,45 @@ export async function GET(request: Request) {
     console.error('Error fetching customer balance:', error);
     return NextResponse.json(
       { error: 'Failed to fetch customer balance' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Excluir pagamento de ficha
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Payment ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Excluir pagamento de ficha
+    await prisma.order.delete({
+      where: { 
+        id,
+        paymentMethod: 'ficha_payment' // Ensure it's actually a ficha payment
+      }
+    });
+
+    return NextResponse.json({ message: 'Ficha payment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting ficha payment:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete ficha payment' },
       { status: 500 }
     );
   }

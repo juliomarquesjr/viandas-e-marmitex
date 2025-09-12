@@ -5,29 +5,29 @@ import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-    Banknote,
-    Check,
-    CheckCircle,
-    Clock,
-    CreditCard,
-    IdCard,
-    Package,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    Truck,
-    User,
-    Wallet,
-    X,
-    XCircle,
+  Banknote,
+  Check,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  IdCard,
+  Package,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  Truck,
+  User,
+  Wallet,
+  X,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -413,11 +413,7 @@ export default function AdminOrdersPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className={`border-b border-border hover:bg-accent/50 transition-colors ${
-                          order.paymentMethod === "ficha_payment" 
-                            ? "bg-green-50/50 hover:bg-green-100/50" 
-                            : ""
-                        }`}
+                        className="border-b border-border hover:bg-accent/50 transition-colors"
                       >
                         <td className="py-4 px-4">
                           <div className="font-mono text-sm text-muted-foreground">
@@ -451,23 +447,15 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
-                          {order.paymentMethod === "ficha_payment" ? (
-                            <div className="text-sm text-foreground font-medium">
-                              Entrada de Valores
-                            </div>
-                          ) : (
-                            <>
-                              <div className="text-sm text-foreground font-medium">
-                                {order.items.length} item
-                                {order.items.length !== 1 ? "s" : ""}
-                              </div>
-                              <div className="text-xs text-muted-foreground truncate max-w-xs">
-                                {order.items
-                                  .map((item) => item.product.name)
-                                  .join(", ")}
-                              </div>
-                            </>
-                          )}
+                          <div className="text-sm text-foreground font-medium">
+                            {order.items.length} item
+                            {order.items.length !== 1 ? "s" : ""}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate max-w-xs">
+                            {order.items
+                              .map((item) => item.product.name)
+                              .join(", ")}
+                          </div>
                         </td>
 
                         <td className="py-4 px-4">

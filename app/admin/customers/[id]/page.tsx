@@ -1,25 +1,25 @@
 "use client";
 
 import {
-    AlertCircle,
-    ArrowLeft,
-    Banknote,
-    Barcode as BarcodeIcon,
-    Clock,
-    CreditCard,
-    Download,
-    FileText,
-    IdCard,
-    MapPin,
-    Package,
-    Phone,
-    Plus,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    User,
-    Wallet
+  AlertCircle,
+  ArrowLeft,
+  Banknote,
+  Barcode as BarcodeIcon,
+  Clock,
+  CreditCard,
+  Download,
+  FileText,
+  IdCard,
+  MapPin,
+  Package,
+  Phone,
+  Plus,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  User,
+  Wallet
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,19 +27,19 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../../components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -71,6 +71,7 @@ type Order = {
       name: string;
     };
   }[];
+  type?: string; // Adicionado para identificar ficha payments
 };
 
 const statusMap = {
@@ -141,19 +142,40 @@ export default function CustomerDetailPage() {
       const customerData = await customerResponse.json();
       setCustomer(customerData);
 
-      // Carregar histórico de pedidos
+      // Carregar histórico de pedidos (excluindo ficha payments)
       const ordersResponse = await fetch(`/api/orders?customerId=${params.id}`);
       if (!ordersResponse.ok) throw new Error("Failed to fetch orders");
       const ordersData = await ordersResponse.json();
-      setOrders(ordersData.data);
+      
+      // Carregar histórico de pagamentos de ficha
+      const fichaPaymentsResponse = await fetch(`/api/ficha-payments?customerId=${params.id}`);
+      if (!fichaPaymentsResponse.ok) throw new Error("Failed to fetch ficha payments");
+      const fichaPaymentsData = await fichaPaymentsResponse.json();
 
-      // Carregar saldo devedor
-      const balanceResponse = await fetch(`/api/ficha-payments?customerId=${params.id}`);
-      if (!balanceResponse.ok) throw new Error("Failed to fetch balance");
-      const balanceData = await balanceResponse.json();
+      // Debug logging
+      console.log('Orders data:', ordersData.data);
+      console.log('Ficha payments data:', fichaPaymentsData.fichaPayments);
+
+      // Combinar pedidos e pagamentos de ficha
+      const allTransactions = [
+        ...ordersData.data,
+        ...fichaPaymentsData.fichaPayments.map((payment: any) => ({
+          ...payment,
+          items: [], // Pagamentos de ficha não têm itens
+          subtotalCents: payment.totalCents,
+          discountCents: 0,
+          deliveryFeeCents: 0,
+          status: 'confirmed', // Pagamentos de ficha são sempre confirmados
+          type: 'ficha_payment' // Adicionar tipo para identificação
+        }))
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      console.log('All transactions:', allTransactions);
+
+      setOrders(allTransactions);
 
       // Calcular estatísticas
-      calculateStats(ordersData.data, balanceData.balanceCents);
+      calculateStats(ordersData.data, fichaPaymentsData.balanceCents);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -203,6 +225,9 @@ export default function CustomerDetailPage() {
     }
 
     return orders.filter((order) => {
+      // Ensure the order has a createdAt field
+      if (!order.createdAt) return false;
+      
       const orderDate = new Date(order.createdAt);
       return orderDate >= startDate && orderDate <= endDate;
     });
@@ -221,6 +246,7 @@ export default function CustomerDetailPage() {
   // Aplicar filtros aos pedidos
   useEffect(() => {
     const filtered = filterOrdersByPeriod(orders, orderFilter);
+    console.log('Filtered orders:', filtered); // Debug logging
     setFilteredOrders(filtered);
     
     // Calcular estatísticas dos pedidos filtrados
@@ -281,16 +307,23 @@ export default function CustomerDetailPage() {
   };
 
   const deleteOrder = async (orderId: string) => {
-    if (
-      !confirm(
-        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
-      )
-    ) {
+    // Find the order to determine if it's a ficha payment
+    const orderToDelete = orders.find(order => order.id === orderId);
+    const isFichaPayment = orderToDelete?.type === "ficha_payment" || orderToDelete?.paymentMethod === "ficha_payment";
+    
+    const confirmationMessage = isFichaPayment 
+      ? "Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita."
+      : "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.";
+      
+    if (!confirm(confirmationMessage)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/orders?id=${orderId}`, {
+      // Use the appropriate API endpoint based on order type
+      const endpoint = isFichaPayment ? `/api/ficha-payments?id=${orderId}` : `/api/orders?id=${orderId}`;
+      
+      const response = await fetch(endpoint, {
         method: "DELETE",
       });
 
@@ -305,7 +338,7 @@ export default function CustomerDetailPage() {
       calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
     } catch (error) {
       console.error("Error deleting order:", error);
-      alert("Erro ao excluir venda. Por favor, tente novamente.");
+      alert("Erro ao excluir. Por favor, tente novamente.");
     }
   };
 
@@ -1279,7 +1312,7 @@ export default function CustomerDetailPage() {
                     <tr
                       key={order.id}
                       className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
-                        order.paymentMethod === "ficha_payment" 
+                        order.type === "ficha_payment" || order.paymentMethod === "ficha_payment" 
                           ? "bg-green-50/80 hover:bg-green-100/80" 
                           : ""
                       }`}
@@ -1291,7 +1324,11 @@ export default function CustomerDetailPage() {
                       </td>
 
                       <td className="py-4 px-4">
-                        {order.paymentMethod === "ficha_payment" ? (
+                        {/* Debug information - remove this in production */}
+                        {/* <div className="text-xs text-gray-500">
+                          Type: {order.type || 'N/A'}, PaymentMethod: {order.paymentMethod || 'N/A'}
+                        </div> */}
+                        {order.type === "ficha_payment" || order.paymentMethod === "ficha_payment" ? (
                           <div className="text-sm text-gray-700">
                             Entrada de Valores
                           </div>
