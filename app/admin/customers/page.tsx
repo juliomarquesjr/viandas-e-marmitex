@@ -9,16 +9,16 @@ import {
   Edit,
   MapPin,
   MoreVertical,
-  Package,
   Phone,
   Plus,
   Search,
   Trash2,
   User,
-  X,
+  X
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { CustomerFormDialog } from "../../components/CustomerFormDialog";
 import { useToast } from "../../components/Toast";
 import { AnimatedCard } from "../../components/ui/animated-card";
 import { Badge } from "../../components/ui/badge";
@@ -265,7 +265,7 @@ export default function AdminCustomersPage() {
     resetForm();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent, formData: any) => {
     e.preventDefault();
 
     // Validação básica
@@ -948,312 +948,13 @@ export default function AdminCustomersPage() {
       )}
 
       {/* Modal de Formulário */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background shadow-2xl border border-border rounded-lg">
-            <div className="border-b border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
-                  </h2>
-                  <p className="text-muted-foreground">
-                    {editingCustomer
-                      ? "Atualize as informações do cliente"
-                      : "Preencha os dados para cadastrar um novo cliente"}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeForm}
-                  className="h-8 w-8 rounded-lg hover:bg-accent"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Nome *
-                    </label>
-                    <Input
-                      placeholder="Nome completo"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Telefone *
-                    </label>
-                    <Input
-                      placeholder="(00) 00000-0000"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          phone: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Email
-                    </label>
-                    <Input
-                      type="email"
-                      placeholder="cliente@email.com"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          email: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Código de Barras
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="0123456789012"
-                        value={formData.barcode}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            barcode: e.target.value,
-                          }))
-                        }
-                        className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          // Gerar código de barras no range 1-3 (iniciando com 1, 2 ou 3)
-                          const prefix = Math.floor(Math.random() * 3) + 1; // 1, 2 ou 3
-                          const randomSuffix = Math.floor(
-                            Math.random() * 1000000000000
-                          );
-                          const randomBarcode =
-                            prefix * 1000000000000 + randomSuffix;
-                          setFormData((prev) => ({
-                            ...prev,
-                            barcode: randomBarcode.toString(),
-                          }));
-                        }}
-                        className="px-3 py-2 border-input hover:bg-accent text-xs"
-                        title="Gerar código de barras aleatório"
-                      >
-                        <Package className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Documento (CPF/CNPJ)
-                    </label>
-                    <Input
-                      placeholder="000.000.000-00"
-                      value={formData.doc}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          doc: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      CEP
-                    </label>
-                    <Input
-                      placeholder="00000-000"
-                      value={formData.zip}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          zip: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Estado
-                    </label>
-                    <Input
-                      placeholder="UF"
-                      value={formData.state}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          state: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Cidade
-                    </label>
-                    <Input
-                      placeholder="Cidade"
-                      value={formData.city}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          city: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Bairro
-                    </label>
-                    <Input
-                      placeholder="Bairro"
-                      value={formData.neighborhood}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          neighborhood: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Rua
-                    </label>
-                    <Input
-                      placeholder="Nome da rua"
-                      value={formData.street}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          street: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Número
-                    </label>
-                    <Input
-                      placeholder="Número"
-                      value={formData.number}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          number: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Complemento
-                    </label>
-                    <Input
-                      placeholder="Complemento"
-                      value={formData.complement}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          complement: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.active}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            active: e.target.checked,
-                          }))
-                        }
-                        className="peer h-6 w-11 rounded-full border-2 border-input bg-muted transition-colors checked:border-ring checked:bg-ring focus:outline-none focus:ring-0"
-                      />
-                      <span className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-background shadow-sm transition-transform peer-checked:translate-x-5"></span>
-                    </div>
-                    <span className="text-sm font-medium text-foreground">
-                      Cliente ativo
-                    </span>
-                  </label>
-                </div>
-
-                {/* Separator */}
-                <div className="border-t border-border my-6"></div>
-
-                <div className="flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeForm}
-                    className="px-6 py-2 rounded-lg border-input hover:bg-accent"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-                  >
-                    {editingCustomer ? "Atualizar" : "Cadastrar"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomerFormDialog
+        open={isFormOpen}
+        onClose={closeForm}
+        onSubmit={handleFormSubmit}
+        editingCustomer={editingCustomer}
+        initialFormData={formData}
+      />
 
       {/* Modal de Confirmação de Exclusão */}
       {deleteConfirm && (

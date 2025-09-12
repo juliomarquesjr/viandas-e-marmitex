@@ -1,28 +1,28 @@
 "use client";
 
 import {
-    Barcode,
-    Edit3,
-    FileText,
-    Image,
-    Package,
-    Tag,
-    ToggleRight,
-    Trash2,
-    Upload,
-    Wallet,
-    X,
+  Barcode,
+  Check,
+  Edit3,
+  FileText,
+  Image,
+  Package,
+  Tag,
+  Trash2,
+  Upload,
+  Wallet,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Category, Product } from "../admin/products/page";
 import { ImageCropModal } from "./ImageCropModal";
 import { Button } from "./ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -162,17 +162,18 @@ export function ProductFormDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <Card className="w-full max-w-3xl max-h-[80vh] bg-white shadow-2xl border-0 my-8 flex flex-col">
-        {/* Header fixo */}
-        <CardHeader className="border-b border-gray-200 sticky top-0 z-20 bg-white">
-          <div className="flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <Card className="w-full max-w-3xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col">
+        {/* Header with gradient and shadow */}
+        <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 sticky top-0 z-20 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+          <div className="relative flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                <Package className="h-6 w-6 text-primary" />
+              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Package className="h-5 w-5 text-orange-600" />
                 {editingProduct ? "Editar Produto" : "Novo Produto"}
               </CardTitle>
-              <CardDescription className="text-base">
+              <CardDescription className="text-gray-600 mt-1 text-sm">
                 {editingProduct
                   ? "Atualize as informações do produto"
                   : "Preencha os dados para cadastrar um novo produto"}
@@ -182,12 +183,13 @@ export function ProductFormDialog({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-10 w-10 rounded-lg hover:bg-gray-100"
+              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
         </CardHeader>
+        
         {/* Conteúdo scrollável */}
         <div className="flex-1 overflow-y-auto">
           <CardContent className="p-6">
@@ -198,28 +200,33 @@ export function ProductFormDialog({
             >
               {/* Seção Informações Básicas */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                  <Package className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-gray-800">
+                <div className="flex items-center gap-2 pb-2">
+                  <Package className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
                     Informações Básicas
                   </h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                   <div className="space-y-2">
                     <Label
                       htmlFor="name"
-                      className="text-sm font-medium text-gray-700"
+                      className="text-sm font-medium text-gray-700 flex items-center gap-1"
                     >
                       Nome do Produto <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="name"
-                      placeholder="Digite o nome do produto"
-                      value={formData.name || ""}
-                      onChange={(e) => updateFormData("name", e.target.value)}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="name"
+                        placeholder="Digite o nome do produto"
+                        value={formData.name || ""}
+                        onChange={(e) => updateFormData("name", e.target.value)}
+                        className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                        required
+                      />
+                      <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -229,30 +236,34 @@ export function ProductFormDialog({
                     >
                       Código de Barras
                     </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="barcode"
-                        placeholder="7891234567890"
-                        value={formData.barcode || ""}
-                        onChange={(e) =>
-                          updateFormData("barcode", e.target.value)
-                        }
-                        className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                      />
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
+                        <Input
+                          id="barcode"
+                          placeholder="7891234567890"
+                          value={formData.barcode || ""}
+                          onChange={(e) =>
+                            updateFormData("barcode", e.target.value)
+                          }
+                          className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                        />
+                        <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={generateRandomBarcode}
-                        className="px-3 py-2 border-gray-200 hover:bg-gray-50 text-xs"
+                        className="px-4 py-3 border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl transition-all flex items-center gap-2"
                         title="Gerar código de barras aleatório"
                       >
-                        <Barcode className="h-4 w-4" />
+                        <Package className="h-4 w-4" />
+                        <span className="hidden sm:inline">Gerar</span>
                       </Button>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label
                       htmlFor="category"
@@ -260,21 +271,24 @@ export function ProductFormDialog({
                     >
                       Categoria
                     </Label>
-                    <select
-                      id="category"
-                      value={formData.category_id || ""}
-                      onChange={(e) =>
-                        updateFormData("category_id", e.target.value)
-                      }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                    >
-                      <option value="">Selecione uma categoria</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        id="category"
+                        value={formData.category_id || ""}
+                        onChange={(e) =>
+                          updateFormData("category_id", e.target.value)
+                        }
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
+                      >
+                        <option value="">Selecione uma categoria</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -285,12 +299,12 @@ export function ProductFormDialog({
                       Preço <span className="text-red-500">*</span>
                     </Label>
                     <div className="relative">
-                      <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         id="price"
                         value={displayPrice}
                         onChange={handlePriceChange}
-                        className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
+                        className="pl-10 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all"
                         placeholder="R$ 0,00"
                       />
                     </div>
@@ -306,66 +320,47 @@ export function ProductFormDialog({
 
               {/* Seção Tipo */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                  <Tag className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-gray-800">Tipo</h3>
+                <div className="flex items-center gap-2 pb-2 mt-6">
+                  <Tag className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">Tipo</h3>
                 </div>
-
-                <div className="space-y-2">
+                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+                
+                <div className="space-y-2 mt-4">
                   <Label
                     htmlFor="productType"
                     className="text-sm font-medium text-gray-700"
                   >
                     Tipo de Produto <span className="text-red-500">*</span>
                   </Label>
-                  <select
-                    id="productType"
-                    value={formData.productType || "sellable"}
-                    onChange={(e) =>
-                      updateFormData("productType", e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-primary focus:ring-primary/20 focus:outline-none"
-                    required
-                  >
-                    <option value="sellable">Produto Vendável</option>
-                    <option value="addon">Adicional/Complemento</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      id="productType"
+                      value={formData.productType || "sellable"}
+                      onChange={(e) =>
+                        updateFormData("productType", e.target.value)
+                      }
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
+                    >
+                      <option value="sellable">Produto Vendável</option>
+                      <option value="addon">Adicional/Complemento</option>
+                    </select>
+                    <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
                 </div>
               </div>
 
               {/* Seção Estoque */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                  <Package className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-gray-800">
+                <div className="flex items-center gap-2 pb-2 mt-6">
+                  <Package className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
                     Estoque
                   </h3>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 flex items-end">
-                    <div className="flex items-center justify-between w-full">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Controle de Estoque
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!!formData.stockEnabled}
-                            onChange={(e) =>
-                              updateFormData("stockEnabled", e.target.checked)
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Ative para controlar a quantidade em estoque
-                    </p>
-                  </div>
+                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                   <div className="space-y-2">
                     <Label
                       htmlFor="stock"
@@ -373,30 +368,67 @@ export function ProductFormDialog({
                     >
                       Quantidade em Estoque
                     </Label>
-                    <Input
-                      id="stock"
-                      type="number"
-                      min="0"
-                      disabled={!formData.stockEnabled}
-                      placeholder="0"
-                      value={formData.stock || ""}
-                      onChange={(e) => updateFormData("stock", e.target.value)}
-                      className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="stock"
+                        type="number"
+                        min="0"
+                        disabled={!formData.stockEnabled}
+                        placeholder="0"
+                        value={formData.stock || ""}
+                        onChange={(e) => updateFormData("stock", e.target.value)}
+                        className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      />
+                      <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 flex items-end">
+                    <div className="w-full">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Controle de Estoque
+                      </Label>
+                      <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200 mt-2">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                            <Package className="h-5 w-5 text-orange-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">Controle Ativo</h4>
+                            <p className="text-sm text-gray-600">Gerenciar estoque</p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => updateFormData("stockEnabled", !formData.stockEnabled)}
+                          className={`relative h-6 w-11 rounded-full border-2 transition-colors ${
+                            formData.stockEnabled 
+                              ? 'border-orange-500 bg-orange-500' 
+                              : 'border-gray-300 bg-white'
+                          }`}
+                        >
+                          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                            formData.stockEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}></span>
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Seção Imagem */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                  <Image className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-gray-800">
+                <div className="flex items-center gap-2 pb-2 mt-6">
+                  <Image className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
                     Imagem do Produto
                   </h3>
                 </div>
-
-                <div className="space-y-4">
+                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+                
+                <div className="space-y-4 mt-4">
                   {formData.imageUrl ? (
                     // Image preview with edit/remove options
                     <div className="space-y-3">
@@ -404,11 +436,11 @@ export function ProductFormDialog({
                         Imagem Atual
                       </Label>
                       <div className="relative">
-                        <div className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="flex items-start gap-4 p-4 border border-orange-200 rounded-xl bg-orange-50">
                           <img
                             src={formData.imageUrl}
                             alt="Produto"
-                            className="h-24 w-24 rounded-lg object-cover border border-gray-300"
+                            className="h-24 w-24 rounded-lg object-cover border border-orange-300"
                           />
                           <div className="flex-1 space-y-2">
                             <p className="text-sm text-gray-600">
@@ -420,7 +452,7 @@ export function ProductFormDialog({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setIsCropModalOpen(true)}
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 border-orange-200 hover:bg-orange-100 text-orange-700"
                               >
                                 <Edit3 className="h-4 w-4" />
                                 Editar
@@ -430,7 +462,7 @@ export function ProductFormDialog({
                                 variant="outline"
                                 size="sm"
                                 onClick={removeImage}
-                                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="flex items-center gap-2 border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700"
                               >
                                 <Trash2 className="h-4 w-4" />
                                 Remover
@@ -446,8 +478,8 @@ export function ProductFormDialog({
                       <Label className="text-sm font-medium text-gray-700">
                         Adicionar Imagem
                       </Label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                        <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                      <div className="border-2 border-dashed border-orange-300 rounded-xl p-8 text-center hover:border-orange-500 transition-colors bg-orange-50/50">
+                        <Image className="h-12 w-12 text-orange-400 mx-auto mb-3" />
                         <h4 className="text-lg font-medium text-gray-900 mb-2">
                           Selecione uma imagem
                         </h4>
@@ -459,7 +491,7 @@ export function ProductFormDialog({
                           variant="outline"
                           onClick={() => setIsCropModalOpen(true)}
                           disabled={isUploadingImage || isUploading}
-                          className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+                          className="bg-orange-600 hover:bg-orange-700 border-orange-700 text-white hover:text-white px-4 py-3 rounded-xl"
                         >
                           {isUploadingImage || isUploading ? (
                             <>
@@ -473,7 +505,7 @@ export function ProductFormDialog({
                             </>
                           )}
                         </Button>
-                        <p className="text-xs text-gray-400 mt-3">
+                        <p className="text-xs text-orange-400 mt-3">
                           Formatos suportados: JPG, PNG, WEBP, GIF (máx. 5MB)
                         </p>
                       </div>
@@ -484,88 +516,87 @@ export function ProductFormDialog({
 
               {/* Seção Descrição */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-gray-800">
+                <div className="flex items-center gap-2 pb-2 mt-6">
+                  <FileText className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
                     Descrição
                   </h3>
                 </div>
-
-                <div className="space-y-2">
+                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+                
+                <div className="space-y-2 mt-4">
                   <Label
                     htmlFor="description"
                     className="text-sm font-medium text-gray-700"
                   >
                     Descrição Detalhada
                   </Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Descreva detalhes importantes sobre o produto"
-                    value={formData.description || ""}
-                    onChange={(e) =>
-                      updateFormData("description", e.target.value)
-                    }
-                    className="rounded-lg border-gray-200 focus:border-primary focus:ring-primary/20 min-h-[100px]"
-                  />
+                  <div className="relative">
+                    <Textarea
+                      id="description"
+                      placeholder="Descreva detalhes importantes sobre o produto"
+                      value={formData.description || ""}
+                      onChange={(e) =>
+                        updateFormData("description", e.target.value)
+                      }
+                      className="pl-4 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 min-h-[120px] shadow-sm transition-all"
+                    />
+                    <FileText className="absolute right-3 bottom-3 h-4 w-4 text-gray-400" />
+                  </div>
                 </div>
               </div>
 
               {/* Seção Status */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2">
-                  <div className="flex items-center gap-2">
-                    <ToggleRight className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Status
-                    </h3>
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Check className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">Status do Produto</h4>
+                      <p className="text-sm text-gray-600">Ative ou desative o produto</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label
-                      htmlFor="active"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Produto Ativo
-                    </Label>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        id="active"
-                        type="checkbox"
-                        checked={!!formData.active}
-                        onChange={(e) =>
-                          updateFormData("active", e.target.checked)
-                        }
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => updateFormData("active", !formData.active)}
+                    className={`relative h-6 w-11 rounded-full border-2 transition-colors ${
+                      formData.active 
+                        ? 'border-orange-500 bg-orange-500' 
+                        : 'border-gray-300 bg-white'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                      formData.active ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}></span>
+                  </Button>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Produtos inativos não aparecem no catálogo para os clientes
-                </p>
               </div>
-
-              {/* Botões de Ação - removido daqui, vai para o rodapé fixo */}
             </form>
           </CardContent>
         </div>
+        
         {/* Rodapé fixo */}
-        <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="product-form-modal"
-            className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-          >
-            {editingProduct ? "Atualizar Produto" : "Cadastrar Produto"}
-          </Button>
+        <div className="sticky bottom-0 z-20 bg-gray-50/50 border-t border-gray-200 px-6 py-6">
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="product-form-modal"
+              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              {editingProduct ? "Atualizar Produto" : "Cadastrar Produto"}
+            </Button>
+          </div>
         </div>
       </Card>
       
