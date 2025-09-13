@@ -153,15 +153,48 @@ export async function DELETE(request: Request) {
       );
     }
     
-    await prisma.customer.delete({
-      where: { id }
+    // Verificar se o cliente tem pedidos ou pré-pedidos associados
+    const [orderCount, preOrderCount] = await Promise.all([
+      prisma.order.count({ where: { customerId: id } }),
+      prisma.preOrder.count({ where: { customerId: id } })
+    ]);
+    
+    // Se o cliente tiver pedidos ou pré-pedidos, não podemos excluí-lo
+    if (orderCount > 0 || preOrderCount > 0) {
+      return NextResponse.json(
+        { 
+          error: `Não é possível excluir o cliente pois ele possui ${orderCount} pedido(s) e ${preOrderCount} pré-pedido(s) associado(s).` 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Se não tiver pedidos ou pré-pedidos, podemos excluir o cliente e todos os registros relacionados
+    await prisma.$transaction(async (prisma) => {
+      // Desativar todos os presets do cliente (em vez de excluir)
+      await prisma.customerProductPreset.updateMany({
+        where: { customerId: id },
+        data: { active: false }
+      });
+      
+      // Excluir o cliente
+      await prisma.customer.delete({
+        where: { id }
+      });
     });
     
-    return NextResponse.json({ message: 'Customer deleted successfully' });
+    return NextResponse.json({ message: 'Cliente excluído com sucesso' });
   } catch (error) {
     console.error('Error deleting customer:', error);
+    // Verificar se é um erro de constraint
+    if (error instanceof Error && error.message.includes('foreign key constraint')) {
+      return NextResponse.json(
+        { error: 'Não é possível excluir o cliente pois ele possui registros relacionados.' },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Failed to delete customer' },
+      { error: 'Falha ao excluir cliente. Verifique se o cliente possui pedidos ou pré-pedidos associados.' },
       { status: 500 }
     );
   }

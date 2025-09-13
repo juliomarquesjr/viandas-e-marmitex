@@ -4,17 +4,17 @@ import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
-  ChefHat,
-  Gauge,
-  LogOut,
-  Menu,
-  Package,
-  Receipt,
-  Settings,
-  ShoppingCart,
-  User,
-  Users,
-  X
+    ChefHat,
+    Gauge,
+    LogOut,
+    Menu,
+    Package,
+    Receipt,
+    Settings,
+    ShoppingCart,
+    User,
+    Users,
+    X
 } from "lucide-react";
 import { Session } from "next-auth";
 import { signOut, useSession } from "next-auth/react";
@@ -254,6 +254,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <NavItem href="/admin/products" icon={Package} label="Produtos" />
                 <NavItem href="/admin/customers" icon={Users} label="Clientes" />
                 <NavItem href="/admin/orders" icon={Receipt} label="Vendas" />
+                <NavItem href="/admin/pre-orders" icon={ShoppingCart} label="Pré-Pedidos" />
                 {session?.user?.role === "admin" && (
                   <NavItem href="/admin/users" icon={Users} label="Usuários" />
                 )}

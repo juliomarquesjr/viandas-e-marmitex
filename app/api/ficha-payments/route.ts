@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     // Criar um pedido especial para registrar o pagamento
     const paymentData: any = {
       customerId: body.customerId,
-      status: 'confirmed',
+      status: 'pending',
       subtotalCents: body.amountCents,
       discountCents: 0,
       deliveryFeeCents: 0,
@@ -180,6 +180,21 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // Verificar se o pagamento existe e é realmente um pagamento de ficha
+    const payment = await prisma.order.findUnique({
+      where: { 
+        id,
+        paymentMethod: 'ficha_payment'
+      }
+    });
+
+    if (!payment) {
+      return NextResponse.json(
+        { error: 'Ficha payment not found or not a valid ficha payment' },
+        { status: 404 }
+      );
+    }
+
     // Excluir pagamento de ficha
     await prisma.order.delete({
       where: { 
@@ -191,6 +206,13 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message: 'Ficha payment deleted successfully' });
   } catch (error) {
     console.error('Error deleting ficha payment:', error);
+    // Verificar se é um erro de constraint
+    if (error instanceof Error && error.message.includes('foreign key constraint')) {
+      return NextResponse.json(
+        { error: 'Não é possível excluir o pagamento pois ele possui registros relacionados.' },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to delete ficha payment' },
       { status: 500 }

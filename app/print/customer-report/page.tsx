@@ -236,7 +236,7 @@ function CustomerReportContent() {
           RELATÓRIO DE FECHAMENTO
         </h1>
         <div className="text-base font-medium text-gray-600 mb-2">
-          Viandas e Marmitex
+          Comida Caseira
         </div>
         <div className="flex justify-center items-center gap-4 text-xs text-gray-500">
           <span>Período: {formatDate(period.startDate)} a {formatDate(period.endDate)}</span>

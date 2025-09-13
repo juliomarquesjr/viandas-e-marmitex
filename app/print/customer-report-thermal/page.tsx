@@ -231,7 +231,7 @@ function CustomerReportThermalContent() {
       {/* Header - Thermal Style */}
       <div className="thermal-header">
         <div className="thermal-title">
-          VIANDAS E MARMITEX
+          COMIDA CASEIRA
         </div>
         <div className="thermal-subtitle">
           RESUMO DE CLIENTE

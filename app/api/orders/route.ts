@@ -365,6 +365,18 @@ export async function DELETE(request: Request) {
       );
     }
     
+    // Verificar se o pedido existe
+    const order = await prisma.order.findUnique({
+      where: { id }
+    });
+    
+    if (!order) {
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+    
     // Excluir itens primeiro (devido à restrições de chave estrangeira)
     await prisma.orderItem.deleteMany({
       where: { orderId: id }
@@ -378,6 +390,13 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message: 'Order deleted successfully' });
   } catch (error) {
     console.error('Error deleting order:', error);
+    // Verificar se é um erro de constraint
+    if (error instanceof Error && error.message.includes('foreign key constraint')) {
+      return NextResponse.json(
+        { error: 'Não é possível excluir o pedido pois ele possui registros relacionados.' },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to delete order' },
       { status: 500 }

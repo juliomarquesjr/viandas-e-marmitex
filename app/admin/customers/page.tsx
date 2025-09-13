@@ -178,6 +178,7 @@ export default function AdminCustomersPage() {
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Carregar clientes
   const loadCustomers = async () => {
@@ -377,11 +378,22 @@ export default function AdminCustomersPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete customer");
+      const result = await response.json();
+      
+      if (!response.ok) {
+        // Se houver um erro específico da API, mostramos a mensagem
+        throw new Error(result.error || "Failed to delete customer");
+      }
+      
+      // Se a exclusão for bem-sucedida, atualizamos a lista
       setCustomers((prev) => prev.filter((c) => c.id !== id));
       setDeleteConfirm(null);
+      setDeleteError(null);
+      showToast("Cliente excluído com sucesso!", "success");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete customer");
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete customer";
+      setDeleteError(errorMessage);
+      showToast(errorMessage, "error");
     }
   };
 
@@ -971,13 +983,21 @@ export default function AdminCustomersPage() {
                 Tem certeza que deseja remover este cliente? Esta ação não pode
                 ser desfeita.
               </p>
+              {deleteError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {deleteError}
+                </div>
+              )}
             </div>
 
             <div className="p-6">
               <div className="flex justify-end gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => setDeleteConfirm(null)}
+                  onClick={() => {
+                    setDeleteConfirm(null);
+                    setDeleteError(null);
+                  }}
                   className="px-6 py-2 rounded-lg border-input hover:bg-accent"
                 >
                   Cancelar
@@ -999,10 +1019,10 @@ export default function AdminCustomersPage() {
       <ConfirmDialog
         open={isConfirmOpen}
         onOpenChange={setIsConfirmOpen}
-        title="Aviso Importante"
+        title="Confirmação"
         description={confirmMessage}
         onConfirm={handleConfirmAction}
-        confirmText="Continuar"
+        confirmText="OK"
         cancelText="Cancelar"
       />
     </div>

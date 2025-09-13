@@ -1,25 +1,25 @@
 "use client";
 
 import {
-  AlertCircle,
-  ArrowLeft,
-  Banknote,
-  Barcode as BarcodeIcon,
-  Clock,
-  CreditCard,
-  Download,
-  FileText,
-  IdCard,
-  MapPin,
-  Package,
-  Phone,
-  Plus,
-  Printer,
-  QrCode,
-  Receipt,
-  Trash2,
-  User,
-  Wallet
+    AlertCircle,
+    ArrowLeft,
+    Banknote,
+    Barcode as BarcodeIcon,
+    Clock,
+    CreditCard,
+    Download,
+    FileText,
+    IdCard,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    User,
+    Wallet
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,19 +27,19 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../../components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -331,7 +331,8 @@ export default function CustomerDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete order");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete order");
       }
 
       // Remover o pedido da lista
@@ -339,9 +340,11 @@ export default function CustomerDetailPage() {
 
       // Recalcular estatísticas
       calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
+      
+      alert(isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!");
     } catch (error) {
       console.error("Error deleting order:", error);
-      alert("Erro ao excluir. Por favor, tente novamente.");
+      alert(`Erro ao excluir: ${(error as Error).message || "Por favor, tente novamente."}`);
     }
   };
 

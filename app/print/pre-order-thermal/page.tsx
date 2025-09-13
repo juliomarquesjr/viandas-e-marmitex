@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
-type OrderItem = {
+type PreOrderItem = {
   id: string;
   quantity: number;
   priceCents: number;
@@ -13,17 +13,14 @@ type OrderItem = {
   };
 };
 
-type Order = {
+type PreOrder = {
   id: string;
-  status: string;
   subtotalCents: number;
   discountCents: number;
   totalCents: number;
-  paymentMethod: string | null;
+  notes: string | null;
   createdAt: string;
-  cashReceivedCents?: number;
-  changeCents?: number;
-  items: OrderItem[];
+  items: PreOrderItem[];
   customer?: {
     id: string;
     name: string;
@@ -31,32 +28,32 @@ type Order = {
   };
 };
 
-function ThermalReceiptContent() {
+function PreOrderThermalContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const preOrderId = searchParams.get('preOrderId');
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadOrder = async () => {
-      if (!orderId) {
-        setError('ID do pedido não fornecido');
+    const loadPreOrder = async () => {
+      if (!preOrderId) {
+        setError('ID do pré-pedido não fornecido');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        const response = await fetch(`/api/orders/${orderId}`);
+        const response = await fetch(`/api/pre-orders?id=${preOrderId}`);
 
         if (!response.ok) {
-          throw new Error('Falha ao carregar pedido');
+          throw new Error('Falha ao carregar pré-pedido');
         }
 
         const data = await response.json();
-        setOrder(data);
+        setPreOrder(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
       } finally {
@@ -64,18 +61,18 @@ function ThermalReceiptContent() {
       }
     };
 
-    loadOrder();
-  }, [orderId]);
+    loadPreOrder();
+  }, [preOrderId]);
 
   // Auto print when page loads
   useEffect(() => {
-    if (order && !loading && !error) {
+    if (preOrder && !loading && !error) {
       // Small delay to ensure content is rendered
       setTimeout(() => {
         window.print();
       }, 500);
     }
-  }, [order, loading, error]);
+  }, [preOrder, loading, error]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -94,17 +91,6 @@ function ThermalReceiptContent() {
     });
   };
 
-  const getPaymentMethodLabel = (method: string | null) => {
-    const methodMap: { [key: string]: string } = {
-      'cash': 'Dinheiro',
-      'credit': 'Cartão Crédito',
-      'debit': 'Cartão Débito',
-      'pix': 'PIX',
-      'invoice': 'Ficha do Cliente'
-    };
-    return method ? methodMap[method] || method : 'Não informado';
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -115,12 +101,12 @@ function ThermalReceiptContent() {
     );
   }
 
-  if (error || !order) {
+  if (error || !preOrder) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-red-600">
           <div className="text-sm mb-2">Erro ao carregar</div>
-          <div className="text-xs">{error || 'Pedido não encontrado'}</div>
+          <div className="text-xs">{error || 'Pré-pedido não encontrado'}</div>
         </div>
       </div>
     );
@@ -134,37 +120,37 @@ function ThermalReceiptContent() {
           COMIDA CASEIRA
         </div>
         <div className="thermal-subtitle">
-          CUPOM NÃO FISCAL
+          PRÉ-PEDIDO
         </div>
         <div className="thermal-date">
-          {formatDateTime(order.createdAt)}
+          {formatDateTime(preOrder.createdAt)}
         </div>
       </div>
 
       {/* Customer Info */}
-      {order.customer && (
+      {preOrder.customer && (
         <div className="thermal-section">
           <div className="thermal-section-title">
             CLIENTE:
           </div>
           <div className="thermal-text">
-            {order.customer.name}
+            {preOrder.customer.name}
           </div>
-          {order.customer.phone && (
+          {preOrder.customer.phone && (
             <div className="thermal-text">
-              Tel: {order.customer.phone}
+              Tel: {preOrder.customer.phone}
             </div>
           )}
         </div>
       )}
 
-      {/* Order Items */}
+      {/* PreOrder Items */}
       <div className="thermal-section">
         <div className="thermal-section-title">
           ITENS:
         </div>
         
-        {order.items.map((item, index) => (
+        {preOrder.items.map((item, index) => (
           <div key={item.id} className="thermal-item">
             <div className="thermal-item-header">
               <span className="thermal-item-name">
@@ -181,7 +167,7 @@ function ThermalReceiptContent() {
               </span>
             </div>
             
-            {index < order.items.length - 1 && (
+            {index < preOrder.items.length - 1 && (
               <div className="thermal-divider"></div>
             )}
           </div>
@@ -197,15 +183,15 @@ function ThermalReceiptContent() {
         <div className="thermal-row">
           <span>Subtotal:</span>
           <span className="thermal-value">
-            {formatCurrency(order.subtotalCents)}
+            {formatCurrency(preOrder.subtotalCents)}
           </span>
         </div>
         
-        {order.discountCents > 0 && (
+        {preOrder.discountCents > 0 && (
           <div className="thermal-row">
             <span>Desconto:</span>
             <span className="thermal-value">
-              -{formatCurrency(order.discountCents)}
+              -{formatCurrency(preOrder.discountCents)}
             </span>
           </div>
         )}
@@ -213,47 +199,26 @@ function ThermalReceiptContent() {
         <div className="thermal-row thermal-total">
           <span>TOTAL:</span>
           <span className="thermal-value">
-            {formatCurrency(order.totalCents)}
+            {formatCurrency(preOrder.totalCents)}
           </span>
         </div>
       </div>
 
-      {/* Payment Info */}
-      <div className="thermal-section">
-        <div className="thermal-section-title">
-          PAGAMENTO:
+      {/* Notes */}
+      {preOrder.notes && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">
+            OBSERVAÇÕES:
+          </div>
+          <div className="thermal-text">
+            {preOrder.notes}
+          </div>
         </div>
-        
-        <div className="thermal-row">
-          <span>Forma:</span>
-          <span className="thermal-value">
-            {getPaymentMethodLabel(order.paymentMethod)}
-          </span>
-        </div>
-        
-        {order.paymentMethod === 'cash' && order.cashReceivedCents && (
-          <>
-            <div className="thermal-row">
-              <span>Recebido:</span>
-              <span className="thermal-value">
-                {formatCurrency(order.cashReceivedCents)}
-              </span>
-            </div>
-            {order.changeCents && order.changeCents > 0 && (
-              <div className="thermal-row">
-                <span>Troco:</span>
-                <span className="thermal-value">
-                  {formatCurrency(order.changeCents)}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       {/* Footer */}
       <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '12px', color: '#333'}}>Pedido #{order.id.slice(-8).toUpperCase()}</div>
+        <div style={{fontWeight: '900', fontSize: '12px', color: '#333'}}>Pré-Pedido #{preOrder.id.slice(-8).toUpperCase()}</div>
         <div className="thermal-separator">
           ================================
         </div>
@@ -442,7 +407,7 @@ function ThermalReceiptContent() {
   );
 }
 
-export default function ThermalReceiptPage() {
+export default function PreOrderThermalPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
@@ -451,7 +416,7 @@ export default function ThermalReceiptPage() {
         </div>
       </div>
     }>
-      <ThermalReceiptContent />
+      <PreOrderThermalContent />
     </Suspense>
   );
 }
