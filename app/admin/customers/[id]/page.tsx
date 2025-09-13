@@ -254,7 +254,10 @@ export default function CustomerDetailPage() {
       .filter((order) => order.status === "pending")
       .reduce((sum, order) => sum + order.totalCents, 0);
     
-    const totalOrders = filtered.length;
+    // Contar apenas pedidos regulares, não incluir pagamentos de ficha
+    const totalOrders = filtered.filter(order => 
+      !(order.type === "ficha_payment" || order.paymentMethod === "ficha_payment")
+    ).length;
     
     setFilteredStats({
       pendingAmount,
@@ -1236,7 +1239,7 @@ export default function CustomerDetailPage() {
                 Histórico de Compras
               </CardTitle>
               <CardDescription>
-                {filteredOrders.length} de {orders.length} compra{filteredOrders.length !== 1 ? "s" : ""} exibida{filteredOrders.length !== 1 ? "s" : ""}
+                {filteredOrders.length} de {orders.filter(order => !(order.type === "ficha_payment" || order.paymentMethod === "ficha_payment")).length} compra{filteredOrders.length !== 1 ? "s" : ""} exibida{filteredOrders.length !== 1 ? "s" : ""}
               </CardDescription>
             </div>
             
