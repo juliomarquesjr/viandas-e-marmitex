@@ -111,36 +111,34 @@ export function PreOrderPaymentDialog({
 
   // Handle discount input change and convert to cents
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    // Aplicar máscara monetária para valor
+    let value = e.target.value;
     
-    // Allow only numbers, comma, and decimal point
-    const cleanValue = value.replace(/[^\d,.]/g, '');
+    // Remove tudo que não é dígito
+    value = value.replace(/\D/g, '');
     
-    // Ensure only one decimal separator
-    let formattedValue = cleanValue;
-    const commaCount = (cleanValue.match(/,/g) || []).length;
-    const dotCount = (cleanValue.match(/\./g) || []).length;
+    // Converte para número (centavos)
+    let numValue = parseInt(value || '0');
     
-    if (commaCount > 1 || dotCount > 1) {
-      return; // Don't update if multiple separators
-    }
+    // Converte centavos para reais
+    let realValue = numValue / 100;
     
-    // Handle both comma and dot as decimal separators
-    if (commaCount === 1 || dotCount === 1) {
-      const parts = cleanValue.split(/[,\.]/);
-      if (parts[1] && parts[1].length > 2) {
-        // Limit to 2 decimal places
-        formattedValue = parts[0] + (commaCount ? ',' : '.') + parts[1].substring(0, 2);
-      }
-    }
+    // Formata como moeda brasileira
+    let formattedValue = realValue.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    });
+    
+    // Remove o símbolo R$ para exibir apenas o valor
+    formattedValue = formattedValue.replace('R$\u00A0', '');
     
     // Update the input state
     setDiscountInput(formattedValue);
     
     // Convert to number for validation
-    const numericValue = parseFloat(formattedValue.replace(',', '.') || "0");
     const maxDiscount = preOrder.subtotalCents / 100;
-    const discountCents = Math.round(Math.min(numericValue, maxDiscount) * 100);
+    const discountCents = Math.round(Math.min(realValue, maxDiscount) * 100);
     
     setLocalDiscountCents(discountCents);
   };
@@ -401,27 +399,27 @@ export function PreOrderPaymentDialog({
                             disabled={isConverting}
                             value={cashReceived}
                             onChange={(e) => {
-                              const value = e.target.value;
-                              // Allow only numbers, comma, and decimal point
-                              const cleanValue = value.replace(/[^\d,.]/g, '');
+                              // Aplicar máscara monetária para valor
+                              let value = e.target.value;
                               
-                              // Ensure only one decimal separator
-                              const commaCount = (cleanValue.match(/,/g) || []).length;
-                              const dotCount = (cleanValue.match(/\./g) || []).length;
+                              // Remove tudo que não é dígito
+                              value = value.replace(/\D/g, '');
                               
-                              if (commaCount > 1 || dotCount > 1) {
-                                return; // Don't update if multiple separators
-                              }
+                              // Converte para número (centavos)
+                              let numValue = parseInt(value || '0');
                               
-                              // Handle both comma and dot as decimal separators
-                              let formattedValue = cleanValue;
-                              if (commaCount === 1 || dotCount === 1) {
-                                const parts = cleanValue.split(/[,\.]/);
-                                if (parts[1] && parts[1].length > 2) {
-                                  // Limit to 2 decimal places
-                                  formattedValue = parts[0] + (commaCount ? ',' : '.') + parts[1].substring(0, 2);
-                                }
-                              }
+                              // Converte centavos para reais
+                              let realValue = numValue / 100;
+                              
+                              // Formata como moeda brasileira
+                              let formattedValue = realValue.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                                minimumFractionDigits: 2
+                              });
+                              
+                              // Remove o símbolo R$ para exibir apenas o valor
+                              formattedValue = formattedValue.replace('R$\u00A0', '');
                               
                               setCashReceived(formattedValue);
                               e.target.value = formattedValue;
