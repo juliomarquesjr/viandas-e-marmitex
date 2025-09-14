@@ -360,7 +360,7 @@ export default function AdminPreOrdersPage() {
       // If there's a discount change, we need to update the pre-order first
       if (discountCents !== selectedPreOrder.discountCents) {
         // Update the pre-order with the new discount
-        const updateResponse = await fetch(`/api/pre-orders/${selectedPreOrder.id}`, {
+        const updateResponse = await fetch(`/api/pre-orders`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

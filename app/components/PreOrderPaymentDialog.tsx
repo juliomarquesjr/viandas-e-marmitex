@@ -2,24 +2,24 @@
 
 import { Button } from "@/app/components/ui/button";
 import {
-  CardContent,
-  CardDescription,
-  CardTitle
+    CardContent,
+    CardDescription,
+    CardTitle
 } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { motion } from "framer-motion";
 import {
-  AlertCircle,
-  Banknote,
-  CreditCard,
-  Package,
-  QrCode,
-  Receipt,
-  Tag,
-  User,
-  Wallet,
-  X
+    AlertCircle,
+    Banknote,
+    CreditCard,
+    Package,
+    QrCode,
+    Receipt,
+    Tag,
+    User,
+    Wallet,
+    X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "./Toast";
@@ -76,6 +76,7 @@ export function PreOrderPaymentDialog({
   const [cashReceived, setCashReceived] = useState("");
   const [change, setChange] = useState(0);
   const [localDiscountCents, setLocalDiscountCents] = useState(preOrder.discountCents);
+  const [discountInput, setDiscountInput] = useState("");
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -84,6 +85,10 @@ export function PreOrderPaymentDialog({
       setCashReceived("");
       setChange(0);
       setLocalDiscountCents(preOrder.discountCents);
+      setDiscountInput((preOrder.discountCents / 100).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }));
     }
   }, [open, preOrder.discountCents]);
 
@@ -129,13 +134,15 @@ export function PreOrderPaymentDialog({
       }
     }
     
+    // Update the input state
+    setDiscountInput(formattedValue);
+    
     // Convert to number for validation
-    const numericValue = parseFloat(formattedValue.replace(',', '.')) || 0;
+    const numericValue = parseFloat(formattedValue.replace(',', '.') || "0");
     const maxDiscount = preOrder.subtotalCents / 100;
     const discountCents = Math.round(Math.min(numericValue, maxDiscount) * 100);
     
     setLocalDiscountCents(discountCents);
-    e.target.value = formattedValue;
   };
 
   const handleConfirm = () => {
@@ -307,10 +314,7 @@ export function PreOrderPaymentDialog({
                       type="text"
                       inputMode="decimal"
                       disabled={isConverting}
-                      defaultValue={(localDiscountCents / 100).toLocaleString('pt-BR', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
+                      value={discountInput}
                       onChange={handleDiscountChange}
                       className="pl-8 py-1.5 rounded-md border-gray-300 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="0,00"
