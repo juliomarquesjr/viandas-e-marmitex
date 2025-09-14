@@ -2,25 +2,26 @@
 
 import { Button } from "@/app/components/ui/button";
 import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+    CardContent,
+    CardDescription,
+    CardTitle
 } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { motion } from "framer-motion";
 import {
-  Banknote,
-  CreditCard,
-  QrCode,
-  Wallet,
-  X,
-  User,
-  Tag,
-  AlertCircle
+    AlertCircle,
+    Banknote,
+    CreditCard,
+    Package,
+    QrCode,
+    Receipt,
+    Tag,
+    User,
+    Wallet,
+    X
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Define the PreOrder type to match the one used in the page
 type PreOrder = {
@@ -99,6 +100,40 @@ export function PreOrderPaymentDialog({
     }).format(cents / 100);
   };
 
+  // Handle discount input change and convert to cents
+  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Allow only numbers, comma, and decimal point
+    const cleanValue = value.replace(/[^\d,.]/g, '');
+    
+    // Ensure only one decimal separator
+    let formattedValue = cleanValue;
+    const commaCount = (cleanValue.match(/,/g) || []).length;
+    const dotCount = (cleanValue.match(/\./g) || []).length;
+    
+    if (commaCount > 1 || dotCount > 1) {
+      return; // Don't update if multiple separators
+    }
+    
+    // Handle both comma and dot as decimal separators
+    if (commaCount === 1 || dotCount === 1) {
+      const parts = cleanValue.split(/[,\.]/);
+      if (parts[1] && parts[1].length > 2) {
+        // Limit to 2 decimal places
+        formattedValue = parts[0] + (commaCount ? ',' : '.') + parts[1].substring(0, 2);
+      }
+    }
+    
+    // Convert to number for validation
+    const numericValue = parseFloat(formattedValue.replace(',', '.')) || 0;
+    const maxDiscount = preOrder.subtotalCents / 100;
+    const discountCents = Math.round(Math.min(numericValue, maxDiscount) * 100);
+    
+    setLocalDiscountCents(discountCents);
+    e.target.value = formattedValue;
+  };
+
   const handleConfirm = () => {
     // Validate cash payment if selected
     if (selectedPaymentMethod === "cash") {
@@ -120,22 +155,34 @@ export function PreOrderPaymentDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={(e) => {
+        // Close modal when clicking on the backdrop (outside the modal content)
+        if (e.target === e.currentTarget) {
+          onOpenChange(false);
+        }
+      }}
+    >
       <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-4xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-3xl bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
       >
-        {/* Header with gradient and shadow */}
-        <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 sticky top-0 z-20 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+        {/* Header with gradient */}
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-4 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2ZmZiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-10"></div>
           <div className="relative flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-orange-600" />
-                Converter Pré-Pedido em Venda
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="p-1.5 bg-white/20 rounded-md">
+                  <Wallet className="h-5 w-5 text-white" />
+                </div>
+                Converter em Venda
               </CardTitle>
-              <CardDescription className="text-gray-600 mt-1 text-sm">
+              <CardDescription className="text-orange-100 text-xs mt-0.5">
                 Selecione a forma de pagamento e confirme a conversão
               </CardDescription>
             </div>
@@ -143,167 +190,181 @@ export function PreOrderPaymentDialog({
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
-              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
+              className="h-8 w-8 rounded-full text-white hover:bg-white/20"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
+        </div>
         
-        {/* Scrollable content */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Order Summary */}
-              <div className="bg-orange-50 rounded-xl p-6 border border-orange-200">
-                <h3 className="text-lg font-semibold text-orange-800 mb-4">
-                  Resumo do Pré-Pedido
-                </h3>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Left Column - Order Summary */}
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <div className="p-1.5 bg-orange-100 rounded-md">
+                    <Receipt className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <h3 className="text-base font-semibold text-orange-900">Resumo do Pedido</h3>
+                </div>
                 
                 {/* Customer Info */}
                 {preOrder.customer && (
                   <div className="mb-4 p-3 bg-white rounded-lg border border-orange-200">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-orange-600" />
-                      <span className="font-medium text-orange-900">
-                        {preOrder.customer.name}
-                      </span>
-                    </div>
-                    <div className="text-sm text-orange-700 mt-1">
-                      {preOrder.customer.phone}
+                      <div className="p-1.5 bg-orange-100 rounded-md">
+                        <User className="h-4 w-4 text-orange-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-orange-900 text-sm">{preOrder.customer.name}</div>
+                        <div className="text-orange-700 text-xs">{preOrder.customer.phone}</div>
+                      </div>
                     </div>
                   </div>
                 )}
                 
                 {/* Items */}
-                <div className="space-y-3 mb-4">
-                  <h4 className="font-medium text-orange-900">Itens:</h4>
-                  {preOrder.items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded-lg border border-orange-100">
-                      <div>
-                        <div className="font-medium text-sm">{item.product.name}</div>
-                        <div className="text-xs text-orange-700">
-                          {item.quantity} x {formatCurrency(item.priceCents)}
+                <div className="space-y-2.5 mb-4">
+                  <h4 className="font-medium text-orange-800 flex items-center gap-1.5 text-sm">
+                    <Package className="h-3.5 w-3.5" />
+                    Itens do Pedido
+                  </h4>
+                  <div className="space-y-1.5">
+                    {preOrder.items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded-md border border-orange-100 text-sm">
+                        <div>
+                          <div className="font-medium text-orange-900">{item.product.name}</div>
+                          <div className="text-xs text-orange-600">
+                            {item.quantity} x {formatCurrency(item.priceCents)}
+                          </div>
+                        </div>
+                        <div className="font-medium text-orange-900">
+                          {formatCurrency(item.quantity * item.priceCents)}
                         </div>
                       </div>
-                      <div className="font-medium">
-                        {formatCurrency(item.quantity * item.priceCents)}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
                 
                 {/* Totals */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-orange-700">Subtotal:</span>
-                    <span className="font-medium">{formatCurrency(preOrder.subtotalCents)}</span>
-                  </div>
-                  
-                  {localDiscountCents > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-orange-700">Desconto:</span>
-                      <span className="font-medium text-red-600">
-                        -{formatCurrency(localDiscountCents)}
-                      </span>
+                <div className="bg-white rounded-lg p-3 border border-orange-200">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-orange-700">Subtotal:</span>
+                      <span className="font-medium">{formatCurrency(preOrder.subtotalCents)}</span>
                     </div>
-                  )}
-                  
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-orange-200">
-                    <span className="text-orange-900">Total:</span>
-                    <span className="text-orange-900">{formatCurrency(preOrder.subtotalCents - localDiscountCents)}</span>
+                    
+                    {localDiscountCents > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-orange-700">Desconto:</span>
+                        <span className="font-medium text-red-600">
+                          -{formatCurrency(localDiscountCents)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between text-base font-bold pt-2 border-t border-orange-200">
+                      <span className="text-orange-900">Total:</span>
+                      <span className="text-orange-900">{formatCurrency(preOrder.subtotalCents - localDiscountCents)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
               
-              {/* Payment Options */}
+              {/* Right Column - Payment Options and Details */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Forma de Pagamento
-                </h3>
-                
                 {/* Discount Input */}
-                <div className="mb-6">
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                <div className="mb-4">
+                  <Label className="text-xs font-semibold text-gray-900 mb-1 block flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-amber-600" />
                     Desconto (R$)
                   </Label>
                   <div className="relative">
                     <Input
-                      type="number"
-                      min="0"
-                      max={preOrder.subtotalCents / 100}
-                      step="0.01"
-                      value={localDiscountCents / 100}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value || "0");
-                        const maxDiscount = preOrder.subtotalCents / 100;
-                        const discountCents = Math.round(Math.min(value, maxDiscount) * 100);
-                        setLocalDiscountCents(discountCents);
-                      }}
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      type="text"
+                      inputMode="decimal"
+                      defaultValue={(localDiscountCents / 100).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                      onChange={handleDiscountChange}
+                      className="pl-8 py-1.5 rounded-md border-gray-300 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all text-sm"
+                      placeholder="0,00"
                     />
-                    <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <div className="absolute left-2 top-1/2 transform -translate-y-1/2 p-1 bg-amber-100 rounded-md">
+                      <Tag className="h-3.5 w-3.5 text-amber-600" />
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Desconto aplicado ao valor total do pedido
+                    Desconto aplicado ao valor total
                   </p>
                 </div>
                 
                 {/* Payment Methods */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  {paymentMethods.map((method) => {
-                    const Icon = method.icon;
-                    return (
-                      <Button
-                        key={method.value}
-                        variant={
-                          selectedPaymentMethod === method.value ? "default" : "outline"
-                        }
-                        className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md bg-white border-gray-200"
-                        onClick={() => {
-                          setSelectedPaymentMethod(method.value);
-                          // Reset cash fields when changing payment method
-                          if (method.value !== "cash") {
-                            setCashReceived("");
-                            setChange(0);
+                <div className="mb-4">
+                  <Label className="text-xs font-semibold text-gray-900 mb-2 block flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-blue-600" />
+                    Forma de Pagamento
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentMethods.map((method) => {
+                      const Icon = method.icon;
+                      return (
+                        <Button
+                          key={method.value}
+                          variant={
+                            selectedPaymentMethod === method.value ? "default" : "outline"
                           }
-                        }}
-                      >
-                        <Icon className="h-6 w-6" />
-                        <span className="text-sm font-medium">{method.label}</span>
-                      </Button>
-                    );
-                  })}
+                          className={`h-16 flex flex-col items-center justify-center gap-1.5 py-2 rounded-lg transition-all duration-200 ${
+                            selectedPaymentMethod === method.value 
+                              ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg" 
+                              : "bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm"
+                          }`}
+                          onClick={() => {
+                            setSelectedPaymentMethod(method.value);
+                            // Reset cash fields when changing payment method
+                            if (method.value !== "cash") {
+                              setCashReceived("");
+                              setChange(0);
+                            }
+                          }}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="text-xs font-medium">{method.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
                 
-                {/* Cash Payment Details */}
+                {/* Payment Details (appears to the right when a method is selected) */}
                 {selectedPaymentMethod === "cash" && (
-                  <div className="bg-muted rounded-xl p-5 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h4 className="text-lg font-semibold mb-4">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                      <Banknote className="h-4 w-4 text-blue-600" />
                       Pagamento em Dinheiro
                     </h4>
 
-                    <div className="space-y-5">
-                      <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-                        <span className="text-muted-foreground">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-2 bg-white rounded-md border border-blue-200">
+                        <span className="text-blue-800 font-medium text-sm">
                           Valor Total
                         </span>
-                        <span className="text-xl font-bold">
+                        <span className="text-base font-bold text-blue-900">
                           {formatCurrency(preOrder.subtotalCents - localDiscountCents)}
                         </span>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label
                           htmlFor="cashReceived"
-                          className="text-sm font-medium"
+                          className="text-xs font-medium text-blue-900"
                         >
-                          Valor Recebido
+                          Valor Recebido (R$)
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                            R$
-                          </span>
                           <Input
                             id="cashReceived"
                             type="number"
@@ -329,16 +390,17 @@ export function PreOrderPaymentDialog({
                               }
                             }}
                             placeholder="0,00"
-                            className="pl-10 text-lg h-12"
+                            className="pl-8 text-sm h-9 rounded-md border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
                           />
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
-                        <span className="text-green-800 font-medium">
+                      <div className="flex justify-between items-center p-2 rounded-md bg-green-100 border border-green-200">
+                        <span className="text-green-800 font-medium flex items-center gap-1 text-sm">
+                          <QrCode className="h-3.5 w-3.5" />
                           Troco
                         </span>
-                        <span className="text-xl font-bold text-green-900">
+                        <span className="text-base font-bold text-green-900">
                           {formatCurrency(change * 100)}
                         </span>
                       </div>
@@ -346,13 +408,11 @@ export function PreOrderPaymentDialog({
                       {cashReceived &&
                         parseFloat(cashReceived) > 0 &&
                         (parseFloat(cashReceived) < ((preOrder.subtotalCents - localDiscountCents) / 100)) && (
-                          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                              <span>
-                                O valor recebido é menor que o valor total.
-                              </span>
-                            </div>
+                          <div className="rounded-md bg-red-50 p-2 text-xs text-red-700 border border-red-200 flex items-center gap-1">
+                            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>
+                              Valor recebido insuficiente
+                            </span>
                           </div>
                         )}
                     </div>
@@ -361,49 +421,51 @@ export function PreOrderPaymentDialog({
                 
                 {/* Ficha do Cliente Info */}
                 {selectedPaymentMethod === "ficha_payment" && preOrder.customer && (
-                  <div className="bg-blue-50 rounded-xl p-5 h-full border border-blue-200 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h4 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <User className="h-5 w-5" />
+                  <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <h4 className="text-base font-semibold mb-2.5 flex items-center gap-1.5">
+                      <User className="h-4 w-4 text-indigo-600" />
                       Ficha do Cliente
                     </h4>
-                    <div className="text-sm text-blue-800">
-                      <div className="space-y-3">
-                        <p>
-                          Esta venda será lançada na ficha de{" "}
-                          <span className="font-bold">
-                            {preOrder.customer.name}
-                          </span>
-                          .
-                        </p>
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                          <p className="font-medium">
-                            Informações do Cliente:
-                          </p>
-                          <p className="mt-1">{preOrder.customer.phone}</p>
+                    <div className="p-3 bg-white rounded-lg border border-indigo-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 bg-indigo-100 rounded-md">
+                          <User className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-indigo-900 text-sm">{preOrder.customer.name}</div>
+                          <div className="text-indigo-700 text-xs">{preOrder.customer.phone}</div>
                         </div>
                       </div>
+                      <p className="text-indigo-800 text-xs">
+                        Esta venda será lançada na ficha do cliente. Confirme os dados e clique em "Confirmar" para concluir.
+                      </p>
                     </div>
                   </div>
                 )}
                 
                 {/* Other Payment Methods Info */}
                 {selectedPaymentMethod && selectedPaymentMethod !== "cash" && selectedPaymentMethod !== "ficha_payment" && (
-                  <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="mb-3 p-3 bg-background rounded-full">
-                      {(() => {
-                        const method = paymentMethods.find((m) => m.value === selectedPaymentMethod);
-                        const Icon = method?.icon || Wallet;
-                        return <Icon className="h-8 w-8 text-primary" />;
-                      })()} 
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="text-center">
+                      <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 border border-gray-200">
+                        {(() => {
+                          const method = paymentMethods.find((m) => m.value === selectedPaymentMethod);
+                          const Icon = method?.icon || Wallet;
+                          return <Icon className="h-5 w-5 text-gray-600" />;
+                        })()} 
+                      </div>
+                      <h4 className="text-base font-semibold mb-1.5">
+                        {paymentMethods.find(m => m.value === selectedPaymentMethod)?.label}
+                      </h4>
+                      <div className="p-3 bg-white rounded-lg border border-gray-200 inline-block">
+                        <p className="text-gray-700 text-sm">
+                          O valor total é <span className="font-bold">{formatCurrency(preOrder.subtotalCents - localDiscountCents)}</span>
+                        </p>
+                      </div>
+                      <p className="text-gray-600 text-xs mt-2">
+                        Confirme os dados e clique em "Confirmar" para concluir.
+                      </p>
                     </div>
-                    <h4 className="text-lg font-semibold mb-2">
-                      {paymentMethods.find(m => m.value === selectedPaymentMethod)?.label}
-                    </h4>
-                    <p className="text-muted-foreground">
-                      O valor total é{" "}
-                      <span className="font-bold">{formatCurrency(preOrder.subtotalCents - localDiscountCents)}</span>
-                      . Confirme os dados e clique em "Confirmar Conversão" para concluir.
-                    </p>
                   </div>
                 )}
               </div>
@@ -411,14 +473,14 @@ export function PreOrderPaymentDialog({
           </CardContent>
         </div>
         
-        {/* Footer with actions */}
-        <div className="sticky bottom-0 z-20 bg-gray-50/50 border-t border-gray-200 px-6 py-6">
-          <div className="flex justify-end gap-3">
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+          <div className="flex justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+              className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-100 text-gray-700 text-sm font-medium transition-all"
             >
               Cancelar
             </Button>
@@ -426,9 +488,9 @@ export function PreOrderPaymentDialog({
               type="button" 
               onClick={handleConfirm}
               disabled={!selectedPaymentMethod}
-              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-medium shadow-md hover:shadow-lg transition-all"
             >
-              Confirmar Conversão
+              Confirmar
             </Button>
           </div>
         </div>

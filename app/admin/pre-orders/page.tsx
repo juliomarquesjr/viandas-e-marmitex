@@ -1,6 +1,5 @@
 "use client";
 
-import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
+    MoreHorizontal,
     Package,
     Printer,
     Receipt,
@@ -21,10 +21,115 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 // Importar o componente de modal
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
+
+// Menu de opções por pré-pedido
+function PreOrderActionsMenu({
+  onEdit,
+  onDelete,
+  onPrint,
+  onConvert,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  onPrint: () => void;
+  onConvert: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 p-0"
+        aria-label="Ações do pré-pedido"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+      </Button>
+      {open && (
+        <div 
+          role="menu"
+          className="absolute right-0 z-50 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
+        >
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            <Package className="h-4 w-4 mr-2 text-blue-500" />
+            Editar
+          </button>
+          
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onPrint();
+            }}
+          >
+            <Printer className="h-4 w-4 mr-2 text-blue-500" />
+            Imprimir recibo
+          </button>
+          
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onConvert();
+            }}
+          >
+            <Receipt className="h-4 w-4 mr-2 text-blue-500" />
+            Converter em venda
+          </button>
+          
+          <div className="border-t border-border my-1"></div>
+          
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type PreOrder = {
   id: string;
@@ -51,6 +156,13 @@ type PreOrder = {
   }[];
 };
 
+// Add this type for product summary
+type ProductSummary = {
+  productId: string;
+  productName: string;
+  totalQuantity: number;
+};
+
 // Adicionar este tipo
 type PaymentMethodType = {
   value: string;
@@ -74,6 +186,21 @@ export default function AdminPreOrdersPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedPreOrder, setSelectedPreOrder] = useState<PreOrder | null>(null);
   
+  // State for dropdown menu
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenDropdownId(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
   // Hook para ler parâmetros da URL
   const router = useRouter();
   
@@ -101,11 +228,19 @@ export default function AdminPreOrdersPage() {
       setLoading(false);
     }
   };
-
+  
+  // Remove or comment out this effect to prevent automatic loading based on filters
+  /*
   useEffect(() => {
     loadPreOrders();
   }, [filters.dateRange]);
-
+  */
+  
+  // Add this effect to load all pre-orders when the component mounts
+  useEffect(() => {
+    loadPreOrders();
+  }, []);
+  
   // useEffect para verificar parâmetros da URL
   useEffect(() => {
     // Verificar se há parâmetro para abrir o modal automaticamente
@@ -127,6 +262,8 @@ export default function AdminPreOrdersPage() {
 
   const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
     setFilters(newFilters);
+    // Remove automatic reload when filters change
+    // loadPreOrders();
   };
 
   const formatCurrency = (cents: number | null) => {
@@ -135,6 +272,29 @@ export default function AdminPreOrdersPage() {
       style: "currency",
       currency: "BRL",
     }).format(cents / 100);
+  };
+
+  // Add this function to calculate product summary
+  const calculateProductSummary = (): ProductSummary[] => {
+    const productMap: { [key: string]: ProductSummary } = {};
+
+    preOrders.forEach(preOrder => {
+      preOrder.items.forEach(item => {
+        const productId = item.product.id;
+        if (productMap[productId]) {
+          productMap[productId].totalQuantity += item.quantity;
+        } else {
+          productMap[productId] = {
+            productId: productId,
+            productName: item.product.name,
+            totalQuantity: item.quantity
+          };
+        }
+      });
+    });
+
+    // Convert to array and sort by quantity (descending)
+    return Object.values(productMap).sort((a, b) => b.totalQuantity - a.totalQuantity);
   };
 
   const deletePreOrder = async (preOrderId: string) => {
@@ -339,9 +499,41 @@ export default function AdminPreOrdersPage() {
         </AnimatedCard>
       </div>
 
-      {/* Barra de Busca e Filtros */}
+      {/* Resumo de Produtos */}
       <AnimatedCard>
-        <SalesFilter onFilterChange={handleFilterChange} />
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-foreground">
+            Resumo de Produtos nos Pré-Pedidos
+          </CardTitle>
+          <CardDescription>
+            Quantidade total de cada produto em todos os pré-pedidos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {preOrders.length === 0 ? (
+            <div className="text-center py-6">
+              <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum produto encontrado nos pré-pedidos</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {calculateProductSummary().map((product, index) => (
+                <div 
+                  key={product.productId}
+                  className="flex flex-col items-center justify-center p-3 bg-accent rounded-lg border border-border hover:shadow-sm transition-shadow"
+                >
+                  <div className="text-lg font-bold text-primary mb-1">{product.totalQuantity}</div>
+                  <div className="text-xs font-medium text-center text-foreground leading-tight">
+                    {product.productName}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    #{index + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </AnimatedCard>
 
       {/* Tabela de Pré-Pedidos */}
@@ -378,13 +570,10 @@ export default function AdminPreOrdersPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Pré-Pedido
-                    </th>
                     <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Cliente
                     </th>
@@ -393,6 +582,9 @@ export default function AdminPreOrdersPage() {
                     </th>
                     <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Valor
+                    </th>
+                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                      Descrição
                     </th>
                     <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Data
@@ -412,12 +604,6 @@ export default function AdminPreOrdersPage() {
                         transition={{ duration: 0.3, delay: index * 0.05 }}
                         className="border-b border-border hover:bg-accent/50 transition-colors"
                       >
-                        <td className="py-4 px-4">
-                          <div className="font-mono text-sm text-muted-foreground">
-                            #{preOrder.id.slice(0, 8)}
-                          </div>
-                        </td>
-
                         <td className="py-4 px-4">
                           {preOrder.customer ? (
                             <Link 
@@ -467,56 +653,23 @@ export default function AdminPreOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
+                          <div className="text-sm text-foreground max-w-xs truncate">
+                            {preOrder.notes || "-"}
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
                           <div className="text-sm text-foreground">
                             {formatDate(preOrder.createdAt)}
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            {/* Botão de Editar */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditPreOrderDialog(preOrder.id)}
-                              className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-border"
-                              title="Editar pré-pedido"
-                            >
-                              <Package className="h-4 w-4" />
-                            </Button>
-                            
-                            {/* Botão de Imprimir Recibo */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => printThermalReceipt(preOrder.id)}
-                              className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-border"
-                              title="Imprimir recibo térmico"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            
-                            {/* Botão de Converter em Venda */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => convertToOrder(preOrder)}
-                              className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 border-border"
-                              title="Converter em venda"
-                            >
-                              <Receipt className="h-4 w-4" />
-                            </Button>
-                            
-                            {/* Botão de Excluir */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deletePreOrder(preOrder.id)}
-                              className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
-                              title="Excluir pré-pedido"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <PreOrderActionsMenu
+                            onEdit={() => openEditPreOrderDialog(preOrder.id)}
+                            onDelete={() => deletePreOrder(preOrder.id)}
+                            onPrint={() => printThermalReceipt(preOrder.id)}
+                            onConvert={() => convertToOrder(preOrder)}
+                          />
                         </td>
                       </motion.tr>
                     );
