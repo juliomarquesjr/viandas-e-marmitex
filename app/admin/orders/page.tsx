@@ -5,29 +5,29 @@ import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-  Banknote,
-  Check,
-  CheckCircle,
-  Clock,
-  CreditCard,
-  IdCard,
-  Package,
-  Printer,
-  QrCode,
-  Receipt,
-  Trash2,
-  Truck,
-  User,
-  Wallet,
-  X,
-  XCircle,
+    Banknote,
+    Check,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    IdCard,
+    Package,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    Truck,
+    User,
+    Wallet,
+    X,
+    XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -467,13 +467,12 @@ export default function AdminOrdersPage() {
                               -{formatCurrency(order.discountCents)}
                             </div>
                           )}
-                          {order.paymentMethod === "dinheiro" &&
+                          {order.paymentMethod === "cash" &&
                             order.cashReceivedCents != null &&
                             order.changeCents != null && (
                               <div className="text-xs text-muted-foreground mt-1">
                                 <div>
-                                  Recebido:{" "}
-                                  {formatCurrency(order.cashReceivedCents)}
+                                  Recebido: {formatCurrency(order.cashReceivedCents)}
                                 </div>
                                 <div>
                                   Troco: {formatCurrency(order.changeCents)}

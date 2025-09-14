@@ -86,7 +86,6 @@ export async function GET(request: Request) {
       }),
       prisma.order.count({ where })
     ]);
-    
 
     
     return NextResponse.json({

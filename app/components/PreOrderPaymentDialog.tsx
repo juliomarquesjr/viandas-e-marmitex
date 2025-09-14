@@ -2,26 +2,27 @@
 
 import { Button } from "@/app/components/ui/button";
 import {
-    CardContent,
-    CardDescription,
-    CardTitle
+  CardContent,
+  CardDescription,
+  CardTitle
 } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { motion } from "framer-motion";
 import {
-    AlertCircle,
-    Banknote,
-    CreditCard,
-    Package,
-    QrCode,
-    Receipt,
-    Tag,
-    User,
-    Wallet,
-    X
+  AlertCircle,
+  Banknote,
+  CreditCard,
+  Package,
+  QrCode,
+  Receipt,
+  Tag,
+  User,
+  Wallet,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useToast } from "./Toast";
 
 // Define the PreOrder type to match the one used in the page
 type PreOrder = {
@@ -59,15 +60,18 @@ type PreOrderPaymentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preOrder: PreOrder;
-  onConfirm: (paymentMethod: string, discountCents: number) => void;
+  onConfirm: (paymentMethod: string, discountCents: number, cashReceived?: number, change?: number) => void;
+  isConverting?: boolean;
 };
 
 export function PreOrderPaymentDialog({ 
   open, 
   onOpenChange, 
   preOrder,
-  onConfirm 
+  onConfirm,
+  isConverting = false
 }: PreOrderPaymentDialogProps) {
+  const { showToast } = useToast();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [cashReceived, setCashReceived] = useState("");
   const [change, setChange] = useState(0);
@@ -138,15 +142,21 @@ export function PreOrderPaymentDialog({
     // Validate cash payment if selected
     if (selectedPaymentMethod === "cash") {
       const received = parseFloat(cashReceived || "0");
-      const total = preOrder.totalCents / 100;
+      const total = (preOrder.subtotalCents - localDiscountCents) / 100;
       
       if (received < total) {
-        alert("O valor recebido deve ser maior ou igual ao valor total.");
+        showToast("O valor recebido deve ser maior ou igual ao valor total.", "error");
         return;
       }
     }
     
-    onConfirm(selectedPaymentMethod, localDiscountCents);
+    // Pass cash payment details when confirming
+    onConfirm(
+      selectedPaymentMethod, 
+      localDiscountCents,
+      selectedPaymentMethod === "cash" ? parseFloat(cashReceived || "0") : undefined,
+      selectedPaymentMethod === "cash" ? change : undefined
+    );
   };
 
   // Don't render anything if the dialog is not open
@@ -159,7 +169,7 @@ export function PreOrderPaymentDialog({
       className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={(e) => {
         // Close modal when clicking on the backdrop (outside the modal content)
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && !isConverting) {
           onOpenChange(false);
         }
       }}
@@ -168,9 +178,19 @@ export function PreOrderPaymentDialog({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="w-full max-w-3xl bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col overflow-hidden"
+        className="w-full max-w-3xl bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col overflow-hidden relative"
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
       >
+        {/* Loading Overlay */}
+        {isConverting && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <p className="mt-4 text-lg font-semibold text-orange-600">Convertendo em venda...</p>
+              <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
+            </div>
+          </div>
+        )}
         {/* Header with gradient */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-4 relative">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2ZmZiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-10"></div>
@@ -189,8 +209,9 @@ export function PreOrderPaymentDialog({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8 rounded-full text-white hover:bg-white/20"
+              onClick={() => !isConverting && onOpenChange(false)}
+              disabled={isConverting}
+              className="h-8 w-8 rounded-full text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -203,7 +224,7 @@ export function PreOrderPaymentDialog({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Left Column - Order Summary */}
               <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
-                <div className="flex items-center gap-1.5 mb-3">
+                <div className="flex items-center gap-1.5 mb-33">
                   <div className="p-1.5 bg-orange-100 rounded-md">
                     <Receipt className="h-4 w-4 text-orange-600" />
                   </div>
@@ -285,12 +306,13 @@ export function PreOrderPaymentDialog({
                     <Input
                       type="text"
                       inputMode="decimal"
+                      disabled={isConverting}
                       defaultValue={(localDiscountCents / 100).toLocaleString('pt-BR', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })}
                       onChange={handleDiscountChange}
-                      className="pl-8 py-1.5 rounded-md border-gray-300 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all text-sm"
+                      className="pl-8 py-1.5 rounded-md border-gray-300 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="0,00"
                     />
                     <div className="absolute left-2 top-1/2 transform -translate-y-1/2 p-1 bg-amber-100 rounded-md">
@@ -317,17 +339,20 @@ export function PreOrderPaymentDialog({
                           variant={
                             selectedPaymentMethod === method.value ? "default" : "outline"
                           }
+                          disabled={isConverting}
                           className={`h-16 flex flex-col items-center justify-center gap-1.5 py-2 rounded-lg transition-all duration-200 ${
                             selectedPaymentMethod === method.value 
                               ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md hover:shadow-lg" 
                               : "bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm"
-                          }`}
+                          } ${isConverting ? "opacity-50 cursor-not-allowed" : ""}`}
                           onClick={() => {
-                            setSelectedPaymentMethod(method.value);
-                            // Reset cash fields when changing payment method
-                            if (method.value !== "cash") {
-                              setCashReceived("");
-                              setChange(0);
+                            if (!isConverting) {
+                              setSelectedPaymentMethod(method.value);
+                              // Reset cash fields when changing payment method
+                              if (method.value !== "cash") {
+                                setCashReceived("");
+                                setChange(0);
+                              }
                             }
                           }}
                         >
@@ -367,22 +392,43 @@ export function PreOrderPaymentDialog({
                         <div className="relative">
                           <Input
                             id="cashReceived"
-                            type="number"
+                            type="text"
                             inputMode="decimal"
-                            step="0.01"
-                            min="0"
+                            disabled={isConverting}
                             value={cashReceived}
                             onChange={(e) => {
                               const value = e.target.value;
-                              setCashReceived(value);
+                              // Allow only numbers, comma, and decimal point
+                              const cleanValue = value.replace(/[^\d,.]/g, '');
+                              
+                              // Ensure only one decimal separator
+                              const commaCount = (cleanValue.match(/,/g) || []).length;
+                              const dotCount = (cleanValue.match(/\./g) || []).length;
+                              
+                              if (commaCount > 1 || dotCount > 1) {
+                                return; // Don't update if multiple separators
+                              }
+                              
+                              // Handle both comma and dot as decimal separators
+                              let formattedValue = cleanValue;
+                              if (commaCount === 1 || dotCount === 1) {
+                                const parts = cleanValue.split(/[,\.]/);
+                                if (parts[1] && parts[1].length > 2) {
+                                  // Limit to 2 decimal places
+                                  formattedValue = parts[0] + (commaCount ? ',' : '.') + parts[1].substring(0, 2);
+                                }
+                              }
+                              
+                              setCashReceived(formattedValue);
+                              e.target.value = formattedValue;
 
                               // Calculate change
-                              if (value && !isNaN(parseFloat(value))) {
-                                const received = parseFloat(value);
+                              if (formattedValue) {
+                                const numericValue = parseFloat(formattedValue.replace(',', '.') || "0");
                                 const total = (preOrder.subtotalCents - localDiscountCents) / 100;
                                 const changeAmount = Math.max(
                                   0,
-                                  received - total
+                                  numericValue - total
                                 );
                                 setChange(changeAmount);
                               } else {
@@ -390,7 +436,7 @@ export function PreOrderPaymentDialog({
                               }
                             }}
                             placeholder="0,00"
-                            className="pl-8 text-sm h-9 rounded-md border-blue-300 focus:border-blue-500 focus:ring-blue-500/20"
+                            className="pl-8 text-sm h-9 rounded-md border-blue-300 focus:border-blue-500 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -479,18 +525,26 @@ export function PreOrderPaymentDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-100 text-gray-700 text-sm font-medium transition-all"
+              onClick={() => !isConverting && onOpenChange(false)}
+              disabled={isConverting}
+              className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-100 text-gray-700 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </Button>
             <Button 
               type="button" 
               onClick={handleConfirm}
-              disabled={!selectedPaymentMethod}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-medium shadow-md hover:shadow-lg transition-all"
+              disabled={!selectedPaymentMethod || isConverting}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-medium shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Confirmar
+              {isConverting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                  Convertendo...
+                </>
+              ) : (
+                "Confirmar"
+              )}
             </Button>
           </div>
         </div>

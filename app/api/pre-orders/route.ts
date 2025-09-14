@@ -298,6 +298,11 @@ async function convertPreOrderToOrder(request: Request) {
           deliveryFeeCents: preOrder.deliveryFeeCents,
           totalCents: preOrder.totalCents,
           paymentMethod: body.paymentMethod || null,
+          // Add cash payment information if provided (convert to cents)
+          ...(body.paymentMethod === 'cash' && body.cashReceived !== undefined && body.change !== undefined && {
+            cashReceivedCents: Math.round(body.cashReceived * 100),
+            changeCents: Math.round(body.change * 100)
+          }),
           items: {
             create: preOrder.items.map(item => ({
               productId: item.productId,

@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 // Importar o componente de modal
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
+import { useToast } from "@/app/components/Toast";
 
 // Menu de opções por pré-pedido
 function PreOrderActionsMenu({
@@ -170,9 +171,11 @@ type PaymentMethodType = {
 };
 
 export default function AdminPreOrdersPage() {
+  const { showToast } = useToast();
   const [preOrders, setPreOrders] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
   const [filters, setFilters] = useState({
     searchTerm: "",
     dateRange: { start: "", end: "" }
@@ -337,8 +340,10 @@ export default function AdminPreOrdersPage() {
   };
 
   // Função para confirmar a conversão com forma de pagamento
-  const handleConfirmConversion = async (paymentMethod: string, discountCents: number) => {
+  const handleConfirmConversion = async (paymentMethod: string, discountCents: number, cashReceived?: number, change?: number) => {
     if (!selectedPreOrder) return;
+    
+    setIsConverting(true);
     
     try {
       // Map payment method labels to API values
@@ -380,16 +385,25 @@ export default function AdminPreOrdersPage() {
         }
       }
       
+      // Prepare data for conversion
+      const conversionData: any = {
+        preOrderId: selectedPreOrder.id,
+        paymentMethod: apiPaymentMethod
+      };
+      
+      // Add cash payment details if applicable
+      if (apiPaymentMethod === "cash" && cashReceived !== undefined && change !== undefined) {
+        conversionData.cashReceived = cashReceived;
+        conversionData.change = change;
+      }
+      
       // Convert pre-order to order
       const response = await fetch('/api/pre-orders?convert=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          preOrderId: selectedPreOrder.id,
-          paymentMethod: apiPaymentMethod
-        }),
+        body: JSON.stringify(conversionData),
       });
 
       if (!response.ok) {
@@ -403,10 +417,12 @@ export default function AdminPreOrdersPage() {
       // Recarregar a lista de pré-pedidos
       loadPreOrders();
       
-      alert('Pré-pedido convertido em venda com sucesso!');
+      showToast('Pré-pedido convertido em venda com sucesso!', 'success');
     } catch (error) {
       console.error("Error converting pre-order to order:", error);
-      alert("Erro ao converter pré-pedido em venda. Por favor, tente novamente.");
+      showToast("Erro ao converter pré-pedido em venda. Por favor, tente novamente.", 'error');
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -710,6 +726,7 @@ export default function AdminPreOrdersPage() {
           onOpenChange={setIsPaymentDialogOpen}
           preOrder={selectedPreOrder}
           onConfirm={handleConfirmConversion}
+          isConverting={isConverting}
         />
       )}
     </div>
