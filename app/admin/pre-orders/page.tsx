@@ -3,21 +3,22 @@
 import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Button } from "@/app/components/ui/button";
 import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-    MoreHorizontal,
-    Package,
-    Printer,
-    Receipt,
-    ShoppingCart,
-    Trash2,
-    User,
-    X
+  MoreHorizontal,
+  Package,
+  Printer,
+  Receipt,
+  ShoppingCart,
+  Trash2,
+  User,
+  Users,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,12 +42,18 @@ function PreOrderActionsMenu({
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ 
+    position: 'fixed',
+    zIndex: 50,
+    display: 'none'
+  });
 
   // Fecha o menu ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpen(false);
+        setMenuStyle(prev => ({ ...prev, display: 'none' }));
       }
     }
     if (open) {
@@ -59,12 +66,44 @@ function PreOrderActionsMenu({
     };
   }, [open]);
 
+  // Calcular posição do menu quando abrir
+  useEffect(() => {
+    if (open && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const menuHeight = 200; // Altura aproximada do menu
+      
+      let top, bottom;
+      
+      // Verificar se o menu cabe abaixo do botão
+      if (rect.bottom + menuHeight <= window.innerHeight) {
+        // Abrir para baixo
+        top = `${rect.bottom + 4}px`;
+        bottom = 'auto';
+      } else {
+        // Abrir para cima
+        top = 'auto';
+        bottom = `${window.innerHeight - rect.top + 4}px`;
+      }
+      
+      setMenuStyle({
+        position: 'fixed',
+        top,
+        bottom,
+        right: `${window.innerWidth - rect.right}px`,
+        zIndex: 1000,
+        display: 'block'
+      });
+    } else {
+      setMenuStyle(prev => ({ ...prev, display: 'none' }));
+    }
+  }, [open]);
+
   return (
     <div className="relative" ref={menuRef}>
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
         aria-label="Ações do pré-pedido"
         aria-expanded={open}
         aria-haspopup="true"
@@ -72,62 +111,65 @@ function PreOrderActionsMenu({
       >
         <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
       </Button>
-      {open && (
-        <div 
-          role="menu"
-          className="absolute right-0 z-50 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
+      <div 
+        role="menu"
+        className="w-48 bg-background border border-border rounded-lg shadow-xl py-2 animate-fade-in min-w-max"
+        style={menuStyle}
+      >
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onEdit();
+          }}
         >
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-          >
-            <Package className="h-4 w-4 mr-2 text-blue-500" />
-            Editar
-          </button>
-          
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onPrint();
-            }}
-          >
-            <Printer className="h-4 w-4 mr-2 text-blue-500" />
-            Imprimir recibo
-          </button>
-          
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onConvert();
-            }}
-          >
-            <Receipt className="h-4 w-4 mr-2 text-blue-500" />
-            Converter em venda
-          </button>
-          
-          <div className="border-t border-border my-1"></div>
-          
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir
-          </button>
-        </div>
-      )}
+          <Package className="h-4 w-4 mr-2 text-blue-500" />
+          Editar
+        </button>
+        
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onPrint();
+          }}
+        >
+          <Printer className="h-4 w-4 mr-2 text-blue-500" />
+          Imprimir recibo
+        </button>
+        
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onConvert();
+          }}
+        >
+          <Receipt className="h-4 w-4 mr-2 text-blue-500" />
+          Converter em venda
+        </button>
+        
+        <div className="border-t border-border my-1"></div>
+        
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onDelete();
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Excluir
+        </button>
+      </div>
     </div>
   );
 }
@@ -532,18 +574,27 @@ export default function AdminPreOrdersPage() {
               <p className="text-muted-foreground">Nenhum produto encontrado nos pré-pedidos</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {calculateProductSummary().map((product, index) => (
                 <div 
                   key={product.productId}
-                  className="flex flex-col items-center justify-center p-3 bg-accent rounded-lg border border-border hover:shadow-sm transition-shadow"
+                  className="flex items-center p-4 bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
                 >
-                  <div className="text-lg font-bold text-primary mb-1">{product.totalQuantity}</div>
-                  <div className="text-xs font-medium text-center text-foreground leading-tight">
-                    {product.productName}
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mr-4">
+                    <Package className="h-6 w-6 text-blue-600" />
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    #{index + 1}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 truncate">
+                      {product.productName}
+                    </h3>
+                    <div className="mt-1 flex items-center">
+                      <span className="text-lg font-bold text-blue-600">
+                        {product.totalQuantity}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        unidades
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -586,26 +637,26 @@ export default function AdminPreOrdersPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                  <tr className="border-b border-border bg-muted/50 rounded-t-lg">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Cliente
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Itens
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Valor
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Descrição
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Data
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm w-8">
                       Ações
                     </th>
                   </tr>
@@ -618,68 +669,103 @@ export default function AdminPreOrdersPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b border-border hover:bg-accent/50 transition-colors"
+                        className="border-b border-border hover:bg-accent/50 transition-all duration-200"
                       >
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-6">
                           {preOrder.customer ? (
                             <Link 
                               href={`/admin/customers/${preOrder.customer.id}`}
-                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors"
+                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors max-w-xs"
                             >
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                 <User className="h-5 w-5 text-primary" />
                               </div>
-                              <div>
-                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors">
+                              <div className="min-w-0">
+                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors truncate">
                                   {preOrder.customer.name}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground truncate">
                                   {preOrder.customer.phone}
                                 </div>
                               </div>
                             </Link>
                           ) : (
-                            <div className="text-muted-foreground text-sm">
-                              Sem cliente
+                            <div className="flex items-center gap-3 text-muted-foreground text-sm max-w-xs">
+                              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <Users className="h-5 w-5 text-gray-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-500 truncate">
+                                  Venda avulsa
+                                </div>
+                              </div>
                             </div>
                           )}
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-foreground font-medium">
-                            {preOrder.items.length} item
-                            {preOrder.items.length !== 1 ? "s" : ""}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate max-w-xs">
-                            {preOrder.items
-                              .map((item) => item.product.name)
-                              .join(", ")}
-                          </div>
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <div className="font-bold text-foreground">
-                            {formatCurrency(preOrder.totalCents)}
-                          </div>
-                          {preOrder.discountCents > 0 && (
-                            <div className="text-xs text-red-600 font-medium">
-                              -{formatCurrency(preOrder.discountCents)}
+                        <td className="py-4 px-6">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                              <Package className="h-4 w-4 text-orange-600" />
                             </div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-foreground max-w-xs truncate">
-                            {preOrder.notes || "-"}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-foreground">
+                                {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {preOrder.items.slice(0, 2).map((item, idx) => (
+                                  <span 
+                                    key={idx}
+                                    className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 border border-orange-200"
+                                  >
+                                    {item.quantity}x {truncateText(item.product.name, 15)}
+                                  </span>
+                                ))}
+                                {preOrder.items.length > 2 && (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
+                                    +{preOrder.items.length - 2} mais
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-foreground">
-                            {formatDate(preOrder.createdAt)}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col items-start">
+                            <div className="font-bold text-foreground text-lg">
+                              {formatCurrency(preOrder.totalCents)}
+                            </div>
+                            {preOrder.discountCents > 0 && (
+                              <div className="text-xs text-red-600 font-medium mt-1">
+                                Desconto: -{formatCurrency(preOrder.discountCents)}
+                              </div>
+                            )}
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+
+                        <td className="py-4 px-6">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            </div>
+                            <div className="text-sm text-foreground max-w-xs truncate">
+                              {preOrder.notes || "-"}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <div className="text-sm font-medium text-foreground">
+                              {formatDate(preOrder.createdAt)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 w-8">
                           <PreOrderActionsMenu
                             onEdit={() => openEditPreOrderDialog(preOrder.id)}
                             onDelete={() => deletePreOrder(preOrder.id)}
@@ -732,3 +818,9 @@ export default function AdminPreOrdersPage() {
     </div>
   );
 }
+
+// Add this function to truncate text with ellipsis
+const truncateText = (text: string, maxLength: number) => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+};

@@ -7,7 +7,6 @@ import {
     CardTitle
 } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import { motion } from "framer-motion";
 import {
@@ -17,7 +16,7 @@ import {
     ShoppingCart,
     Tag,
     User,
-    X,
+    X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -108,10 +107,21 @@ export function PreOrderFormDialog({
           }
           const preOrderData = await preOrderResponse.json();
           
+          // Processar os itens para garantir que tenham a estrutura correta
+          const processedItems = preOrderData.items.map((item: any) => ({
+            id: item.id, // Preservar o ID do item para atualizações
+            productId: item.productId,
+            quantity: item.quantity,
+            priceCents: item.priceCents
+          }));
+          
           // Remover campos não utilizados do objeto recebido
           const { discountCents, deliveryFeeCents, ...cleanPreOrderData } = preOrderData;
           
-          setPreOrder(cleanPreOrderData);
+          setPreOrder({
+            ...cleanPreOrderData,
+            items: processedItems
+          });
         } else {
           // Resetar para um novo pré-pedido
           setPreOrder({
@@ -209,11 +219,22 @@ export function PreOrderFormDialog({
 
     try {
       const method = preOrder.id ? "PUT" : "POST";
-      const url = preOrder.id ? `/api/pre-orders/${preOrder.id}` : "/api/pre-orders";
+      const url = "/api/pre-orders";
+      
+      // Preparar os dados dos itens para envio
+      const itemsToSend = preOrder.items.map(item => ({
+        ...(item.id && { id: item.id }), // Incluir ID do item se existir (para atualizações)
+        productId: item.productId,
+        quantity: item.quantity,
+        priceCents: item.priceCents
+      }));
       
       // Adicionar campos obrigatórios do banco de dados com valores padrão
       const preOrderToSend = {
-        ...preOrder,
+        ...(preOrder.id && { id: preOrder.id }), // Incluir ID apenas se estiver editando
+        customerId: preOrder.customerId,
+        items: itemsToSend,
+        notes: preOrder.notes,
         discountCents: 0,      // Valor padrão
         deliveryFeeCents: 0    // Valor padrão
       };
@@ -394,7 +415,7 @@ export function PreOrderFormDialog({
                       className="w-full pl-8 pr-4 py-1.5 rounded border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white text-sm"
                       disabled={saving}
                     >
-                      <option value="">Selecione um cliente (opcional)</option>
+                      <option value="">Venda avulsa (opcional)</option>
                       {customers.map((customer) => (
                         <option key={customer.id} value={customer.id}>
                           {customer.name} - {customer.phone}
@@ -403,6 +424,7 @@ export function PreOrderFormDialog({
                     </select>
                     <User className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   </div>
+
                 </div>
               </div>
 
@@ -440,7 +462,7 @@ export function PreOrderFormDialog({
                   ) : (
                     <div className="space-y-2">
                       {preOrder.items.map((item, index) => (
-                        <div key={index} className="grid grid-cols-12 gap-2 items-center p-2 border border-orange-200 rounded bg-orange-50">
+                        <div key={item.id || index} className="grid grid-cols-12 gap-2 items-center p-2 border border-orange-200 rounded bg-orange-50">
                           <div className="col-span-8">
                             <select
                               value={item.productId}

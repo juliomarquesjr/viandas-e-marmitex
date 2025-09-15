@@ -481,8 +481,8 @@ export default function CustomerDetailPage() {
       endDate: reportEndDate
     });
 
-    // Build the report URL
-    const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${reportStartDate}&endDate=${reportEndDate}`;
+    // Build the report URL - ensure dates are properly encoded
+    const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}`;
     
     console.log('generateReport - Report URL:', reportUrl);
     
@@ -506,8 +506,8 @@ export default function CustomerDetailPage() {
       return;
     }
 
-    // Build the thermal report URL
-    const thermalReportUrl = `/print/customer-report-thermal?customerId=${customer.id}&startDate=${reportStartDate}&endDate=${reportEndDate}`;
+    // Build the thermal report URL - ensure dates are properly encoded
+    const thermalReportUrl = `/print/customer-report-thermal?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}`;
     
     // Open in new tab
     window.open(thermalReportUrl, '_blank');

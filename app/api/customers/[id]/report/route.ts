@@ -72,7 +72,10 @@ export async function GET(
     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
     
+    // Create dates using local timezone to match user's expectation
+    // Set start of day (00:00:00)
     const startDateTime = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    // Set end of day (23:59:59.999)
     const endDateTime = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
     // Get all orders for the customer in the period

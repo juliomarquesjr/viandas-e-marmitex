@@ -134,10 +134,22 @@ function CustomerReportContent() {
   };
 
   const formatDate = (dateString: string) => {
+    // For date strings in YYYY-MM-DD format, parse directly to avoid timezone conversion
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      // Create date in local timezone
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+    // For datetime strings, use the date as is
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
+      year: 'numeric'
     });
   };
 
@@ -147,7 +159,7 @@ function CustomerReportContent() {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
   };
 
