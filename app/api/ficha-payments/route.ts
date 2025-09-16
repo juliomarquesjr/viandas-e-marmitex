@@ -102,11 +102,14 @@ export async function GET(request: Request) {
       );
     }
 
-    // Obter todas as vendas pendentes do cliente
+    // Obter todas as vendas pendentes do cliente (excluindo pagamentos de ficha)
     const pendingOrders = await prisma.order.findMany({
       where: {
         customerId,
-        status: 'pending'
+        status: 'pending',
+        paymentMethod: {
+          not: 'ficha_payment'
+        }
       },
       select: {
         id: true,

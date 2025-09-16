@@ -1,45 +1,46 @@
 "use client";
 
 import {
-    AlertCircle,
-    ArrowLeft,
-    Banknote,
-    Barcode as BarcodeIcon,
-    Clock,
-    CreditCard,
-    Download,
-    FileText,
-    IdCard,
-    MapPin,
-    Package,
-    Phone,
-    Plus,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    User,
-    Wallet
+  AlertCircle,
+  ArrowLeft,
+  Banknote,
+  Barcode as BarcodeIcon,
+  Clock,
+  CreditCard,
+  Download,
+  FileText,
+  IdCard,
+  MapPin,
+  Package,
+  Phone,
+  Plus,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  User,
+  Wallet
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
+import { useToast } from "../../../components/Toast";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../../components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -103,6 +104,7 @@ const paymentMethodMap = {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState({
@@ -118,6 +120,7 @@ export default function CustomerDetailPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [cashReceived, setCashReceived] = useState("");
   const [change, setChange] = useState(0);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -341,17 +344,17 @@ export default function CustomerDetailPage() {
       // Recalcular estatísticas
       calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
       
-      alert(isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!");
+      showToast(isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!", "success");
     } catch (error) {
       console.error("Error deleting order:", error);
-      alert(`Erro ao excluir: ${(error as Error).message || "Por favor, tente novamente."}`);
+      showToast(`Erro ao excluir: ${(error as Error).message || "Por favor, tente novamente."}`, "error");
     }
   };
 
   // Função para gerar e baixar o código de barras
   const downloadBarcode = async () => {
     if (!customer || !customer.barcode) {
-      alert("Este cliente não possui um código de barras definido.");
+      showToast("Este cliente não possui um código de barras definido.", "warning");
       return;
     }
 
@@ -369,7 +372,7 @@ export default function CustomerDetailPage() {
         const ctx = canvas.getContext("2d");
 
         if (!ctx) {
-          alert("Não foi possível gerar o código de barras.");
+          showToast("Não foi possível gerar o código de barras.", "error");
           return;
         }
 
@@ -398,13 +401,13 @@ export default function CustomerDetailPage() {
       };
 
       img.onerror = () => {
-        alert("Erro ao gerar o código de barras.");
+        showToast("Erro ao gerar o código de barras.", "error");
       };
 
       // Iniciar o carregamento da imagem
       img.src = barcodeUrl;
     } catch (error) {
-      alert("Erro ao gerar o código de barras.");
+      showToast("Erro ao gerar o código de barras.", "error");
       console.error(error);
     }
   };
@@ -414,10 +417,12 @@ export default function CustomerDetailPage() {
     if (!customer || !paymentAmount || !selectedPaymentMethod) return;
 
     try {
+      setIsProcessingPayment(true);
       const amountCents = Math.round(parseFloat(paymentAmount) * 100);
       
       if (amountCents <= 0) {
-        alert("Por favor, informe um valor válido.");
+        showToast("Por favor, informe um valor válido.", "error");
+        setIsProcessingPayment(false);
         return;
       }
 
@@ -456,21 +461,26 @@ export default function CustomerDetailPage() {
       setCashReceived("");
       setChange(0);
       loadCustomer();
+      
+      // Mostrar toast de sucesso
+      showToast(`Pagamento de ${formatCurrency(amountCents)} registrado com sucesso!`, "success");
     } catch (error) {
       console.error("Error creating ficha payment:", error);
-      alert("Erro ao registrar pagamento. Por favor, tente novamente.");
+      showToast("Erro ao registrar pagamento. Por favor, tente novamente.", "error");
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
   // Function to generate and open the customer report
   const generateReport = () => {
     if (!customer || !reportStartDate || !reportEndDate) {
-      alert("Por favor, preencha todas as datas para gerar o relatório.");
+      showToast("Por favor, preencha todas as datas para gerar o relatório.", "warning");
       return;
     }
 
     if (new Date(reportStartDate) > new Date(reportEndDate)) {
-      alert("A data inicial não pode ser maior que a data final.");
+      showToast("A data inicial não pode ser maior que a data final.", "error");
       return;
     }
 
@@ -497,12 +507,12 @@ export default function CustomerDetailPage() {
   // Function to generate and open the thermal customer report
   const generateThermalReport = () => {
     if (!customer || !reportStartDate || !reportEndDate) {
-      alert("Por favor, preencha todas as datas para gerar o relatório.");
+      showToast("Por favor, preencha todas as datas para gerar o relatório.", "warning");
       return;
     }
 
     if (new Date(reportStartDate) > new Date(reportEndDate)) {
-      alert("A data inicial não pode ser maior que a data final.");
+      showToast("A data inicial não pode ser maior que a data final.", "error");
       return;
     }
 
@@ -541,6 +551,13 @@ export default function CustomerDetailPage() {
       setDefaultDates();
     }
   }, [isReportDialogOpen, reportStartDate, reportEndDate]);
+
+  // Reset payment processing state when dialog closes
+  useEffect(() => {
+    if (!isPaymentDialogOpen) {
+      setIsProcessingPayment(false);
+    }
+  }, [isPaymentDialogOpen]);
 
   if (loading) {
     return (
@@ -1001,6 +1018,16 @@ export default function CustomerDetailPage() {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl">
+                  {/* Loading Overlay */}
+                  {isProcessingPayment && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
+                      <div className="text-center bg-white rounded-lg p-8 shadow-xl">
+                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                        <p className="mt-4 text-lg font-semibold text-primary">Processando pagamento...</p>
+                        <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
+                      </div>
+                    </div>
+                  )}
                   <DialogHeader>
                     <DialogTitle>Adicionar Pagamento à Ficha</DialogTitle>
                     <DialogDescription>
@@ -1025,13 +1052,16 @@ export default function CustomerDetailPage() {
                             variant={
                               selectedPaymentMethod === method.value ? "default" : "outline"
                             }
-                            className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md"
+                            disabled={isProcessingPayment}
+                            className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             onClick={() => {
-                              setSelectedPaymentMethod(method.value);
-                              // Reset cash fields when changing payment method
-                              if (method.value !== "cash") {
-                                setCashReceived("");
-                                setChange(0);
+                              if (!isProcessingPayment) {
+                                setSelectedPaymentMethod(method.value);
+                                // Reset cash fields when changing payment method
+                                if (method.value !== "cash") {
+                                  setCashReceived("");
+                                  setChange(0);
+                                }
                               }
                             }}
                           >
@@ -1078,25 +1108,28 @@ export default function CustomerDetailPage() {
                                   step="0.01"
                                   min="0"
                                   value={cashReceived}
+                                  disabled={isProcessingPayment}
                                   onChange={(e) => {
-                                    const value = e.target.value;
-                                    setCashReceived(value);
+                                    if (!isProcessingPayment) {
+                                      const value = e.target.value;
+                                      setCashReceived(value);
 
-                                    // Calculate change
-                                    if (value && !isNaN(parseFloat(value)) && paymentAmount) {
-                                      const received = parseFloat(value);
-                                      const payment = parseFloat(paymentAmount);
-                                      const changeAmount = Math.max(
-                                        0,
-                                        received - payment
-                                      );
-                                      setChange(changeAmount);
-                                    } else {
-                                      setChange(0);
+                                      // Calculate change
+                                      if (value && !isNaN(parseFloat(value)) && paymentAmount) {
+                                        const received = parseFloat(value);
+                                        const payment = parseFloat(paymentAmount);
+                                        const changeAmount = Math.max(
+                                          0,
+                                          received - payment
+                                        );
+                                        setChange(changeAmount);
+                                      } else {
+                                        setChange(0);
+                                      }
                                     }
                                   }}
                                   placeholder="0,00"
-                                  className="pl-10 text-lg h-12"
+                                  className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                               </div>
                             </div>
@@ -1181,39 +1214,47 @@ export default function CustomerDetailPage() {
                           step="0.01"
                           min="0"
                           value={paymentAmount}
+                          disabled={isProcessingPayment}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            setPaymentAmount(value);
-                            
-                            // Recalculate change if cash payment
-                            if (selectedPaymentMethod === "cash" && cashReceived && value) {
-                              const received = parseFloat(cashReceived);
-                              const payment = parseFloat(value);
-                              const changeAmount = Math.max(0, received - payment);
-                              setChange(changeAmount);
+                            if (!isProcessingPayment) {
+                              const value = e.target.value;
+                              setPaymentAmount(value);
+                              
+                              // Recalculate change if cash payment
+                              if (selectedPaymentMethod === "cash" && cashReceived && value) {
+                                const received = parseFloat(cashReceived);
+                                const payment = parseFloat(value);
+                                const changeAmount = Math.max(0, received - payment);
+                                setChange(changeAmount);
+                              }
                             }
                           }}
                           placeholder="0,00"
-                          className="pl-10"
+                          className="pl-10 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
+                        disabled={isProcessingPayment}
                         onClick={() => {
-                          setIsPaymentDialogOpen(false);
-                          setSelectedPaymentMethod("");
-                          setPaymentAmount("");
-                          setCashReceived("");
-                          setChange(0);
+                          if (!isProcessingPayment) {
+                            setIsPaymentDialogOpen(false);
+                            setSelectedPaymentMethod("");
+                            setPaymentAmount("");
+                            setCashReceived("");
+                            setChange(0);
+                          }
                         }}
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancelar
                       </Button>
                       <Button 
                         onClick={handleFichaPayment}
                         disabled={
+                          isProcessingPayment ||
                           !paymentAmount || 
                           (parseFloat(paymentAmount) <= 0) ||
                           !selectedPaymentMethod ||
@@ -1221,8 +1262,16 @@ export default function CustomerDetailPage() {
                            (!cashReceived || 
                             (parseFloat(cashReceived) < parseFloat(paymentAmount || "0"))))
                         }
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Registrar Pagamento
+                        {isProcessingPayment ? (
+                          <>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                            Processando...
+                          </>
+                        ) : (
+                          "Registrar Pagamento"
+                        )}
                       </Button>
                     </div>
                   </div>
