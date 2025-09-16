@@ -341,8 +341,13 @@ export default function CustomerDetailPage() {
       // Remover o pedido da lista
       setOrders((prev) => prev.filter((order) => order.id !== orderId));
 
-      // Recalcular estatísticas
-      calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
+      // Se for um pagamento de ficha, recarregar os dados para atualizar o saldo devedor
+      if (isFichaPayment) {
+        loadCustomer();
+      } else {
+        // Para vendas normais, apenas recalcular as estatísticas locais
+        calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
+      }
       
       showToast(isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!", "success");
     } catch (error) {
