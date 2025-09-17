@@ -251,7 +251,7 @@ export function SalesFilter({ onFilterChange, className }: SalesFilterProps) {
                   className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl"
                 >
                   <p className="text-sm text-primary text-center font-medium">
-                    Período: {new Date(dateFilter.start).toLocaleDateString('pt-BR')} → {new Date(dateFilter.end).toLocaleDateString('pt-BR')}
+                    Período: {new Date(dateFilter.start + 'T00:00:00').toLocaleDateString('pt-BR')} → {new Date(dateFilter.end + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
                 </motion.div>
               )}

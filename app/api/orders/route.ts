@@ -33,16 +33,20 @@ export async function GET(request: Request) {
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        // Criar data no fuso horário local para evitar problemas de UTC
+        // Criar data no fuso horário local e ajustar para UTC
         const [year, month, day] = startDate.split('-').map(Number);
-        const startDateTime = new Date(year, month - 1, day, 0, 0, 0, 0); // Início do dia local
-        where.createdAt.gte = startDateTime;
+        const startDateTime = new Date(year, month - 1, day, 0, 0, 0, 0);
+        // Ajustar para UTC para evitar problemas de fuso horário
+        const utcStartDateTime = new Date(startDateTime.getTime() - startDateTime.getTimezoneOffset() * 60000);
+        where.createdAt.gte = utcStartDateTime;
       }
       if (endDate) {
-        // Criar data no fuso horário local para evitar problemas de UTC
+        // Criar data no fuso horário local e ajustar para UTC
         const [year, month, day] = endDate.split('-').map(Number);
-        const endDateTime = new Date(year, month - 1, day, 23, 59, 59, 999); // Fim do dia local
-        where.createdAt.lte = endDateTime;
+        const endDateTime = new Date(year, month - 1, day, 23, 59, 59, 999);
+        // Ajustar para UTC para evitar problemas de fuso horário
+        const utcEndDateTime = new Date(endDateTime.getTime() - endDateTime.getTimezoneOffset() * 60000);
+        where.createdAt.lte = utcEndDateTime;
       }
     }
     
@@ -191,16 +195,20 @@ export async function POST(request: Request) {
     
     // Se uma data customizada foi fornecida (apenas para admins), usar ela
     if (body.customSaleDate) {
-      // Criar data no fuso horário local para evitar problemas de UTC
+      // Criar data no fuso horário local e ajustar para UTC
       const [year, month, day] = body.customSaleDate.split('-').map(Number);
       const customDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Meio-dia local
+      
+      // Ajustar para UTC para evitar problemas de fuso horário
+      const utcCustomDate = new Date(customDate.getTime() - customDate.getTimezoneOffset() * 60000);
       
       // Validar que a data não é futura
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+      const utcToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
       
-      if (customDate <= today) {
-        additionalData.createdAt = customDate;
+      if (utcCustomDate <= utcToday) {
+        additionalData.createdAt = utcCustomDate;
       }
     }
     

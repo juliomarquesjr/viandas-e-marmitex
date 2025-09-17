@@ -33,15 +33,17 @@ export async function GET(request: Request) {
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
-        // Criar data no fuso horário local para evitar problemas de UTC
+        // Criar data no fuso horário local e ajustar para UTC
         const [year, month, day] = startDate.split('-').map(Number);
-        const startDateTime = new Date(year, month - 1, day, 0, 0, 0, 0); // Início do dia local
+        const startDateTimeLocal = new Date(year, month - 1, day, 0, 0, 0, 0);
+        const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
         where.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Criar data no fuso horário local para evitar problemas de UTC
+        // Criar data no fuso horário local e ajustar para UTC
         const [year, month, day] = endDate.split('-').map(Number);
-        const endDateTime = new Date(year, month - 1, day, 23, 59, 59, 999); // Fim do dia local
+        const endDateTimeLocal = new Date(year, month - 1, day, 23, 59, 59, 999);
+        const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
         where.createdAt.lte = endDateTime;
       }
     }

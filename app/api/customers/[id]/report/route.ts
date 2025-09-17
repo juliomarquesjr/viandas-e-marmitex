@@ -72,11 +72,14 @@ export async function GET(
     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
     
-    // Create dates using local timezone to match user's expectation
+    // Create dates using local timezone and adjust for UTC
     // Set start of day (00:00:00)
-    const startDateTime = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const startDateTimeLocal = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
+    
     // Set end of day (23:59:59.999)
-    const endDateTime = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+    const endDateTimeLocal = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+    const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
 
     // Get all orders for the customer in the period
     const periodOrders = await prisma.order.findMany({
