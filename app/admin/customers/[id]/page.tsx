@@ -777,7 +777,7 @@ export default function CustomerDetailPage() {
                       <Clock className="h-2.5 w-2.5 text-amber-600" />
                     </div>
                     <p className="text-xs font-semibold text-amber-700">
-                      Compras Pendentes
+                      Compras Realizadas
                     </p>
                   </div>
                   <div className="h-6 w-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
