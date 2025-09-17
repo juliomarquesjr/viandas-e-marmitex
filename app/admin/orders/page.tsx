@@ -15,6 +15,8 @@ import {
     Banknote,
     Check,
     CheckCircle,
+    ChevronLeft,
+    ChevronRight,
     Clock,
     CreditCard,
     IdCard,
@@ -111,11 +113,19 @@ const paymentMethodMap = {
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const itemsPerPage = 10;
   const [filters, setFilters] = useState({
     searchTerm: "",
-    dateRange: { start: "", end: "" }
+    dateRange: { 
+      start: new Date().toISOString().split('T')[0], // Data de hoje
+      end: new Date().toISOString().split('T')[0]    // Data de hoje
+    }
   });
 
   const loadOrders = async () => {
@@ -131,11 +141,27 @@ export default function AdminOrdersPage() {
         params.append("endDate", filters.dateRange.end);
       }
 
+      // Buscar todos os dados do período (sem paginação na API)
+      params.append("size", "1000"); // Número grande para pegar todos os dados
+      params.append("page", "1");
+
       const response = await fetch(`/api/orders?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
 
-      setOrders(result.data);
+      setAllOrders(result.data);
+      setTotalOrders(result.data.length);
+      
+      // Calcular paginação
+      const totalPagesCount = Math.ceil(result.data.length / itemsPerPage);
+      setTotalPages(totalPagesCount);
+      
+      // Paginar os dados no frontend
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedOrders = result.data.slice(startIndex, endIndex);
+      
+      setOrders(paginatedOrders);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
@@ -147,8 +173,37 @@ export default function AdminOrdersPage() {
     loadOrders();
   }, [filters.dateRange]);
 
+  // Reagir às mudanças de página
+  useEffect(() => {
+    if (allOrders.length > 0) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedOrders = allOrders.slice(startIndex, endIndex);
+      setOrders(paginatedOrders);
+    }
+  }, [currentPage, allOrders]);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
     setFilters(newFilters);
+    setCurrentPage(1); // Reset para primeira página quando filtros mudarem
   };
 
   const formatCurrency = (cents: number | null) => {
@@ -273,7 +328,7 @@ export default function AdminOrdersPage() {
                   Total de Vendas
                 </p>
                 <p className="text-3xl font-bold text-blue-900">
-                  {orders.length}
+                  {totalOrders}
                 </p>
               </div>
               <Receipt className="h-12 w-12 text-blue-600" />
@@ -290,7 +345,7 @@ export default function AdminOrdersPage() {
                 </p>
                 <p className="text-3xl font-bold text-green-900">
                   {
-                    orders.filter((order) => order.status === "confirmed")
+                    allOrders.filter((order) => order.status === "confirmed")
                       .length
                   }
                 </p>
@@ -308,7 +363,7 @@ export default function AdminOrdersPage() {
                   Vendas Pendentes
                 </p>
                 <p className="text-3xl font-bold text-amber-900">
-                  {orders.filter((order) => order.status === "pending").length}
+                  {allOrders.filter((order) => order.status === "pending").length}
                 </p>
               </div>
               <Clock className="h-12 w-12 text-amber-600" />
@@ -325,7 +380,7 @@ export default function AdminOrdersPage() {
                 </p>
                 <p className="text-3xl font-bold text-purple-900">
                   {formatCurrency(
-                    orders.reduce((sum, order) => sum + order.totalCents, 0)
+                    allOrders.reduce((sum, order) => sum + order.totalCents, 0)
                   )}
                 </p>
               </div>
@@ -347,8 +402,8 @@ export default function AdminOrdersPage() {
             Lista de Vendas
           </CardTitle>
           <CardDescription>
-            {orders.length} venda{orders.length !== 1 ? "s" : ""} encontrada
-            {orders.length !== 1 ? "s" : ""}
+            Mostrando {orders.length} de {totalOrders} venda{totalOrders !== 1 ? "s" : ""} encontrada{totalOrders !== 1 ? "s" : ""}
+            {totalPages > 1 && ` (Página ${currentPage} de ${totalPages})`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -378,9 +433,6 @@ export default function AdminOrdersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Pedido
-                    </th>
                     <th className="text-left py-4 px-4 font-semibold text-foreground">
                       Cliente
                     </th>
@@ -415,12 +467,6 @@ export default function AdminOrdersPage() {
                         transition={{ duration: 0.3, delay: index * 0.05 }}
                         className="border-b border-border hover:bg-accent/50 transition-colors"
                       >
-                        <td className="py-4 px-4">
-                          <div className="font-mono text-sm text-muted-foreground">
-                            #{order.id.slice(0, 8)}
-                          </div>
-                        </td>
-
                         <td className="py-4 px-4">
                           {order.customer ? (
                             <Link 
@@ -459,26 +505,55 @@ export default function AdminOrdersPage() {
                         </td>
 
                         <td className="py-4 px-4">
-                          <div className="font-bold text-foreground">
-                            {formatCurrency(order.totalCents)}
-                          </div>
-                          {order.discountCents > 0 && (
-                            <div className="text-xs text-red-600 font-medium">
-                              -{formatCurrency(order.discountCents)}
+                          <div className="space-y-1">
+                            {/* Valor Total */}
+                            <div className="font-bold text-foreground text-base">
+                              {formatCurrency(order.totalCents)}
                             </div>
-                          )}
-                          {order.paymentMethod === "cash" &&
-                            order.cashReceivedCents != null &&
-                            order.changeCents != null && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                <div>
-                                  Recebido: {formatCurrency(order.cashReceivedCents)}
+                            
+                            {/* Detalhes Financeiros - só mostra se houver desconto ou taxa de entrega */}
+                            {(order.discountCents > 0 || order.deliveryFeeCents > 0) && (
+                              <div className="mt-2 pt-2 border-t border-border space-y-0.5 text-xs">
+                                {/* Subtotal - só mostra se houver desconto ou taxa de entrega */}
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Subtotal:</span>
+                                  <span>{formatCurrency(order.subtotalCents)}</span>
                                 </div>
-                                <div>
-                                  Troco: {formatCurrency(order.changeCents)}
-                                </div>
+                                
+                                {/* Desconto */}
+                                {order.discountCents > 0 && (
+                                  <div className="flex justify-between text-red-600 font-medium">
+                                    <span>Desc.:</span>
+                                    <span>-{formatCurrency(order.discountCents)}</span>
+                                  </div>
+                                )}
+                                
+                                {/* Taxa de Entrega */}
+                                {order.deliveryFeeCents > 0 && (
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>Entrega:</span>
+                                    <span>+{formatCurrency(order.deliveryFeeCents)}</span>
+                                  </div>
+                                )}
                               </div>
                             )}
+                            
+                            {/* Informações de Pagamento em Dinheiro */}
+                            {order.paymentMethod === "cash" &&
+                              order.cashReceivedCents != null &&
+                              order.changeCents != null && (
+                                <div className="mt-2 pt-2 border-t border-border space-y-0.5 text-xs">
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Recebido:</span>
+                                    <span>{formatCurrency(order.cashReceivedCents)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-blue-600">
+                                    <span>Troco:</span>
+                                    <span>{formatCurrency(order.changeCents)}</span>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
                         </td>
 
                         <td className="py-4 px-4">
@@ -564,6 +639,53 @@ export default function AdminOrdersPage() {
                       ? "Tente ajustar os filtros de busca"
                       : "Ainda não há vendas registradas"}
                   </p>
+                </div>
+              )}
+
+              {/* Controles de Paginação */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-6 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(page)}
+                          className="w-10 h-10 p-0"
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-2"
+                    >
+                      Próximo
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
                 </div>
               )}
             </div>

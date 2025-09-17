@@ -9,6 +9,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const size = parseInt(searchParams.get('size') || '20');
+    
+    // Se o tamanho for muito grande (como 1000), buscar todos os dados sem paginação
+    const shouldPaginate = size < 1000;
     const status = searchParams.get('status') || 'all';
     const customerId = searchParams.get('customerId') || null;
     const startDate = searchParams.get('startDate');
@@ -51,8 +54,10 @@ export async function GET(request: Request) {
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        skip: (page - 1) * size,
-        take: size,
+        ...(shouldPaginate ? {
+          skip: (page - 1) * size,
+          take: size,
+        } : {}),
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
