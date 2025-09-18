@@ -218,7 +218,7 @@ function PreOrderThermalContent() {
 
       {/* Footer */}
       <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '12px', color: '#333'}}>Pré-Pedido #{preOrder.id.slice(-8).toUpperCase()}</div>
+        <div style={{fontWeight: '900', fontSize: '14px', color: '#333'}}>Pré-Pedido #{preOrder.id.slice(-8).toUpperCase()}</div>
         <div className="thermal-separator">
           ================================
         </div>
@@ -236,9 +236,10 @@ function PreOrderThermalContent() {
 
       {/* Thermal receipt specific styles */}
       <style jsx global>{`
+        /* Estilos base para impressão térmica */
         .thermal-receipt {
           font-family: 'Courier New', monospace;
-          font-size: 14px;
+          font-size: 16px;
           font-weight: bold;
           line-height: 1.4;
           max-width: 280px;
@@ -247,6 +248,7 @@ function PreOrderThermalContent() {
           background: white;
         }
         
+        /* Cabeçalho */
         .thermal-header {
           text-align: center;
           margin-bottom: 8px;
@@ -255,20 +257,21 @@ function PreOrderThermalContent() {
         }
         
         .thermal-title {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 13px;
+          font-size: 15px;
           margin-bottom: 2px;
         }
         
         .thermal-date {
-          font-size: 12px;
+          font-size: 14px;
         }
         
+        /* Seções */
         .thermal-section {
           margin-bottom: 8px;
           border-bottom: 1px dashed #333;
@@ -276,27 +279,28 @@ function PreOrderThermalContent() {
         }
         
         .thermal-section-title {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: bold;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
+        /* Linhas de dados */
         .thermal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
+          font-size: 16px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-total {
-          font-size: 14px;
+          font-size: 18px;
           font-weight: 900;
           border-top: 1px solid #333;
           padding-top: 4px;
@@ -307,9 +311,10 @@ function PreOrderThermalContent() {
           font-weight: 900;
         }
         
+        /* Itens do pedido */
         .thermal-item {
           margin-bottom: 4px;
-          font-size: 12px;
+          font-size: 15px;
           font-weight: bold;
         }
         
@@ -318,14 +323,14 @@ function PreOrderThermalContent() {
         }
         
         .thermal-item-name {
-          font-size: 12px;
+          font-size: 15px;
           font-weight: bold;
         }
         
         .thermal-item-details {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
+          font-size: 15px;
           font-weight: bold;
         }
         
@@ -333,14 +338,16 @@ function PreOrderThermalContent() {
           font-weight: 900;
         }
         
+        /* Separadores */
         .thermal-divider {
           border-bottom: 1px dotted #ccc;
           margin: 4px 0;
         }
         
+        /* Rodapé */
         .thermal-footer {
           text-align: center;
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 900;
           color: #333;
           margin-top: 8px;
@@ -351,10 +358,11 @@ function PreOrderThermalContent() {
         .thermal-separator {
           margin: 8px 0;
           font-weight: 900;
-          font-size: 12px;
+          font-size: 14px;
           color: #000;
         }
         
+        /* Botões (apenas para tela) */
         .thermal-print-btn {
           text-align: center;
           margin-top: 16px;
@@ -366,7 +374,7 @@ function PreOrderThermalContent() {
           padding: 8px 16px;
           border-radius: 6px;
           border: none;
-          font-size: 12px;
+          font-size: 14px;
           cursor: pointer;
           font-family: system-ui, -apple-system, sans-serif;
         }
@@ -375,6 +383,7 @@ function PreOrderThermalContent() {
           background-color: #1d4ed8;
         }
         
+        /* Estilos específicos para impressão */
         @media print {
           body {
             margin: 0;

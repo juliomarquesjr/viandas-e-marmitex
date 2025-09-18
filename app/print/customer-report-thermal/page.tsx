@@ -327,7 +327,7 @@ function CustomerReportThermalContent() {
                   const order = details.periodOrders.find(o => o.id === transaction.id);
                   if (order && order.discountCents > 0) {
                     return (
-                      <div style={{fontSize: '9px', color: '#666', marginTop: '2px', fontWeight: 'bold'}}>
+                      <div style={{fontSize: '12px', color: '#666', marginTop: '2px', fontWeight: 'bold'}}>
                         Desc: -{formatCurrency(order.discountCents)}
                         <br />
                         Subtot: {formatCurrency(order.subtotalCents)}
@@ -348,8 +348,8 @@ function CustomerReportThermalContent() {
 
       {/* Footer */}
       <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '12px', color: '#000'}}>Gerado em:</div>
-        <div style={{fontWeight: '900', fontSize: '12px', color: '#000'}}>{formatDateTime(metadata.generatedAt)}</div>
+        <div style={{fontWeight: '900', fontSize: '14px', color: '#000'}}>Gerado em:</div>
+        <div style={{fontWeight: '900', fontSize: '14px', color: '#000'}}>{formatDateTime(metadata.generatedAt)}</div>
       </div>
 
       {/* Print button for screen view */}
@@ -364,9 +364,10 @@ function CustomerReportThermalContent() {
 
       {/* Thermal printer specific styles */}
       <style jsx global>{`
+        /* Estilos base para impressão térmica */
         .thermal-report {
           font-family: 'Courier New', monospace;
-          font-size: 14px;
+          font-size: 16px;
           font-weight: bold;
           line-height: 1.4;
           max-width: 280px;
@@ -375,6 +376,7 @@ function CustomerReportThermalContent() {
           background: white;
         }
         
+        /* Cabeçalho */
         .thermal-header {
           text-align: center;
           margin-bottom: 8px;
@@ -383,20 +385,21 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-title {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 13px;
+          font-size: 15px;
           margin-bottom: 2px;
         }
         
         .thermal-period {
-          font-size: 12px;
+          font-size: 14px;
         }
         
+        /* Seções */
         .thermal-section {
           margin-bottom: 8px;
           border-bottom: 1px dashed #333;
@@ -404,21 +407,22 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-section-title {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: bold;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: bold;
           margin-bottom: 2px;
         }
         
+        /* Linhas de dados */
         .thermal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 12px;
+          font-size: 16px;
           font-weight: bold;
           margin-bottom: 2px;
         }
@@ -427,42 +431,45 @@ function CustomerReportThermalContent() {
           font-weight: 900;
         }
         
+        /* Transações (relatórios) */
         .thermal-transaction {
           margin-bottom: 6px;
-          font-size: 11px;
+          font-size: 14px;
           font-weight: bold;
         }
         
         .thermal-date {
-          font-size: 11px;
+          font-size: 14px;
           font-weight: bold;
         }
         
         .thermal-transaction-value {
           font-weight: 900;
-          font-size: 12px;
+          font-size: 16px;
         }
         
         .thermal-transaction-type {
-          font-size: 8px;
+          font-size: 12px;
           color: #666;
           margin-bottom: 2px;
         }
         
         .thermal-description {
-          font-size: 10px;
+          font-size: 14px;
           font-weight: bold;
           word-wrap: break-word;
         }
         
+        /* Separadores */
         .thermal-divider {
           border-bottom: 1px dotted #ccc;
           margin: 4px 0;
         }
         
+        /* Rodapé */
         .thermal-footer {
           text-align: center;
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 900;
           color: #333;
           margin-top: 8px;
@@ -472,10 +479,11 @@ function CustomerReportThermalContent() {
         .thermal-separator {
           margin: 8px 0;
           font-weight: 900;
-          font-size: 12px;
+          font-size: 14px;
           color: #000;
         }
         
+        /* Botões (apenas para tela) */
         .thermal-print-btn {
           text-align: center;
           margin-top: 16px;
@@ -487,7 +495,7 @@ function CustomerReportThermalContent() {
           padding: 8px 16px;
           border-radius: 6px;
           border: none;
-          font-size: 12px;
+          font-size: 14px;
           cursor: pointer;
           font-family: system-ui, -apple-system, sans-serif;
         }
@@ -496,6 +504,7 @@ function CustomerReportThermalContent() {
           background-color: #1d4ed8;
         }
         
+        /* Estilos específicos para impressão */
         @media print {
           body {
             margin: 0;

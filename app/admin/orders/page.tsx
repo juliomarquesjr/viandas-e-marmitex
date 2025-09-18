@@ -429,29 +429,29 @@ export default function AdminOrdersPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                  <tr className="border-b border-border bg-muted/50 rounded-t-lg">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Cliente
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Itens
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Valor
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Pagamento
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Status
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Data
                     </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm w-8">
                       Ações
                     </th>
                   </tr>
@@ -465,49 +465,71 @@ export default function AdminOrdersPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b border-border hover:bg-accent/50 transition-colors"
+                        className="border-b border-border hover:bg-accent/50 transition-all duration-200"
                       >
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-6">
                           {order.customer ? (
                             <Link 
                               href={`/admin/customers/${order.customer.id}`}
-                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors"
+                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors max-w-xs"
                             >
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                 <User className="h-5 w-5 text-primary" />
                               </div>
-                              <div>
-                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors">
+                              <div className="min-w-0">
+                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors truncate">
                                   {order.customer.name}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground truncate">
                                   {order.customer.phone}
                                 </div>
                               </div>
                             </Link>
                           ) : (
-                            <div className="text-muted-foreground text-sm">
-                              Sem cliente
+                            <div className="flex items-center gap-3 text-muted-foreground text-sm max-w-xs">
+                              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <User className="h-5 w-5 text-gray-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-500 truncate">
+                                  Venda avulsa
+                                </div>
+                              </div>
                             </div>
                           )}
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-foreground font-medium">
-                            {order.items.length} item
-                            {order.items.length !== 1 ? "s" : ""}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate max-w-xs">
-                            {order.items
-                              .map((item) => item.product.name)
-                              .join(", ")}
+                        <td className="py-4 px-6">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                              <Package className="h-4 w-4 text-orange-600" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-foreground">
+                                {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {order.items.slice(0, 2).map((item, idx) => (
+                                  <span 
+                                    key={idx}
+                                    className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 border border-orange-200"
+                                  >
+                                    {item.quantity}x {truncateText(item.product.name, 15)}
+                                  </span>
+                                ))}
+                                {order.items.length > 2 && (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
+                                    +{order.items.length - 2} mais
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="space-y-1">
-                            {/* Valor Total */}
-                            <div className="font-bold text-foreground text-base">
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col items-start">
+                            <div className="font-bold text-foreground text-lg">
                               {formatCurrency(order.totalCents)}
                             </div>
                             
@@ -556,8 +578,8 @@ export default function AdminOrdersPage() {
                           </div>
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-center">
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
                             {(() => {
                               const paymentMethod = order.paymentMethod;
                               const Icon = getPaymentMethodIcon(paymentMethod);
@@ -565,14 +587,20 @@ export default function AdminOrdersPage() {
                               
                               if (Icon) {
                                 return (
-                                  <div className="flex flex-col items-center gap-1">
-                                    <Icon className="h-5 w-5 text-foreground" />
-                                    <span className="text-xs text-muted-foreground">{label}</span>
-                                  </div>
+                                  <>
+                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <Icon className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-medium text-foreground truncate">
+                                        {label}
+                                      </div>
+                                    </div>
+                                  </>
                                 );
                               } else {
                                 return (
-                                  <div className="text-sm text-foreground text-center">
+                                  <div className="text-sm text-foreground">
                                     {label}
                                   </div>
                                 );
@@ -581,7 +609,7 @@ export default function AdminOrdersPage() {
                           </div>
                         </td>
 
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-6">
                           <Badge
                             className={`${
                               getStatusInfo(order.status).color
@@ -592,12 +620,17 @@ export default function AdminOrdersPage() {
                           </Badge>
                         </td>
 
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-foreground">
-                            {formatDate(order.createdAt)}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <div className="text-sm font-medium text-foreground">
+                              {formatDate(order.createdAt)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(order.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date(order.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)}
+                            </div>
                           </div>
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-6 w-8">
                           <div className="flex items-center gap-2">
                             {/* Botão de Imprimir Recibo */}
                             <Button
@@ -695,3 +728,9 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+// Função para truncar texto com ellipsis
+const truncateText = (text: string, maxLength: number) => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+};
