@@ -327,7 +327,7 @@ function CustomerReportThermalContent() {
                   const order = details.periodOrders.find(o => o.id === transaction.id);
                   if (order && order.discountCents > 0) {
                     return (
-                      <div style={{fontSize: '12px', color: '#666', marginTop: '2px', fontWeight: 'bold'}}>
+                      <div style={{fontSize: '14px', color: '#333', marginTop: '2px', fontWeight: '900'}}>
                         Desc: -{formatCurrency(order.discountCents)}
                         <br />
                         Subtot: {formatCurrency(order.subtotalCents)}
@@ -366,10 +366,10 @@ function CustomerReportThermalContent() {
       <style jsx global>{`
         /* Estilos base para impressão térmica */
         .thermal-report {
-          font-family: 'Courier New', monospace;
+          font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
           font-size: 16px;
           font-weight: bold;
-          line-height: 1.4;
+          line-height: 1.3;
           max-width: 280px;
           margin: 0 auto;
           padding: 8px;
@@ -380,7 +380,7 @@ function CustomerReportThermalContent() {
         .thermal-header {
           text-align: center;
           margin-bottom: 8px;
-          border-bottom: 1px dashed #333;
+          border-bottom: 2px solid #000;
           padding-bottom: 6px;
         }
         
@@ -402,7 +402,7 @@ function CustomerReportThermalContent() {
         /* Seções */
         .thermal-section {
           margin-bottom: 8px;
-          border-bottom: 1px dashed #333;
+          border-bottom: 2px solid #000;
           padding-bottom: 6px;
         }
         
@@ -462,7 +462,7 @@ function CustomerReportThermalContent() {
         
         /* Separadores */
         .thermal-divider {
-          border-bottom: 1px dotted #ccc;
+          border-bottom: 1px solid #333;
           margin: 4px 0;
         }
         
@@ -474,6 +474,7 @@ function CustomerReportThermalContent() {
           color: #333;
           margin-top: 8px;
           padding-top: 6px;
+          border-top: 3px solid #000;
         }
         
         .thermal-separator {

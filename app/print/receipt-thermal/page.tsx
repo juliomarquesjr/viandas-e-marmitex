@@ -273,10 +273,10 @@ function ThermalReceiptContent() {
       <style jsx global>{`
         /* Estilos base para impressão térmica */
         .thermal-receipt {
-          font-family: 'Courier New', monospace;
+          font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
           font-size: 16px;
           font-weight: bold;
-          line-height: 1.4;
+          line-height: 1.3;
           max-width: 280px;
           margin: 0 auto;
           padding: 8px;
@@ -287,7 +287,7 @@ function ThermalReceiptContent() {
         .thermal-header {
           text-align: center;
           margin-bottom: 8px;
-          border-bottom: 1px dashed #333;
+          border-bottom: 2px solid #000;
           padding-bottom: 6px;
         }
         
@@ -309,7 +309,7 @@ function ThermalReceiptContent() {
         /* Seções */
         .thermal-section {
           margin-bottom: 8px;
-          border-bottom: 1px dashed #333;
+          border-bottom: 2px solid #000;
           padding-bottom: 6px;
         }
         
@@ -337,7 +337,7 @@ function ThermalReceiptContent() {
         .thermal-total {
           font-size: 18px;
           font-weight: 900;
-          border-top: 1px solid #333;
+          border-top: 2px solid #000;
           padding-top: 4px;
           margin-top: 4px;
         }
@@ -375,7 +375,7 @@ function ThermalReceiptContent() {
         
         /* Separadores */
         .thermal-divider {
-          border-bottom: 1px dotted #ccc;
+          border-bottom: 1px solid #333;
           margin: 4px 0;
         }
         
@@ -387,7 +387,7 @@ function ThermalReceiptContent() {
           color: #333;
           margin-top: 8px;
           padding-top: 6px;
-          border-top: 2px solid #333;
+          border-top: 3px solid #000;
         }
         
         .thermal-separator {
