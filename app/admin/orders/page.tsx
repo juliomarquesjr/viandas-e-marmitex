@@ -728,42 +728,151 @@ export default function AdminOrdersPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => goToPage(1)}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-3 w-3 -ml-1" />
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={goToPreviousPage}
                       disabled={currentPage === 1}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1"
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Anterior
                     </Button>
-                    
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => goToPage(page)}
-                          className="w-10 h-10 p-0"
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                    </div>
-                    
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const maxVisiblePages = 5;
+                      const pages = [];
+                      
+                      if (totalPages <= maxVisiblePages) {
+                        // Mostrar todas as páginas se forem poucas
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(
+                            <Button
+                              key={i}
+                              variant={currentPage === i ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(i)}
+                              className="w-10 h-10 p-0"
+                            >
+                              {i}
+                            </Button>
+                          );
+                        }
+                      } else {
+                        // Lógica para paginação com elipses
+                        const showEllipsis = totalPages > maxVisiblePages;
+                        const startPage = Math.max(1, currentPage - 2);
+                        const endPage = Math.min(totalPages, currentPage + 2);
+                        
+                        // Primeira página
+                        if (startPage > 1) {
+                          pages.push(
+                            <Button
+                              key={1}
+                              variant={currentPage === 1 ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(1)}
+                              className="w-10 h-10 p-0"
+                            >
+                              1
+                            </Button>
+                          );
+                          
+                          if (startPage > 2) {
+                            pages.push(
+                              <span key="ellipsis-start" className="px-2 text-muted-foreground">
+                                ...
+                              </span>
+                            );
+                          }
+                        }
+                        
+                        // Páginas do meio
+                        for (let i = startPage; i <= endPage; i++) {
+                          if (i !== 1 || startPage === 1) {
+                            pages.push(
+                              <Button
+                                key={i}
+                                variant={currentPage === i ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => goToPage(i)}
+                                className="w-10 h-10 p-0"
+                              >
+                                {i}
+                              </Button>
+                            );
+                          }
+                        }
+                        
+                        // Última página
+                        if (endPage < totalPages) {
+                          if (endPage < totalPages - 1) {
+                            pages.push(
+                              <span key="ellipsis-end" className="px-2 text-muted-foreground">
+                                ...
+                              </span>
+                            );
+                          }
+                          
+                          pages.push(
+                            <Button
+                              key={totalPages}
+                              variant={currentPage === totalPages ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(totalPages)}
+                              className="w-10 h-10 p-0"
+                            >
+                              {totalPages}
+                            </Button>
+                          );
+                        }
+                      }
+                      
+                      return pages;
+                    })()}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={goToNextPage}
                       disabled={currentPage === totalPages}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1"
                     >
                       Próximo
                       <ChevronRight className="h-4 w-4" />
                     </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-3 w-3 -ml-1" />
+                    </Button>
                   </div>
-                  
-                  <div className="text-sm text-muted-foreground">
-                    Página {currentPage} de {totalPages}
+                </div>
+              )}
+              
+              {/* Informações da Paginação */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center mt-4">
+                  <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                    Página {currentPage} de {totalPages} • {totalOrders} venda{totalOrders !== 1 ? "s" : ""} total
                   </div>
                 </div>
               )}

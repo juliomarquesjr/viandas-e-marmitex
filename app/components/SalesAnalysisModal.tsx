@@ -114,10 +114,17 @@ export function SalesAnalysisModal({
               <div>
                 <p className="text-sm text-blue-600">Período Analisado</p>
                 <p className="text-lg font-semibold text-blue-900">
-                  {filters.dateRange.start === filters.dateRange.end
-                    ? new Date(filters.dateRange.start).toLocaleDateString("pt-BR")
-                    : `${new Date(filters.dateRange.start).toLocaleDateString("pt-BR")} - ${new Date(filters.dateRange.end).toLocaleDateString("pt-BR")}`
-                  }
+                  {(() => {
+                    const formatDate = (dateString: string) => {
+                      const [year, month, day] = dateString.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString("pt-BR");
+                    };
+                    
+                    return filters.dateRange.start === filters.dateRange.end
+                      ? formatDate(filters.dateRange.start)
+                      : `${formatDate(filters.dateRange.start)} - ${formatDate(filters.dateRange.end)}`;
+                  })()}
                 </p>
               </div>
             </div>
