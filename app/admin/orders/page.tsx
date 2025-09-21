@@ -1,6 +1,7 @@
 "use client";
 
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
+import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
 import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -127,6 +128,7 @@ export default function AdminOrdersPage() {
       end: new Date().toISOString().split('T')[0]    // Data de hoje
     }
   });
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -323,15 +325,20 @@ export default function AdminOrdersPage() {
         <AnimatedCard delay={0.1}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">
                   Total de Vendas
                 </p>
-                <p className="text-3xl font-bold text-blue-900">
-                  {totalOrders}
+                <p className="text-2xl font-bold text-blue-900 mt-1">
+                  {formatCurrency(
+                    allOrders.reduce((sum, order) => sum + order.totalCents, 0)
+                  )}
+                </p>
+                <p className="text-sm text-blue-700 mt-2 font-medium">
+                  {totalOrders} venda{totalOrders !== 1 ? "s" : ""}
                 </p>
               </div>
-              <Receipt className="h-12 w-12 text-blue-600" />
+              <Receipt className="h-10 w-10 text-blue-600 flex-shrink-0" />
             </div>
           </CardContent>
         </AnimatedCard>
@@ -339,18 +346,22 @@ export default function AdminOrdersPage() {
         <AnimatedCard delay={0.2}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">
-                  Vendas Confirmadas
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-orange-600 uppercase tracking-wide">
+                  Vendas Avulsas
                 </p>
-                <p className="text-3xl font-bold text-green-900">
-                  {
-                    allOrders.filter((order) => order.status === "confirmed")
-                      .length
-                  }
+                <p className="text-2xl font-bold text-orange-900 mt-1">
+                  {formatCurrency(
+                    allOrders
+                      .filter((order) => order.customer === null)
+                      .reduce((sum, order) => sum + order.totalCents, 0)
+                  )}
+                </p>
+                <p className="text-sm text-orange-700 mt-2 font-medium">
+                  {allOrders.filter((order) => order.customer === null).length} venda{allOrders.filter((order) => order.customer === null).length !== 1 ? "s" : ""}
                 </p>
               </div>
-              <Check className="h-12 w-12 text-green-600" />
+              <User className="h-10 w-10 text-orange-600 flex-shrink-0" />
             </div>
           </CardContent>
         </AnimatedCard>
@@ -358,15 +369,22 @@ export default function AdminOrdersPage() {
         <AnimatedCard delay={0.3}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-600">
-                  Vendas Pendentes
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
+                  Vendas com Ficha
                 </p>
-                <p className="text-3xl font-bold text-amber-900">
-                  {allOrders.filter((order) => order.status === "pending").length}
+                <p className="text-2xl font-bold text-indigo-900 mt-1">
+                  {formatCurrency(
+                    allOrders
+                      .filter((order) => order.paymentMethod === "invoice")
+                      .reduce((sum, order) => sum + order.totalCents, 0)
+                  )}
+                </p>
+                <p className="text-sm text-indigo-700 mt-2 font-medium">
+                  {allOrders.filter((order) => order.paymentMethod === "invoice").length} venda{allOrders.filter((order) => order.paymentMethod === "invoice").length !== 1 ? "s" : ""}
                 </p>
               </div>
-              <Clock className="h-12 w-12 text-amber-600" />
+              <IdCard className="h-10 w-10 text-indigo-600 flex-shrink-0" />
             </div>
           </CardContent>
         </AnimatedCard>
@@ -374,21 +392,49 @@ export default function AdminOrdersPage() {
         <AnimatedCard delay={0.4}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">
-                  Valor Total
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">
+                  Outras Vendas
                 </p>
-                <p className="text-3xl font-bold text-purple-900">
+                <p className="text-2xl font-bold text-green-900 mt-1">
                   {formatCurrency(
-                    allOrders.reduce((sum, order) => sum + order.totalCents, 0)
+                    allOrders
+                      .filter((order) => order.customer !== null && order.paymentMethod !== "invoice")
+                      .reduce((sum, order) => sum + order.totalCents, 0)
                   )}
                 </p>
+                <p className="text-sm text-green-700 mt-2 font-medium">
+                  {allOrders.filter((order) => order.customer !== null && order.paymentMethod !== "invoice").length} venda{allOrders.filter((order) => order.customer !== null && order.paymentMethod !== "invoice").length !== 1 ? "s" : ""}
+                </p>
               </div>
-              <CreditCard className="h-12 w-12 text-purple-600" />
+              <CreditCard className="h-10 w-10 text-green-600 flex-shrink-0" />
             </div>
           </CardContent>
         </AnimatedCard>
       </div>
+
+      {/* Botão para Análise Detalhada */}
+      <AnimatedCard>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">
+                Análise Detalhada das Vendas
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Visualize a desagregação completa com explicações detalhadas de cada categoria
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowDetailsModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              Análise Detalhada
+            </Button>
+          </div>
+        </CardContent>
+      </AnimatedCard>
 
       {/* Barra de Busca e Filtros */}
       <AnimatedCard>
@@ -725,6 +771,15 @@ export default function AdminOrdersPage() {
           )}
         </CardContent>
       </AnimatedCard>
+
+      {/* Modal de Análise Detalhada */}
+      <SalesAnalysisModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        allOrders={allOrders}
+        totalOrders={totalOrders}
+        filters={filters}
+      />
     </div>
   );
 }
