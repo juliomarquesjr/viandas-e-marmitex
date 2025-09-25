@@ -305,7 +305,7 @@ function CustomerReportThermalContent() {
           if (paymentsInPeriod.length > 0) {
             return (
               <div className="thermal-row">
-                <span>Tot. Pagamentos:</span>
+                <span>Pagamentos:</span>
                 <span className="thermal-value">
                   {formatCurrency(summary.totalPaymentsCents)}
                 </span>
@@ -344,7 +344,7 @@ function CustomerReportThermalContent() {
                   const order = details.periodOrders.find(o => o.id === transaction.id);
                   if (order && order.discountCents > 0) {
                     return (
-                      <div style={{fontSize: '14px', color: '#333', marginTop: '2px', fontWeight: '900'}}>
+                      <div style={{fontSize: '14px', color: '#000', marginTop: '2px', fontWeight: '900'}}>
                         Desc: -{formatCurrency(order.discountCents)}
                         <br />
                         Subtot: {formatCurrency(order.subtotalCents)}
