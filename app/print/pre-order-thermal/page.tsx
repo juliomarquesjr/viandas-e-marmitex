@@ -116,6 +116,15 @@ function PreOrderThermalContent() {
     <div className="thermal-receipt">
       {/* Header */}
       <div className="thermal-header">
+        {/* Logo */}
+        <div className="thermal-logo">
+          <img 
+            src="/img/logo_print.png" 
+            alt="Logo Comida Caseira" 
+            className="thermal-logo-img"
+          />
+        </div>
+        
         <div className="thermal-title">
           COMIDA CASEIRA
         </div>
@@ -254,6 +263,24 @@ function PreOrderThermalContent() {
           margin-bottom: 8px;
           border-bottom: 2px solid #000;
           padding-bottom: 6px;
+        }
+        
+        /* Logo */
+        .thermal-logo {
+          margin-bottom: 6px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        .thermal-logo-img {
+          max-width: 50px;
+          max-height: 50px;
+          width: auto;
+          height: auto;
+          filter: brightness(0) contrast(100%);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         
         .thermal-title {
