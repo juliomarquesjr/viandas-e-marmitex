@@ -285,7 +285,7 @@ function CustomerReportThermalContent() {
         </div>
         
         <div className="thermal-row">
-          <span>Pend. Período:</span>
+          <span>Saldo Período:</span>
           <span className="thermal-value">
             {formatCurrency(summary.pendingInPeriodCents)}
           </span>
