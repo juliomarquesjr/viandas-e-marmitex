@@ -291,12 +291,29 @@ function CustomerReportThermalContent() {
           </span>
         </div>
         
-        <div className="thermal-row">
-          <span>Tot. Pagamentos:</span>
-          <span className="thermal-value">
-            {formatCurrency(summary.totalPaymentsCents)}
-          </span>
-        </div>
+        {/* Mostrar Tot. Pagamentos apenas se houver pagamentos realizados no período */}
+        {(() => {
+          // Verificar se há pagamentos no período
+          const paymentsInPeriod = details.fichaPayments.filter(payment => {
+            const paymentDate = new Date(payment.createdAt);
+            const startDateTime = new Date(period.startDateTime);
+            const endDateTime = new Date(period.endDateTime);
+            return paymentDate >= startDateTime && paymentDate <= endDateTime;
+          });
+          
+          // Só exibe se houver pagamentos no período
+          if (paymentsInPeriod.length > 0) {
+            return (
+              <div className="thermal-row">
+                <span>Tot. Pagamentos:</span>
+                <span className="thermal-value">
+                  {formatCurrency(summary.totalPaymentsCents)}
+                </span>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Transaction History - Compact */}

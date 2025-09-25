@@ -448,6 +448,8 @@ export default function PDVPage() {
     setQuery("");
     setDiscount(null);
     setDiscountValue(0);
+    setDiscountInputValue(""); // Limpar valor do input de desconto
+    setDiscountType("amount"); // Resetar tipo de desconto para valor
     setSelectedPayment(null);
     setSelectedCustomer(null);
     setPaymentOpen(false);
@@ -1570,6 +1572,30 @@ export default function PDVPage() {
                         setDiscountValue(realValue);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const safeValue = Math.max(0, discountValue || 0);
+                        if (discountType === "percent") {
+                          setDiscount({
+                            type: "percent",
+                            value: Math.min(100, safeValue),
+                          });
+                          showToast(`Desconto de ${Math.min(100, safeValue)}% aplicado!`, "success");
+                        } else {
+                          setDiscount({
+                            type: "amount",
+                            value: Math.min(subtotal, safeValue),
+                          });
+                          const formattedValue = safeValue.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                          });
+                          showToast(`Desconto de ${formattedValue} aplicado!`, "success");
+                        }
+                        setDiscountOpen(false);
+                      }
+                    }}
                     placeholder={discountType === "percent" ? "Ex.: 10 (para 10%)" : "Ex.: 5,00"}
                   />
                   {discountType === "percent" ? (
@@ -1612,11 +1638,17 @@ export default function PDVPage() {
                             type: "percent",
                             value: Math.min(100, safeValue),
                           });
+                          showToast(`Desconto de ${Math.min(100, safeValue)}% aplicado!`, "success");
                         } else {
                           setDiscount({
                             type: "amount",
                             value: Math.min(subtotal, safeValue),
                           });
+                          const formattedValue = safeValue.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                          });
+                          showToast(`Desconto de ${formattedValue} aplicado!`, "success");
                         }
                         setDiscountOpen(false);
                       }}
