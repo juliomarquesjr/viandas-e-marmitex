@@ -78,6 +78,62 @@ const defaultConfigs = [
     value: '',
     type: 'image',
     category: 'branding'
+  },
+
+  // Configurações de Email
+  {
+    key: 'email_smtp_host',
+    value: '',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_smtp_port',
+    value: '587',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_smtp_secure',
+    value: 'false',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_smtp_user',
+    value: '',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_smtp_password',
+    value: '',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_from_name',
+    value: 'Viandas e Marmitex',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_from_address',
+    value: '',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_reply_to',
+    value: '',
+    type: 'text',
+    category: 'email'
+  },
+  {
+    key: 'email_enabled',
+    value: 'false',
+    type: 'text',
+    category: 'email'
   }
 ];
 

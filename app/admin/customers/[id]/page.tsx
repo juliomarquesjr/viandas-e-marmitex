@@ -1,46 +1,47 @@
 "use client";
 
 import {
-  AlertCircle,
-  ArrowLeft,
-  Banknote,
-  Barcode as BarcodeIcon,
-  Clock,
-  CreditCard,
-  Download,
-  FileText,
-  IdCard,
-  MapPin,
-  Package,
-  Phone,
-  Plus,
-  Printer,
-  QrCode,
-  Receipt,
-  Trash2,
-  User,
-  Wallet
+    AlertCircle,
+    ArrowLeft,
+    Banknote,
+    Barcode as BarcodeIcon,
+    Clock,
+    CreditCard,
+    Download,
+    FileText,
+    IdCard,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    User,
+    Wallet
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
+import { PDFGeneratorComponent } from "../../../components/PDFGenerator";
 import { useToast } from "../../../components/Toast";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../../components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -532,6 +533,46 @@ export default function CustomerDetailPage() {
     // Keep the dates for the next time user opens the dialog
   };
 
+  // Function to send closing report by email
+  const sendClosingReportByEmail = async () => {
+    if (!customer || !reportStartDate || !reportEndDate) {
+      showToast("Por favor, preencha todas as datas para gerar o relatório.", "warning");
+      return;
+    }
+
+    if (new Date(reportStartDate) > new Date(reportEndDate)) {
+      showToast("A data inicial não pode ser maior que a data final.", "error");
+      return;
+    }
+
+    if (!customer.email) {
+      showToast("Cliente não possui email cadastrado.", "error");
+      return;
+    }
+
+    try {
+      showToast("Enviando relatório por email...", "info");
+      
+      const response = await fetch(`/api/customers/${customer.id}/send-closing-report?startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast(`Relatório enviado para ${customer.email}`, "success");
+        setIsReportDialogOpen(false);
+      } else {
+        showToast(result.error || "Erro ao enviar relatório", "error");
+      }
+    } catch (error) {
+      showToast("Erro ao enviar relatório por email", "error");
+    }
+  };
+
   // Set default dates (last 30 days) with optional confirmation
   const setDefaultDates = (confirm = false) => {
     // If dates are already filled and not confirming, ask for confirmation
@@ -972,14 +1013,15 @@ export default function CustomerDetailPage() {
                           Últimos 30 dias
                         </Button>
                       </div>
-                      <div className="flex flex-col gap-2 pt-2">
-                        <div className="flex gap-2">
+                      <div className="space-y-3 pt-4">
+                        {/* Primeira linha: Cancelar e Impressão Térmica */}
+                        <div className="grid grid-cols-2 gap-3">
                           <Button
                             variant="outline"
                             onClick={() => {
                               setIsReportDialogOpen(false);
                             }}
-                            className="flex-1"
+                            className="h-10"
                           >
                             Cancelar
                           </Button>
@@ -987,20 +1029,43 @@ export default function CustomerDetailPage() {
                             onClick={generateThermalReport}
                             disabled={!reportStartDate || !reportEndDate}
                             variant="outline"
-                            className="flex-1 border-orange-200 text-orange-700 hover:bg-orange-50"
+                            className="h-10 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
                           >
                             <Printer className="h-4 w-4 mr-2" />
-                            Impressão Térmica
+                            Térmica
                           </Button>
                         </div>
+                        
+                        {/* Segunda linha: Relatório Completo */}
                         <Button
                           onClick={generateReport}
                           disabled={!reportStartDate || !reportEndDate}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          className="w-full h-10 bg-blue-600 hover:bg-blue-700"
                         >
                           <Printer className="h-4 w-4 mr-2" />
                           Relatório Completo
                         </Button>
+                        
+                        {/* Terceira linha: Envio por Email */}
+                        {customer?.email ? (
+                          <PDFGeneratorComponent
+                            customerId={customer.id}
+                            startDate={reportStartDate || ''}
+                            endDate={reportEndDate || ''}
+                            customerName={customer.name}
+                            showSendButton={true}
+                            onSendEmail={() => {
+                              showToast("Relatório com PDF enviado por email!", "success");
+                              setIsReportDialogOpen(false);
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-10 flex items-center justify-center bg-gray-100 rounded-md border border-gray-200">
+                            <span className="text-sm text-gray-500 font-medium">
+                              📧 Cliente sem email cadastrado
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

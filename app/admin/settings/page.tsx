@@ -12,10 +12,12 @@ import {
     Building2,
     Edit3,
     Image as ImageIcon,
+    Mail,
     MapPin,
     Phone,
     RefreshCw,
     Save,
+    Send,
     Trash2,
     Upload
 } from "lucide-react";
@@ -46,12 +48,23 @@ export default function SettingsPage() {
     branding_system_title: 'Viandas e Marmitex',
     branding_pdv_title: 'PDV - Viandas e Marmitex',
     branding_logo_url: '',
+    email_smtp_host: '',
+    email_smtp_port: '587',
+    email_smtp_secure: 'false',
+    email_smtp_user: '',
+    email_smtp_password: '',
+    email_from_name: 'Viandas e Marmitex',
+    email_from_address: '',
+    email_reply_to: '',
+    email_enabled: 'false',
   });
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
 
   // Carregar dados do formulário quando as configurações forem carregadas
   useEffect(() => {
@@ -257,6 +270,47 @@ export default function SettingsPage() {
         "Erro ao salvar",
         error || "Não foi possível salvar as configurações"
       );
+    }
+  };
+
+  // Função para testar configurações de email
+  const handleTestEmail = async () => {
+    if (!testEmail.trim()) {
+      showToast("Digite um email para teste", "error");
+      return;
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(testEmail)) {
+      showToast("Formato de email inválido", "error");
+      return;
+    }
+
+    try {
+      setIsTestingEmail(true);
+      
+      const response = await fetch('/api/email/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ testEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast(data.message, "success");
+        setTestEmail(''); // Limpar campo após sucesso
+      } else {
+        showToast(data.error || "Erro ao testar configurações", "error");
+      }
+    } catch (error) {
+      console.error('Erro ao testar email:', error);
+      showToast("Erro ao testar configurações de email", "error");
+    } finally {
+      setIsTestingEmail(false);
     }
   };
 
@@ -681,6 +735,275 @@ export default function SettingsPage() {
                 Formatos aceitos: JPEG, PNG, WebP, GIF. Tamanho máximo: 5MB.
                 A logo será redimensionada para formato quadrado.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Configurações de Email */}
+        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Mail className="h-6 w-6 text-green-600" />
+              Configurações de Email
+            </CardTitle>
+            <CardDescription className="text-gray-600 mt-1">
+              Configure o servidor SMTP para envio de relatórios por email
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {/* Seção Status e Configurações Básicas */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <Mail className="h-4 w-4 text-green-600" />
+                <h3 className="text-base font-semibold text-green-800">
+                  Configurações Básicas
+                </h3>
+              </div>
+              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
+              
+              <div className="grid gap-6 sm:grid-cols-2 mt-4">
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_enabled"
+                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
+                  >
+                    Habilitar Envio de Emails
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="email_enabled"
+                      checked={formData.email_enabled === 'true'}
+                      onChange={(e) => handleInputChange('email_enabled', e.target.checked ? 'true' : 'false')}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-600">
+                      {formData.email_enabled === 'true' ? 'Ativado' : 'Desativado'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_from_name"
+                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
+                  >
+                    Nome do Remetente
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="email_from_name"
+                      value={formData.email_from_name}
+                      onChange={(e) => handleInputChange('email_from_name', e.target.value)}
+                      placeholder="Viandas e Marmitex"
+                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                    />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção Servidor SMTP */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <Send className="h-4 w-4 text-green-600" />
+                <h3 className="text-base font-semibold text-green-800">
+                  Servidor SMTP
+                </h3>
+              </div>
+              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
+              
+              <div className="grid gap-6 sm:grid-cols-2 mt-4">
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_smtp_host"
+                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
+                  >
+                    Servidor SMTP
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="email_smtp_host"
+                      value={formData.email_smtp_host}
+                      onChange={(e) => handleInputChange('email_smtp_host', e.target.value)}
+                      placeholder="smtp.gmail.com"
+                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                    />
+                    <Send className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_smtp_port"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Porta SMTP
+                  </Label>
+                  <Input
+                    id="email_smtp_port"
+                    value={formData.email_smtp_port}
+                    onChange={(e) => handleInputChange('email_smtp_port', e.target.value)}
+                    placeholder="587"
+                    type="number"
+                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_smtp_user"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Usuário/Email
+                  </Label>
+                  <Input
+                    id="email_smtp_user"
+                    value={formData.email_smtp_user}
+                    onChange={(e) => handleInputChange('email_smtp_user', e.target.value)}
+                    placeholder="seu-email@gmail.com"
+                    type="email"
+                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_smtp_password"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Senha do App
+                  </Label>
+                  <Input
+                    id="email_smtp_password"
+                    value={formData.email_smtp_password}
+                    onChange={(e) => handleInputChange('email_smtp_password', e.target.value)}
+                    placeholder="Sua senha de aplicativo"
+                    type="password"
+                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_smtp_secure"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Conexão Segura (SSL/TLS)
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="email_smtp_secure"
+                      checked={formData.email_smtp_secure === 'true'}
+                      onChange={(e) => handleInputChange('email_smtp_secure', e.target.checked ? 'true' : 'false')}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-600">
+                      {formData.email_smtp_secure === 'true' ? 'SSL/TLS Ativado' : 'STARTTLS (Recomendado)'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_reply_to"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email para Resposta
+                  </Label>
+                  <Input
+                    id="email_reply_to"
+                    value={formData.email_reply_to}
+                    onChange={(e) => handleInputChange('email_reply_to', e.target.value)}
+                    placeholder="contato@viandase.com"
+                    type="email"
+                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Seção Email do Remetente */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <Mail className="h-4 w-4 text-green-600" />
+                <h3 className="text-base font-semibold text-green-800">
+                  Email do Remetente
+                </h3>
+              </div>
+              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
+              
+              <div className="mt-4">
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="email_from_address"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email de Envio
+                  </Label>
+                  <Input
+                    id="email_from_address"
+                    value={formData.email_from_address}
+                    onChange={(e) => handleInputChange('email_from_address', e.target.value)}
+                    placeholder="noreply@viandase.com"
+                    type="email"
+                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Este será o email que aparece como remetente nos relatórios enviados
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Botão de Teste */}
+            <div className="pt-4 border-t border-gray-200">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label 
+                    htmlFor="test_email"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email para Teste
+                  </Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="test_email"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      placeholder="seu-email@exemplo.com"
+                      type="email"
+                      className="flex-1 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTestEmail}
+                      disabled={!formData.email_enabled || !formData.email_smtp_host || !formData.email_smtp_user || !testEmail.trim() || isTestingEmail}
+                      className="px-6 py-3 border-green-200 hover:bg-green-50 text-green-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+                    >
+                      {isTestingEmail ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
+                          Testando...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Testar Email
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Digite um email válido para testar as configurações SMTP
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

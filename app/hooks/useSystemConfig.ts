@@ -1,29 +1,8 @@
+import { ConfigFormData, SystemConfig } from '@/lib/types';
 import { useCallback, useEffect, useState } from 'react';
 
-export interface SystemConfig {
-  id: string;
-  key: string;
-  value: string | null;
-  type: 'text' | 'json' | 'image';
-  category: 'general' | 'contact' | 'branding';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ConfigFormData {
-  contact_address_street: string;
-  contact_address_number: string;
-  contact_address_neighborhood: string;
-  contact_address_city: string;
-  contact_address_state: string;
-  contact_address_zipcode: string;
-  contact_address_complement: string;
-  contact_phone_mobile: string;
-  contact_phone_landline: string;
-  branding_system_title: string;
-  branding_pdv_title: string;
-  branding_logo_url: string;
-}
+// Re-export types for convenience
+export type { ConfigFormData, SystemConfig };
 
 export function useSystemConfig() {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
@@ -64,7 +43,8 @@ export function useSystemConfig() {
         key,
         value: value || '',
         type: key.includes('logo') ? 'image' : 'text',
-        category: key.startsWith('contact_') ? 'contact' : 'branding'
+        category: key.startsWith('contact_') ? 'contact' : 
+                  key.startsWith('email_') ? 'email' : 'branding'
       }));
 
       const response = await fetch('/api/config', {
@@ -114,6 +94,15 @@ export function useSystemConfig() {
       branding_system_title: getConfigValue('branding_system_title', 'Viandas e Marmitex'),
       branding_pdv_title: getConfigValue('branding_pdv_title', 'PDV - Viandas e Marmitex'),
       branding_logo_url: getConfigValue('branding_logo_url'),
+      email_smtp_host: getConfigValue('email_smtp_host'),
+      email_smtp_port: getConfigValue('email_smtp_port', '587'),
+      email_smtp_secure: getConfigValue('email_smtp_secure', 'false'),
+      email_smtp_user: getConfigValue('email_smtp_user'),
+      email_smtp_password: getConfigValue('email_smtp_password'),
+      email_from_name: getConfigValue('email_from_name', 'Viandas e Marmitex'),
+      email_from_address: getConfigValue('email_from_address'),
+      email_reply_to: getConfigValue('email_reply_to'),
+      email_enabled: getConfigValue('email_enabled', 'false'),
     };
   }, [getConfigValue]);
 
