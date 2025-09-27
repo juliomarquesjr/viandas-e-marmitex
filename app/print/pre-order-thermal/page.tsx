@@ -1,5 +1,6 @@
 "use client";
 
+import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -33,11 +34,15 @@ function PreOrderThermalContent() {
   const preOrderId = searchParams.get('preOrderId');
 
   const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
+  const [contactInfo, setContactInfo] = useState<{
+    address: string;
+    phones: { mobile: string; landline: string };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadPreOrder = async () => {
+    const loadData = async () => {
       if (!preOrderId) {
         setError('ID do pré-pedido não fornecido');
         setLoading(false);
@@ -46,14 +51,47 @@ function PreOrderThermalContent() {
 
       try {
         setLoading(true);
-        const response = await fetch(`/api/pre-orders?id=${preOrderId}`);
+        
+        // Carregar pré-pedido e informações de contato em paralelo
+        const [preOrderResponse, configResponse] = await Promise.all([
+          fetch(`/api/pre-orders?id=${preOrderId}`),
+          fetch('/api/config')
+        ]);
 
-        if (!response.ok) {
+        if (!preOrderResponse.ok) {
           throw new Error('Falha ao carregar pré-pedido');
         }
 
-        const data = await response.json();
+        const data = await preOrderResponse.json();
         setPreOrder(data);
+
+        // Processar informações de contato
+        if (configResponse.ok) {
+          const configs = await configResponse.json();
+          const contactConfigs = configs.filter((config: any) => config.category === 'contact');
+          
+          // Construir endereço
+          const addressParts = [
+            contactConfigs.find((c: any) => c.key === 'contact_address_street')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_number')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_neighborhood')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_city')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_state')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_zipcode')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_complement')?.value
+          ].filter(part => part && part.trim());
+          
+          const formattedAddress = addressParts.join(', ');
+          
+          // Extrair telefones
+          const mobile = contactConfigs.find((c: any) => c.key === 'contact_phone_mobile')?.value || '';
+          const landline = contactConfigs.find((c: any) => c.key === 'contact_phone_landline')?.value || '';
+          
+          setContactInfo({
+            address: formattedAddress,
+            phones: { mobile, landline }
+          });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
       } finally {
@@ -61,7 +99,7 @@ function PreOrderThermalContent() {
       }
     };
 
-    loadPreOrder();
+    loadData();
   }, [preOrderId]);
 
   // Auto print when page loads
@@ -233,6 +271,9 @@ function PreOrderThermalContent() {
         </div>
       </div>
 
+      {/* Contact Footer */}
+      <ThermalFooter contactInfo={contactInfo || undefined} />
+
       {/* Print button for screen view */}
       <div className="no-print thermal-print-btn">
         <button
@@ -380,6 +421,26 @@ function PreOrderThermalContent() {
           margin-top: 8px;
           padding-top: 6px;
           border-top: 3px solid #000;
+        }
+        
+        /* Seção de Contato */
+        .thermal-contact-section {
+          margin: 8px 0;
+          text-align: left;
+        }
+        
+        .thermal-contact-title {
+          font-size: 15px;
+          font-weight: 900;
+          margin-bottom: 4px;
+          color: #000 !important;
+        }
+        
+        .thermal-contact-info {
+          font-size: 14px;
+          font-weight: bold;
+          margin-bottom: 2px;
+          color: #000 !important;
         }
         
         .thermal-separator {

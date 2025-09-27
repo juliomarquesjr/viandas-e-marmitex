@@ -11,9 +11,11 @@ interface ToastProps {
   message: string;
   type: ToastType;
   onClose: (id: string) => void;
+  title?: string;
+  description?: string;
 }
 
-const Toast = ({ id, message, type, onClose }: ToastProps) => {
+const Toast = ({ id, message, type, onClose, title, description }: ToastProps) => {
   const getIcon = () => {
     switch (type) {
       case "success":
@@ -61,7 +63,9 @@ const Toast = ({ id, message, type, onClose }: ToastProps) => {
     >
       {getIcon()}
       <div className="flex-1">
-        <p className="text-sm font-semibold text-gray-900">{message}</p>
+        {title && <p className="text-sm font-semibold text-gray-900">{title}</p>}
+        {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
+        {!title && !description && <p className="text-sm font-semibold text-gray-900">{message}</p>}
       </div>
       <button
         onClick={() => onClose(id)}
@@ -81,14 +85,16 @@ interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
+  title?: string;
+  description?: string;
 }
 
 export const ToastProvider = ({ children }: ToastProviderProps) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastType = "info") => {
+  const showToast = useCallback((message: string, type: ToastType = "info", title?: string, description?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, title, description }]);
   }, []);
 
   const hideToast = useCallback((id: string) => {
@@ -98,8 +104,8 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
   // Listener para eventos personalizados
   useEffect(() => {
     const handleShowToast = (event: CustomEvent) => {
-      const { message, type } = event.detail;
-      showToast(message, type);
+      const { message, type, title, description } = event.detail;
+      showToast(message, type, title, description);
     };
 
     window.addEventListener("showToast", handleShowToast as EventListener);
@@ -120,6 +126,8 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
               message={toast.message}
               type={toast.type}
               onClose={hideToast}
+              title={toast.title}
+              description={toast.description}
             />
           ))}
         </AnimatePresence>
@@ -129,9 +137,9 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
 };
 
 export const useToast = () => {
-  const showToast = (message: string, type: ToastType = "info") => {
+  const showToast = (message: string, type: ToastType = "info", title?: string, description?: string) => {
     const event = new CustomEvent("showToast", {
-      detail: { message, type },
+      detail: { message, type, title, description },
     });
     window.dispatchEvent(event);
   };

@@ -189,3 +189,17 @@ model PreOrderItem {
   @@index([preOrderId])
   @@index([productId])
 }
+
+// Modelo de Configurações do Sistema (chave-valor)
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique // Chave única da configuração
+  value     String?  // Valor da configuração (pode ser null para campos opcionais)
+  type      String   @default("text") // Tipo: text, json, image
+  category  String   @default("general") // Categoria: general, contact, branding
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@index([category])
+}

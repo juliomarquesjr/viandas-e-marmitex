@@ -1,5 +1,6 @@
 "use client";
 
+import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -36,11 +37,15 @@ function ThermalReceiptContent() {
   const orderId = searchParams.get('orderId');
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [contactInfo, setContactInfo] = useState<{
+    address: string;
+    phones: { mobile: string; landline: string };
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadOrder = async () => {
+    const loadData = async () => {
       if (!orderId) {
         setError('ID do pedido não fornecido');
         setLoading(false);
@@ -49,14 +54,47 @@ function ThermalReceiptContent() {
 
       try {
         setLoading(true);
-        const response = await fetch(`/api/orders/${orderId}`);
+        
+        // Carregar pedido e informações de contato em paralelo
+        const [orderResponse, configResponse] = await Promise.all([
+          fetch(`/api/orders/${orderId}`),
+          fetch('/api/config')
+        ]);
 
-        if (!response.ok) {
+        if (!orderResponse.ok) {
           throw new Error('Falha ao carregar pedido');
         }
 
-        const data = await response.json();
-        setOrder(data);
+        const orderData = await orderResponse.json();
+        setOrder(orderData);
+
+        // Processar informações de contato
+        if (configResponse.ok) {
+          const configs = await configResponse.json();
+          const contactConfigs = configs.filter((config: any) => config.category === 'contact');
+          
+          // Construir endereço
+          const addressParts = [
+            contactConfigs.find((c: any) => c.key === 'contact_address_street')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_number')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_neighborhood')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_city')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_state')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_zipcode')?.value,
+            contactConfigs.find((c: any) => c.key === 'contact_address_complement')?.value
+          ].filter(part => part && part.trim());
+          
+          const formattedAddress = addressParts.join(', ');
+          
+          // Extrair telefones
+          const mobile = contactConfigs.find((c: any) => c.key === 'contact_phone_mobile')?.value || '';
+          const landline = contactConfigs.find((c: any) => c.key === 'contact_phone_landline')?.value || '';
+          
+          setContactInfo({
+            address: formattedAddress,
+            phones: { mobile, landline }
+          });
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
       } finally {
@@ -64,7 +102,7 @@ function ThermalReceiptContent() {
       }
     };
 
-    loadOrder();
+    loadData();
   }, [orderId]);
 
   // Auto print when page loads
@@ -147,6 +185,11 @@ function ThermalReceiptContent() {
         </div>
         <div className="thermal-date">
           {formatDateTime(order.createdAt)}
+        </div>
+        
+        {/* Order Info */}
+        <div className="thermal-order-info">
+          Pedido #{order.id.slice(-8).toUpperCase()}
         </div>
       </div>
 
@@ -260,13 +303,8 @@ function ThermalReceiptContent() {
         )}
       </div>
 
-      {/* Footer */}
-      <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '14px', color: '#333'}}>Pedido #{order.id.slice(-8).toUpperCase()}</div>
-        <div className="thermal-separator">
-          ================================
-        </div>
-      </div>
+      {/* Contact Footer */}
+      <ThermalFooter contactInfo={contactInfo || undefined} />
 
       {/* Print button for screen view */}
       <div className="no-print thermal-print-btn">
@@ -331,6 +369,14 @@ function ThermalReceiptContent() {
         
         .thermal-date {
           font-size: 14px;
+        }
+        
+        .thermal-order-info {
+          font-size: 14px;
+          font-weight: 900;
+          margin-bottom: 8px;
+          color: #000 !important;
+          text-align: center;
         }
         
         /* Seções */
@@ -415,6 +461,26 @@ function ThermalReceiptContent() {
           margin-top: 8px;
           padding-top: 6px;
           border-top: 3px solid #000;
+        }
+        
+        /* Seção de Contato */
+        .thermal-contact-section {
+          margin: 8px 0;
+          text-align: left;
+        }
+        
+        .thermal-contact-title {
+          font-size: 15px;
+          font-weight: 900;
+          margin-bottom: 4px;
+          color: #000 !important;
+        }
+        
+        .thermal-contact-info {
+          font-size: 14px;
+          font-weight: bold;
+          margin-bottom: 2px;
+          color: #000 !important;
         }
         
         .thermal-separator {
