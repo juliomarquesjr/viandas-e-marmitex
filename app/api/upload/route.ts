@@ -118,8 +118,14 @@ export async function POST(request: Request) {
       if (oldImageUrl && oldImageUrl.trim()) {
         try {
           console.log('Deletando imagem antiga:', oldImageUrl);
-          await del(oldImageUrl);
-          console.log('Imagem antiga deletada com sucesso');
+          
+          // Verificar se a URL é válida do Vercel Blob
+          if (oldImageUrl.includes('blob.vercel-storage.com')) {
+            await del(oldImageUrl);
+            console.log('Imagem antiga deletada com sucesso do Vercel Blob');
+          } else {
+            console.warn('URL da imagem antiga não é do Vercel Blob, pulando remoção:', oldImageUrl);
+          }
         } catch (deleteError) {
           console.warn('Aviso: Não foi possível deletar a imagem antiga:', deleteError);
           // Don't fail the upload if old image deletion fails
@@ -170,13 +176,22 @@ export async function DELETE(request: Request) {
 
     try {
       console.log('Deletando imagem:', imageUrl);
+      
+      // Verificar se a URL é válida do Vercel Blob
+      if (!imageUrl.includes('blob.vercel-storage.com')) {
+        console.warn('URL não é do Vercel Blob:', imageUrl);
+        return NextResponse.json({ 
+          error: 'URL da imagem não é válida para remoção' 
+        }, { status: 400 });
+      }
+      
       await del(imageUrl);
-      console.log('Imagem deletada com sucesso');
+      console.log('Imagem deletada com sucesso do Vercel Blob');
       return NextResponse.json({ message: 'Imagem deletada com sucesso' });
     } catch (deleteError) {
       console.error('Erro ao deletar imagem:', deleteError);
       return NextResponse.json({ 
-        error: 'Não foi possível deletar a imagem' 
+        error: 'Não foi possível deletar a imagem: ' + (deleteError instanceof Error ? deleteError.message : 'Erro desconhecido')
       }, { status: 500 });
     }
   } catch (error: any) {

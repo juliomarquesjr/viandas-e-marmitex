@@ -38,6 +38,7 @@ function PreOrderThermalContent() {
     address: string;
     phones: { mobile: string; landline: string };
   } | null>(null);
+  const [systemTitle, setSystemTitle] = useState<string>('COMIDA CASEIRA');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,10 +66,17 @@ function PreOrderThermalContent() {
         const data = await preOrderResponse.json();
         setPreOrder(data);
 
-        // Processar informações de contato
+        // Processar informações de contato e título do sistema
         if (configResponse.ok) {
           const configs = await configResponse.json();
           const contactConfigs = configs.filter((config: any) => config.category === 'contact');
+          const brandingConfigs = configs.filter((config: any) => config.category === 'branding');
+          
+          // Extrair título do sistema
+          const systemTitleConfig = brandingConfigs.find((c: any) => c.key === 'branding_system_title');
+          if (systemTitleConfig?.value) {
+            setSystemTitle(systemTitleConfig.value.toUpperCase());
+          }
           
           // Construir endereço
           const addressParts = [
@@ -164,7 +172,7 @@ function PreOrderThermalContent() {
         </div>
         
         <div className="thermal-title">
-          COMIDA CASEIRA
+          {systemTitle}
         </div>
         <div className="thermal-subtitle">
           PRÉ-PEDIDO
@@ -439,8 +447,19 @@ function PreOrderThermalContent() {
         .thermal-contact-info {
           font-size: 14px;
           font-weight: bold;
-          margin-bottom: 2px;
+          margin-bottom: 10px;
           color: #000 !important;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .thermal-icon {
+          width: 16px;
+          height: 16px;
+          filter: brightness(0) contrast(100%);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         
         .thermal-separator {

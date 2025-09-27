@@ -21,6 +21,12 @@ interface ImageCropModalProps {
   aspectRatio?: number; // e.g., 1 for square, 16/9 for wide
   maxWidth?: number;
   maxHeight?: number;
+  title?: string;
+  description?: string;
+  selectImageTitle?: string;
+  selectImageDescription?: string;
+  cropButtonText?: string;
+  selectAnotherButtonText?: string;
 }
 
 export function ImageCropModal({
@@ -31,6 +37,12 @@ export function ImageCropModal({
   aspectRatio = 1, // Default to square
   maxWidth = 800,
   maxHeight = 800,
+  title = "Editar Imagem",
+  description = "Faça o crop e ajuste a imagem conforme necessário",
+  selectImageTitle = "Selecione uma imagem",
+  selectImageDescription = "Escolha uma imagem para editar e fazer o crop",
+  cropButtonText = "Aplicar Crop",
+  selectAnotherButtonText = "Escolher Outra Imagem",
 }: ImageCropModalProps) {
   const [imgSrc, setImgSrc] = useState('');
   const [crop, setCrop] = useState<Crop>();
@@ -241,8 +253,11 @@ export function ImageCropModal({
         <CardHeader className="border-b border-gray-200">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
             <CropIcon className="h-5 w-5 text-primary" />
-            Editar Imagem do Produto
+            {title}
           </CardTitle>
+          <p className="text-sm text-gray-600 mt-1">
+            {description}
+          </p>
         </CardHeader>
 
         <CardContent className="flex-1 overflow-y-auto p-6">
@@ -253,10 +268,10 @@ export function ImageCropModal({
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 hover:border-primary/50 transition-colors">
                   <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Selecione uma imagem
+                    {selectImageTitle}
                   </h3>
                   <p className="text-gray-500 mb-6">
-                    Escolha uma imagem para editar e fazer o crop
+                    {selectImageDescription}
                   </p>
                   <div>
                     <input
@@ -370,7 +385,7 @@ export function ImageCropModal({
                   className="flex-1"
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  Escolher Outra Imagem
+                  {selectAnotherButtonText}
                 </Button>
                 
                 <Button
@@ -397,7 +412,7 @@ export function ImageCropModal({
                   ) : (
                     <>
                       <Check className="h-4 w-4 mr-2" />
-                      Aplicar e Salvar
+                      {cropButtonText}
                     </>
                   )}
                 </Button>

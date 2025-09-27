@@ -1,13 +1,22 @@
 "use client";
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
+import { useSystemConfig } from '@/app/hooks/useSystemConfig';
+import { useEffect, useState } from 'react';
 
 export default function ThermalFooterDemo() {
+  const { getConfigValue } = useSystemConfig();
+  const [systemTitle, setSystemTitle] = useState<string>('DEMONSTRAÇÃO DO RODAPÉ');
+
+  useEffect(() => {
+    const title = getConfigValue('branding_system_title', 'Demonstração do Rodapé');
+    setSystemTitle(title.toUpperCase());
+  }, [getConfigValue]);
   return (
     <div className="thermal-demo">
       <div className="thermal-header">
         <div className="thermal-title">
-          DEMONSTRAÇÃO DO RODAPÉ
+          {systemTitle}
         </div>
         <div className="thermal-subtitle">
           INFORMAÇÕES DE CONTATO
@@ -107,8 +116,19 @@ export default function ThermalFooterDemo() {
         .thermal-contact-info {
           font-size: 14px;
           font-weight: bold;
-          margin-bottom: 2px;
+          margin-bottom: 10px;
           color: #000 !important;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .thermal-icon {
+          width: 16px;
+          height: 16px;
+          filter: brightness(0) contrast(100%);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         
         /* Telefones lado a lado */

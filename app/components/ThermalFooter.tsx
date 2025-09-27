@@ -20,25 +20,40 @@ export function ThermalFooter({ className = "", contactInfo }: ThermalFooterProp
       {/* Informações de Contato */}
       <div className="thermal-contact-section">
         <div className="thermal-contact-title">
-          CONTATO:
+          INFORMAÇÕES DE CONTATO:
         </div>
         
         {/* Telefones um abaixo do outro */}
         {phones.mobile && (
           <div className="thermal-contact-info">
-            📲 {phones.mobile}
+            <img 
+              src="/img/whatsapp_thermal.png" 
+              alt="WhatsApp" 
+              className="thermal-icon"
+            />
+            {phones.mobile}
           </div>
         )}
         
         {phones.landline && (
           <div className="thermal-contact-info">
-            📞 {phones.landline}
+            <img 
+              src="/img/telefone_fixo_thermal.png" 
+              alt="Telefone" 
+              className="thermal-icon"
+            />
+            {phones.landline}
           </div>
         )}
         
         {address && (
           <div className="thermal-contact-info">
-            📍 {address}
+            <img 
+              src="/img/pin_de_localizacao_thermal.png" 
+              alt="Localização" 
+              className="thermal-icon"
+            />
+            {address}
           </div>
         )}
         

@@ -1,28 +1,28 @@
 "use client";
 
 import {
-  Barcode,
-  Check,
-  Edit3,
-  FileText,
-  Image,
-  Package,
-  Tag,
-  Trash2,
-  Upload,
-  Wallet,
-  X
+    Barcode,
+    Check,
+    Edit3,
+    FileText,
+    Image,
+    Package,
+    Tag,
+    Trash2,
+    Upload,
+    Wallet,
+    X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Category, Product } from "../admin/products/page";
 import { ImageCropModal } from "./ImageCropModal";
 import { Button } from "./ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -609,6 +609,12 @@ export function ProductFormDialog({
         aspectRatio={1} // Square aspect ratio for product images
         maxWidth={800}
         maxHeight={800}
+        title="Editar Imagem do Produto"
+        description="Ajuste e faça o crop da imagem para garantir que ela fique perfeita"
+        selectImageTitle="Selecione uma imagem"
+        selectImageDescription="Escolha uma imagem para editar e fazer o crop"
+        cropButtonText="Aplicar e Salvar Imagem"
+        selectAnotherButtonText="Escolher Outra Imagem"
       />
     </div>
   );
