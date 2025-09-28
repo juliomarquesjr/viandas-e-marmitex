@@ -70,17 +70,25 @@ export function PDFGeneratorComponent({
 
       console.log('Gerando PDF para:', { customerId, startDate, endDate, customerName });
 
-      // Gerar PDF
+      // Gerar PDF com compressão otimizada para Vercel
       const pdfBlob = await PDFGenerator.generateCustomerClosingReport(
         customerId,
         startDate,
         endDate,
         {
-          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`
+          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`,
+          compress: true,
+          imageQuality: 0.6,
+          quality: 0.8
         }
       );
 
       console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
+
+      // Verificar se o PDF é muito grande para Vercel
+      if (PDFGenerator.isPDFTooLarge && PDFGenerator.isPDFTooLarge(pdfBlob)) {
+        throw new Error('PDF muito grande para envio. Tente um período menor ou use a opção "Baixar PDF" para salvar localmente.');
+      }
 
       // Converter para base64
       const pdfBase64 = await PDFGenerator.blobToBase64(pdfBlob);

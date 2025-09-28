@@ -1,11 +1,13 @@
-import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export interface PDFGenerationOptions {
   filename?: string;
   format?: 'a4' | 'letter';
   orientation?: 'portrait' | 'landscape';
   quality?: number;
+  compress?: boolean;
+  imageQuality?: number;
 }
 
 export class PDFGenerator {
@@ -20,7 +22,9 @@ export class PDFGenerator {
       filename = 'relatorio.pdf',
       format = 'a4',
       orientation = 'portrait',
-      quality = 0.98
+      quality = 0.98,
+      compress = true,
+      imageQuality = 0.7
     } = options;
 
     // Verificar se estamos no browser
@@ -55,16 +59,17 @@ export class PDFGenerator {
       // Aguardar um pouco para o CSS ser aplicado
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Converter HTML para canvas
+      // Converter HTML para canvas com configurações otimizadas para Vercel
       const canvas = await html2canvas(tempDiv, {
-        scale: 1.5, // Qualidade balanceada
+        scale: compress ? 1.2 : 1.5, // Reduzir escala para arquivos menores
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         width: tempDiv.scrollWidth || 800,
         height: tempDiv.scrollHeight || 1200,
         logging: false,
-        imageTimeout: 15000
+        imageTimeout: 15000,
+        removeContainer: true
       });
 
       console.log('Canvas gerado, dimensões:', {
@@ -86,19 +91,26 @@ export class PDFGenerator {
 
       let position = 0;
 
+      // Converter canvas para imagem comprimida se necessário
+      let imageData = canvas.toDataURL('image/jpeg', imageQuality);
+      if (compress) {
+        // Usar JPEG com qualidade reduzida para arquivos menores
+        imageData = canvas.toDataURL('image/jpeg', 0.6);
+      }
+
       // Adicionar imagem ao PDF
-      pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
+      pdf.addImage(imageData, 'JPEG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
 
       // Adicionar páginas se necessário
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(canvas, 'PNG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imageData, 'JPEG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
 
-      // Converter para Blob
+      // Converter para Blob com compressão
       const pdfBlob = pdf.output('blob');
       
       console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
@@ -161,9 +173,12 @@ export class PDFGenerator {
       // Gerar HTML do relatório
       const htmlContent = this.generateReportHTML(reportData);
       
-      // Gerar PDF
+      // Gerar PDF com compressão otimizada para Vercel
       return await this.generateFromHTML(htmlContent, {
         filename: `relatorio-fechamento-${customerId}-${startDate}-${endDate}.pdf`,
+        compress: true,
+        imageQuality: 0.6,
+        quality: 0.8,
         ...options
       });
     } catch (error) {
@@ -569,5 +584,52 @@ export class PDFGenerator {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+
+  /**
+   * Verifica se o PDF é muito grande para Vercel (limite ~4.5MB)
+   */
+  static isPDFTooLarge(pdfBlob: Blob): boolean {
+    // Vercel tem limite de ~4.5MB para payload de função
+    // Base64 aumenta o tamanho em ~33%, então 3.4MB é o limite seguro
+    return pdfBlob.size > 3.4 * 1024 * 1024; // 3.4MB
+  }
+
+  /**
+   * Gera PDF com compressão agressiva se necessário
+   */
+  static async generateCompressedPDF(
+    htmlContent: string, 
+    options: PDFGenerationOptions = {}
+  ): Promise<Blob> {
+    const compressedOptions = {
+      ...options,
+      compress: true,
+      imageQuality: 0.5,
+      quality: 0.7,
+      format: 'a4' as const,
+      orientation: 'portrait' as const
+    };
+
+    let pdfBlob = await this.generateFromHTML(htmlContent, compressedOptions);
+    
+    // Se ainda for muito grande, tentar com qualidade ainda menor
+    if (this.isPDFTooLarge(pdfBlob)) {
+      console.log('PDF ainda muito grande, aplicando compressão agressiva...');
+      const aggressiveOptions = {
+        ...compressedOptions,
+        imageQuality: 0.3,
+        quality: 0.5
+      };
+      
+      pdfBlob = await this.generateFromHTML(htmlContent, aggressiveOptions);
+      
+      if (this.isPDFTooLarge(pdfBlob)) {
+        console.warn('PDF ainda muito grande mesmo com compressão agressiva:', pdfBlob.size);
+        throw new Error('PDF muito grande para envio. Tente um período menor ou contate o suporte.');
+      }
+    }
+
+    return pdfBlob;
   }
 }

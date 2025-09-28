@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "app/api/customers/[id]/send-closing-report-pdf/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/customers/[id]/send-closing-report/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"]
+}
