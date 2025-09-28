@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { ChartLoading } from "../components/ChartLoading";
 
 type RangeOption = {
     label: string;
@@ -355,9 +356,7 @@ export default function AdminHome() {
                         )}
                         <div className="h-80 w-full">
                             {loading ? (
-                                <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                    Carregando dados...
-                                </div>
+                                <ChartLoading />
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={salesChartData}>
@@ -413,9 +412,7 @@ export default function AdminHome() {
                         )}
                         <div className="h-80 w-full">
                             {loading ? (
-                                <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                    Carregando dados...
-                                </div>
+                                <ChartLoading />
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={statusChartData}>
@@ -464,9 +461,7 @@ export default function AdminHome() {
                                 </div>
                                 <div className="h-80 w-full">
                                     {loading ? (
-                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                            Carregando dados...
-                                        </div>
+                                        <ChartLoading variant="pie" />
                                     ) : productSalesData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
@@ -508,9 +503,7 @@ export default function AdminHome() {
                                 </div>
                                 <div className="h-80 w-full">
                                     {loading ? (
-                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                            Carregando dados...
-                                        </div>
+                                        <ChartLoading variant="pie" />
                                     ) : paymentMethodData.length > 0 ? (
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
