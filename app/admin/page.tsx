@@ -1,53 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    Legend,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis
-} from "recharts";
-import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { ChartLoading } from "../components/ChartLoading";
-
-type RangeOption = {
-    label: string;
-    value: number;
-};
-
-type SalesPoint = {
-    day: string;
-    total: number;
-    pending: number;
-    confirmed: number;
-};
-
-type ApiOrderItem = {
-    id: string;
-    quantity: number;
-    priceCents: number | null;
-    product: {
-        id: string;
-        name: string | null;
-    } | null;
-};
-
-type ApiOrder = {
-    id: string;
-    status: string;
-    totalCents: number | null;
-    createdAt: string;
-    paymentMethod: string | null;
-    items: ApiOrderItem[] | null;
-};
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ApiOrder, RangeOption, SalesPoint, StatusTotals } from "./types";
+import { SalesOverPeriodCard } from "./components/SalesOverPeriodCard";
+import { StatusComparisonCard } from "./components/StatusComparisonCard";
+import { SalesDistributionCard } from "./components/SalesDistributionCard";
 
 const RANGE_OPTIONS: RangeOption[] = [
     { label: "7 dias", value: 7 },
@@ -187,6 +144,8 @@ export default function AdminHome() {
         fetchOrders();
     }, []);
 
+    const formatCurrency = useCallback((value: number) => currencyFormatter.format(value), []);
+
     const salesChartData = useMemo(() => {
         if (dailyData.length === 0) {
             return [];
@@ -205,8 +164,8 @@ export default function AdminHome() {
         return salesChartData.reduce((sum, item) => sum + item.total, 0);
     }, [salesChartData]);
 
-    const totalsByStatus = useMemo(() => {
-        return statusChartData.reduce(
+    const totalsByStatus = useMemo<StatusTotals>(() => {
+        return statusChartData.reduce<StatusTotals>(
             (acc, item) => {
                 acc.pending += item.pending;
                 acc.confirmed += item.confirmed;
@@ -312,22 +271,7 @@ export default function AdminHome() {
         return paymentMethodData.reduce((sum, item) => sum + item.value, 0);
     }, [paymentMethodData]);
 
-    const pieColors = ["#6366F1", "#F97316", "#22C55E", "#0EA5E9", "#A855F7", "#F43F5E", "#FACC15", "#14B8A6"];
 
-    const renderRangeButtons = (currentRange: number, onSelect: (value: number) => void) => (
-        <div className="flex flex-wrap gap-2">
-            {RANGE_OPTIONS.map((option) => (
-                <Button
-                    key={option.value}
-                    variant={currentRange === option.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => onSelect(option.value)}
-                >
-                    {option.label}
-                </Button>
-            ))}
-        </div>
-    );
 
     return (
         <main className="min-h-screen bg-slate-50 p-6">
@@ -339,205 +283,39 @@ export default function AdminHome() {
                     </p>
                 </section>
 
-                <Card className="border-0 shadow-md">
-                    <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <CardTitle className="text-xl text-slate-900">Vendas por período</CardTitle>
-                        {renderRangeButtons(salesRange, setSalesRange)}
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="text-sm text-slate-600">
-                            Total do período selecionado:
-                            <span className="ml-1 font-semibold text-slate-900">
-                                {currencyFormatter.format(totalSales)}
-                            </span>
-                        </div>
-                        {error && (
-                            <p className="text-sm text-red-500">{error}</p>
-                        )}
-                        <div className="h-80 w-full">
-                            {loading ? (
-                                <ChartLoading />
-                            ) : (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={salesChartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                                        <XAxis dataKey="day" tickLine={false} axisLine={false} />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickFormatter={(value: number) =>
-                                                currencyFormatter.format(value).replace("R$", "").trim()
-                                            }
-                                        />
-                                        <Tooltip
-                                            cursor={{ fill: "rgba(148, 163, 184, 0.15)" }}
-                                            formatter={(value: number) => currencyFormatter.format(value)}
-                                            labelStyle={{ color: "#0f172a", fontWeight: 500 }}
-                                        />
-                                        <Bar dataKey="total" fill="#6366F1" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <SalesOverPeriodCard
+                    loading={loading}
+                    error={error}
+                    totalSales={totalSales}
+                    chartData={salesChartData}
+                    rangeOptions={RANGE_OPTIONS}
+                    currentRange={salesRange}
+                    onRangeChange={setSalesRange}
+                    formatCurrency={formatCurrency}
+                />
 
-                <Card className="border-0 shadow-md">
-                    <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="text-xl text-slate-900">Pendentes vs. confirmadas</CardTitle>
-                            <p className="text-xs text-slate-500">
-                                Confirmadas exibem valores sem contabilizar entradas.
-                            </p>
-                        </div>
-                        {renderRangeButtons(statusRange, setStatusRange)}
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                            <span>
-                                Pendentes:
-                                <span className="ml-1 font-semibold text-slate-900">
-                                    {currencyFormatter.format(totalsByStatus.pending)}
-                                </span>
-                            </span>
-                            <span>
-                                Confirmadas:
-                                <span className="ml-1 font-semibold text-slate-900">
-                                    {currencyFormatter.format(totalsByStatus.confirmed)}
-                                </span>
-                            </span>
-                        </div>
-                        {error && (
-                            <p className="text-sm text-red-500">{error}</p>
-                        )}
-                        <div className="h-80 w-full">
-                            {loading ? (
-                                <ChartLoading />
-                            ) : (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={statusChartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                                        <XAxis dataKey="day" tickLine={false} axisLine={false} />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tickFormatter={(value: number) =>
-                                                currencyFormatter.format(value).replace("R$", "").trim()
-                                            }
-                                        />
-                                        <Tooltip
-                                            cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                            formatter={(value: number) => currencyFormatter.format(value)}
-                                            labelStyle={{ color: "#0f172a", fontWeight: 500 }}
-                                        />
-                                        <Legend formatter={(value: string) => (value === "pending" ? "Pendentes" : "Confirmadas")} />
-                                        <Bar dataKey="pending" name="Pendentes" fill="#F97316" radius={[6, 6, 0, 0]} />
-                                        <Bar dataKey="confirmed" name="Confirmadas" fill="#22C55E" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <StatusComparisonCard
+                    loading={loading}
+                    error={error}
+                    chartData={statusChartData}
+                    totalsByStatus={totalsByStatus}
+                    rangeOptions={RANGE_OPTIONS}
+                    currentRange={statusRange}
+                    onRangeChange={setStatusRange}
+                    formatCurrency={formatCurrency}
+                />
 
-                <Card className="border-0 shadow-md">
-                    <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="text-xl text-slate-900">Distribuição das vendas</CardTitle>
-                            <p className="text-xs text-slate-500">
-                                Analise os produtos mais vendidos e os meios de pagamento preferidos.
-                            </p>
-                        </div>
-                        {renderRangeButtons(insightsRange, setInsightsRange)}
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid gap-8 lg:grid-cols-2">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between text-sm text-slate-600">
-                                    <span>Vendas por produto</span>
-                                    <span className="font-semibold text-slate-900">
-                                        {currencyFormatter.format(totalProductSales)}
-                                    </span>
-                                </div>
-                                <div className="h-80 w-full">
-                                    {loading ? (
-                                        <ChartLoading variant="pie" />
-                                    ) : productSalesData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Tooltip
-                                                    formatter={(value) => currencyFormatter.format(Number(value))}
-                                                    cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                                />
-                                                <Legend />
-                                                <Pie
-                                                    data={productSalesData}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={100}
-                                                    paddingAngle={4}
-                                                >
-                                                    {productSalesData.map((entry, index) => (
-                                                        <Cell key={`product-pie-${entry.name}-${index}`} fill={pieColors[index % pieColors.length]} />
-                                                    ))}
-                                                </Pie>
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                            Sem dados no período selecionado.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between text-sm text-slate-600">
-                                    <span>Formas de pagamento</span>
-                                    <span className="font-semibold text-slate-900">
-                                        {currencyFormatter.format(totalPaymentSales)}
-                                    </span>
-                                </div>
-                                <div className="h-80 w-full">
-                                    {loading ? (
-                                        <ChartLoading variant="pie" />
-                                    ) : paymentMethodData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Tooltip
-                                                    formatter={(value) => currencyFormatter.format(Number(value))}
-                                                    cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                                />
-                                                <Legend />
-                                                <Pie
-                                                    data={paymentMethodData}
-                                                    dataKey="value"
-                                                    nameKey="name"
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={100}
-                                                    paddingAngle={4}
-                                                >
-                                                    {paymentMethodData.map((entry, index) => (
-                                                        <Cell key={`payment-pie-${entry.method}-${index}`} fill={pieColors[index % pieColors.length]} />
-                                                    ))}
-                                                </Pie>
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                            Sem dados no período selecionado.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <SalesDistributionCard
+                    loading={loading}
+                    productSalesData={productSalesData}
+                    paymentMethodData={paymentMethodData}
+                    totalProductSales={totalProductSales}
+                    totalPaymentSales={totalPaymentSales}
+                    rangeOptions={RANGE_OPTIONS}
+                    currentRange={insightsRange}
+                    onRangeChange={setInsightsRange}
+                    formatCurrency={formatCurrency}
+                />
             </div>
         </main>
     );
