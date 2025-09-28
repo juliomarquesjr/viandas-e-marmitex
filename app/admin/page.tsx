@@ -5,7 +5,10 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    Cell,
     Legend,
+    Pie,
+    PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -26,11 +29,23 @@ type SalesPoint = {
     confirmed: number;
 };
 
+type ApiOrderItem = {
+    id: string;
+    quantity: number;
+    priceCents: number | null;
+    product: {
+        id: string;
+        name: string | null;
+    } | null;
+};
+
 type ApiOrder = {
     id: string;
     status: string;
     totalCents: number | null;
     createdAt: string;
+    paymentMethod: string | null;
+    items: ApiOrderItem[] | null;
 };
 
 const RANGE_OPTIONS: RangeOption[] = [
@@ -116,6 +131,8 @@ function buildDailySummaries(orders: ApiOrder[], totalDays: number, endDate: Dat
 export default function AdminHome() {
     const [salesRange, setSalesRange] = useState<number>(7);
     const [statusRange, setStatusRange] = useState<number>(7);
+    const [insightsRange, setInsightsRange] = useState<number>(7);
+    const [orders, setOrders] = useState<ApiOrder[]>([]);
     const [dailyData, setDailyData] = useState<SalesPoint[]>(() => {
         const endDate = new Date();
         endDate.setHours(0, 0, 0, 0);
@@ -151,14 +168,16 @@ export default function AdminHome() {
                 }
 
                 const payload = await response.json();
-                const orders: ApiOrder[] = Array.isArray(payload?.data) ? payload.data : [];
+                const ordersData = (Array.isArray(payload?.data) ? payload.data : []) as ApiOrder[];
 
-                setDailyData(buildDailySummaries(orders, MAX_HISTORY_DAYS, endDate));
+                setOrders(ordersData);
+                setDailyData(buildDailySummaries(ordersData, MAX_HISTORY_DAYS, endDate));
             } catch (fetchError) {
                 const fallbackEndDate = new Date();
                 fallbackEndDate.setHours(0, 0, 0, 0);
                 setError(fetchError instanceof Error ? fetchError.message : "Não foi possível carregar as vendas.");
                 setDailyData(buildDailySummaries([], MAX_HISTORY_DAYS, fallbackEndDate));
+                setOrders([]);
             } finally {
                 setLoading(false);
             }
@@ -195,6 +214,104 @@ export default function AdminHome() {
             { pending: 0, confirmed: 0 }
         );
     }, [statusChartData]);
+
+    const filteredOrders = useMemo(() => {
+        if (orders.length === 0) {
+            return [] as ApiOrder[];
+        }
+
+        const endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        const startDate = new Date(endDate);
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(startDate.getDate() - (insightsRange - 1));
+
+        return orders.filter((order) => {
+            if (!order?.createdAt) {
+                return false;
+            }
+
+            const orderDate = new Date(order.createdAt);
+            return orderDate >= startDate && orderDate <= endDate;
+        });
+    }, [orders, insightsRange]);
+
+    const productSalesData = useMemo(() => {
+        if (filteredOrders.length === 0) {
+            return [] as { name: string; value: number }[];
+        }
+
+        const totals = new Map<string, number>();
+
+        filteredOrders.forEach((order) => {
+            order.items?.forEach((item) => {
+                if (!item) {
+                    return;
+                }
+
+                const productName = item.product?.name?.trim() || "Sem nome";
+                const itemTotal = ((item.priceCents ?? 0) * item.quantity) / 100;
+
+                totals.set(productName, (totals.get(productName) ?? 0) + itemTotal);
+            });
+        });
+
+        const sortedTotals = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+        const maxItems = 6;
+        const primaryItems = sortedTotals
+            .slice(0, maxItems)
+            .map(([name, value]) => ({ name, value }))
+            .filter((item) => item.value > 0);
+        const othersTotal = sortedTotals.slice(maxItems).reduce((sum, [, value]) => sum + value, 0);
+
+        if (othersTotal > 0) {
+            primaryItems.push({ name: "Outros", value: othersTotal });
+        }
+
+        return primaryItems;
+    }, [filteredOrders]);
+
+    const paymentMethodLabels: Record<string, string> = {
+        cash: "Dinheiro",
+        credit: "Crédito",
+        debit: "Débito",
+        pix: "Pix",
+        invoice: "Ficha cliente",
+    };
+
+    const paymentMethodData = useMemo(() => {
+        if (filteredOrders.length === 0) {
+            return [] as { name: string; value: number; method: string }[];
+        }
+
+        const totals = new Map<string, number>();
+
+        filteredOrders.forEach((order) => {
+            const method = order.paymentMethod || "desconhecido";
+            const orderTotal = (order.totalCents ?? 0) / 100;
+
+            totals.set(method, (totals.get(method) ?? 0) + orderTotal);
+        });
+
+        return Array.from(totals.entries())
+            .sort((a, b) => b[1] - a[1])
+            .map(([method, value]) => ({
+                method,
+                name: paymentMethodLabels[method] || "Outros",
+                value,
+            }))
+            .filter((entry) => entry.value > 0);
+    }, [filteredOrders]);
+
+    const totalProductSales = useMemo(() => {
+        return productSalesData.reduce((sum, item) => sum + item.value, 0);
+    }, [productSalesData]);
+
+    const totalPaymentSales = useMemo(() => {
+        return paymentMethodData.reduce((sum, item) => sum + item.value, 0);
+    }, [paymentMethodData]);
+
+    const pieColors = ["#6366F1", "#F97316", "#22C55E", "#0EA5E9", "#A855F7", "#F43F5E", "#FACC15", "#14B8A6"];
 
     const renderRangeButtons = (currentRange: number, onSelect: (value: number) => void) => (
         <div className="flex flex-wrap gap-2">
@@ -322,6 +439,109 @@ export default function AdminHome() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-md">
+                    <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-1">
+                            <CardTitle className="text-xl text-slate-900">Distribuição das vendas</CardTitle>
+                            <p className="text-xs text-slate-500">
+                                Analise os produtos mais vendidos e os meios de pagamento preferidos.
+                            </p>
+                        </div>
+                        {renderRangeButtons(insightsRange, setInsightsRange)}
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-8 lg:grid-cols-2">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between text-sm text-slate-600">
+                                    <span>Vendas por produto</span>
+                                    <span className="font-semibold text-slate-900">
+                                        {currencyFormatter.format(totalProductSales)}
+                                    </span>
+                                </div>
+                                <div className="h-80 w-full">
+                                    {loading ? (
+                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                                            Carregando dados...
+                                        </div>
+                                    ) : productSalesData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Tooltip
+                                                    formatter={(value) => currencyFormatter.format(Number(value))}
+                                                    cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
+                                                />
+                                                <Legend />
+                                                <Pie
+                                                    data={productSalesData}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={60}
+                                                    outerRadius={100}
+                                                    paddingAngle={4}
+                                                >
+                                                    {productSalesData.map((entry, index) => (
+                                                        <Cell key={`product-pie-${entry.name}-${index}`} fill={pieColors[index % pieColors.length]} />
+                                                    ))}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                                            Sem dados no período selecionado.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between text-sm text-slate-600">
+                                    <span>Formas de pagamento</span>
+                                    <span className="font-semibold text-slate-900">
+                                        {currencyFormatter.format(totalPaymentSales)}
+                                    </span>
+                                </div>
+                                <div className="h-80 w-full">
+                                    {loading ? (
+                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                                            Carregando dados...
+                                        </div>
+                                    ) : paymentMethodData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Tooltip
+                                                    formatter={(value) => currencyFormatter.format(Number(value))}
+                                                    cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
+                                                />
+                                                <Legend />
+                                                <Pie
+                                                    data={paymentMethodData}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={60}
+                                                    outerRadius={100}
+                                                    paddingAngle={4}
+                                                >
+                                                    {paymentMethodData.map((entry, index) => (
+                                                        <Cell key={`payment-pie-${entry.method}-${index}`} fill={pieColors[index % pieColors.length]} />
+                                                    ))}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                                            Sem dados no período selecionado.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
