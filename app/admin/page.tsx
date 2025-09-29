@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ApiOrder, RangeOption, SalesPoint, StatusTotals } from "./types";
+import type { ApiOrder, RangeOption, SalesPoint, StatusTotals, CustomerDebtor } from "./types";
 import { SalesOverPeriodCard } from "./components/SalesOverPeriodCard";
 import { StatusComparisonCard } from "./components/StatusComparisonCard";
 import { SalesDistributionCard } from "./components/SalesDistributionCard";
+import { TopDebtorsCard } from "./components/TopDebtorsCard";
 
 const RANGE_OPTIONS: RangeOption[] = [
     { label: "7 dias", value: 7 },
@@ -98,6 +99,9 @@ export default function AdminHome() {
     });
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [debtors, setDebtors] = useState<CustomerDebtor[]>([]);
+    const [debtorsLoading, setDebtorsLoading] = useState<boolean>(false);
+    const [debtorsError, setDebtorsError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -142,6 +146,37 @@ export default function AdminHome() {
         };
 
         fetchOrders();
+    }, []);
+
+    useEffect(() => {
+        const fetchDebtors = async () => {
+            setDebtorsLoading(true);
+            setDebtorsError(null);
+
+            try {
+                const response = await fetch("/api/reports/debtors", {
+                    cache: "no-store",
+                });
+
+                if (!response.ok) {
+                    throw new Error("Falha ao carregar saldos de ficha.");
+                }
+
+                const payload = await response.json();
+                const debtorsData = Array.isArray(payload?.data) ? (payload.data as CustomerDebtor[]) : [];
+
+                setDebtors(debtorsData);
+            } catch (fetchError) {
+                setDebtors([]);
+                setDebtorsError(
+                    fetchError instanceof Error ? fetchError.message : "Nao foi possivel carregar os saldos de ficha."
+                );
+            } finally {
+                setDebtorsLoading(false);
+            }
+        };
+
+        fetchDebtors();
     }, []);
 
     const formatCurrency = useCallback((value: number) => currencyFormatter.format(value), []);
@@ -302,6 +337,13 @@ export default function AdminHome() {
                     rangeOptions={RANGE_OPTIONS}
                     currentRange={statusRange}
                     onRangeChange={setStatusRange}
+                    formatCurrency={formatCurrency}
+                />
+
+                <TopDebtorsCard
+                    loading={debtorsLoading}
+                    error={debtorsError}
+                    debtors={debtors}
                     formatCurrency={formatCurrency}
                 />
 

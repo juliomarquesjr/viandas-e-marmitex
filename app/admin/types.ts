@@ -33,3 +33,13 @@ export type StatusTotals = {
     pending: number;
     confirmed: number;
 };
+
+export type CustomerDebtor = {
+    customerId: string;
+    name: string;
+    phone: string | null;
+    pendingCents: number;
+    paymentsCents: number;
+    balanceCents: number;
+};
+
