@@ -29,15 +29,25 @@ export function SalesOverPeriodCard({
     formatCurrency,
 }: SalesOverPeriodCardProps) {
     return (
-        <Card className="border-0 shadow-md">
-            <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <CardTitle className="text-xl text-slate-900">Vendas por período</CardTitle>
+        <Card className="relative overflow-hidden border-0 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5" />
+            <CardHeader className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-1">
+                    <CardTitle className="text-xl font-bold text-slate-900">Vendas por período</CardTitle>
+                    <p className="text-sm text-slate-600">Evolução das vendas ao longo do tempo</p>
+                </div>
                 <RangeSelector options={rangeOptions} currentValue={currentRange} onSelect={onRangeChange} />
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="text-sm text-slate-600">
-                    Total do período selecionado:
-                    <span className="ml-1 font-semibold text-slate-900">{formatCurrency(totalSales)}</span>
+            <CardContent className="relative space-y-6">
+                <div className="flex items-center justify-between rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border border-blue-100">
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-slate-600">Total do período</p>
+                        <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalSales)}</p>
+                    </div>
+                    <div className="text-right text-sm text-slate-500">
+                        <p>Últimos {currentRange} dias</p>
+                        <p className="text-xs">Média diária: {formatCurrency(totalSales / currentRange)}</p>
+                    </div>
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <div className="h-80 w-full">

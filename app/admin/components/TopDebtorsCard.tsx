@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { AlertCircle, Phone } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
 import { ChartLoading } from "../../components/ChartLoading";
 import type { CustomerDebtor } from "../types";
 
@@ -15,7 +14,7 @@ type TopDebtorsCardProps = {
     formatCurrency: (value: number) => string;
 };
 
-const MAX_VISIBLE_DEBTORS = 8;
+const MAX_VISIBLE_DEBTORS = 20; // Aumentado para permitir scroll
 
 export function TopDebtorsCard({ loading, error, debtors, formatCurrency }: TopDebtorsCardProps) {
     const itemsToDisplay = useMemo(() => debtors.slice(0, MAX_VISIBLE_DEBTORS), [debtors]);
@@ -24,85 +23,91 @@ export function TopDebtorsCard({ loading, error, debtors, formatCurrency }: TopD
     }, [debtors]);
 
     return (
-        <Card className="border-0 shadow-md">
-            <CardHeader className="flex flex-col gap-1">
-                <CardTitle className="text-xl text-slate-900">Clientes com saldo devedor</CardTitle>
+        <Card className="relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md transition-all duration-300 h-[600px] flex flex-col">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 to-orange-50/40" />
+            <CardHeader className="relative flex flex-col gap-1 flex-shrink-0">
+                <CardTitle className="text-xl font-bold text-slate-800">Clientes Devedores</CardTitle>
                 <p className="text-sm text-slate-600">
                     {debtors.length > 0
                         ? `${debtors.length} cliente${debtors.length === 1 ? "" : "s"} com saldo em aberto`
-                        : "Acompanhe os clientes com vendas em aberto (ficha)."}
+                        : "Acompanhe os clientes com vendas em aberto (ficha)"}
                 </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="relative flex-1 flex flex-col min-h-0">
                 {loading ? (
-                    <div className="h-36 w-full">
+                    <div className="flex-1 flex items-center justify-center">
                         <ChartLoading />
                     </div>
                 ) : error ? (
-                    <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-red-100 p-4 text-sm text-red-700">
                         <AlertCircle className="h-5 w-5 flex-shrink-0" />
                         <div>
-                            <p className="font-medium">Nao foi possivel carregar os saldos.</p>
+                            <p className="font-medium">Não foi possível carregar os saldos</p>
                             <p>{error}</p>
                         </div>
                     </div>
                 ) : itemsToDisplay.length === 0 ? (
-                    <div className="flex h-32 flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-center">
-                        <p className="text-sm font-medium text-slate-600">Nenhum cliente com saldo devedor.</p>
-                        <p className="text-xs text-slate-500">Otimo sinal! Todas as fichas estao em dia.</p>
+                    <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-green-100 text-center">
+                        <p className="text-sm font-medium text-green-700">Nenhum cliente com saldo devedor</p>
+                        <p className="text-xs text-green-600">Ótimo sinal! Todas as fichas estão em dia</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between rounded-lg bg-slate-900/5 px-4 py-3 text-sm">
-                            <span className="font-medium text-slate-700">Total em aberto</span>
-                            <span className="font-semibold text-slate-900">
-                                {formatCurrency(totalOutstanding / 100)}
-                            </span>
+                    <div className="flex flex-col space-y-4 flex-1 min-h-0">
+                        <div className="rounded-lg bg-gradient-to-r from-red-50 to-red-100 p-4 border border-red-200 flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-red-700">Total em Aberto</p>
+                                    <p className="text-xl font-bold text-red-900">
+                                        {formatCurrency(totalOutstanding / 100)}
+                                    </p>
+                                </div>
+                                <div className="text-xs text-red-600">
+                                    {debtors.length} cliente{debtors.length === 1 ? "" : "s"}
+                                </div>
+                            </div>
                         </div>
-                        <ul className="space-y-2">
+                        <div className="flex-1 overflow-y-auto debtors-scroll pr-2 space-y-3">
                             {itemsToDisplay.map((debtor, index) => (
-                                <li
+                                <div
                                     key={debtor.customerId}
-                                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                                    className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white/90 backdrop-blur-sm p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <Badge
-                                            variant="default"
-                                            className="h-8 w-8 justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600"
-                                        >
-                                            {index + 1}
-                                        </Badge>
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{debtor.name}</p>
-                                            {debtor.phone && (
-                                                <p className="flex items-center gap-1 text-xs text-slate-500">
-                                                    <Phone className="h-3.5 w-3.5" />
-                                                    {debtor.phone}
-                                                </p>
-                                            )}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="relative flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-red-500 text-sm font-bold text-white shadow-md">
+                                                {index + 1}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-800">{debtor.name}</p>
+                                                {debtor.phone && (
+                                                    <p className="flex items-center gap-1 text-xs text-slate-500">
+                                                        <Phone className="h-3.5 w-3.5" />
+                                                        {debtor.phone}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-slate-500 mb-1">Saldo devedor</p>
+                                            <p className="text-lg font-bold text-red-600">
+                                                {formatCurrency(debtor.balanceCents / 100)}
+                                            </p>
+                                            <div className="flex flex-col gap-1 text-xs text-slate-500 mt-1">
+                                                <span>Consumido: {formatCurrency(debtor.pendingCents / 100)}</span>
+                                                {debtor.paymentsCents > 0 && (
+                                                    <span>Pago: {formatCurrency(debtor.paymentsCents / 100)}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right text-sm">
-                                        <p className="text-slate-500">Saldo devedor</p>
-                                        <p className="text-lg font-semibold text-red-600">
-                                            {formatCurrency(debtor.balanceCents / 100)}
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                            Consumido: {formatCurrency(debtor.pendingCents / 100)}
-                                        </p>
-                                        {debtor.paymentsCents > 0 && (
-                                            <p className="text-xs text-slate-500">
-                                                Pago: {formatCurrency(debtor.paymentsCents / 100)}
-                                            </p>
-                                        )}
-                                    </div>
-                                </li>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
                         {debtors.length > MAX_VISIBLE_DEBTORS && (
-                            <p className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-500 text-center py-2 flex-shrink-0">
                                 + {debtors.length - MAX_VISIBLE_DEBTORS} outro{debtors.length - MAX_VISIBLE_DEBTORS === 1 ? "" : "s"} com saldo em aberto.
-                            </p>
+                            </div>
                         )}
                     </div>
                 )}

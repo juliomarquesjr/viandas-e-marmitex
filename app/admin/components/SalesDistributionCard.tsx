@@ -39,22 +39,30 @@ export function SalesDistributionCard({
     formatCurrency,
 }: SalesDistributionCardProps) {
     return (
-        <Card className="border-0 shadow-md">
-            <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <Card className="relative overflow-hidden border-0 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5" />
+            <CardHeader className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="space-y-1">
-                    <CardTitle className="text-xl text-slate-900">Distribuição das vendas</CardTitle>
-                    <p className="text-xs text-slate-500">
-                        Analise os produtos mais vendidos e os meios de pagamento preferidos.
+                    <CardTitle className="text-xl font-bold text-slate-900">Distribuição das Vendas</CardTitle>
+                    <p className="text-sm text-slate-600">
+                        Análise detalhada por produtos e formas de pagamento
                     </p>
                 </div>
                 <RangeSelector options={rangeOptions} currentValue={currentRange} onSelect={onRangeChange} />
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="relative space-y-6">
                 <div className="grid gap-8 lg:grid-cols-2">
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm text-slate-600">
-                            <span>Vendas por produto</span>
-                            <span className="font-semibold text-slate-900">{formatCurrency(totalProductSales)}</span>
+                        <div className="rounded-lg bg-gradient-to-r from-purple-50 to-purple-100 p-4 border border-purple-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-purple-700">Vendas por Produto</p>
+                                    <p className="text-xl font-bold text-purple-900">{formatCurrency(totalProductSales)}</p>
+                                </div>
+                                <div className="text-xs text-purple-600">
+                                    {productSalesData.length} produtos
+                                </div>
+                            </div>
                         </div>
                         <div className="h-80 w-full">
                             {loading ? (
@@ -95,9 +103,16 @@ export function SalesDistributionCard({
                     </div>
 
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm text-slate-600">
-                            <span>Formas de pagamento</span>
-                            <span className="font-semibold text-slate-900">{formatCurrency(totalPaymentSales)}</span>
+                        <div className="rounded-lg bg-gradient-to-r from-pink-50 to-pink-100 p-4 border border-pink-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-pink-700">Formas de Pagamento</p>
+                                    <p className="text-xl font-bold text-pink-900">{formatCurrency(totalPaymentSales)}</p>
+                                </div>
+                                <div className="text-xs text-pink-600">
+                                    {paymentMethodData.length} métodos
+                                </div>
+                            </div>
                         </div>
                         <div className="h-80 w-full">
                             {loading ? (

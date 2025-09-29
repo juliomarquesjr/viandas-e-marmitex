@@ -29,27 +29,42 @@ export function StatusComparisonCard({
     formatCurrency,
 }: StatusComparisonCardProps) {
     return (
-        <Card className="border-0 shadow-md">
-            <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <Card className="relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md transition-all duration-300 h-[600px] flex flex-col">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-green-50/40" />
+            <CardHeader className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="space-y-1">
-                    <CardTitle className="text-xl text-slate-900">Pendentes vs. confirmadas</CardTitle>
-                    <p className="text-xs text-slate-500">Confirmadas exibem valores sem contabilizar entradas.</p>
+                    <CardTitle className="text-xl font-bold text-slate-800">Status das Vendas</CardTitle>
+                    <p className="text-sm text-slate-600">Comparação entre vendas pendentes e confirmadas</p>
                 </div>
                 <RangeSelector options={rangeOptions} currentValue={currentRange} onSelect={onRangeChange} />
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                    <span>
-                        Pendentes:
-                        <span className="ml-1 font-semibold text-slate-900">{formatCurrency(totalsByStatus.pending)}</span>
-                    </span>
-                    <span>
-                        Confirmadas:
-                        <span className="ml-1 font-semibold text-slate-900">{formatCurrency(totalsByStatus.confirmed)}</span>
-                    </span>
+            <CardContent className="relative space-y-6 flex-1 flex flex-col">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 p-4 border border-orange-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-orange-700">Pendentes</p>
+                                <p className="text-xl font-bold text-orange-900">{formatCurrency(totalsByStatus.pending)}</p>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-orange-400 flex items-center justify-center shadow-sm">
+                                <div className="h-3 w-3 rounded-full bg-white" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-lg bg-gradient-to-r from-green-50 to-green-100 p-4 border border-green-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-green-700">Confirmadas</p>
+                                <p className="text-xl font-bold text-green-900">{formatCurrency(totalsByStatus.confirmed)}</p>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-green-400 flex items-center justify-center shadow-sm">
+                                <div className="h-3 w-3 rounded-full bg-white" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
-                <div className="h-80 w-full">
+                <div className="flex-1 w-full min-h-0">
                     {loading ? (
                         <ChartLoading />
                     ) : (
