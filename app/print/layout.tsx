@@ -16,13 +16,15 @@ export default function PrintLayout({
         <style>{`
           @media print {
             @page {
-              margin: 0.5in;
+              margin: 0.25in;
               size: A4;
             }
             
             body {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+              font-size: 10px;
+              line-height: 1.2;
             }
             
             .no-print {
@@ -36,6 +38,42 @@ export default function PrintLayout({
             .avoid-break {
               page-break-inside: avoid;
             }
+            
+            /* Compact spacing for print */
+            .mb-1 { margin-bottom: 0.125rem !important; }
+            .mb-2 { margin-bottom: 0.25rem !important; }
+            .mb-3 { margin-bottom: 0.375rem !important; }
+            .mb-4 { margin-bottom: 0.5rem !important; }
+            .mb-6 { margin-bottom: 0.75rem !important; }
+            
+            .mt-3 { margin-top: 0.375rem !important; }
+            .mt-4 { margin-top: 0.5rem !important; }
+            .mt-6 { margin-top: 0.75rem !important; }
+            .mt-8 { margin-top: 1rem !important; }
+            
+            .p-1 { padding: 0.125rem !important; }
+            .p-2 { padding: 0.25rem !important; }
+            .p-3 { padding: 0.375rem !important; }
+            .p-4 { padding: 0.5rem !important; }
+            
+            /* Smaller font sizes for print */
+            .text-xs { font-size: 8px !important; }
+            .text-sm { font-size: 9px !important; }
+            .text-base { font-size: 10px !important; }
+            .text-lg { font-size: 12px !important; }
+            .text-xl { font-size: 14px !important; }
+            .text-2xl { font-size: 16px !important; }
+            
+            /* Compact table spacing */
+            th, td {
+              padding: 0.125rem !important;
+              font-size: 8px !important;
+            }
+            
+            /* Reduce border thickness */
+            .border { border-width: 0.5px !important; }
+            .border-b { border-bottom-width: 0.5px !important; }
+            .border-t { border-top-width: 0.5px !important; }
           }
           
           @media screen {

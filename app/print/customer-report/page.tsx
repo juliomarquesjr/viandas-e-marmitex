@@ -242,198 +242,147 @@ function CustomerReportContent() {
 
   return (
     <div className="w-full">
-      {/* Header - Compact and Beautiful */}
-      <div className="text-center mb-4 border-b border-gray-200 pb-3">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">
+      {/* Header - Ultra Compact */}
+      <div className="text-center mb-2 border-b border-gray-300 pb-1">
+        <h1 className="text-lg font-bold text-gray-900 mb-0">
           RELATÓRIO DE FECHAMENTO
         </h1>
-        <div className="text-base font-medium text-gray-600 mb-2">
+        <div className="text-sm text-gray-600 mb-1">
           Comida Caseira
         </div>
-        <div className="flex justify-center items-center gap-4 text-xs text-gray-500">
+        <div className="flex justify-center items-center gap-3 text-xs text-gray-500">
           <span>Período: {formatDate(period.startDate)} a {formatDate(period.endDate)}</span>
           <span>•</span>
-          <span>Gerado em: {formatDateTime(metadata.generatedAt)}</span>
+          <span>Gerado: {formatDateTime(metadata.generatedAt)}</span>
         </div>
       </div>
 
-      {/* Customer Data Table */}
-      <div className="mb-6 avoid-break">
-        <h2 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
+      {/* Customer Data - Compact */}
+      <div className="mb-3 avoid-break">
+        <h2 className="text-sm font-semibold mb-1 text-gray-800 border-b pb-1">
           Dados do Cliente
         </h2>
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <tbody>
-              <tr className="bg-gray-50">
-                <td className="p-3 font-medium text-gray-700 w-1/4">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Nome:
-                  </div>
-                </td>
-                <td className="p-3 text-gray-900">{customer.name}</td>
-                <td className="p-3 font-medium text-gray-700 w-1/4">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    Telefone:
-                  </div>
-                </td>
-                <td className="p-3 text-gray-900">{customer.phone}</td>
-              </tr>
-              {(customer.email || customer.doc) && (
-                <tr className="bg-white">
-                  <td className="p-3 font-medium text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      Email:
-                    </div>
-                  </td>
-                  <td className="p-3 text-gray-900">{customer.email || '-'}</td>
-                  <td className="p-3 font-medium text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      Documento:
-                    </div>
-                  </td>
-                  <td className="p-3 text-gray-900">{customer.doc || '-'}</td>
-                </tr>
-              )}
-              {customer.address && (
-                <tr className="bg-gray-50">
-                  <td className="p-3 font-medium text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Endereço:
-                    </div>
-                  </td>
-                  <td className="p-3 text-gray-900" colSpan={3}>
-                    {customer.address.street} {customer.address.number}
-                    {customer.address.complement && `, ${customer.address.complement}`}
-                    <br />
-                    {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
-                    <br />
-                    CEP: {customer.address.zip}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="flex justify-between border-b pb-1">
+            <span className="font-medium text-gray-600">Nome:</span>
+            <span className="text-gray-900">{customer.name}</span>
+          </div>
+          <div className="flex justify-between border-b pb-1">
+            <span className="font-medium text-gray-600">Telefone:</span>
+            <span className="text-gray-900">{customer.phone}</span>
+          </div>
+          {(customer.email || customer.doc) && (
+            <>
+              <div className="flex justify-between border-b pb-1">
+                <span className="font-medium text-gray-600">Email:</span>
+                <span className="text-gray-900">{customer.email || '-'}</span>
+              </div>
+              <div className="flex justify-between border-b pb-1">
+                <span className="font-medium text-gray-600">Documento:</span>
+                <span className="text-gray-900">{customer.doc || '-'}</span>
+              </div>
+            </>
+          )}
+          {customer.address && (
+            <div className="col-span-2 border-b pb-1">
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-600">Endereço:</span>
+                <span className="text-gray-900 text-right">
+                  {customer.address.street} {customer.address.number}
+                  {customer.address.complement && `, ${customer.address.complement}`}
+                  <br />
+                  {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
+                  <br />
+                  CEP: {customer.address.zip}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Financial Summary Table - Compact */}
-      <div className="mb-4 avoid-break">
-        <h2 className="text-lg font-semibold mb-2 text-gray-800 border-b pb-1">
+      {/* Financial Summary - Ultra Compact */}
+      <div className="mb-3 avoid-break">
+        <h2 className="text-sm font-semibold mb-1 text-gray-800 border-b pb-1">
           Resumo Financeiro
         </h2>
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <tbody>
-              <tr className="bg-red-50">
-                <td className="p-2 font-medium text-gray-700 text-sm">Saldo Devedor (Geral):</td>
-                <td className={`p-2 text-right text-lg font-bold ${
-                  summary.debtBalanceCents > 0 ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {formatCurrency(summary.debtBalanceCents)}
-                </td>
-              </tr>
-              <tr className="bg-yellow-50">
-                <td className="p-2 font-medium text-gray-700 text-sm">Saldo do Período (Pendentes):</td>
-                <td className="p-2 text-right text-lg font-bold text-orange-600">
-                  {formatCurrency(summary.pendingInPeriodCents)}
-                </td>
-              </tr>
-              <tr className="bg-blue-50">
-                <td className="p-2 font-medium text-gray-700 text-sm">Total de Pagamentos:</td>
-                <td className="p-2 text-right text-lg font-bold text-blue-600">
-                  {formatCurrency(summary.totalPaymentsCents)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="text-center border rounded p-1">
+            <div className="font-medium text-gray-600">Saldo Devedor</div>
+            <div className={`text-sm font-bold ${
+              summary.debtBalanceCents > 0 ? 'text-red-600' : 'text-green-600'
+            }`}>
+              {formatCurrency(summary.debtBalanceCents)}
+            </div>
+          </div>
+          <div className="text-center border rounded p-1">
+            <div className="font-medium text-gray-600">Pendentes</div>
+            <div className="text-sm font-bold text-orange-600">
+              {formatCurrency(summary.pendingInPeriodCents)}
+            </div>
+          </div>
+          <div className="text-center border rounded p-1">
+            <div className="font-medium text-gray-600">Pagamentos</div>
+            <div className="text-sm font-bold text-blue-600">
+              {formatCurrency(summary.totalPaymentsCents)}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Complete Transaction History */}
+      {/* Complete Transaction History - Compact */}
       {allTransactions.length > 0 && (
-        <div className="mb-6 avoid-break">
-          <h2 className="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">
-            Movimentação do Período (Pagamentos e Consumo)
+        <div className="mb-4 avoid-break">
+          <h2 className="text-sm font-semibold mb-2 text-gray-800 border-b pb-1">
+            Movimentação do Período
           </h2>
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full">
+          <div className="border rounded overflow-hidden">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="text-left p-3 font-semibold">Data</th>
-                  <th className="text-left p-3 font-semibold">Tipo</th>
-                  <th className="text-left p-3 font-semibold">Descrição</th>
-                  <th className="text-center p-3 font-semibold">Status</th>
-                  <th className="text-right p-3 font-semibold">Valor</th>
+                  <th className="text-left p-1 font-semibold w-20">Data</th>
+                  <th className="text-left p-1 font-semibold">Descrição</th>
+                  <th className="text-left p-1 font-semibold w-32">Detalhes</th>
+                  <th className="text-right p-1 font-semibold w-24">Valor</th>
                 </tr>
               </thead>
               <tbody>
                 {allTransactions.map((transaction, index) => (
                   <tr key={transaction.id} className={`${
+                    transaction.type === 'payment' ? 'bg-green-50' :
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  } ${transaction.type === 'payment' ? 'border-l-4 border-l-blue-500' : 
-                      transaction.status === 'pending' ? 'border-l-4 border-l-yellow-500' :
-                      'border-l-4 border-l-green-500'}`}>
-                    <td className="p-3 text-sm">
+                  } ${transaction.type === 'payment' ? 'border-l-2 border-l-blue-400' : 
+                      transaction.status === 'pending' ? 'border-l-2 border-l-yellow-400' :
+                      'border-l-2 border-l-green-400'}`}>
+                    <td className="p-1 text-xs">
                       {formatDate(transaction.date)}
                     </td>
-                    <td className="p-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        transaction.type === 'payment' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-orange-100 text-orange-800'
-                      }`}>
-                        {transaction.type === 'payment' ? 'Pagamento' : 'Consumo'}
-                      </span>
-                    </td>
-                    <td className="p-3 text-sm">
-                      <div className="max-w-xs" title={transaction.description}>
+                    <td className="p-1 text-xs">
+                      <div className="whitespace-normal">
                         {transaction.description}
-                        {transaction.type === 'consumption' && (() => {
-                          const order = details.periodOrders.find(o => o.id === transaction.id);
-                          if (order && order.discountCents > 0) {
-                            return (
-                              <div className="text-xs text-red-600 mt-1">
-                                Desconto: -{formatCurrency(order.discountCents)}
-                                <br />
-                                Subtotal: {formatCurrency(order.subtotalCents)}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
                       </div>
                     </td>
-                    <td className="p-3 text-center">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        transaction.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        transaction.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {transaction.status === 'confirmed' ? 'Confirmado' :
-                         transaction.status === 'pending' ? 'Pendente' :
-                         transaction.status === 'cancelled' ? 'Cancelado' :
-                         transaction.status}
-                      </span>
+                    <td className="p-1 text-xs">
+                      <div className="whitespace-normal">
+                        {transaction.type === 'consumption' && (() => {
+                          const order = details.periodOrders.find(o => o.id === transaction.id);
+                          if (order) {
+                            if (order.discountCents > 0) {
+                              return (
+                                <div>
+                                  <div>Subtotal: {formatCurrency(order.subtotalCents)}</div>
+                                  <div>Desc: -{formatCurrency(order.discountCents)}</div>
+                                </div>
+                              );
+                            }
+                            return '-';
+                          }
+                          return '-';
+                        })()}
+                        {transaction.type === 'payment' && '-'}
+                      </div>
                     </td>
-                    <td className={`p-3 text-sm text-right font-semibold ${
+                    <td className={`p-1 text-xs text-right font-semibold ${
                       transaction.type === 'payment' 
                         ? 'text-blue-600' 
                         : transaction.status === 'pending' 
@@ -450,9 +399,9 @@ function CustomerReportContent() {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="mt-8 pt-4 border-t border-gray-300 text-center text-sm text-gray-500">
-        <div>Relatório gerado automaticamente em {formatDateTime(metadata.generatedAt)}</div>
+      {/* Footer - Compact */}
+      <div className="mt-3 pt-2 border-t border-gray-300 text-center text-xs text-gray-500">
+        <div>Gerado em: {formatDateTime(metadata.generatedAt)}</div>
       </div>
 
       {/* Print button for screen view */}

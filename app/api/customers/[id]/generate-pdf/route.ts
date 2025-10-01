@@ -192,94 +192,94 @@ function generateReportHTML(reportData: any, companyName: string): string {
         
         body {
           font-family: 'Arial', sans-serif;
-          font-size: 12px;
-          line-height: 1.4;
+          font-size: 10px;
+          line-height: 1.2;
           color: #333;
           background: white;
-          padding: 20px;
+          padding: 10px;
         }
         
         .header {
           text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 2px solid #333;
-          padding-bottom: 20px;
+          margin-bottom: 15px;
+          border-bottom: 1px solid #333;
+          padding-bottom: 10px;
         }
         
         .header h1 {
-          font-size: 24px;
+          font-size: 16px;
           font-weight: bold;
-          margin-bottom: 5px;
+          margin-bottom: 3px;
         }
         
         .header h2 {
-          font-size: 18px;
+          font-size: 14px;
           font-weight: 600;
           color: #666;
-          margin-bottom: 10px;
+          margin-bottom: 5px;
         }
         
         .header .period {
-          font-size: 14px;
+          font-size: 10px;
           color: #888;
         }
         
         .customer-info {
-          margin-bottom: 25px;
+          margin-bottom: 12px;
           background: #f8f9fa;
-          padding: 15px;
-          border-radius: 5px;
+          padding: 8px;
+          border-radius: 3px;
         }
         
         .customer-info h3 {
-          font-size: 16px;
-          margin-bottom: 10px;
+          font-size: 12px;
+          margin-bottom: 6px;
           color: #333;
         }
         
         .customer-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 10px;
+          gap: 6px;
         }
         
         .customer-item {
-          margin-bottom: 5px;
+          margin-bottom: 3px;
         }
         
         .customer-item .label {
-          font-size: 11px;
+          font-size: 9px;
           color: #666;
           font-weight: 500;
         }
         
         .customer-item .value {
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 600;
         }
         
         .summary {
-          margin-bottom: 25px;
+          margin-bottom: 12px;
         }
         
         .summary h3 {
-          font-size: 16px;
-          margin-bottom: 15px;
+          font-size: 12px;
+          margin-bottom: 8px;
           color: #333;
         }
         
         .summary-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
-          gap: 15px;
+          gap: 8px;
         }
         
         .summary-item {
           background: #f8f9fa;
-          padding: 15px;
-          border-radius: 5px;
+          padding: 8px;
+          border-radius: 3px;
           text-align: center;
-          border-left: 4px solid #ddd;
+          border-left: 3px solid #ddd;
         }
         
         .summary-item.debt {
@@ -295,42 +295,42 @@ function generateReportHTML(reportData: any, companyName: string): string {
         }
         
         .summary-item .label {
-          font-size: 11px;
+          font-size: 9px;
           color: #666;
-          margin-bottom: 5px;
+          margin-bottom: 3px;
         }
         
         .summary-item .value {
-          font-size: 16px;
+          font-size: 12px;
           font-weight: bold;
         }
         
         .transactions {
-          margin-bottom: 25px;
+          margin-bottom: 12px;
         }
         
         .transactions h3 {
-          font-size: 16px;
-          margin-bottom: 15px;
+          font-size: 12px;
+          margin-bottom: 8px;
           color: #333;
         }
         
         .transactions-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 11px;
+          font-size: 9px;
         }
         
         .transactions-table th {
           background: #f8f9fa;
-          padding: 8px;
+          padding: 4px;
           text-align: left;
           font-weight: 600;
           border: 1px solid #ddd;
         }
         
         .transactions-table td {
-          padding: 8px;
+          padding: 4px;
           border: 1px solid #ddd;
         }
         
@@ -358,11 +358,11 @@ function generateReportHTML(reportData: any, companyName: string): string {
         }
         
         .footer {
-          margin-top: 30px;
-          padding-top: 20px;
+          margin-top: 15px;
+          padding-top: 10px;
           border-top: 1px solid #ddd;
           text-align: center;
-          font-size: 11px;
+          font-size: 9px;
           color: #666;
         }
         
@@ -437,14 +437,33 @@ function generateReportHTML(reportData: any, companyName: string): string {
             <tr>
               <th class="date">Data</th>
               <th class="description">Descrição</th>
+              <th style="width: 80px;">Detalhes</th>
               <th class="value">Valor</th>
             </tr>
           </thead>
           <tbody>
             ${allTransactions.map(transaction => `
-              <tr>
+              <tr style="${transaction.type === 'payment' ? 'background-color: #f0fdf4;' : ''}">
                 <td>${formatDate(transaction.date)}</td>
-                <td>${transaction.description}</td>
+                <td style="white-space: normal; word-wrap: break-word;">
+                  ${transaction.description}
+                </td>
+                <td style="white-space: normal; word-wrap: break-word; font-size: 8px; line-height: 1.2;">
+                  ${transaction.type === 'consumption' ? (() => {
+                    const order = details.periodOrders.find((o: any) => o.id === transaction.id);
+                    if (order) {
+                      if (order.discountCents > 0) {
+                        return `
+                          <div>Subtotal: ${formatCurrency(order.subtotalCents)}</div>
+                          <div>Desc: -${formatCurrency(order.discountCents)}</div>
+                        `;
+                      }
+                      return '-';
+                    }
+                    return '-';
+                  })() : ''}
+                  ${transaction.type === 'payment' ? '-' : ''}
+                </td>
                 <td class="${transaction.type === 'payment' ? 'value-negative' : 'value-positive'}">
                   ${transaction.type === 'payment' ? '-' : '+'}${formatCurrency(Math.abs(transaction.value))}
                 </td>
