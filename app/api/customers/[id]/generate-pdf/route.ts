@@ -199,12 +199,12 @@ function generateReportHTML(reportData: any, companyName: string): string {
           padding: 10px;
         }
         
-        .header {
-          text-align: center;
-          margin-bottom: 15px;
-          border-bottom: 1px solid #333;
-          padding-bottom: 10px;
-        }
+         .header {
+           text-align: left;
+           margin-bottom: 15px;
+           border-bottom: 1px solid #333;
+           padding-bottom: 10px;
+         }
         
         .header h1 {
           font-size: 16px;
@@ -237,26 +237,30 @@ function generateReportHTML(reportData: any, companyName: string): string {
           color: #333;
         }
         
-        .customer-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 6px;
-        }
-        
-        .customer-item {
-          margin-bottom: 3px;
-        }
-        
-        .customer-item .label {
-          font-size: 9px;
-          color: #666;
-          font-weight: 500;
-        }
-        
-        .customer-item .value {
-          font-size: 10px;
-          font-weight: 600;
-        }
+         .customer-grid {
+           display: grid;
+           grid-template-columns: 1fr 1fr;
+           gap: 8px;
+         }
+         
+         .customer-item {
+           margin-bottom: 3px;
+           border-bottom: 1px solid #e5e7eb;
+           padding-bottom: 4px;
+         }
+         
+         .customer-item .label {
+           font-size: 9px;
+           color: #666;
+           font-weight: 500;
+           margin-bottom: 2px;
+         }
+         
+         .customer-item .value {
+           font-size: 10px;
+           font-weight: 600;
+           margin-left: 8px;
+         }
         
         .summary {
           margin-bottom: 12px;
@@ -383,31 +387,37 @@ function generateReportHTML(reportData: any, companyName: string): string {
         </div>
       </div>
 
-      <div class="customer-info">
-        <h3>Dados do Cliente</h3>
-        <div class="customer-grid">
-          <div class="customer-item">
-            <div class="label">Nome</div>
-            <div class="value">${customer.name}</div>
-          </div>
-          <div class="customer-item">
-            <div class="label">Telefone</div>
-            <div class="value">${customer.phone}</div>
-          </div>
-          ${customer.email ? `
-          <div class="customer-item">
-            <div class="label">Email</div>
-            <div class="value">${customer.email}</div>
-          </div>
-          ` : ''}
-          ${customer.doc ? `
-          <div class="customer-item">
-            <div class="label">Documento</div>
-            <div class="value">${customer.doc}</div>
-          </div>
-          ` : ''}
-        </div>
-      </div>
+       <div class="customer-info">
+         <h3>Dados do Cliente</h3>
+         <div class="customer-grid">
+           <div class="customer-item">
+             <div class="label">Nome:</div>
+             <div class="value">${customer.name}</div>
+           </div>
+           <div class="customer-item">
+             <div class="label">Telefone:</div>
+             <div class="value">${customer.phone}</div>
+           </div>
+           ${customer.email ? `
+           <div class="customer-item">
+             <div class="label">Email:</div>
+             <div class="value">${customer.email}</div>
+           </div>
+           ` : ''}
+           ${customer.address ? `
+           <div class="customer-item">
+             <div class="label">Endereço:</div>
+             <div class="value">${customer.address.street} ${customer.address.number}${customer.address.complement ? ', ' + customer.address.complement : ''}<br>${customer.address.neighborhood}, ${customer.address.city} - ${customer.address.state}<br>CEP: ${customer.address.zip}</div>
+           </div>
+           ` : ''}
+           ${customer.doc ? `
+           <div class="customer-item">
+             <div class="label">Documento:</div>
+             <div class="value">${customer.doc}</div>
+           </div>
+           ` : ''}
+         </div>
+       </div>
 
       <div class="summary">
         <h3>Resumo Financeiro</h3>
@@ -416,10 +426,10 @@ function generateReportHTML(reportData: any, companyName: string): string {
             <div class="label">Saldo Devedor</div>
             <div class="value">${formatCurrency(summary.debtBalanceCents)}</div>
           </div>
-          <div class="summary-item consumption">
-            <div class="label">Consumo no Período</div>
-            <div class="value">${formatCurrency(summary.periodConsumptionCents)}</div>
-          </div>
+           <div class="summary-item consumption">
+             <div class="label">Saldo Período</div>
+             <div class="value">${formatCurrency(summary.pendingInPeriodCents)}</div>
+           </div>
           ${summary.totalPaymentsCents > 0 ? `
           <div class="summary-item payment">
             <div class="label">Pagamentos</div>

@@ -243,14 +243,14 @@ function CustomerReportContent() {
   return (
     <div className="w-full">
       {/* Header - Ultra Compact */}
-      <div className="text-center mb-2 border-b border-gray-300 pb-1">
-        <h1 className="text-lg font-bold text-gray-900 mb-0">
-          RELATÓRIO DE FECHAMENTO
+      <div className="text-left mb-3 border-b border-gray-300 pb-2">
+        <h1 className="text-xl font-bold text-gray-900 mb-1">
+          RESUMO DO CLIENTE
         </h1>
-        <div className="text-sm text-gray-600 mb-1">
+        <div className="text-base text-gray-600 mb-2">
           Comida Caseira
         </div>
-        <div className="flex justify-center items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-sm text-gray-500">
           <span>Período: {formatDate(period.startDate)} a {formatDate(period.endDate)}</span>
           <span>•</span>
           <span>Gerado: {formatDateTime(metadata.generatedAt)}</span>
@@ -259,43 +259,41 @@ function CustomerReportContent() {
 
       {/* Customer Data - Compact */}
       <div className="mb-3 avoid-break">
-        <h2 className="text-sm font-semibold mb-1 text-gray-800 border-b pb-1">
+        <h2 className="text-base font-semibold mb-2 text-gray-800 border-b pb-1">
           Dados do Cliente
         </h2>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex justify-between border-b pb-1">
-            <span className="font-medium text-gray-600">Nome:</span>
-            <span className="text-gray-900">{customer.name}</span>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="border-b pb-2">
+            <div className="font-medium text-gray-600 mb-1">Nome:</div>
+            <div className="text-gray-900 ml-2">{customer.name}</div>
           </div>
-          <div className="flex justify-between border-b pb-1">
-            <span className="font-medium text-gray-600">Telefone:</span>
-            <span className="text-gray-900">{customer.phone}</span>
+          <div className="border-b pb-2">
+            <div className="font-medium text-gray-600 mb-1">Telefone:</div>
+            <div className="text-gray-900 ml-2">{customer.phone}</div>
           </div>
-          {(customer.email || customer.doc) && (
-            <>
-              <div className="flex justify-between border-b pb-1">
-                <span className="font-medium text-gray-600">Email:</span>
-                <span className="text-gray-900">{customer.email || '-'}</span>
-              </div>
-              <div className="flex justify-between border-b pb-1">
-                <span className="font-medium text-gray-600">Documento:</span>
-                <span className="text-gray-900">{customer.doc || '-'}</span>
-              </div>
-            </>
+          {customer.email && (
+            <div className="border-b pb-2">
+              <div className="font-medium text-gray-600 mb-1">Email:</div>
+              <div className="text-gray-900 ml-2">{customer.email}</div>
+            </div>
           )}
           {customer.address && (
-            <div className="col-span-2 border-b pb-1">
-              <div className="flex justify-between">
-                <span className="font-medium text-gray-600">Endereço:</span>
-                <span className="text-gray-900 text-right">
-                  {customer.address.street} {customer.address.number}
-                  {customer.address.complement && `, ${customer.address.complement}`}
-                  <br />
-                  {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
-                  <br />
-                  CEP: {customer.address.zip}
-                </span>
+            <div className="border-b pb-2">
+              <div className="font-medium text-gray-600 mb-1">Endereço:</div>
+              <div className="text-gray-900 ml-2">
+                {customer.address.street} {customer.address.number}
+                {customer.address.complement && `, ${customer.address.complement}`}
+                <br />
+                {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
+                <br />
+                CEP: {customer.address.zip}
               </div>
+            </div>
+          )}
+          {customer.doc && (
+            <div className="border-b pb-2">
+              <div className="font-medium text-gray-600 mb-1">Documento:</div>
+              <div className="text-gray-900 ml-2">{customer.doc}</div>
             </div>
           )}
         </div>
@@ -315,12 +313,12 @@ function CustomerReportContent() {
               {formatCurrency(summary.debtBalanceCents)}
             </div>
           </div>
-          <div className="text-center border rounded p-1">
-            <div className="font-medium text-gray-600">Pendentes</div>
-            <div className="text-sm font-bold text-orange-600">
-              {formatCurrency(summary.pendingInPeriodCents)}
-            </div>
-          </div>
+           <div className="text-center border rounded p-1">
+             <div className="font-medium text-gray-600">Saldo Período</div>
+             <div className="text-sm font-bold text-orange-600">
+               {formatCurrency(summary.pendingInPeriodCents)}
+             </div>
+           </div>
           <div className="text-center border rounded p-1">
             <div className="font-medium text-gray-600">Pagamentos</div>
             <div className="text-sm font-bold text-blue-600">
