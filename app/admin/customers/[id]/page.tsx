@@ -1153,6 +1153,35 @@ export default function CustomerDetailPage() {
                       Registre um pagamento para reduzir o saldo devedor do cliente.
                     </DialogDescription>
                   </DialogHeader>
+
+                  {/* Campo de Valor do Pagamento - Unificado para todas as formas */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Valor do Pagamento
+                      </label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          R$
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentAmount}
+                          disabled={isProcessingPayment}
+                          onChange={(e) => {
+                            if (!isProcessingPayment) {
+                              setPaymentAmount(e.target.value);
+                            }
+                          }}
+                          placeholder="0,00"
+                          className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Formas de pagamento */}
                     <div>
@@ -1176,11 +1205,6 @@ export default function CustomerDetailPage() {
                             onClick={() => {
                               if (!isProcessingPayment) {
                                 setSelectedPaymentMethod(method.value);
-                                // Reset cash fields when changing payment method
-                                if (method.value !== "cash") {
-                                  setCashReceived("");
-                                  setChange(0);
-                                }
                               }
                             }}
                           >
@@ -1193,95 +1217,12 @@ export default function CustomerDetailPage() {
 
                     {/* Detalhes do pagamento */}
                     <div className="transition-all duration-300 ease-in-out">
-                      {selectedPaymentMethod === "cash" ? (
-                        <div className="bg-muted rounded-xl p-5 h-full animate-in fade-in slide-in-from-right-4 duration-300">
-                          <h3 className="text-lg font-semibold mb-4">
-                            Pagamento em Dinheiro
-                          </h3>
-
-                          <div className="space-y-5">
-                            <div className="flex justify-between items-center p-4 bg-background rounded-lg">
-                              <span className="text-muted-foreground">
-                                Valor do Pagamento
-                              </span>
-                              <span className="text-xl font-bold">
-                                R$ {parseFloat(paymentAmount || "0").toFixed(2)}
-                              </span>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label
-                                htmlFor="cashReceived"
-                                className="text-sm font-medium"
-                              >
-                                Valor Recebido
-                              </label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                                  R$
-                                </span>
-                                <Input
-                                  id="cashReceived"
-                                  type="number"
-                                  inputMode="decimal"
-                                  step="0.01"
-                                  min="0"
-                                  value={cashReceived}
-                                  disabled={isProcessingPayment}
-                                  onChange={(e) => {
-                                    if (!isProcessingPayment) {
-                                      const value = e.target.value;
-                                      setCashReceived(value);
-
-                                      // Calculate change
-                                      if (value && !isNaN(parseFloat(value)) && paymentAmount) {
-                                        const received = parseFloat(value);
-                                        const payment = parseFloat(paymentAmount);
-                                        const changeAmount = Math.max(
-                                          0,
-                                          received - payment
-                                        );
-                                        setChange(changeAmount);
-                                      } else {
-                                        setChange(0);
-                                      }
-                                    }
-                                  }}
-                                  placeholder="0,00"
-                                  className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex justify-between items-center p-4 rounded-lg bg-green-50 border border-green-200">
-                              <span className="text-green-800 font-medium">
-                                Troco
-                              </span>
-                              <span className="text-xl font-bold text-green-900">
-                                R$ {change.toFixed(2)}
-                              </span>
-                            </div>
-
-                            {cashReceived &&
-                              parseFloat(cashReceived) > 0 &&
-                              paymentAmount &&
-                              parseFloat(cashReceived) < parseFloat(paymentAmount) && (
-                                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-                                  <div className="flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                                    <span>
-                                      O valor recebido é menor que o valor do pagamento.
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-                        </div>
-                      ) : selectedPaymentMethod ? (
+                      {selectedPaymentMethod ? (
                         <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
                           <div className="mb-3 p-3 bg-background rounded-full">
                             {(() => {
                               const method = [
+                                { label: "Dinheiro", value: "cash", icon: Banknote },
                                 { label: "Cartão Débito", value: "debit", icon: CreditCard },
                                 { label: "Cartão Crédito", value: "credit", icon: CreditCard },
                                 { label: "PIX", value: "pix", icon: QrCode },
@@ -1293,8 +1234,11 @@ export default function CustomerDetailPage() {
                             })()}
                           </div>
                           <h3 className="text-lg font-semibold mb-2">
-                            Pagamento com {selectedPaymentMethod === "debit" ? "Cartão Débito" :
-                              selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"}
+                            Pagamento com {
+                              selectedPaymentMethod === "cash" ? "Dinheiro" :
+                                selectedPaymentMethod === "debit" ? "Cartão Débito" :
+                                  selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"
+                            }
                           </h3>
                           <p className="text-muted-foreground">
                             O valor do pagamento é{" "}
@@ -1319,80 +1263,42 @@ export default function CustomerDetailPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Valor do Pagamento
-                      </label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                          R$
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={paymentAmount}
-                          disabled={isProcessingPayment}
-                          onChange={(e) => {
-                            if (!isProcessingPayment) {
-                              const value = e.target.value;
-                              setPaymentAmount(value);
-
-                              // Recalculate change if cash payment
-                              if (selectedPaymentMethod === "cash" && cashReceived && value) {
-                                const received = parseFloat(cashReceived);
-                                const payment = parseFloat(value);
-                                const changeAmount = Math.max(0, received - payment);
-                                setChange(changeAmount);
-                              }
-                            }
-                          }}
-                          placeholder="0,00"
-                          className="pl-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        disabled={isProcessingPayment}
-                        onClick={() => {
-                          if (!isProcessingPayment) {
-                            setIsPaymentDialogOpen(false);
-                            setSelectedPaymentMethod("");
-                            setPaymentAmount("");
-                            setCashReceived("");
-                            setChange(0);
-                          }
-                        }}
-                        className="disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        onClick={handleFichaPayment}
-                        disabled={
-                          isProcessingPayment ||
-                          !paymentAmount ||
-                          (parseFloat(paymentAmount) <= 0) ||
-                          !selectedPaymentMethod ||
-                          (selectedPaymentMethod === "cash" &&
-                            (!cashReceived ||
-                              (parseFloat(cashReceived) < parseFloat(paymentAmount || "0"))))
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      disabled={isProcessingPayment}
+                      onClick={() => {
+                        if (!isProcessingPayment) {
+                          setIsPaymentDialogOpen(false);
+                          setSelectedPaymentMethod("");
+                          setPaymentAmount("");
+                          setCashReceived("");
+                          setChange(0);
                         }
-                        className="disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isProcessingPayment ? (
-                          <>
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
-                            Processando...
-                          </>
-                        ) : (
-                          "Registrar Pagamento"
-                        )}
-                      </Button>
-                    </div>
+                      }}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleFichaPayment}
+                      disabled={
+                        isProcessingPayment ||
+                        !paymentAmount ||
+                        (parseFloat(paymentAmount) <= 0) ||
+                        !selectedPaymentMethod
+                      }
+                      className="disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                          Processando...
+                        </>
+                      ) : (
+                        "Registrar Pagamento"
+                      )}
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
