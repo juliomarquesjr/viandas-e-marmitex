@@ -19,6 +19,7 @@
     "seed:all": "npm run seed:categories && npm run seed:products && npm run seed:customers && npm run seed:users"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.14.0",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",

@@ -3,6 +3,7 @@
 import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { cn } from "@/lib/utils";
+import RoAssistant from "./components/ro-assistant";
 import {
     ChefHat,
     Gauge,
@@ -138,6 +139,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavItem href="/admin/users" icon={Users} label="Usuários" />
             )}
             <Separator className="my-8 bg-white/20" />
+            <NavItem href="/admin/ro" icon={ChefHat} label="Assistente RO" />
             <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
 
@@ -259,6 +261,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <NavItem href="/admin/users" icon={Users} label="Usuários" />
                 )}
                 <Separator className="my-8 bg-white/20" />
+                <NavItem href="/admin/ro" icon={ChefHat} label="Assistente RO" />
                 <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
               </nav>
 
@@ -284,6 +287,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </main>
         </div>
       </div>
+      <RoAssistant />
     </div>
   );
 }
