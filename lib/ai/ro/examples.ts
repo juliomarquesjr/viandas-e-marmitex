@@ -1,40 +1,42 @@
 export const SQL_EXAMPLES = `
 EXEMPLOS DE CONSULTAS SQL CORRETAS PARA POSTGRESQL:
 
-1. Vendas por dia:
+1. Vendas por dia (confirmadas, exclui pagamentos de ficha):
    SELECT DATE_TRUNC('day', "createdAt") as data, COUNT(*) as vendas
    FROM "Order" 
-   WHERE status = 'delivered'
+   WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
    GROUP BY DATE_TRUNC('day', "createdAt")
    ORDER BY data DESC
 
-2. Vendas por mês:
+2. Vendas por mês (confirmadas, exclui pagamentos de ficha):
    SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*) as vendas
    FROM "Order"
+   WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
    GROUP BY DATE_TRUNC('month', "createdAt")
    ORDER BY mes DESC
 
-3. Produtos mais vendidos:
+3. Produtos mais vendidos (somente vendas reais):
    SELECT p.name, SUM(oi.quantity) as total_vendido
    FROM "Product" p
    JOIN "OrderItem" oi ON p.id = oi."productId"
    JOIN "Order" o ON oi."orderId" = o.id
-   WHERE o.status = 'delivered'
+   WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
    GROUP BY p.id, p.name
    ORDER BY total_vendido DESC
 
-4. Clientes com mais pedidos:
+4. Clientes com mais pedidos (confirmadas):
    SELECT c.name, COUNT(o.id) as total_pedidos
    FROM "Customer" c
    JOIN "Order" o ON c.id = o."customerId"
+   WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
    GROUP BY c.id, c.name
    ORDER BY total_pedidos DESC
 
-5. Faturamento por período:
+5. Faturamento por período (confirmadas, exclui pagamentos de ficha):
    SELECT DATE_TRUNC('day', "createdAt") as data,
           SUM("totalCents")/100.0 as faturamento_reais
    FROM "Order"
-   WHERE status = 'delivered'
+   WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
    GROUP BY DATE_TRUNC('day', "createdAt")
    ORDER BY data DESC
 
@@ -60,7 +62,7 @@ export const COMMON_QUERIES = {
            COUNT(*) as vendas,
            SUM("totalCents")/100.0 as faturamento
     FROM "Order" 
-    WHERE status = 'delivered'
+    WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
     GROUP BY DATE_TRUNC('day', "createdAt")
     ORDER BY data DESC
     LIMIT 30
@@ -71,7 +73,7 @@ export const COMMON_QUERIES = {
            COUNT(*) as vendas,
            SUM("totalCents")/100.0 as faturamento
     FROM "Order"
-    WHERE status = 'delivered'
+    WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
     GROUP BY DATE_TRUNC('month', "createdAt")
     ORDER BY mes DESC
     LIMIT 12
@@ -84,7 +86,7 @@ export const COMMON_QUERIES = {
     FROM "Product" p
     JOIN "OrderItem" oi ON p.id = oi."productId"
     JOIN "Order" o ON oi."orderId" = o.id
-    WHERE o.status = 'delivered'
+    WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
     GROUP BY p.id, p.name
     ORDER BY total_vendido DESC
     LIMIT 10
@@ -97,7 +99,7 @@ export const COMMON_QUERIES = {
            SUM(o."totalCents")/100.0 as total_gasto
     FROM "Customer" c
     JOIN "Order" o ON c.id = o."customerId"
-    WHERE o.status = 'delivered'
+    WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
     GROUP BY c.id, c.name, c.phone
     ORDER BY total_gasto DESC
     LIMIT 10
@@ -163,5 +165,44 @@ export const COMMON_QUERIES = {
     GROUP BY c.id, c.name, c.phone, c.email, c.doc, c."createdAt"
     ORDER BY total_gasto DESC
     LIMIT 50
+  `,
+
+  // Novos exemplos canônicos relacionados à ficha e caixa
+  accountsReceivableByCustomer: `
+    WITH pendentes AS (
+      SELECT "customerId", SUM("totalCents") AS pendente
+      FROM "Order"
+      WHERE status = 'pending' AND "paymentMethod" <> 'ficha_payment' AND "customerId" IS NOT NULL
+      GROUP BY "customerId"
+    ), pagamentos AS (
+      SELECT "customerId", SUM("totalCents") AS pago
+      FROM "Order"
+      WHERE "paymentMethod" = 'ficha_payment' AND "customerId" IS NOT NULL
+      GROUP BY "customerId"
+    )
+    SELECT c.id, c.name,
+           COALESCE(pendentes.pendente,0)/100.0 AS consumido,
+           COALESCE(pagamentos.pago,0)/100.0 AS pago,
+           (COALESCE(pendentes.pendente,0) - COALESCE(pagamentos.pago,0))/100.0 AS saldo
+    FROM "Customer" c
+    LEFT JOIN pendentes ON pendentes."customerId" = c.id
+    LEFT JOIN pagamentos ON pagamentos."customerId" = c.id
+    WHERE (COALESCE(pendentes.pendente,0) - COALESCE(pagamentos.pago,0)) > 0
+    ORDER BY saldo DESC
+    LIMIT 50
+  `,
+
+  cashInToday: `
+    WITH vendas_cash AS (
+      SELECT COALESCE(SUM(COALESCE("cashReceivedCents",0) - COALESCE("changeCents",0)),0) AS cash_in
+      FROM "Order"
+      WHERE status = 'confirmed' AND "paymentMethod" = 'cash' AND CAST("createdAt" AS DATE) = CURRENT_DATE
+    ), ficha_cash AS (
+      SELECT COALESCE(SUM(COALESCE("cashReceivedCents",0) - COALESCE("changeCents",0)),0) AS cash_in
+      FROM "Order"
+      WHERE "paymentMethod" = 'ficha_payment' AND CAST("createdAt" AS DATE) = CURRENT_DATE
+    )
+    SELECT (vendas_cash.cash_in + ficha_cash.cash_in)/100.0 AS caixa_dinheiro_hoje
+    FROM vendas_cash, ficha_cash
   `
 };

@@ -81,11 +81,18 @@ Passo a passo ao analisar um pedido:
 Contexto do banco (use para montar consultas):
 ${DATABASE_SCHEMA_REFERENCE}
 
+SEÇÃO ESPECIAL: FICHA DO CLIENTE
+- "invoice": venda lançada em ficha (contas a receber). Normalmente resulta em status = 'pending'.
+- "ficha_payment": pagamento de ficha (baixa de AR). Não é venda. Excluir de faturamento.
+- Métricas de vendas/faturamento: use status = 'confirmed' e exclua paymentMethod = 'ficha_payment'.
+- Contas a receber do cliente: soma de pedidos pending (paymentMethod <> 'ficha_payment') menos soma de 'ficha_payment'.
+- Entradas de caixa em dinheiro: use (cashReceivedCents - changeCents) para cash, tanto em vendas confirmadas quanto em ficha_payment.
+
 EXEMPLOS OBRIGATÓRIOS DE SQL CORRETO:
-- Vendas por dia: SELECT DATE_TRUNC('day', "createdAt") as data, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'delivered' GROUP BY DATE_TRUNC('day', "createdAt") ORDER BY data DESC LIMIT 30
-- Vendas por mês: SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'delivered' GROUP BY DATE_TRUNC('month', "createdAt") ORDER BY mes DESC LIMIT 12
-- Produtos mais vendidos: SELECT p.name, SUM(oi.quantity) as total_vendido, SUM(oi."priceCents" * oi.quantity)/100.0 as receita FROM "Product" p JOIN "OrderItem" oi ON p.id = oi."productId" JOIN "Order" o ON oi."orderId" = o.id WHERE o.status = 'delivered' GROUP BY p.id, p.name ORDER BY total_vendido DESC LIMIT 10
-- Clientes top: SELECT c.name, c.phone, COUNT(o.id) as pedidos, SUM(o."totalCents")/100.0 as gasto_total FROM "Customer" c JOIN "Order" o ON c.id = o."customerId" WHERE o.status = 'delivered' GROUP BY c.id, c.name, c.phone ORDER BY gasto_total DESC LIMIT 10
+- Vendas por dia: SELECT DATE_TRUNC('day', "createdAt") as data, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment' GROUP BY DATE_TRUNC('day', "createdAt") ORDER BY data DESC LIMIT 30
+- Vendas por mês: SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment' GROUP BY DATE_TRUNC('month', "createdAt") ORDER BY mes DESC LIMIT 12
+- Produtos mais vendidos: SELECT p.name, SUM(oi.quantity) as total_vendido, SUM(oi."priceCents" * oi.quantity)/100.0 as receita FROM "Product" p JOIN "OrderItem" oi ON p.id = oi."productId" JOIN "Order" o ON oi."orderId" = o.id WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment' GROUP BY p.id, p.name ORDER BY total_vendido DESC LIMIT 10
+- Clientes top: SELECT c.name, c.phone, COUNT(o.id) as pedidos, SUM(o."totalCents")/100.0 as gasto_total FROM "Customer" c JOIN "Order" o ON c.id = o."customerId" WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment' GROUP BY c.id, c.name, c.phone ORDER BY gasto_total DESC LIMIT 10
 - Clientes inativos: SELECT c.name, c.phone, c.email, MAX(o."createdAt") as ultimo_pedido FROM "Customer" c LEFT JOIN "Order" o ON c.id = o."customerId" WHERE o."createdAt" < CURRENT_DATE - INTERVAL '30 days' OR o."createdAt" IS NULL GROUP BY c.id, c.name, c.phone, c.email ORDER BY ultimo_pedido ASC LIMIT 20
 - Status dos pedidos: SELECT status, COUNT(*) as quantidade, SUM("totalCents")/100.0 as valor_total FROM "Order" GROUP BY status ORDER BY quantidade DESC
 - Produtos por categoria: SELECT cat.name as categoria, COUNT(p.id) as total_produtos, AVG(p."priceCents")/100.0 as preco_medio FROM "Category" cat LEFT JOIN "Product" p ON cat.id = p."categoryId" WHERE p.active = true GROUP BY cat.id, cat.name ORDER BY total_produtos DESC

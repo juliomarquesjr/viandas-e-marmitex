@@ -62,46 +62,46 @@ AGRUPAMENTO E ORDENAÇÃO:
 
 EXEMPLOS PRÁTICOS PARA O SISTEMA ADMINISTRATIVO:
 
-1. Vendas por dia:
+1. Vendas por dia (confirmadas, exclui pagamentos de ficha):
 SELECT DATE_TRUNC('day', "createdAt") as data, 
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order" 
-WHERE status = 'delivered'
+WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
 GROUP BY DATE_TRUNC('day', "createdAt")
 ORDER BY data DESC
 LIMIT 30
 
-2. Vendas por mês:
+2. Vendas por mês (confirmadas, exclui pagamentos de ficha):
 SELECT DATE_TRUNC('month', "createdAt") as mes, 
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order"
-WHERE status = 'delivered'
+WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
 GROUP BY DATE_TRUNC('month', "createdAt")
 ORDER BY mes DESC
 LIMIT 12
 
-3. Produtos mais vendidos:
+3. Produtos mais vendidos (somente vendas reais):
 SELECT p.name, 
        SUM(oi.quantity) as total_vendido,
        SUM(oi."priceCents" * oi.quantity)/100.0 as receita
 FROM "Product" p
 JOIN "OrderItem" oi ON p.id = oi."productId"
 JOIN "Order" o ON oi."orderId" = o.id
-WHERE o.status = 'delivered'
+WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
 GROUP BY p.id, p.name
 ORDER BY total_vendido DESC
 LIMIT 10
 
-4. Clientes com mais pedidos:
+4. Clientes com mais pedidos (confirmadas):
 SELECT c.name, 
        c.phone,
        COUNT(o.id) as total_pedidos,
        SUM(o."totalCents")/100.0 as total_gasto
 FROM "Customer" c
 JOIN "Order" o ON c.id = o."customerId"
-WHERE o.status = 'delivered'
+WHERE o.status = 'confirmed' AND o."paymentMethod" <> 'ficha_payment'
 GROUP BY c.id, c.name, c.phone
 ORDER BY total_gasto DESC
 LIMIT 10
@@ -163,13 +163,14 @@ GROUP BY c.id, c.name, c.phone, c.email, c.doc, c."createdAt"
 ORDER BY total_gasto DESC
 LIMIT 50
 
-10. Vendas da última semana:
+10. Vendas da última semana (confirmadas, exclui pagamentos de ficha):
 SELECT DATE_TRUNC('day', "createdAt") as data,
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order"
 WHERE "createdAt" >= CURRENT_DATE - INTERVAL '7 days'
-  AND status = 'delivered'
+  AND status = 'confirmed'
+  AND "paymentMethod" <> 'ficha_payment'
 GROUP BY DATE_TRUNC('day', "createdAt")
 ORDER BY data DESC
 
