@@ -3,7 +3,6 @@
 import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { cn } from "@/lib/utils";
-import RoAssistant from "./components/ro-assistant";
 import {
     ChefHat,
     Gauge,
@@ -22,6 +21,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import RoAssistant from "./components/ro-assistant";
 
 // Definir o tipo extendido para a sessão
 interface ExtendedSession extends Session {
@@ -139,7 +139,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavItem href="/admin/users" icon={Users} label="Usuários" />
             )}
             <Separator className="my-8 bg-white/20" />
-            <NavItem href="/admin/ro" icon={ChefHat} label="Assistente RO" />
             <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
 
@@ -261,7 +260,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <NavItem href="/admin/users" icon={Users} label="Usuários" />
                 )}
                 <Separator className="my-8 bg-white/20" />
-                <NavItem href="/admin/ro" icon={ChefHat} label="Assistente RO" />
                 <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
               </nav>
 
