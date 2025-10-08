@@ -12,6 +12,9 @@ Tabelas disponíveis:
 - PreOrder(id, customerId?, subtotalCents, discountCents, deliveryFeeCents, totalCents, notes?, createdAt, updatedAt)
 - PreOrderItem(id, preOrderId, productId, quantity, priceCents)
 - SystemConfig(id, key, value?, type, category, createdAt, updatedAt)
+- ExpenseType(id, name, description?, active, createdAt, updatedAt)
+- SupplierType(id, name, description?, active, createdAt, updatedAt)
+- Expense(id, typeId, supplierTypeId, amountCents, description, date, createdAt, updatedAt)
 
 Relacionamentos principais:
 - Customer 1:N Order | Customer 1:N PreOrder | Customer 1:N CustomerProductPreset
@@ -19,7 +22,10 @@ Relacionamentos principais:
 - Product 1:N OrderItem | Product 1:N PreOrderItem | Product 1:N CustomerProductPreset
 - Order 1:N OrderItem | Order possui auto-relação via fichaPaymentForOrder
 - PreOrder 1:N PreOrderItem
-- CustomerProductPreset referencia Customer e Product com onDelete Cascade.
+- CustomerProductPreset referencia Customer e Product com onDelete Cascade
+- ExpenseType 1:N Expense
+- SupplierType 1:N Expense
+- Expense referencia ExpenseType e SupplierType
 
 Funções PostgreSQL suportadas para datas:
 - DATE_TRUNC('day', campo_data) - extrai apenas a data
@@ -88,6 +94,14 @@ SEÇÃO ESPECIAL: FICHA DO CLIENTE
 - Contas a receber do cliente: soma de pedidos pending (paymentMethod <> 'ficha_payment') menos soma de 'ficha_payment'.
 - Entradas de caixa em dinheiro: use (cashReceivedCents - changeCents) para cash, tanto em vendas confirmadas quanto em ficha_payment.
 
+SEÇÃO ESPECIAL: DESPESAS E LUCROS
+- Despesas: tabela "Expense" com relacionamentos para "ExpenseType" e "SupplierType".
+- Receita total: vendas confirmadas + pagamentos ficha (ambos são entrada real de dinheiro).
+- Lucro: receita total - despesas do período.
+- Para consultas de despesas: sempre use JOIN com ExpenseType e/ou SupplierType para mostrar nomes.
+- Despesas por período: use campo "date" da tabela Expense, não "createdAt".
+- Valores em centavos: dividir por 100.0 para converter para reais.
+
 EXEMPLOS OBRIGATÓRIOS DE SQL CORRETO:
 - Vendas por dia: SELECT DATE_TRUNC('day', "createdAt") as data, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment' GROUP BY DATE_TRUNC('day', "createdAt") ORDER BY data DESC LIMIT 30
 - Vendas por mês: SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*) as vendas, SUM("totalCents")/100.0 as faturamento FROM "Order" WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment' GROUP BY DATE_TRUNC('month', "createdAt") ORDER BY mes DESC LIMIT 12
@@ -96,6 +110,9 @@ EXEMPLOS OBRIGATÓRIOS DE SQL CORRETO:
 - Clientes inativos: SELECT c.name, c.phone, c.email, MAX(o."createdAt") as ultimo_pedido FROM "Customer" c LEFT JOIN "Order" o ON c.id = o."customerId" WHERE o."createdAt" < CURRENT_DATE - INTERVAL '30 days' OR o."createdAt" IS NULL GROUP BY c.id, c.name, c.phone, c.email ORDER BY ultimo_pedido ASC LIMIT 20
 - Status dos pedidos: SELECT status, COUNT(*) as quantidade, SUM("totalCents")/100.0 as valor_total FROM "Order" GROUP BY status ORDER BY quantidade DESC
 - Produtos por categoria: SELECT cat.name as categoria, COUNT(p.id) as total_produtos, AVG(p."priceCents")/100.0 as preco_medio FROM "Category" cat LEFT JOIN "Product" p ON cat.id = p."categoryId" WHERE p.active = true GROUP BY cat.id, cat.name ORDER BY total_produtos DESC
+- Despesas por tipo: SELECT et.name as tipo_despesa, SUM(e."amountCents")/100.0 as total_gasto, COUNT(e.id) as quantidade FROM "ExpenseType" et JOIN "Expense" e ON et.id = e."typeId" GROUP BY et.id, et.name ORDER BY total_gasto DESC LIMIT 10
+- Despesas por mês: SELECT DATE_TRUNC('month', date) as mes, SUM("amountCents")/100.0 as total_despesas, COUNT(*) as quantidade FROM "Expense" GROUP BY DATE_TRUNC('month', date) ORDER BY mes DESC LIMIT 12
+- Lucro mensal: SELECT DATE_TRUNC('month', o."createdAt") as mes, (SUM(CASE WHEN o.status = 'confirmed' AND o."paymentMethod" != 'ficha_payment' THEN o."totalCents" ELSE 0 END) + SUM(CASE WHEN o."paymentMethod" = 'ficha_payment' THEN o."totalCents" ELSE 0 END) - COALESCE((SELECT SUM("amountCents") FROM "Expense" WHERE DATE_TRUNC('month', date) = DATE_TRUNC('month', o."createdAt")), 0))/100.0 as lucro FROM "Order" o GROUP BY DATE_TRUNC('month', o."createdAt") ORDER BY mes DESC LIMIT 12
 
 BUSCA DE CLIENTES (use ILIKE para busca parcial):
 - Busca exata: SELECT id, name, phone, email, doc, address FROM "Customer" WHERE name = 'Nome Completo' LIMIT 1

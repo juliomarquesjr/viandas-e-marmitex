@@ -32,3 +32,103 @@ export interface ConfigFormData {
   email_reply_to: string;
   email_enabled: string;
 }
+
+// Tipos para o sistema de despesas
+export interface ExpenseType {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SupplierType {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Expense {
+  id: string;
+  typeId: string;
+  supplierTypeId: string;
+  amountCents: number;
+  description: string;
+  date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  type?: ExpenseType;
+  supplierType?: SupplierType;
+}
+
+export interface ExpenseWithRelations extends Expense {
+  type: ExpenseType;
+  supplierType: SupplierType;
+}
+
+export interface ExpenseFormData {
+  typeId: string;
+  supplierTypeId: string;
+  amountCents: number;
+  description: string;
+  date: string;
+}
+
+export interface ExpenseTypeFormData {
+  name: string;
+  description?: string;
+  active?: boolean;
+}
+
+export interface SupplierTypeFormData {
+  name: string;
+  description?: string;
+  active?: boolean;
+}
+
+export interface ExpensesPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ExpensesResponse {
+  expenses: ExpenseWithRelations[];
+  pagination: ExpensesPagination;
+}
+
+// Tipos para relatórios de lucros
+export interface ProfitReportData {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  revenue: {
+    sales: number; // Vendas confirmadas em centavos
+    fichaPayments: number; // Pagamentos ficha em centavos
+    total: number; // Total receita em centavos
+  };
+  expenses: {
+    total: number; // Total despesas em centavos
+    details: Array<{
+      typeId: string;
+      typeName: string;
+      amountCents: number;
+      count: number;
+    }>;
+  };
+  profit: {
+    total: number; // Lucro total em centavos
+    percentage: number; // Percentual de lucro
+  };
+  dailyBreakdown: Array<{
+    date: string;
+    sales_revenue: number;
+    ficha_revenue: number;
+  }>;
+}

@@ -203,3 +203,53 @@ model SystemConfig {
   @@index([key])
   @@index([category])
 }
+
+// Modelo de Tipo de Despesa
+model ExpenseType {
+  id          String    @id @default(uuid())
+  name        String    @unique // Nome único do tipo de despesa
+  description String?   // Descrição opcional
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  expenses    Expense[]
+
+  @@index([name])
+}
+
+// Modelo de Tipo de Fornecedor
+model SupplierType {
+  id          String    @id @default(uuid())
+  name        String    @unique // Nome único do tipo de fornecedor
+  description String?   // Descrição opcional
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  expenses    Expense[]
+
+  @@index([name])
+}
+
+// Modelo de Despesa
+model Expense {
+  id              String        @id @default(uuid())
+  typeId          String        // FK para ExpenseType
+  supplierTypeId  String        // FK para SupplierType
+  amountCents     Int           @default(0) // Valor em centavos para evitar problemas de arredondamento
+  description     String        // Descrição da despesa
+  date            DateTime      // Data da despesa
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relacionamentos
+  type            ExpenseType   @relation(fields: [typeId], references: [id])
+  supplierType    SupplierType  @relation(fields: [supplierTypeId], references: [id])
+
+  @@index([typeId])
+  @@index([supplierTypeId])
+  @@index([date])
+}

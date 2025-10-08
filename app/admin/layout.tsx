@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
+    BarChart3,
     ChefHat,
     Gauge,
     LogOut,
@@ -135,9 +136,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <NavItem href="/admin/products" icon={Package} label="Produtos" />
             <NavItem href="/admin/customers" icon={Users} label="Clientes" />
             <NavItem href="/admin/orders" icon={Receipt} label="Vendas" />
+            <NavItem href="/admin/pre-orders" icon={ShoppingCart} label="Pré-Pedidos" />
             {session?.user?.role === "admin" && (
               <NavItem href="/admin/users" icon={Users} label="Usuários" />
             )}
+            <Separator className="my-4 bg-white/20" />
+            <NavItem href="/admin/expenses" icon={Receipt} label="Despesas" />
+            <NavItem href="/admin/profits" icon={BarChart3} label="Lucros" />
             <Separator className="my-8 bg-white/20" />
             <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
@@ -259,6 +264,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {session?.user?.role === "admin" && (
                   <NavItem href="/admin/users" icon={Users} label="Usuários" />
                 )}
+                <Separator className="my-4 bg-white/20" />
+                <NavItem href="/admin/expenses" icon={Receipt} label="Despesas" />
+                <NavItem href="/admin/profits" icon={BarChart3} label="Lucros" />
                 <Separator className="my-8 bg-white/20" />
                 <NavItem href="/admin/settings" icon={Settings} label="Configurações" />
               </nav>
