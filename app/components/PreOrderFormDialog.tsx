@@ -1,22 +1,17 @@
 "use client";
 
 import { Button } from "@/app/components/ui/button";
-import {
-    CardContent,
-    CardDescription,
-    CardTitle
-} from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { motion } from "framer-motion";
 import {
-    FileText,
-    Package,
-    Plus,
-    ShoppingCart,
-    Tag,
-    User,
-    X
+  FileText,
+  Package,
+  Plus,
+  ShoppingCart,
+  Tag,
+  User,
+  X
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -278,52 +273,44 @@ export function PreOrderFormDialog({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
         onClick={(e) => {
-          // Close modal when clicking on the backdrop (outside the modal content)
           if (e.target === e.currentTarget) {
             onOpenChange(false);
           }
         }}
       >
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.2 }}
-          className="w-full max-w-3xl bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col overflow-hidden relative"
-          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-3xl bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col overflow-hidden relative"
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header with gradient */}
-          <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-3 relative">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2ZmZiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-10"></div>
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
             <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1 bg-white/20 rounded-md">
-                  <ShoppingCart className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-bold text-white">
-                    {preOrderId ? "Editar Pré-Pedido" : "Novo Pré-Pedido"}
-                  </CardTitle>
-                  <CardDescription className="text-orange-100 text-xs">
-                    Carregando informações...
-                  </CardDescription>
-                </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-orange-600" />
+                  {preOrderId ? "Editar Pré-Pedido" : "Novo Pré-Pedido"}
+                </h2>
+                <p className="text-gray-600 mt-1 text-sm">Carregando informações...</p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => onOpenChange(false)}
-                className="h-7 w-7 rounded-full text-white hover:bg-white/20"
+                className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </Button>
             </div>
           </div>
           
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
               <p className="mt-2 text-sm font-semibold text-orange-600">Carregando...</p>
               <p className="text-xs text-gray-600 mt-1">Por favor, aguarde</p>
             </div>
@@ -335,26 +322,24 @@ export function PreOrderFormDialog({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {
-        // Close modal when clicking on the backdrop (outside the modal content)
         if (e.target === e.currentTarget) {
           onOpenChange(false);
         }
       }}
     >
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.2 }}
-        className="w-full max-w-3xl bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col overflow-hidden relative"
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-3xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Loading Overlay durante salvamento */}
         {saving && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="text-center">
-              <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
               <p className="mt-4 text-lg font-semibold text-orange-600">Salvando pré-pedido...</p>
               <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
             </div>
@@ -362,112 +347,100 @@ export function PreOrderFormDialog({
         )}
         
         {/* Header with gradient */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-3 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2ZmZiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-10"></div>
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1 bg-white/20 rounded-md">
-                <ShoppingCart className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold text-white">
-                  {preOrder.id ? "Editar Pré-Pedido" : "Novo Pré-Pedido"}
-                </CardTitle>
-                <CardDescription className="text-orange-100 text-xs">
-                  {preOrder.id
-                    ? "Atualize as informações"
-                    : "Preencha os dados"}
-                </CardDescription>
-              </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-orange-600" />
+                {preOrder.id ? "Editar Pré-Pedido" : "Novo Pré-Pedido"}
+              </h2>
+              <p className="text-gray-600 mt-1 text-sm">
+                {preOrder.id ? "Atualize as informações do pré-pedido" : "Preencha os dados para criar um novo pré-pedido"}
+              </p>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="h-7 w-7 rounded-full text-white hover:bg-white/20 disabled:opacity-50"
+              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700 disabled:opacity-50"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
         
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto">
-          <CardContent className="p-3">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Cliente Section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 bg-orange-100 rounded">
-                    <User className="h-3.5 w-3.5 text-orange-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-orange-900">
-                    Cliente
-                  </h3>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="relative">
-                    <select
-                      value={preOrder.customerId || ""}
-                      onChange={(e) => handleCustomerChange(e.target.value || null)}
-                      className="w-full pl-8 pr-4 py-1.5 rounded border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white text-sm"
-                      disabled={saving}
-                    >
-                      <option value="">Venda avulsa (opcional)</option>
-                      {customers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.name} - {customer.phone}
-                        </option>
-                      ))}
-                    </select>
-                    <User className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                  </div>
-
+        <div className="flex-1 overflow-y-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Cliente Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <User className="h-4 w-4 text-orange-600" />
+                <h3 className="text-base font-semibold text-orange-800">Cliente</h3>
+              </div>
+              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              
+              <div className="space-y-2 mt-4">
+                <label className="text-sm font-medium text-gray-700">Cliente (opcional)</label>
+                <div className="relative">
+                  <select
+                    value={preOrder.customerId || ""}
+                    onChange={(e) => handleCustomerChange(e.target.value || null)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
+                    disabled={saving}
+                  >
+                    <option value="">Venda avulsa (opcional)</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.phone}
+                      </option>
+                    ))}
+                  </select>
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
+            </div>
 
-              {/* Itens do Pré-Pedido */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="p-1 bg-orange-100 rounded">
-                      <Package className="h-3.5 w-3.5 text-orange-600" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-orange-900">
-                      Itens ({preOrder.items.length})
-                    </h3>
-                  </div>
-                  <Button 
-                    type="button" 
-                    onClick={handleAddItem} 
-                    variant="outline"
-                    disabled={saving}
-                    className="flex items-center gap-1 px-2 py-1 border-orange-200 hover:bg-orange-50 text-orange-700 rounded text-xs"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Adicionar
-                  </Button>
+            {/* Itens do Pré-Pedido */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
+                    Itens ({preOrder.items.length})
+                  </h3>
                 </div>
-                
-                <div className="space-y-2">
-                  {preOrder.items.length === 0 ? (
-                    <div className="text-center py-4 bg-orange-50 rounded border border-orange-200">
-                      <Package className="h-8 w-8 text-orange-400 mx-auto mb-1" />
-                      <p className="text-xs text-gray-500">
-                        Nenhum item adicionado
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {preOrder.items.map((item, index) => (
-                        <div key={item.id || index} className="grid grid-cols-12 gap-2 items-center p-2 border border-orange-200 rounded bg-orange-50">
-                          <div className="col-span-8">
+                <Button 
+                  type="button" 
+                  onClick={handleAddItem} 
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  Adicionar Item
+                </Button>
+              </div>
+              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              
+              <div className="space-y-3 mt-4">
+                {preOrder.items.length === 0 ? (
+                  <div className="text-center py-8 bg-orange-50 rounded-xl border border-orange-200">
+                    <Package className="h-12 w-12 text-orange-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">Nenhum item adicionado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {preOrder.items.map((item, index) => (
+                      <div key={item.id || index} className="grid grid-cols-12 gap-3 items-center p-4 border border-gray-200 rounded-xl bg-white">
+                        <div className="col-span-7">
+                          <label className="text-xs font-medium text-gray-600 mb-1 block">Produto</label>
+                          <div className="relative">
                             <select
                               value={item.productId}
                               onChange={(e) => handleItemChange(index, "productId", e.target.value)}
-                              className="w-full pl-7 pr-4 py-1.5 rounded border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white text-sm"
+                              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
                               required
                               disabled={saving}
                             >
@@ -478,89 +451,88 @@ export function PreOrderFormDialog({
                                 </option>
                               ))}
                             </select>
-                          </div>
-                          
-                          <div className="col-span-3">
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
-                              className="w-full py-1.5 rounded border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all text-sm"
-                              required
-                              disabled={saving}
-                            />
-                          </div>
-                          
-                          <div className="col-span-1 flex justify-end">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(index)}
-                              disabled={saving}
-                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                            <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Valores Section - Apenas Total */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 bg-orange-100 rounded">
-                    <Tag className="h-3.5 w-3.5 text-orange-600" />
+                        
+                        <div className="col-span-4">
+                          <label className="text-xs font-medium text-gray-600 mb-1 block">Quantidade</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
+                            className="w-full py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                            required
+                            disabled={saving}
+                          />
+                        </div>
+                        
+                        <div className="col-span-1 flex justify-end items-end pb-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveItem(index)}
+                            disabled={saving}
+                            className="h-8 w-8 p-0 rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <h3 className="text-sm font-semibold text-orange-900">
-                    Total
-                  </h3>
-                </div>
-                
-                <div className="text-lg font-bold text-orange-900">
+                )}
+              </div>
+            </div>
+
+            {/* Valores Section - Apenas Total */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <Tag className="h-4 w-4 text-orange-600" />
+                <h3 className="text-base font-semibold text-orange-800">Total</h3>
+              </div>
+              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              
+              <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 mt-4">
+                <div className="text-2xl font-bold text-orange-900">
                   {formatCurrency(preOrder.totalCents)}
                 </div>
               </div>
+            </div>
 
-              {/* Observações Section */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="p-1 bg-orange-100 rounded">
-                    <FileText className="h-3.5 w-3.5 text-orange-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-orange-900">
-                    Observações
-                  </h3>
-                </div>
-                
-                <div className="relative">
-                  <Textarea
-                    value={preOrder.notes || ""}
-                    onChange={(e) => setPreOrder(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Observações..."
-                    className="w-full pl-2 py-1.5 rounded border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 min-h-[60px] shadow-sm transition-all text-sm"
-                    disabled={saving}
-                  />
-                </div>
+            {/* Observações Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <FileText className="h-4 w-4 text-orange-600" />
+                <h3 className="text-base font-semibold text-orange-800">Observações</h3>
               </div>
-            </form>
-          </CardContent>
+              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              
+              <div className="relative mt-4">
+                <Textarea
+                  value={preOrder.notes || ""}
+                  onChange={(e) => setPreOrder(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Observações adicionais sobre o pré-pedido..."
+                  className="w-full pl-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 min-h-[100px] shadow-sm transition-all"
+                  disabled={saving}
+                />
+                <FileText className="absolute right-3 bottom-3 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          </form>
         </div>
         
         {/* Footer */}
-        <div className="border-t border-gray-200 px-3 py-2.5 bg-gray-50">
-          <div className="flex justify-end gap-2">
+        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+          <div className="flex justify-end gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="px-2.5 py-1.5 rounded border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-medium transition-all disabled:opacity-50"
+              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all disabled:opacity-50"
             >
               Cancelar
             </Button>
@@ -568,15 +540,15 @@ export function PreOrderFormDialog({
               type="submit" 
               onClick={handleSubmit}
               disabled={saving || preOrder.items.length === 0}
-              className="px-2.5 py-1.5 rounded bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-medium shadow hover:shadow-md transition-all disabled:opacity-50"
+              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
               {saving ? (
-                <>
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-1"></div>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
                   Salvando...
-                </>
+                </span>
               ) : (
-                "Salvar"
+                preOrder.id ? "Atualizar Pré-Pedido" : "Criar Pré-Pedido"
               )}
             </Button>
           </div>

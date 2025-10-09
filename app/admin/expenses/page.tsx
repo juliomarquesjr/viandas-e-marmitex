@@ -135,6 +135,7 @@ function ExpenseFormDialog({
     description: "",
     date: new Date().toISOString().split("T")[0],
   });
+  const [displayPrice, setDisplayPrice] = useState("");
 
   useEffect(() => {
     if (expense) {
@@ -147,6 +148,9 @@ function ExpenseFormDialog({
           ? expense.date.toISOString().split("T")[0]
           : new Date(expense.date).toISOString().split("T")[0],
       });
+      // Formatar o preço
+      const formatted = (expense.amountCents / 100).toFixed(2);
+      setDisplayPrice(`R$ ${formatted.replace(".", ",")}`);
     } else {
       setFormData({
         typeId: "",
@@ -155,8 +159,38 @@ function ExpenseFormDialog({
         description: "",
         date: new Date().toISOString().split("T")[0],
       });
+      setDisplayPrice("");
     }
   }, [expense, isOpen]);
+
+  // Função para formatar o valor digitado como moeda
+  const formatCurrencyInput = (value: string): string => {
+    let cleanValue = value.replace(/\D/g, "");
+    if (cleanValue.length > 10) {
+      cleanValue = cleanValue.substring(0, 10);
+    }
+    const numericValue = parseInt(cleanValue) || 0;
+    const formatted = (numericValue / 100).toFixed(2);
+    return `R$ ${formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ".").replace(".", ",")}`;
+  };
+
+  // Função para converter o valor formatado em centavos
+  const convertToCents = (formattedValue: string): number => {
+    const cleanValue = formattedValue
+      .replace("R$ ", "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    return Math.round(parseFloat(cleanValue) * 100);
+  };
+
+  // Função para lidar com a mudança no campo de preço
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const formattedValue = rawValue ? formatCurrencyInput(rawValue) : "";
+    setDisplayPrice(formattedValue);
+    const cents = rawValue ? convertToCents(formattedValue) : 0;
+    setFormData({ ...formData, amountCents: cents });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,122 +201,187 @@ function ExpenseFormDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-background border border-border rounded-lg shadow-lg w-full max-w-md"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
       >
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+        {/* Header with gradient and shadow */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+          <div className="relative flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-orange-600" />
+                {title}
+              </h2>
+              <p className="text-gray-600 mt-1 text-sm">
+                {expense
+                  ? "Atualize as informações da despesa"
+                  : "Preencha os dados para registrar uma nova despesa"}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Tipo de Despesa *
-            </label>
-            <Select
-              value={formData.typeId}
-              onValueChange={(value: string) =>
-                setFormData({ ...formData, typeId: value })
-              }
+        {/* Scrollable form content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Seção Informações da Despesa */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <Receipt className="h-4 w-4 text-orange-600" />
+                <h3 className="text-base font-semibold text-orange-800">
+                  Informações da Despesa
+                </h3>
+              </div>
+              <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    Tipo de Despesa <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Select
+                      value={formData.typeId}
+                      onValueChange={(value: string) =>
+                        setFormData({ ...formData, typeId: value })
+                      }
+                    >
+                      <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {expenseTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    Tipo de Fornecedor <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Select
+                      value={formData.supplierTypeId}
+                      onValueChange={(value: string) =>
+                        setFormData({ ...formData, supplierTypeId: value })
+                      }
+                    >
+                      <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                        <SelectValue placeholder="Selecione o fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {supplierTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    Valor <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      value={displayPrice}
+                      onChange={handlePriceChange}
+                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      placeholder="R$ 0,00"
+                      required
+                    />
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                  {formData.amountCents > 0 && (
+                    <p className="text-sm text-gray-500">
+                      Valor em centavos: {formData.amountCents}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    Data <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, date: e.target.value })
+                      }
+                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      required
+                    />
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  Descrição <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Descrição da despesa"
+                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                    required
+                  />
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer with actions */}
+        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Tipo de Fornecedor *
-            </label>
-            <Select
-              value={formData.supplierTypeId}
-              onValueChange={(value: string) =>
-                setFormData({ ...formData, supplierTypeId: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o fornecedor" />
-              </SelectTrigger>
-              <SelectContent>
-                {supplierTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Valor (R$) *
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.amountCents / 100}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  amountCents: Math.round(parseFloat(e.target.value || "0") * 100),
-                })
-              }
-              placeholder="0,00"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Descrição *
-            </label>
-            <Input
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              placeholder="Descrição da despesa"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Data *
-            </label>
-            <Input
-              type="date"
-              value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
-              required
-            />
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button
+              type="submit"
+              onClick={handleSubmit}
+              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              {expense ? "Atualizar Despesa" : "Cadastrar Despesa"}
+            </Button>
           </div>
-        </form>
+        </div>
       </motion.div>
     </div>
   );

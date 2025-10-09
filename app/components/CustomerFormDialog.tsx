@@ -64,6 +64,29 @@ export function CustomerFormDialog({
     }));
   };
 
+  // Função para aplicar máscara de telefone brasileiro
+  const applyPhoneMask = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Aplica a máscara conforme o tamanho
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 6) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    } else if (numbers.length <= 10) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    } else {
+      // Formato para celular com 9 dígitos
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const maskedValue = applyPhoneMask(e.target.value);
+    updateFormData("phone", maskedValue);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(e, formData);
@@ -140,9 +163,8 @@ export function CustomerFormDialog({
                   <Input
                     placeholder="(00) 00000-0000"
                     value={formData.phone}
-                    onChange={(e) =>
-                      updateFormData("phone", e.target.value)
-                    }
+                    onChange={handlePhoneChange}
+                    maxLength={15}
                     className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
                     required
                   />
