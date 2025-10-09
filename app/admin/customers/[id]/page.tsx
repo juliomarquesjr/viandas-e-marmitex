@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   ArrowLeft,
   Banknote,
   Barcode as BarcodeIcon,
@@ -19,7 +18,8 @@ import {
   Receipt,
   Trash2,
   User,
-  Wallet
+  Wallet,
+  X
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -38,10 +38,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  DialogTrigger
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -1013,17 +1010,33 @@ export default function CustomerDetailPage() {
                     </div>
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md mx-auto">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Printer className="h-5 w-5" />
-                      Relatório de Fechamento
-                    </DialogTitle>
-                    <DialogDescription>
-                      Gere um relatório imprimível com o consumo e saldo do cliente por período. Escolha entre impressão completa ou térmica.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 p-1">
+                <DialogContent className="max-w-md max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                  {/* Header com gradiente */}
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+                    <div className="relative p-6 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                          <Printer className="h-5 w-5 text-orange-600" />
+                          Relatório de Fechamento
+                        </h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Gere um relatório imprimível com o consumo e saldo do cliente por período
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsReportDialogOpen(false)}
+                        className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+                      >
+                        <X className="h-6 w-6" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Conteúdo scrollável */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div className="grid gap-4">
                       <div className="space-y-2">
                         <label htmlFor="startDate" className="text-sm font-medium">
@@ -1062,60 +1075,53 @@ export default function CustomerDetailPage() {
                           Últimos 30 dias
                         </Button>
                       </div>
-                      <div className="space-y-3 pt-4">
-                        {/* Primeira linha: Cancelar e Impressão Térmica */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setIsReportDialogOpen(false);
-                            }}
-                            className="h-10"
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            onClick={generateThermalReport}
-                            disabled={!reportStartDate || !reportEndDate}
-                            variant="outline"
-                            className="h-10 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300"
-                          >
-                            <Printer className="h-4 w-4 mr-2" />
-                            Térmica
-                          </Button>
-                        </div>
-
-                        {/* Segunda linha: Relatório Completo */}
+                    </div>
+                  </div>
+                  
+                  {/* Rodapé */}
+                  <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+                    <div className="space-y-3">
+                      {/* Botões de ação */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          onClick={generateThermalReport}
+                          disabled={!reportStartDate || !reportEndDate}
+                          variant="outline"
+                          className="py-3 rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50"
+                        >
+                          <Printer className="h-4 w-4 mr-2" />
+                          Térmica
+                        </Button>
                         <Button
                           onClick={generateReport}
                           disabled={!reportStartDate || !reportEndDate}
-                          className="w-full h-10 bg-blue-600 hover:bg-blue-700"
+                          className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-all disabled:opacity-50"
                         >
                           <Printer className="h-4 w-4 mr-2" />
-                          Relatório Completo
+                          Completo
                         </Button>
-
-                        {/* Terceira linha: Envio por Email */}
-                        {customer?.email ? (
-                          <PDFGeneratorComponent
-                            customerId={customer.id}
-                            startDate={reportStartDate || ''}
-                            endDate={reportEndDate || ''}
-                            customerName={customer.name}
-                            showSendButton={true}
-                            onSendEmail={() => {
-                              showToast("Relatório com PDF enviado por email!", "success");
-                              setIsReportDialogOpen(false);
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-10 flex items-center justify-center bg-gray-100 rounded-md border border-gray-200">
-                            <span className="text-sm text-gray-500 font-medium">
-                              📧 Cliente sem email cadastrado
-                            </span>
-                          </div>
-                        )}
                       </div>
+
+                      {/* Envio por Email */}
+                      {customer?.email ? (
+                        <PDFGeneratorComponent
+                          customerId={customer.id}
+                          startDate={reportStartDate || ''}
+                          endDate={reportEndDate || ''}
+                          customerName={customer.name}
+                          showSendButton={true}
+                          onSendEmail={() => {
+                            showToast("Relatório com PDF enviado por email!", "success");
+                            setIsReportDialogOpen(false);
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full py-3 flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200">
+                          <span className="text-sm text-gray-500 font-medium">
+                            📧 Cliente sem email cadastrado
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </DialogContent>
@@ -1136,26 +1142,51 @@ export default function CustomerDetailPage() {
                     </div>
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
                   {/* Loading Overlay */}
                   {isProcessingPayment && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
-                      <div className="text-center bg-white rounded-lg p-8 shadow-xl">
-                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-                        <p className="mt-4 text-lg font-semibold text-primary">Processando pagamento...</p>
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
+                      <div className="text-center">
+                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
+                        <p className="mt-4 text-lg font-semibold text-orange-600">Processando pagamento...</p>
                         <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
                       </div>
                     </div>
                   )}
-                  <DialogHeader>
-                    <DialogTitle>Adicionar Pagamento à Ficha</DialogTitle>
-                    <DialogDescription>
-                      Registre um pagamento para reduzir o saldo devedor do cliente.
-                    </DialogDescription>
-                  </DialogHeader>
+                  
+                  {/* Header com gradiente */}
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+                    <div className="relative p-6 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                          <Wallet className="h-5 w-5 text-orange-600" />
+                          Adicionar Pagamento à Ficha
+                        </h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Registre um pagamento para reduzir o saldo devedor do cliente
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setIsPaymentDialogOpen(false);
+                          setSelectedPaymentMethod("");
+                          setPaymentAmount("");
+                          setCashReceived("");
+                          setChange(0);
+                        }}
+                        disabled={isProcessingPayment}
+                        className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105 disabled:opacity-50"
+                      >
+                        <X className="h-6 w-6" />
+                      </Button>
+                    </div>
+                  </div>
 
-                  {/* Campo de Valor do Pagamento - Unificado para todas as formas */}
-                  <div className="space-y-4">
+                  {/* Conteúdo scrollável */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div>
                       <label className="text-sm font-medium text-gray-700">
                         Valor do Pagamento
@@ -1180,9 +1211,8 @@ export default function CustomerDetailPage() {
                         />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Formas de pagamento */}
                     <div>
                       <h3 className="text-lg font-semibold mb-4">
@@ -1261,44 +1291,48 @@ export default function CustomerDetailPage() {
                         </div>
                       )}
                     </div>
+                    </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      disabled={isProcessingPayment}
-                      onClick={() => {
-                        if (!isProcessingPayment) {
-                          setIsPaymentDialogOpen(false);
-                          setSelectedPaymentMethod("");
-                          setPaymentAmount("");
-                          setCashReceived("");
-                          setChange(0);
+                  {/* Rodapé */}
+                  <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        disabled={isProcessingPayment}
+                        onClick={() => {
+                          if (!isProcessingPayment) {
+                            setIsPaymentDialogOpen(false);
+                            setSelectedPaymentMethod("");
+                            setPaymentAmount("");
+                            setCashReceived("");
+                            setChange(0);
+                          }
+                        }}
+                        className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={handleFichaPayment}
+                        disabled={
+                          isProcessingPayment ||
+                          !paymentAmount ||
+                          (parseFloat(paymentAmount) <= 0) ||
+                          !selectedPaymentMethod
                         }
-                      }}
-                      className="disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleFichaPayment}
-                      disabled={
-                        isProcessingPayment ||
-                        !paymentAmount ||
-                        (parseFloat(paymentAmount) <= 0) ||
-                        !selectedPaymentMethod
-                      }
-                      className="disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isProcessingPayment ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
-                          Processando...
-                        </>
-                      ) : (
-                        "Registrar Pagamento"
-                      )}
-                    </Button>
+                        className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isProcessingPayment ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                            Processando...
+                          </span>
+                        ) : (
+                          "Registrar Pagamento"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -1429,8 +1463,20 @@ export default function CustomerDetailPage() {
                           Type: {order.type || 'N/A'}, PaymentMethod: {order.paymentMethod || 'N/A'}
                         </div> */}
                           {order.type === "ficha_payment" || order.paymentMethod === "ficha_payment" ? (
-                            <div className="text-sm text-gray-700">
-                              Entrada de Valores
+                            <div className="flex items-center gap-2">
+                              {(() => {
+                                const Icon = getPaymentMethodIcon(
+                                  order.paymentMethod
+                                );
+                                return Icon ? (
+                                  <div className="flex items-center justify-center h-6 w-6 rounded-md bg-green-100">
+                                    <Icon className="h-4 w-4 text-green-700" />
+                                  </div>
+                                ) : null;
+                              })()}
+                              <span className="text-sm text-gray-700">
+                                Entrada de Valores
+                              </span>
                             </div>
                           ) : (
                             <>

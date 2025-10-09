@@ -110,8 +110,8 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
               </h2>
               <p className="text-gray-600 mt-1 text-sm">Crie, edite e remova tipos utilizados nas despesas</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700">
-              <X className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105">
+              <X className="h-6 w-6" />
             </Button>
           </div>
         </div>
@@ -185,8 +185,8 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
                   <Truck className="h-5 w-5 text-orange-600" />
                   {editing ? "Editar" : "Novo"} Tipo de Fornecedor
                 </h3>
-                <Button variant="ghost" size="icon" onClick={() => setFormOpen(false)} className="h-9 w-9 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700">
-                  <X className="h-5 w-5" />
+                <Button variant="ghost" size="icon" onClick={() => setFormOpen(false)} className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105">
+                  <X className="h-6 w-6" />
                 </Button>
               </div>
             </div>

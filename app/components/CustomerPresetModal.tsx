@@ -253,22 +253,33 @@ export function CustomerPresetModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto p-0">
-        {/* Header fixo */}
-        <div className="border-b border-gray-200 sticky top-0 z-20 bg-white px-6 py-4">
-          <div>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <Package className="h-6 w-6 text-primary" />
-              Preset de Produtos
-            </DialogTitle>
-            <p className="text-base text-muted-foreground mt-1">
-              Configure produtos para {customerName}
-            </p>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
+        {/* Header com gradiente */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+          <div className="relative p-6 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Package className="h-5 w-5 text-orange-600" />
+                Preset de Produtos
+              </DialogTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Configure produtos para {customerName}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClose}
+              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+            >
+              <X className="h-6 w-6" />
+            </Button>
           </div>
         </div>
 
-        <div className="px-6 py-4 space-y-3">
-
+        {/* Conteúdo scrollável */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-3">
           {loading ? (
             <div className="text-center py-8">Carregando presets...</div>
           ) : (
@@ -503,22 +514,33 @@ export function CustomerPresetModal({
 
         {/* Rodapé fixo */}
         {presets.length > 0 && (
-          <div className="sticky bottom-0 z-20 bg-white border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={savePresets}
-              disabled={saving}
-              className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? "Salvando..." : "Salvar Presets"}
-            </Button>
+          <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={savePresets}
+                disabled={saving}
+                className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                {saving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                    Salvando...
+                  </span>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Presets
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>

@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { 
-  Search, 
-  User, 
-  Loader2, 
-  X, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
   Barcode,
-  Check
+  Check,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  User,
+  X
 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
+import { Card, CardFooter } from "./ui/card";
+import { Input } from "./ui/input";
 
 type Customer = {
   id: string;
@@ -163,33 +162,44 @@ export function CustomerSelectorDialog({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={() => onOpenChange(false)}
     >
       <div 
-        className="bg-background rounded-xl border p-0 w-full max-w-2xl max-h-[90vh] flex flex-col"
+        className="bg-white rounded-2xl border border-gray-200 shadow-2xl p-0 w-full max-w-2xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold">Selecionar cliente</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Busque por nome, telefone, e-mail ou código de barras
-              </p>
+        {/* Header com gradiente */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+          <div className="relative p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <User className="h-5 w-5 text-orange-600" />
+                  Selecionar Cliente
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Busque por nome, telefone, e-mail ou código de barras
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                aria-label="Fechar"
+                className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+              >
+                <X className="h-6 w-6" />
+              </Button>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </Button>
           </div>
-          
-          <div className="relative mt-4">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        </div>
+        
+        {/* Seção de Busca */}
+        <div className="border-b border-gray-200 p-6 bg-white">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <Input
               ref={inputRef}
               value={query}
@@ -198,7 +208,7 @@ export function CustomerSelectorDialog({
                 setSelectedIndex(0);
               }}
               placeholder="Nome, telefone, e-mail ou código de barras do cliente"
-              className="pl-10 h-12 text-base"
+              className="pl-10 pr-4 py-3 h-12 text-base rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
             />
           </div>
         </div>
@@ -206,20 +216,23 @@ export function CustomerSelectorDialog({
         <div className="flex-1 overflow-hidden flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="text-center">
+                <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
+                <p className="mt-4 text-sm font-semibold text-orange-600">Buscando clientes...</p>
+              </div>
             </div>
           ) : customers.length > 0 ? (
             <div 
               ref={listRef}
-              className="overflow-y-auto flex-1 p-4 space-y-3"
+              className="overflow-y-auto flex-1 p-6 space-y-3"
             >
               {customers.map((customer, index) => (
                 <Card 
                   key={customer.id}
-                  className={`cursor-pointer transition-all ${
+                  className={`cursor-pointer transition-all rounded-xl ${
                     index === selectedIndex 
-                      ? "border-primary ring-2 ring-primary/20" 
-                      : "hover:border-primary/50"
+                      ? "border-orange-500 ring-2 ring-orange-500/20 shadow-md" 
+                      : "hover:border-orange-300 hover:shadow-sm"
                   }`}
                   onClick={() => setSelectedIndex(index)}
                 >
@@ -231,8 +244,8 @@ export function CustomerSelectorDialog({
                     }}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <User className="h-6 w-6 text-primary" />
+                      <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                        <User className="h-6 w-6 text-orange-600" />
                       </div>
                       
                       <div className="flex-1 min-w-0">
@@ -277,12 +290,13 @@ export function CustomerSelectorDialog({
                   
                   <CardFooter className="p-4 pt-0">
                     <Button 
-                      className="w-full"
+                      className="w-full rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-sm hover:shadow-md transition-all"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelectCustomer(customer);
                       }}
                     >
+                      <Check className="h-4 w-4 mr-2" />
                       Selecionar cliente
                     </Button>
                   </CardFooter>
@@ -291,31 +305,38 @@ export function CustomerSelectorDialog({
             </div>
           ) : query.trim() ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Search className="h-8 w-8 text-muted-foreground" />
+              <div className="h-16 w-16 rounded-full bg-orange-50 flex items-center justify-center mb-4">
+                <Search className="h-8 w-8 text-orange-400" />
               </div>
-              <h3 className="text-lg font-medium mb-1">Nenhum cliente encontrado</h3>
-              <p className="text-muted-foreground">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Nenhum cliente encontrado</h3>
+              <p className="text-sm text-gray-600">
                 Não encontramos nenhum cliente com os termos da busca "{query}"
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <User className="h-8 w-8 text-muted-foreground" />
+              <div className="h-16 w-16 rounded-full bg-orange-50 flex items-center justify-center mb-4">
+                <User className="h-8 w-8 text-orange-400" />
               </div>
-              <h3 className="text-lg font-medium mb-1">Busque por clientes</h3>
-              <p className="text-muted-foreground">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Busque por clientes</h3>
+              <p className="text-sm text-gray-600">
                 Digite o nome, telefone, e-mail ou código de barras do cliente para começar a busca
               </p>
             </div>
           )}
         </div>
         
-        <div className="border-t p-4 flex justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
+        {/* Rodapé */}
+        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+            >
+              Fechar
+            </Button>
+          </div>
         </div>
       </div>
     </div>

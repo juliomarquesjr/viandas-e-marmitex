@@ -187,9 +187,9 @@ export default function RoAssistant({ variant = "floating", defaultOpen = false 
               variant="ghost"
               size="icon"
               onClick={handleClose}
-              className="h-12 w-12 rounded-full bg-white/10 text-white hover:bg-white/20"
+              className="h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 border border-white/30 text-white shadow-md transition-all hover:scale-105"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </Button>
           )}
         </div>

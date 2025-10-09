@@ -117,9 +117,9 @@ export function CustomerFormDialog({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
+              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </Button>
           </div>
         </div>

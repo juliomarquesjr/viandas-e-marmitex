@@ -216,9 +216,9 @@ export function PreOrderPaymentDialog({
               size="icon"
               onClick={() => !isConverting && onOpenChange(false)}
               disabled={isConverting}
-              className="h-8 w-8 rounded-full text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 border border-white/30 text-white shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <X className="h-4 w-4" />
+              <X className="h-6 w-6" />
             </Button>
           </div>
         </div>

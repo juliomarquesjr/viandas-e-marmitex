@@ -8,6 +8,7 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/app/compo
 import { Input } from "@/app/components/ui/input";
 import { motion } from "framer-motion";
 import {
+    AlertCircle,
     Calendar,
     Check,
     Edit,
@@ -507,15 +508,18 @@ export default function AdminUsersPage() {
 
         {/* Modal de Formulário */}
         {isFormOpen && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background shadow-2xl border border-border rounded-lg">
-              <div className="border-b border-border p-6">
-                <div className="flex items-center justify-between">
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden bg-white shadow-2xl border border-gray-200 rounded-2xl flex flex-col">
+              {/* Header com gradiente */}
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+                <div className="relative p-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-foreground">
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-orange-600" />
                       {editingUser ? "Editar Usuário" : "Novo Usuário"}
                     </h2>
-                    <p className="text-muted-foreground">
+                    <p className="text-sm text-gray-600 mt-1">
                       {editingUser ? "Atualize as informações do usuário" : "Preencha os dados para cadastrar um novo usuário"}
                     </p>
                   </div>
@@ -523,15 +527,16 @@ export default function AdminUsersPage() {
                     variant="ghost"
                     size="icon"
                     onClick={closeForm}
-                    className="h-8 w-8 rounded-lg hover:bg-accent"
+                    className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-6 w-6" />
                   </Button>
                 </div>
               </div>
               
-              <div className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Conteúdo scrollável */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <form id="user-form-modal" onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Nome Completo *</label>
@@ -605,27 +610,28 @@ export default function AdminUsersPage() {
                       />
                     </div>
                   </div>
-
-                  {/* Separator */}
-                  <div className="border-t border-border my-6"></div>
-
-                  <div className="flex justify-end gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={closeForm}
-                      className="px-6 py-2 rounded-lg border-input hover:bg-accent"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-primary hover:bg-primary/90 px-6 py-2 rounded-lg"
-                    >
-                      {editingUser ? "Atualizar" : "Cadastrar"}
-                    </Button>
-                  </div>
                 </form>
+              </div>
+              
+              {/* Rodapé */}
+              <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeForm}
+                    className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="user-form-modal"
+                    className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {editingUser ? "Atualizar Usuário" : "Cadastrar Usuário"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -633,33 +639,38 @@ export default function AdminUsersPage() {
 
         {/* Modal de Confirmação de Exclusão */}
         {deleteConfirm && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-background shadow-2xl border border-border rounded-lg">
-              <div className="text-center border-b border-border p-6">
-                <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                  <X className="h-6 w-6 text-red-600" />
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white shadow-2xl border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
+              {/* Header com gradiente vermelho */}
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border-b border-gray-200 relative">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+                <div className="relative text-center p-6">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <AlertCircle className="h-6 w-6 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">Confirmar Exclusão</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Confirmar Exclusão</h3>
-                <p className="text-muted-foreground">
-                  Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.
-                </p>
               </div>
               
-              <div className="p-6">
+              {/* Rodapé */}
+              <div className="border-t border-gray-200 p-6 bg-gray-50/50">
                 <div className="flex justify-end gap-3">
                   <Button
                     variant="outline"
                     onClick={() => setDeleteConfirm(null)}
-                    className="px-6 py-2 rounded-lg border-input hover:bg-accent"
+                    className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
                   >
                     Cancelar
                   </Button>
                   <Button
                     onClick={() => deleteUser(deleteConfirm)}
-                    className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white"
+                    className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
+                    Excluir Usuário
                   </Button>
                 </div>
               </div>

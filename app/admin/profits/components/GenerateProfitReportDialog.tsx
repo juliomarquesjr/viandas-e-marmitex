@@ -95,9 +95,9 @@ export function GenerateProfitReportDialog({
               size="icon"
               onClick={onClose}
               disabled={isLoading}
-              className="h-10 w-10 rounded-full hover:bg-white/50 text-gray-500 hover:text-gray-700"
+              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </Button>
           </div>
         </div>
