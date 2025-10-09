@@ -397,7 +397,7 @@ function CustomerReportThermalContent() {
                   const order = details.periodOrders.find(o => o.id === transaction.id);
                   if (order && order.discountCents > 0) {
                     return (
-                      <div style={{fontSize: '14px', color: '#000', marginTop: '2px', fontWeight: '900'}}>
+                      <div style={{fontSize: '12px', color: '#000', marginTop: '2px', fontWeight: '500'}}>
                         Desc: -{formatCurrency(order.discountCents)}
                         <br />
                         Subtot: {formatCurrency(order.subtotalCents)}
@@ -418,8 +418,8 @@ function CustomerReportThermalContent() {
 
       {/* Footer */}
       <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '14px', color: '#000'}}>Gerado em:</div>
-        <div style={{fontWeight: '900', fontSize: '14px', color: '#000'}}>{formatDateTime(metadata.generatedAt)}</div>
+        <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>Gerado em:</div>
+        <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>{formatDateTime(metadata.generatedAt)}</div>
       </div>
 
       {/* Contact Footer */}
@@ -440,8 +440,8 @@ function CustomerReportThermalContent() {
         /* Estilos base para impressão térmica */
         .thermal-report {
           font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
-          font-size: 16px;
-          font-weight: bold;
+          font-size: 14px;
+          font-weight: 500;
           line-height: 1.3;
           max-width: 280px;
           margin: 0 auto;
@@ -476,18 +476,18 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-title {
-          font-size: 18px;
-          font-weight: bold;
+          font-size: 16px;
+          font-weight: 600;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 15px;
+          font-size: 13px;
           margin-bottom: 2px;
         }
         
         .thermal-period {
-          font-size: 14px;
+          font-size: 12px;
         }
         
         /* Seções */
@@ -498,14 +498,14 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-section-title {
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 600;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
         
@@ -513,41 +513,41 @@ function CustomerReportThermalContent() {
         .thermal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 16px;
-          font-weight: bold;
+          font-size: 14px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
         
         .thermal-value {
-          font-weight: 900;
+          font-weight: 500;
         }
         
         /* Transações (relatórios) */
         .thermal-transaction {
           margin-bottom: 6px;
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
         }
         
         .thermal-date {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
         }
         
         .thermal-transaction-value {
-          font-weight: 900;
-          font-size: 16px;
+          font-weight: 500;
+          font-size: 14px;
         }
         
         .thermal-transaction-type {
-          font-size: 12px;
+          font-size: 11px;
           color: #666;
           margin-bottom: 2px;
         }
         
         .thermal-description {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           word-wrap: break-word;
         }
         
@@ -560,8 +560,8 @@ function CustomerReportThermalContent() {
         /* Rodapé */
         .thermal-footer {
           text-align: center;
-          font-size: 14px;
-          font-weight: 900;
+          font-size: 12px;
+          font-weight: 500;
           color: #333;
           margin-top: 8px;
           padding-top: 6px;
@@ -575,15 +575,15 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-contact-title {
-          font-size: 15px;
-          font-weight: 900;
+          font-size: 13px;
+          font-weight: 500;
           margin-bottom: 4px;
           color: #000 !important;
         }
         
         .thermal-contact-info {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 10px;
           color: #000 !important;
           display: flex;
@@ -592,8 +592,8 @@ function CustomerReportThermalContent() {
         }
         
         .thermal-icon {
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           filter: brightness(0) contrast(100%);
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
@@ -601,8 +601,8 @@ function CustomerReportThermalContent() {
         
         .thermal-separator {
           margin: 8px 0;
-          font-weight: 900;
-          font-size: 14px;
+          font-weight: 500;
+          font-size: 12px;
           color: #000;
         }
         

@@ -8,8 +8,8 @@ export const thermalStyles = `
   .thermal-receipt,
   .thermal-report {
     font-family: 'Courier New', monospace;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 500;
     line-height: 1.4;
     max-width: 280px;
     margin: 0 auto;
@@ -26,22 +26,22 @@ export const thermalStyles = `
   }
   
   .thermal-title {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 16px;
+    font-weight: 600;
     margin-bottom: 2px;
   }
   
   .thermal-subtitle {
-    font-size: 15px;
+    font-size: 13px;
     margin-bottom: 2px;
   }
   
   .thermal-date {
-    font-size: 14px;
+    font-size: 12px;
   }
   
   .thermal-period {
-    font-size: 14px;
+    font-size: 12px;
   }
   
   /* Seções */
@@ -52,14 +52,14 @@ export const thermalStyles = `
   }
   
   .thermal-section-title {
-    font-size: 15px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 600;
     margin-bottom: 4px;
   }
   
   .thermal-text {
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 500;
     margin-bottom: 2px;
   }
   
@@ -67,28 +67,28 @@ export const thermalStyles = `
   .thermal-row {
     display: flex;
     justify-content: space-between;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 500;
     margin-bottom: 2px;
   }
   
   .thermal-total {
-    font-size: 18px;
-    font-weight: 900;
+    font-size: 16px;
+    font-weight: 500;
     border-top: 1px solid #333;
     padding-top: 4px;
     margin-top: 4px;
   }
   
   .thermal-value {
-    font-weight: 900;
+    font-weight: 500;
   }
   
   /* Itens do pedido */
   .thermal-item {
     margin-bottom: 4px;
-    font-size: 15px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
   }
   
   .thermal-item-header {
@@ -96,47 +96,47 @@ export const thermalStyles = `
   }
   
   .thermal-item-name {
-    font-size: 15px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
   }
   
   .thermal-item-details {
     display: flex;
     justify-content: space-between;
-    font-size: 15px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 500;
   }
   
   .thermal-item-total {
-    font-weight: 900;
+    font-weight: 500;
   }
   
   /* Transações (relatórios) */
   .thermal-transaction {
     margin-bottom: 6px;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 500;
   }
   
   .thermal-date {
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 500;
   }
   
   .thermal-transaction-value {
-    font-weight: 900;
-    font-size: 16px;
+    font-weight: 500;
+    font-size: 14px;
   }
   
   .thermal-transaction-type {
-    font-size: 12px;
+    font-size: 11px;
     color: #666;
     margin-bottom: 2px;
   }
   
   .thermal-description {
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 12px;
+    font-weight: 500;
     word-wrap: break-word;
   }
   
@@ -149,8 +149,8 @@ export const thermalStyles = `
   /* Rodapé */
   .thermal-footer {
     text-align: center;
-    font-size: 14px;
-    font-weight: 900;
+    font-size: 12px;
+    font-weight: 500;
     color: #333;
     margin-top: 8px;
     padding-top: 6px;
@@ -159,8 +159,8 @@ export const thermalStyles = `
   
   .thermal-separator {
     margin: 8px 0;
-    font-weight: 900;
-    font-size: 14px;
+    font-weight: 500;
+    font-size: 12px;
     color: #000;
   }
   

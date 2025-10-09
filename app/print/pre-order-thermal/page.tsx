@@ -180,6 +180,9 @@ function PreOrderThermalContent() {
         <div className="thermal-date">
           {formatDateTime(preOrder.createdAt)}
         </div>
+        <div className="thermal-order-info">
+          Pré-Pedido #{preOrder.id.slice(-8).toUpperCase()}
+        </div>
       </div>
 
       {/* Customer Info */}
@@ -251,8 +254,8 @@ function PreOrderThermalContent() {
           </div>
         )}
         
-        <div className="thermal-row thermal-total">
-          <span>TOTAL:</span>
+        <div className="thermal-row">
+          <span>Total:</span>
           <span className="thermal-value">
             {formatCurrency(preOrder.totalCents)}
           </span>
@@ -261,7 +264,7 @@ function PreOrderThermalContent() {
 
       {/* Notes */}
       {preOrder.notes && (
-        <div className="thermal-section">
+        <div style={{marginBottom: '8px', paddingBottom: '6px'}}>
           <div className="thermal-section-title">
             OBSERVAÇÕES:
           </div>
@@ -270,14 +273,6 @@ function PreOrderThermalContent() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <div className="thermal-footer">
-        <div style={{fontWeight: '900', fontSize: '14px', color: '#333'}}>Pré-Pedido #{preOrder.id.slice(-8).toUpperCase()}</div>
-        <div className="thermal-separator">
-          ================================
-        </div>
-      </div>
 
       {/* Contact Footer */}
       <ThermalFooter contactInfo={contactInfo || undefined} />
@@ -297,8 +292,8 @@ function PreOrderThermalContent() {
         /* Estilos base para impressão térmica */
         .thermal-receipt {
           font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
-          font-size: 16px;
-          font-weight: bold;
+          font-size: 14px;
+          font-weight: 500;
           line-height: 1.3;
           max-width: 280px;
           margin: 0 auto;
@@ -333,18 +328,26 @@ function PreOrderThermalContent() {
         }
         
         .thermal-title {
-          font-size: 18px;
-          font-weight: bold;
+          font-size: 16px;
+          font-weight: 600;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 15px;
+          font-size: 13px;
           margin-bottom: 2px;
         }
         
         .thermal-date {
-          font-size: 14px;
+          font-size: 12px;
+        }
+        
+        .thermal-order-info {
+          font-size: 12px;
+          font-weight: 500;
+          margin-bottom: 8px;
+          color: #000 !important;
+          text-align: center;
         }
         
         /* Seções */
@@ -355,14 +358,14 @@ function PreOrderThermalContent() {
         }
         
         .thermal-section-title {
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 600;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
         
@@ -370,28 +373,28 @@ function PreOrderThermalContent() {
         .thermal-row {
           display: flex;
           justify-content: space-between;
-          font-size: 16px;
-          font-weight: bold;
+          font-size: 14px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
         
         .thermal-total {
-          font-size: 18px;
-          font-weight: 900;
+          font-size: 16px;
+          font-weight: 500;
           border-top: 2px solid #000;
           padding-top: 4px;
           margin-top: 4px;
         }
         
         .thermal-value {
-          font-weight: 900;
+          font-weight: 500;
         }
         
         /* Itens do pedido */
         .thermal-item {
           margin-bottom: 4px;
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 500;
         }
         
         .thermal-item-header {
@@ -399,19 +402,19 @@ function PreOrderThermalContent() {
         }
         
         .thermal-item-name {
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 500;
         }
         
         .thermal-item-details {
           display: flex;
           justify-content: space-between;
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 500;
         }
         
         .thermal-item-total {
-          font-weight: 900;
+          font-weight: 500;
         }
         
         /* Separadores */
@@ -423,8 +426,8 @@ function PreOrderThermalContent() {
         /* Rodapé */
         .thermal-footer {
           text-align: center;
-          font-size: 14px;
-          font-weight: 900;
+          font-size: 12px;
+          font-weight: 500;
           color: #333;
           margin-top: 8px;
           padding-top: 6px;
@@ -438,15 +441,15 @@ function PreOrderThermalContent() {
         }
         
         .thermal-contact-title {
-          font-size: 15px;
-          font-weight: 900;
+          font-size: 13px;
+          font-weight: 500;
           margin-bottom: 4px;
           color: #000 !important;
         }
         
         .thermal-contact-info {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 10px;
           color: #000 !important;
           display: flex;
@@ -455,8 +458,8 @@ function PreOrderThermalContent() {
         }
         
         .thermal-icon {
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           filter: brightness(0) contrast(100%);
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
@@ -464,8 +467,8 @@ function PreOrderThermalContent() {
         
         .thermal-separator {
           margin: 8px 0;
-          font-weight: 900;
-          font-size: 14px;
+          font-weight: 500;
+          font-size: 12px;
           color: #000;
         }
         

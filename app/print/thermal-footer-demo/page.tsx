@@ -53,8 +53,8 @@ export default function ThermalFooterDemo() {
         /* Estilos base para impressão térmica */
         .thermal-demo {
           font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
-          font-size: 16px;
-          font-weight: bold;
+          font-size: 14px;
+          font-weight: 500;
           line-height: 1.3;
           max-width: 280px;
           margin: 0 auto;
@@ -71,13 +71,13 @@ export default function ThermalFooterDemo() {
         }
         
         .thermal-title {
-          font-size: 18px;
-          font-weight: bold;
+          font-size: 16px;
+          font-weight: 600;
           margin-bottom: 2px;
         }
         
         .thermal-subtitle {
-          font-size: 15px;
+          font-size: 13px;
           margin-bottom: 2px;
         }
         
@@ -89,14 +89,14 @@ export default function ThermalFooterDemo() {
         }
         
         .thermal-section-title {
-          font-size: 15px;
-          font-weight: bold;
+          font-size: 13px;
+          font-weight: 600;
           margin-bottom: 4px;
         }
         
         .thermal-text {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
         
@@ -107,15 +107,15 @@ export default function ThermalFooterDemo() {
         }
         
         .thermal-contact-title {
-          font-size: 15px;
-          font-weight: 900;
+          font-size: 13px;
+          font-weight: 500;
           margin-bottom: 4px;
           color: #000 !important;
         }
         
         .thermal-contact-info {
-          font-size: 14px;
-          font-weight: bold;
+          font-size: 12px;
+          font-weight: 500;
           margin-bottom: 10px;
           color: #000 !important;
           display: flex;
@@ -124,8 +124,8 @@ export default function ThermalFooterDemo() {
         }
         
         .thermal-icon {
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           filter: brightness(0) contrast(100%);
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
@@ -146,8 +146,8 @@ export default function ThermalFooterDemo() {
         
         .thermal-separator {
           margin: 8px 0;
-          font-weight: 900;
-          font-size: 14px;
+          font-weight: 500;
+          font-size: 12px;
           color: #000;
         }
         
