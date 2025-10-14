@@ -1,44 +1,45 @@
 "use client";
 
 import {
-  ArrowLeft,
-  Banknote,
-  Barcode as BarcodeIcon,
-  Clock,
-  CreditCard,
-  Download,
-  FileText,
-  IdCard,
-  MapPin,
-  Package,
-  Phone,
-  Plus,
-  Printer,
-  QrCode,
-  Receipt,
-  Trash2,
-  User,
-  Wallet,
-  X
+    ArrowLeft,
+    Banknote,
+    Barcode as BarcodeIcon,
+    Clock,
+    CreditCard,
+    Download,
+    FileText,
+    IdCard,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    Printer,
+    QrCode,
+    Receipt,
+    Trash2,
+    User,
+    Wallet,
+    X
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
+import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
 import { PDFGeneratorComponent } from "../../../components/PDFGenerator";
 import { useToast } from "../../../components/Toast";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "../../../components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogTrigger
+    Dialog,
+    DialogContent,
+    DialogTrigger
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -127,6 +128,10 @@ export default function CustomerDetailPage() {
   const [orderFilter, setOrderFilter] = useState("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<{id: string, isFichaPayment: boolean} | null>(null);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [filteredStats, setFilteredStats] = useState({
     pendingAmount: 0,
@@ -370,22 +375,23 @@ export default function CustomerDetailPage() {
     return paymentMethodMap[method as keyof typeof paymentMethodMap]?.icon;
   };
 
-  const deleteOrder = async (orderId: string) => {
+  const openDeleteDialog = (orderId: string) => {
     // Find the order to determine if it's a ficha payment
-    const orderToDelete = orders.find(order => order.id === orderId);
-    const isFichaPayment = orderToDelete?.type === "ficha_payment" || orderToDelete?.paymentMethod === "ficha_payment";
+    const order = orders.find(o => o.id === orderId);
+    const isFichaPayment = order?.type === "ficha_payment" || order?.paymentMethod === "ficha_payment";
+    
+    setOrderToDelete({id: orderId, isFichaPayment});
+    setDeleteDialogOpen(true);
+  };
 
-    const confirmationMessage = isFichaPayment
-      ? "Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita."
-      : "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.";
-
-    if (!confirm(confirmationMessage)) {
-      return;
-    }
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
 
     try {
       // Use the appropriate API endpoint based on order type
-      const endpoint = isFichaPayment ? `/api/ficha-payments?id=${orderId}` : `/api/orders?id=${orderId}`;
+      const endpoint = orderToDelete.isFichaPayment 
+        ? `/api/ficha-payments?id=${orderToDelete.id}` 
+        : `/api/orders?id=${orderToDelete.id}`;
 
       const response = await fetch(endpoint, {
         method: "DELETE",
@@ -397,17 +403,19 @@ export default function CustomerDetailPage() {
       }
 
       // Remover o pedido da lista
-      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+      setOrders((prev) => prev.filter((order) => order.id !== orderToDelete.id));
 
       // Se for um pagamento de ficha, recarregar os dados para atualizar o saldo devedor
-      if (isFichaPayment) {
+      if (orderToDelete.isFichaPayment) {
         loadCustomer();
       } else {
         // Para vendas normais, apenas recalcular as estatísticas locais
-        calculateStats(orders.filter((order) => order.id !== orderId), stats.balanceAmount);
+        calculateStats(orders.filter((order) => order.id !== orderToDelete.id), stats.balanceAmount);
       }
 
-      showToast(isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!", "success");
+      setDeleteDialogOpen(false);
+      setOrderToDelete(null);
+      showToast(orderToDelete.isFichaPayment ? "Pagamento excluído com sucesso!" : "Venda excluída com sucesso!", "success");
     } catch (error) {
       console.error("Error deleting order:", error);
       showToast(`Erro ao excluir: ${(error as Error).message || "Por favor, tente novamente."}`, "error");
@@ -1544,7 +1552,7 @@ export default function CustomerDetailPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => deleteOrder(order.id)}
+                            onClick={() => openDeleteDialog(order.id)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                             title="Excluir venda"
                           >
@@ -1644,6 +1652,21 @@ export default function CustomerDetailPage() {
         onClose={() => setIsPresetModalOpen(false)}
         customerId={customer.id}
         customerName={customer.name}
+      />
+      
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmar Exclusão"
+        description={
+          orderToDelete?.isFichaPayment
+            ? "Tem certeza que deseja excluir este pagamento? Esta ação não pode ser desfeita."
+            : "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
+        }
+        onConfirm={confirmDeleteOrder}
+        confirmText="Excluir"
+        cancelText="Cancelar"
       />
     </div>
   );

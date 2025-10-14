@@ -1,36 +1,38 @@
 "use client";
 
+import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
+import { useToast } from "@/app/components/Toast";
 import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-    Banknote,
-    Check,
-    CheckCircle,
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    CreditCard,
-    IdCard,
-    Package,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    Truck,
-    User,
-    Wallet,
-    X,
-    XCircle,
+  Banknote,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CreditCard,
+  IdCard,
+  Package,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  Truck,
+  User,
+  Wallet,
+  X,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -113,6 +115,7 @@ const paymentMethodMap = {
 };
 
 export default function AdminOrdersPage() {
+  const { showToast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,6 +134,10 @@ export default function AdminOrdersPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
+  
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const loadOrders = async () => {
     try {
@@ -218,17 +225,16 @@ export default function AdminOrdersPage() {
     }).format(cents / 100);
   };
 
-  const deleteOrder = async (orderId: string) => {
-    if (
-      !confirm(
-        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
-      )
-    ) {
-      return;
-    }
+  const openDeleteDialog = (orderId: string) => {
+    setOrderToDelete(orderId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
 
     try {
-      const response = await fetch(`/api/orders?id=${orderId}`, {
+      const response = await fetch(`/api/orders?id=${orderToDelete}`, {
         method: "DELETE",
       });
 
@@ -237,10 +243,14 @@ export default function AdminOrdersPage() {
       }
 
       // Remover o pedido da lista
-      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+      setOrders((prev) => prev.filter((order) => order.id !== orderToDelete));
+      setAllOrders((prev) => prev.filter((order) => order.id !== orderToDelete));
+      setDeleteDialogOpen(false);
+      setOrderToDelete(null);
+      showToast("Venda excluída com sucesso!", "success");
     } catch (error) {
       console.error("Error deleting order:", error);
-      alert("Erro ao excluir venda. Por favor, tente novamente.");
+      showToast("Erro ao excluir venda. Por favor, tente novamente.", "error");
     }
   };
 
@@ -694,7 +704,7 @@ export default function AdminOrdersPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => deleteOrder(order.id)}
+                              onClick={() => openDeleteDialog(order.id)}
                               className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
                               title="Excluir venda"
                             >
@@ -836,12 +846,23 @@ export default function AdminOrdersPage() {
       )}
 
       {/* Modal de Análise Detalhada */}
-      <SalesAnalysisModal
+      <SalesAnalysisModal 
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         allOrders={allOrders}
         totalOrders={totalOrders}
         filters={filters}
+      />
+      
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmar Exclusão"
+        description="Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita."
+        onConfirm={confirmDeleteOrder}
+        confirmText="Excluir"
+        cancelText="Cancelar"
       />
     </div>
   );

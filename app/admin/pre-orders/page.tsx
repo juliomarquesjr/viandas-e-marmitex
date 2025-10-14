@@ -3,27 +3,28 @@
 import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Button } from "@/app/components/ui/button";
 import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle
 } from "@/app/components/ui/card";
 import { motion } from "framer-motion";
 import {
-  MoreHorizontal,
-  Package,
-  Printer,
-  Receipt,
-  ShoppingCart,
-  Trash2,
-  User,
-  Users,
-  X
+    MoreHorizontal,
+    Package,
+    Printer,
+    Receipt,
+    ShoppingCart,
+    Trash2,
+    User,
+    Users,
+    X
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 // Importar o componente de modal
+import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
 import { useToast } from "@/app/components/Toast";
@@ -234,6 +235,10 @@ export default function AdminPreOrdersPage() {
   // State for dropdown menu
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [preOrderToDelete, setPreOrderToDelete] = useState<string | null>(null);
+  
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -342,17 +347,16 @@ export default function AdminPreOrdersPage() {
     return Object.values(productMap).sort((a, b) => b.totalQuantity - a.totalQuantity);
   };
 
-  const deletePreOrder = async (preOrderId: string) => {
-    if (
-      !confirm(
-        "Tem certeza que deseja excluir este pré-pedido? Esta ação não pode ser desfeita."
-      )
-    ) {
-      return;
-    }
+  const openDeleteDialog = (preOrderId: string) => {
+    setPreOrderToDelete(preOrderId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeletePreOrder = async () => {
+    if (!preOrderToDelete) return;
 
     try {
-      const response = await fetch(`/api/pre-orders?id=${preOrderId}`, {
+      const response = await fetch(`/api/pre-orders?id=${preOrderToDelete}`, {
         method: "DELETE",
       });
 
@@ -361,10 +365,13 @@ export default function AdminPreOrdersPage() {
       }
 
       // Remover o pré-pedido da lista
-      setPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderId));
+      setPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
+      setDeleteDialogOpen(false);
+      setPreOrderToDelete(null);
+      showToast("Pré-pedido excluído com sucesso!", "success");
     } catch (error) {
       console.error("Error deleting pre-order:", error);
-      alert("Erro ao excluir pré-pedido. Por favor, tente novamente.");
+      showToast("Erro ao excluir pré-pedido. Por favor, tente novamente.", "error");
     }
   };
 
@@ -768,7 +775,7 @@ export default function AdminPreOrdersPage() {
                         <td className="py-4 px-6 w-8">
                           <PreOrderActionsMenu
                             onEdit={() => openEditPreOrderDialog(preOrder.id)}
-                            onDelete={() => deletePreOrder(preOrder.id)}
+                            onDelete={() => openDeleteDialog(preOrder.id)}
                             onPrint={() => printThermalReceipt(preOrder.id)}
                             onConvert={() => convertToOrder(preOrder)}
                           />
@@ -815,6 +822,17 @@ export default function AdminPreOrdersPage() {
           isConverting={isConverting}
         />
       )}
+      
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmar Exclusão"
+        description="Tem certeza que deseja excluir este pré-pedido? Esta ação não pode ser desfeita."
+        onConfirm={confirmDeletePreOrder}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

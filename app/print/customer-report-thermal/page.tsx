@@ -356,11 +356,17 @@ function CustomerReportThermalContent() {
           
           // Só exibe se houver pagamentos no período
           if (paymentsInPeriod.length > 0) {
+            // Calcular o total dos pagamentos apenas do período
+            const totalPaymentsInPeriodCents = paymentsInPeriod.reduce(
+              (total, payment) => total + payment.totalCents, 
+              0
+            );
+            
             return (
               <div className="thermal-row">
                 <span>Pagamentos:</span>
                 <span className="thermal-value">
-                  {formatCurrency(summary.totalPaymentsCents)}
+                  {formatCurrency(totalPaymentsInPeriodCents)}
                 </span>
               </div>
             );
