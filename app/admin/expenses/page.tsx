@@ -2,26 +2,28 @@
 
 import { motion } from "framer-motion";
 import {
-    Calendar,
-    ChevronLeft,
-    ChevronRight,
-    DollarSign,
-    Edit,
-    Filter,
-    Grid3X3,
-    List,
-    MoreVertical,
-    Plus,
-    Receipt,
-    Trash2,
-    X
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Edit,
+  Filter,
+  Grid3X3,
+  List,
+  MoreVertical,
+  Plus,
+  Receipt,
+  Settings,
+  Trash2,
+  X
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ExpenseFormData,
-    ExpenseType,
-    ExpenseWithRelations,
-    SupplierType
+  ExpenseFormData,
+  ExpenseType,
+  ExpenseWithRelations,
+  SupplierType
 } from "../../../lib/types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useToast } from "../../components/Toast";
@@ -452,6 +454,7 @@ export default function ExpensesPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedExpense, setSelectedExpense] = useState<ExpenseWithRelations | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
   const { showToast } = useToast();
 
   // Evitar hydration mismatch e inicializar datas apenas no cliente
@@ -464,6 +467,23 @@ export default function ExpensesPage() {
       setViewMode(savedViewMode);
     }
   }, []);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isManageMenuOpen) {
+        const target = event.target as Element;
+        if (!target.closest('.manage-menu-container')) {
+          setIsManageMenuOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isManageMenuOpen]);
 
   // Carregar despesas
   const loadExpenses = async () => {
@@ -714,18 +734,44 @@ export default function ExpensesPage() {
               Calendário
             </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setManageExpenseTypesOpen(true)}
-          >
-            Gerenciar Tipos
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setManageSupplierTypesOpen(true)}
-          >
-            Gerenciar Fornecedores
-          </Button>
+          <div className="relative manage-menu-container">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => setIsManageMenuOpen(!isManageMenuOpen)}
+            >
+              <Settings className="h-4 w-4" />
+              Gerenciar
+              <ChevronDown className={`h-4 w-4 transition-transform ${isManageMenuOpen ? 'rotate-180' : ''}`} />
+            </Button>
+            
+            {isManageMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setManageExpenseTypesOpen(true);
+                      setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    Gerenciar Tipos de Despesa
+                  </button>
+                  <button
+                    onClick={() => {
+                      setManageSupplierTypesOpen(true);
+                      setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    Gerenciar Fornecedores
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <Button className="bg-primary hover:bg-primary/90" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Despesa
