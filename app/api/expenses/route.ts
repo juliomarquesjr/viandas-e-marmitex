@@ -149,7 +149,7 @@ export async function POST(request: Request) {
         supplierTypeId: body.supplierTypeId,
         amountCents: body.amountCents,
         description: body.description.trim(),
-        date: new Date(body.date)
+        date: new Date(body.date + 'T00:00:00')
       },
       include: {
         type: {

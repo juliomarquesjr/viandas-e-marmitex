@@ -8,12 +8,13 @@ import {
     DollarSign,
     Edit,
     Filter,
+    Grid3X3,
+    List,
     MoreVertical,
     Plus,
     Receipt,
-    Search,
     Trash2,
-    X,
+    X
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -42,7 +43,16 @@ const formatCurrency = (cents: number) => {
 
 // Função para formatar data
 const formatDate = (date: Date | string) => {
-  return new Date(date).toLocaleDateString("pt-BR");
+  const dateObj = new Date(date);
+  
+  // Extrair apenas a parte da data (ano, mês, dia) sem considerar timezone
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+  const day = dateObj.getDate();
+  
+  // Criar uma nova data local com os mesmos valores
+  const localDate = new Date(year, month, day);
+  return localDate.toLocaleDateString("pt-BR");
 };
 
 // Menu de opções por despesa
@@ -136,6 +146,7 @@ function ExpenseFormDialog({
     date: new Date().toISOString().split("T")[0],
   });
   const [displayPrice, setDisplayPrice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (expense) {
@@ -192,10 +203,16 @@ function ExpenseFormDialog({
     setFormData({ ...formData, amountCents: cents });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.typeId || !formData.supplierTypeId || !formData.description.trim()) return;
-    onSave(formData);
+    
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -261,7 +278,12 @@ function ExpenseFormDialog({
                       <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent 
+                        className="z-[9999] bg-white border border-gray-200 shadow-lg" 
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                      >
                         {expenseTypes.map((type) => (
                           <SelectItem key={type.id} value={type.id}>
                             {type.name}
@@ -287,7 +309,12 @@ function ExpenseFormDialog({
                       <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
                         <SelectValue placeholder="Selecione o fornecedor" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent 
+                        className="z-[9999] bg-white border border-gray-200 shadow-lg" 
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                      >
                         {supplierTypes.map((type) => (
                           <SelectItem key={type.id} value={type.id}>
                             {type.name}
@@ -376,9 +403,20 @@ function ExpenseFormDialog({
             <Button
               type="submit"
               onClick={handleSubmit}
-              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+              disabled={isSaving}
+              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
-              {expense ? "Atualizar Despesa" : "Cadastrar Despesa"}
+              {isSaving ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                  {expense ? "Atualizando..." : "Cadastrando..."}
+                </span>
+              ) : (
+                <>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  {expense ? "Atualizar Despesa" : "Cadastrar Despesa"}
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -399,7 +437,6 @@ export default function ExpensesPage() {
     totalPages: 0,
   });
   const [filters, setFilters] = useState({
-    search: "",
     typeId: "all",
     supplierTypeId: "all",
     startDate: "",
@@ -411,11 +448,21 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<ExpenseWithRelations | undefined>();
   const [deletingExpense, setDeletingExpense] = useState<ExpenseWithRelations | undefined>();
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseWithRelations | null>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const { showToast } = useToast();
 
   // Evitar hydration mismatch e inicializar datas apenas no cliente
   useEffect(() => {
     setMounted(true);
+    
+    // Carregar preferência do usuário do localStorage
+    const savedViewMode = localStorage.getItem('expenses-view-mode');
+    if (savedViewMode && (savedViewMode === 'list' || savedViewMode === 'calendar')) {
+      setViewMode(savedViewMode);
+    }
   }, []);
 
   // Carregar despesas
@@ -553,12 +600,79 @@ export default function ExpensesPage() {
   // Limpar filtros
   const clearFilters = () => {
     setFilters({
-      search: "",
       typeId: "all",
       supplierTypeId: "all",
       startDate: "",
       endDate: "",
     });
+  };
+
+  // Funções do calendário
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    
+    // Adicionar dias vazios do mês anterior
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Adicionar dias do mês atual
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    
+    return days;
+  };
+
+  const getExpensesForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      const expenseDateStr = expenseDate.toISOString().split('T')[0];
+      return expenseDateStr === dateStr;
+    });
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(prev.getMonth() - 1);
+      } else {
+        newDate.setMonth(prev.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
+  const formatMonthYear = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  const handleViewModeChange = (mode: 'list' | 'calendar') => {
+    setViewMode(mode);
+    localStorage.setItem('expenses-view-mode', mode);
+  };
+
+  const handleExpenseClick = (expense: ExpenseWithRelations) => {
+    setSelectedExpense(expense);
+    setIsSummaryModalOpen(true);
+  };
+
+  const handleEditFromSummary = () => {
+    setIsSummaryModalOpen(false);
+    setEditingExpense(selectedExpense || undefined);
+    setIsFormOpen(true);
   };
 
   if (!mounted || (loading && expenses.length === 0)) {
@@ -580,6 +694,26 @@ export default function ExpensesPage() {
           <p className="text-muted-foreground">Gerencie despesas, tipos e fornecedores</p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleViewModeChange('list')}
+              className="h-8 px-3"
+            >
+              <List className="h-4 w-4 mr-1" />
+              Tabela
+            </Button>
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleViewModeChange('calendar')}
+              className="h-8 px-3"
+            >
+              <Grid3X3 className="h-4 w-4 mr-1" />
+              Calendário
+            </Button>
+          </div>
           <Button
             variant="outline"
             onClick={() => setManageExpenseTypesOpen(true)}
@@ -601,19 +735,7 @@ export default function ExpensesPage() {
 
       {/* Filtros */}
       <AnimatedCard className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar descrição..."
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
-              }
-              className="pl-10 h-10"
-            />
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Select
             value={filters.typeId}
             onValueChange={(value: string) =>
@@ -623,7 +745,7 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de despesa" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[60]">
               <SelectItem value="all">Todos os tipos</SelectItem>
               {expenseTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id}>
@@ -642,7 +764,7 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de fornecedor" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[60]">
               <SelectItem value="all">Todos os fornecedores</SelectItem>
               {supplierTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id}>
@@ -690,65 +812,199 @@ export default function ExpensesPage() {
         </div>
       </AnimatedCard>
 
-      {/* Lista de despesas */}
-      <div className="grid gap-4">
-        {expenses.map((expense) => (
-          <div key={expense.id} className="rounded-xl border border-gray-200 p-4 bg-white">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="h-9 w-9 rounded-full bg-orange-100 flex items-center justify-center">
-                  <Receipt className="h-4 w-4 text-orange-600" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-medium text-gray-900">{expense.description}</h3>
-                    <Badge variant="outline">{expense.type.name}</Badge>
-                    <Badge variant="subtle">{expense.supplierType.name}</Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="h-4 w-4" />
-                      {formatCurrency(expense.amountCents)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {formatDate(expense.date)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <ExpenseActionsMenu
-                onEdit={() => {
-                  setEditingExpense(expense);
-                  setIsFormOpen(true);
-                }}
-                onDelete={() => setDeletingExpense(expense)}
-              />
+      {/* Visualização de Calendário */}
+      {viewMode === 'calendar' && (
+        <AnimatedCard className="p-6">
+          {/* Cabeçalho do Calendário */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {formatMonthYear(currentMonth)}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth('prev')}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date())}
+                className="h-8 px-3"
+              >
+                Hoje
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateMonth('next')}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-        ))}
 
-        {expenses.length === 0 && !loading && (
-          <AnimatedCard className="p-8 text-center">
-            <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma despesa encontrada</h3>
-            <p className="text-muted-foreground mb-4">
-              {Object.values(filters).some((f) => f !== "")
-                ? "Tente ajustar os filtros de busca"
-                : "Comece registrando sua primeira despesa"}
-            </p>
-            {!Object.values(filters).some((f) => f !== "") && (
-              <Button onClick={() => setIsFormOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Registrar Primeira Despesa
-              </Button>
-            )}
-          </AnimatedCard>
-        )}
-      </div>
+          {/* Dias da Semana */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
+              <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendário */}
+          <div className="grid grid-cols-7 gap-1">
+            {getDaysInMonth(currentMonth).map((day, index) => {
+              if (!day) {
+                return <div key={index} className="h-24 border border-gray-100 rounded-lg"></div>;
+              }
+
+              const dayExpenses = getExpensesForDate(day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              const totalAmount = dayExpenses.reduce((sum, expense) => sum + expense.amountCents, 0);
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`h-24 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
+                    isToday ? 'bg-blue-50 border-blue-200' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-medium ${
+                      isToday ? 'text-blue-600' : 'text-gray-900'
+                    }`}>
+                      {day.getDate()}
+                    </span>
+                    {totalAmount > 0 && (
+                      <span className="text-xs font-medium text-green-600">
+                        {formatCurrency(totalAmount)}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-1 overflow-hidden">
+                    {dayExpenses.slice(0, 2).map((expense) => (
+                      <div
+                        key={expense.id}
+                        className="text-xs bg-orange-100 text-orange-800 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-orange-200 transition-colors"
+                        title={expense.supplierType.name}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExpenseClick(expense);
+                        }}
+                      >
+                        {expense.supplierType.name.length > 15 
+                          ? `${expense.supplierType.name.substring(0, 15)}...` 
+                          : expense.supplierType.name}
+                      </div>
+                    ))}
+                    {dayExpenses.length > 2 && (
+                      <div className="text-xs text-gray-500">
+                        +{dayExpenses.length - 2} mais
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </AnimatedCard>
+      )}
+
+      {/* Tabela de despesas */}
+      {viewMode === 'list' && (
+        <AnimatedCard className="p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Descrição</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fornecedor</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Valor</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Data</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {expenses.map((expense) => (
+                  <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                          <Receipt className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{expense.description}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className="text-xs">
+                        {expense.type.name}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="subtle" className="text-xs">
+                        {expense.supplierType.name}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                        {formatCurrency(expense.amountCents)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Calendar className="h-4 w-4" />
+                        {formatDate(expense.date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <ExpenseActionsMenu
+                        onEdit={() => {
+                          setEditingExpense(expense);
+                          setIsFormOpen(true);
+                        }}
+                        onDelete={() => setDeletingExpense(expense)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </AnimatedCard>
+      )}
+
+      {/* Estado vazio para tabela */}
+      {viewMode === 'list' && expenses.length === 0 && !loading && (
+        <AnimatedCard className="p-8 text-center">
+          <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Nenhuma despesa encontrada</h3>
+          <p className="text-muted-foreground mb-4">
+            {Object.values(filters).some((f) => f !== "")
+              ? "Tente ajustar os filtros de busca"
+              : "Comece registrando sua primeira despesa"}
+          </p>
+          {!Object.values(filters).some((f) => f !== "") && (
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Registrar Primeira Despesa
+            </Button>
+          )}
+        </AnimatedCard>
+      )}
 
       {/* Paginação */}
-      {pagination.totalPages > 1 && (
+      {viewMode === 'list' && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
@@ -805,6 +1061,111 @@ export default function ExpensesPage() {
         onClose={() => setManageSupplierTypesOpen(false)}
         onChanged={() => loadTypes()}
       />
+
+      {/* Balão Flutuante de Resumo da Despesa */}
+      {isSummaryModalOpen && selectedExpense && (
+        <div 
+          className="fixed inset-0 z-30 pointer-events-auto"
+          onClick={() => setIsSummaryModalOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl border border-gray-200/50 p-6 max-w-sm w-80 relative">
+              {/* Seta do balão */}
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white/95 rotate-45 border-l border-t border-gray-200/50"></div>
+              
+              {/* Header compacto */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                    <Receipt className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">
+                      {selectedExpense.description.length > 25 
+                        ? `${selectedExpense.description.substring(0, 25)}...` 
+                        : selectedExpense.description}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {formatDate(selectedExpense.date)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSummaryModalOpen(false)}
+                  className="h-6 w-6 rounded-full hover:bg-gray-100"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+
+              {/* Conteúdo compacto */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Valor</span>
+                  <span className="text-lg font-bold text-green-600">
+                    {formatCurrency(selectedExpense.amountCents)}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Tipo</span>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedExpense.type.name}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Fornecedor</span>
+                  <Badge variant="subtle" className="text-xs">
+                    {selectedExpense.supplierType.name}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Ações compactas */}
+              <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSummaryModalOpen(false)}
+                  className="text-xs h-8 border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-700"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Fechar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleEditFromSummary}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Editar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setIsSummaryModalOpen(false);
+                    setDeletingExpense(selectedExpense);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white text-xs h-8"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Remover
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Confirmação de exclusão */}
       <ConfirmDialog
