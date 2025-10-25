@@ -82,6 +82,9 @@ function CustomerReportThermalContent() {
   const customerId = searchParams.get('customerId');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const showDebtBalance = searchParams.get('showDebtBalance') === 'true';
+  const showPeriodBalance = searchParams.get('showPeriodBalance') === 'true';
+  const showPaymentsTotal = searchParams.get('showPaymentsTotal') === 'true';
 
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [contactInfo, setContactInfo] = useState<{
@@ -330,22 +333,26 @@ function CustomerReportThermalContent() {
           RESUMO FINANCEIRO:
         </div>
         
-        <div className="thermal-row">
-          <span>Saldo Devedor:</span>
-          <span className="thermal-value">
-            {formatCurrency(summary.debtBalanceCents)}
-          </span>
-        </div>
+        {showDebtBalance && (
+          <div className="thermal-row">
+            <span>Saldo Devedor:</span>
+            <span className="thermal-value">
+              {formatCurrency(summary.debtBalanceCents)}
+            </span>
+          </div>
+        )}
         
-        <div className="thermal-row">
-          <span>Saldo Período:</span>
-          <span className="thermal-value">
-            {formatCurrency(summary.pendingInPeriodCents)}
-          </span>
-        </div>
+        {showPeriodBalance && (
+          <div className="thermal-row">
+            <span>Saldo Período:</span>
+            <span className="thermal-value">
+              {formatCurrency(summary.pendingInPeriodCents)}
+            </span>
+          </div>
+        )}
         
         {/* Mostrar Tot. Pagamentos apenas se houver pagamentos realizados no período */}
-        {(() => {
+        {showPaymentsTotal && (() => {
           // Verificar se há pagamentos no período
           const paymentsInPeriod = details.fichaPayments.filter(payment => {
             const paymentDate = new Date(payment.createdAt);

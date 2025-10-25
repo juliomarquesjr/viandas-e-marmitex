@@ -81,6 +81,9 @@ function CustomerReportContent() {
   const customerId = searchParams.get('customerId');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const showDebtBalance = searchParams.get('showDebtBalance') === 'true';
+  const showPeriodBalance = searchParams.get('showPeriodBalance') === 'true';
+  const showPaymentsTotal = searchParams.get('showPaymentsTotal') === 'true';
 
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -305,26 +308,32 @@ function CustomerReportContent() {
           Resumo Financeiro
         </h2>
         <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="text-center border rounded p-1">
-            <div className="font-medium text-gray-600">Saldo Devedor</div>
-            <div className={`text-sm font-bold ${
-              summary.debtBalanceCents > 0 ? 'text-red-600' : 'text-green-600'
-            }`}>
-              {formatCurrency(summary.debtBalanceCents)}
+          {showDebtBalance && (
+            <div className="text-center border rounded p-1">
+              <div className="font-medium text-gray-600">Saldo Devedor</div>
+              <div className={`text-sm font-bold ${
+                summary.debtBalanceCents > 0 ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {formatCurrency(summary.debtBalanceCents)}
+              </div>
             </div>
-          </div>
-           <div className="text-center border rounded p-1">
-             <div className="font-medium text-gray-600">Saldo Período</div>
-             <div className="text-sm font-bold text-orange-600">
-               {formatCurrency(summary.pendingInPeriodCents)}
-             </div>
-           </div>
-          <div className="text-center border rounded p-1">
-            <div className="font-medium text-gray-600">Pagamentos</div>
-            <div className="text-sm font-bold text-blue-600">
-              {formatCurrency(summary.totalPaymentsCents)}
+          )}
+          {showPeriodBalance && (
+            <div className="text-center border rounded p-1">
+              <div className="font-medium text-gray-600">Saldo Período</div>
+              <div className="text-sm font-bold text-orange-600">
+                {formatCurrency(summary.pendingInPeriodCents)}
+              </div>
             </div>
-          </div>
+          )}
+          {showPaymentsTotal && (
+            <div className="text-center border rounded p-1">
+              <div className="font-medium text-gray-600">Pagamentos</div>
+              <div className="text-sm font-bold text-blue-600">
+                {formatCurrency(summary.totalPaymentsCents)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

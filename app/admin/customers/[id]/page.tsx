@@ -43,6 +43,45 @@ import {
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
+// Componente Switch inline
+interface SwitchProps {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
+  id?: string;
+}
+
+const Switch = ({ checked = false, onCheckedChange, disabled = false, className, id, ...props }: SwitchProps) => {
+  const handleClick = () => {
+    if (!disabled && onCheckedChange) {
+      onCheckedChange(!checked);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-disabled={disabled}
+      disabled={disabled}
+      onClick={handleClick}
+      id={id}
+      className={`peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked ? "bg-blue-600" : "bg-gray-200"
+      } ${className || ""}`}
+      {...props}
+    >
+      <span
+        className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+};
+
 type Customer = {
   id: string;
   name: string;
@@ -123,6 +162,9 @@ export default function CustomerDetailPage() {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
+  const [showDebtBalance, setShowDebtBalance] = useState(true);
+  const [showPeriodBalance, setShowPeriodBalance] = useState(true);
+  const [showPaymentsTotal, setShowPaymentsTotal] = useState(true);
 
   // Estados para filtro de pedidos
   const [orderFilter, setOrderFilter] = useState("all");
@@ -562,7 +604,7 @@ export default function CustomerDetailPage() {
     });
 
     // Build the report URL - ensure dates are properly encoded
-    const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}`;
+    const reportUrl = `/print/customer-report?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}&showDebtBalance=${showDebtBalance}&showPeriodBalance=${showPeriodBalance}&showPaymentsTotal=${showPaymentsTotal}`;
 
     console.log('generateReport - Report URL:', reportUrl);
 
@@ -587,7 +629,7 @@ export default function CustomerDetailPage() {
     }
 
     // Build the thermal report URL - ensure dates are properly encoded
-    const thermalReportUrl = `/print/customer-report-thermal?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}`;
+    const thermalReportUrl = `/print/customer-report-thermal?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}&showDebtBalance=${showDebtBalance}&showPeriodBalance=${showPeriodBalance}&showPaymentsTotal=${showPaymentsTotal}`;
 
     // Open in new tab
     window.open(thermalReportUrl, '_blank');
@@ -1072,6 +1114,53 @@ export default function CustomerDetailPage() {
                           className="w-full"
                         />
                       </div>
+                      
+                      {/* Opções de impressão */}
+                      <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 className="text-sm font-semibold text-blue-800">Opções de Impressão</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <label htmlFor="showDebtBalance" className="text-sm font-medium text-gray-700">
+                                Mostrar Saldo Devedor
+                              </label>
+                              <p className="text-xs text-gray-500">Exibe o saldo devedor total do cliente</p>
+                            </div>
+                            <Switch
+                              id="showDebtBalance"
+                              checked={showDebtBalance}
+                              onCheckedChange={setShowDebtBalance}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <label htmlFor="showPeriodBalance" className="text-sm font-medium text-gray-700">
+                                Mostrar Saldo do Período
+                              </label>
+                              <p className="text-xs text-gray-500">Exibe o saldo pendente no período selecionado</p>
+                            </div>
+                            <Switch
+                              id="showPeriodBalance"
+                              checked={showPeriodBalance}
+                              onCheckedChange={setShowPeriodBalance}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <label htmlFor="showPaymentsTotal" className="text-sm font-medium text-gray-700">
+                                Mostrar Total de Pagamentos
+                              </label>
+                              <p className="text-xs text-gray-500">Exibe o total de pagamentos realizados no período</p>
+                            </div>
+                            <Switch
+                              id="showPaymentsTotal"
+                              checked={showPaymentsTotal}
+                              onCheckedChange={setShowPaymentsTotal}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <span className="text-sm text-gray-600">Período pré-definido:</span>
                         <Button
