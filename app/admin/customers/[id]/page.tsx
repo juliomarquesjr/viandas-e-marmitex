@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     Banknote,
     Barcode as BarcodeIcon,
+    Calculator,
     Clock,
     CreditCard,
     Download,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BudgetModal } from "../../../components/BudgetModal";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
 import { PDFGeneratorComponent } from "../../../components/PDFGenerator";
@@ -154,6 +156,7 @@ export default function CustomerDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [cashReceived, setCashReceived] = useState("");
@@ -1029,6 +1032,22 @@ export default function CustomerDetailPage() {
           {/* Botões de Ação */}
           <div className="border-t border-white/30 pt-6">
             <div className="flex flex-wrap justify-end gap-3">
+              {/* Botão de Orçamento */}
+              <button
+                onClick={() => setIsBudgetModalOpen(true)}
+                className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-purple-200 hover:border-purple-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 rounded-md bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Calculator className="h-3 w-3 text-purple-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-purple-700 group-hover:text-purple-800">Gerar Orçamento</p>
+                    <p className="text-xs text-purple-600/80 group-hover:text-purple-700">Criar orçamento</p>
+                  </div>
+                </div>
+              </button>
+
               {/* Botão de Preset */}
               <button
                 onClick={() => setIsPresetModalOpen(true)}
@@ -1734,6 +1753,14 @@ export default function CustomerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Orçamento */}
+      <BudgetModal
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+        customerId={customer.id}
+        customerName={customer.name}
+      />
 
       {/* Modal de Presets de Produtos */}
       <CustomerPresetModal
