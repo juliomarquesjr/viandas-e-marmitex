@@ -8,6 +8,7 @@ import {
     Package,
     Plus,
     Printer,
+    Tag,
     X
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -83,6 +84,7 @@ type BudgetDay = {
     label: string;
     enabled: boolean;
     items: BudgetItem[];
+    discountCents: number;
 };
 
 type BudgetModalProps = {
@@ -93,13 +95,13 @@ type BudgetModalProps = {
 };
 
 const DAYS_OF_WEEK: BudgetDay[] = [
-    { day: 'monday', label: 'Segunda-feira', enabled: false, items: [] },
-    { day: 'tuesday', label: 'Terça-feira', enabled: false, items: [] },
-    { day: 'wednesday', label: 'Quarta-feira', enabled: false, items: [] },
-    { day: 'thursday', label: 'Quinta-feira', enabled: false, items: [] },
-    { day: 'friday', label: 'Sexta-feira', enabled: false, items: [] },
-    { day: 'saturday', label: 'Sábado', enabled: false, items: [] },
-    { day: 'sunday', label: 'Domingo', enabled: false, items: [] },
+    { day: 'monday', label: 'Segunda-feira', enabled: false, items: [], discountCents: 0 },
+    { day: 'tuesday', label: 'Terça-feira', enabled: false, items: [], discountCents: 0 },
+    { day: 'wednesday', label: 'Quarta-feira', enabled: false, items: [], discountCents: 0 },
+    { day: 'thursday', label: 'Quinta-feira', enabled: false, items: [], discountCents: 0 },
+    { day: 'friday', label: 'Sexta-feira', enabled: false, items: [], discountCents: 0 },
+    { day: 'saturday', label: 'Sábado', enabled: false, items: [], discountCents: 0 },
+    { day: 'sunday', label: 'Domingo', enabled: false, items: [], discountCents: 0 },
 ];
 
 export function BudgetModal({ 
@@ -232,12 +234,25 @@ export function BudgetModal({
 
         const firstEnabledDay = enabledDays[0];
         const productsToApply = firstEnabledDay.items;
+        
+        // Calcular subtotal dos produtos que serão aplicados
+        const newSubtotal = productsToApply.reduce((total, item) => {
+            return total + (item.product.priceCents * item.quantity);
+        }, 0);
 
         setBudgetDays(prev => prev.map(budgetDay => {
             if (budgetDay.enabled) {
+                // Quando aplicar produtos, não copiar desconto se o dia já tiver produtos próprios
+                // Se o dia estiver vazio, pode copiar o desconto também
+                const shouldCopyDiscount = budgetDay.items.length === 0;
+                const finalDiscount = shouldCopyDiscount 
+                    ? Math.min(firstEnabledDay.discountCents, newSubtotal)
+                    : budgetDay.discountCents;
+                
                 return {
                     ...budgetDay,
-                    items: [...productsToApply]
+                    items: [...productsToApply],
+                    discountCents: finalDiscount
                 };
             }
             return budgetDay;
@@ -256,9 +271,19 @@ export function BudgetModal({
 
         setBudgetDays(prev => prev.map(budgetDay => {
             if (targetDays.includes(budgetDay.day)) {
+                // Aplicar produtos e, se o dia estiver vazio, também aplicar desconto
+                const shouldCopyDiscount = budgetDay.items.length === 0;
+                const newSubtotal = sourceDayData.items.reduce((total, item) => {
+                    return total + (item.product.priceCents * item.quantity);
+                }, 0);
+                const finalDiscount = shouldCopyDiscount
+                    ? Math.min(sourceDayData.discountCents, newSubtotal)
+                    : budgetDay.discountCents;
+                
                 return {
                     ...budgetDay,
-                    items: [...sourceDayData.items]
+                    items: [...sourceDayData.items],
+                    discountCents: finalDiscount
                 };
             }
             return budgetDay;
@@ -277,9 +302,10 @@ export function BudgetModal({
         if (enabledDays.length === 0) return 0;
 
         const totalPerDay = enabledDays.reduce((total, day) => {
-            const dayTotal = day.items.reduce((daySum, item) => {
+            const subtotal = day.items.reduce((daySum, item) => {
                 return daySum + (item.product.priceCents * item.quantity);
             }, 0);
+            const dayTotal = Math.max(0, subtotal - day.discountCents);
             return total + dayTotal;
         }, 0);
 
@@ -296,9 +322,79 @@ export function BudgetModal({
 
     // Calcular total por dia
     const calculateDayTotal = (day: BudgetDay) => {
-        return day.items.reduce((total, item) => {
+        const subtotal = day.items.reduce((total, item) => {
             return total + (item.product.priceCents * item.quantity);
         }, 0);
+        return Math.max(0, subtotal - day.discountCents);
+    };
+
+    // Atualizar desconto de um dia
+    const updateDayDiscount = (day: DayOfWeek, discountValue: string) => {
+        // Aplicar máscara monetária para valor (seguindo padrão do sistema)
+        let value = discountValue;
+        
+        // Remove tudo que não é dígito
+        value = value.replace(/\D/g, '');
+        
+        // Converte para número (centavos)
+        let numValue = parseInt(value || '0');
+        
+        // Converte centavos para reais para validação
+        let realValue = numValue / 100;
+        
+        setBudgetDays(prev => prev.map(budgetDay => {
+            if (budgetDay.day === day) {
+                const daySubtotal = budgetDay.items.reduce((total, item) => {
+                    return total + (item.product.priceCents * item.quantity);
+                }, 0);
+                // Não permitir desconto maior que o subtotal do dia
+                const finalDiscount = Math.min(numValue, daySubtotal);
+                return {
+                    ...budgetDay,
+                    discountCents: finalDiscount
+                };
+            }
+            return budgetDay;
+        }));
+    };
+
+    // Aplicar desconto de um dia para outros dias
+    const applyDiscountToOtherDays = (sourceDay: DayOfWeek) => {
+        const sourceDayData = budgetDays.find(day => day.day === sourceDay);
+        if (!sourceDayData || sourceDayData.discountCents === 0) {
+            showToast("Dia de origem não possui desconto", "warning");
+            return;
+        }
+
+        const otherEnabledDays = budgetDays
+            .filter(d => d.enabled && d.day !== sourceDay)
+            .map(d => d.day);
+
+        if (otherEnabledDays.length === 0) {
+            showToast("Não há outros dias habilitados", "warning");
+            return;
+        }
+
+        setBudgetDays(prev => prev.map(budgetDay => {
+            if (otherEnabledDays.includes(budgetDay.day)) {
+                const daySubtotal = budgetDay.items.reduce((total, item) => {
+                    return total + (item.product.priceCents * item.quantity);
+                }, 0);
+                // Não permitir desconto maior que o subtotal do dia
+                const finalDiscount = Math.min(sourceDayData.discountCents, daySubtotal);
+                return {
+                    ...budgetDay,
+                    discountCents: finalDiscount
+                };
+            }
+            return budgetDay;
+        }));
+
+        const targetDayNames = otherEnabledDays.map(day => 
+            budgetDays.find(d => d.day === day)?.label
+        ).join(", ");
+        
+        showToast(`Desconto aplicado para: ${targetDayNames}`, "success");
     };
 
     // Gerar orçamento térmico
@@ -392,9 +488,9 @@ export function BudgetModal({
                             variant="ghost"
                             size="icon"
                             onClick={onClose}
-                            className="h-10 w-10 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all"
+                            className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
                         >
-                            <X className="h-5 w-5" />
+                            <X className="h-6 w-6" />
                         </Button>
                     </div>
                 </div>
@@ -498,102 +594,133 @@ export function BudgetModal({
                                  </CardTitle>
                              </CardHeader>
                              <CardContent>
-                                 <div className="space-y-4">
+                                 <div className="space-y-2.5">
                                      {budgetDays.filter(day => day.enabled).map((day) => (
-                                         <div key={day.day} className="border rounded-lg p-4">
-                                             <div className="flex items-center justify-between mb-3">
-                                                 <h4 className="font-medium text-gray-900">{day.label}</h4>
-                                                 <div className="flex items-center gap-2">
-                                                     <span className="text-sm text-gray-600">
-                                                         Total: {formatCurrency(calculateDayTotal(day))}
-                                                     </span>
-                                                     <Button
-                                                         variant="outline"
-                                                         size="sm"
-                                                         onClick={() => {
-                                                             setSelectedDay(day.day);
-                                                             setShowProductList(true);
-                                                         }}
-                                                         className="h-8 px-3 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300"
-                                                     >
-                                                         <Plus className="h-4 w-4 mr-1" />
-                                                         Adicionar
-                                                     </Button>
-                                                 </div>
+                                         <div key={day.day} className="border rounded-lg p-3">
+                                             <div className="flex items-center justify-between mb-2">
+                                                 <h4 className="font-medium text-sm text-gray-900">{day.label}</h4>
+                                                 <Button
+                                                     variant="outline"
+                                                     size="sm"
+                                                     onClick={() => {
+                                                         setSelectedDay(day.day);
+                                                         setShowProductList(true);
+                                                     }}
+                                                     className="h-7 px-2 text-xs"
+                                                 >
+                                                     <Plus className="h-3 w-3 mr-1" />
+                                                     Adicionar
+                                                 </Button>
                                              </div>
                                              
                                              {day.items.length > 0 ? (
-                                                 <div className="space-y-2">
-                                                     {day.items.map((item) => (
-                                                         <div key={item.productId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                                             <div className="flex-1">
-                                                                 <div className="font-medium text-sm">{item.product.name}</div>
-                                                                 <div className="text-xs text-gray-600">
-                                                                     {formatCurrency(item.product.priceCents)} cada
+                                                 <>
+                                                     <div className="space-y-1.5 mb-3">
+                                                         {day.items.map((item) => (
+                                                             <div key={item.productId} className="flex items-center justify-between py-1.5 px-2 hover:bg-gray-50 rounded text-sm">
+                                                                 <div className="flex-1 min-w-0">
+                                                                     <div className="font-medium truncate">{item.product.name}</div>
+                                                                     <div className="text-xs text-gray-500">
+                                                                         {formatCurrency(item.product.priceCents)} x {item.quantity}
+                                                                     </div>
+                                                                 </div>
+                                                                 <div className="flex items-center gap-2 ml-2">
+                                                                     <Input
+                                                                         type="number"
+                                                                         min="1"
+                                                                         value={item.quantity}
+                                                                         onChange={(e) => updateProductQuantity(item.productId, day.day, parseInt(e.target.value) || 1)}
+                                                                         className="w-12 h-7 text-center text-xs"
+                                                                     />
+                                                                     <Button
+                                                                         variant="ghost"
+                                                                         size="sm"
+                                                                         onClick={() => removeProductFromDay(item.productId, day.day)}
+                                                                         className="h-7 w-7 p-0 text-gray-400 hover:text-red-600"
+                                                                     >
+                                                                         <X className="h-3.5 w-3.5" />
+                                                                     </Button>
                                                                  </div>
                                                              </div>
-                                                             <div className="flex items-center gap-2">
-                                                                 <Input
-                                                                     type="number"
-                                                                     min="1"
-                                                                     value={item.quantity}
-                                                                     onChange={(e) => updateProductQuantity(item.productId, day.day, parseInt(e.target.value) || 1)}
-                                                                     className="w-16 h-8 text-center"
-                                                                 />
-                                                                 <Button
-                                                                     variant="outline"
-                                                                     size="sm"
-                                                                     onClick={() => removeProductFromDay(item.productId, day.day)}
-                                                                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                 >
-                                                                     <X className="h-4 w-4" />
-                                                                 </Button>
-                                                             </div>
-                                                         </div>
-                                                     ))}
-                                                 </div>
-                                             ) : (
-                                                 <div className="text-center py-4 text-gray-500">
-                                                     <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                     <p className="text-sm">Nenhum produto adicionado</p>
-                                                 </div>
-                                             )}
-                                             
-                                             {/* Botões de ação para aplicar produtos */}
-                                             {day.items.length > 0 && (
-                                                 <div className="mt-3 pt-3 border-t border-gray-200">
-                                                     <div className="flex flex-wrap gap-2">
-                                                         <Button
-                                                             variant="outline"
-                                                             size="sm"
-                                                             onClick={() => {
-                                                                 const otherEnabledDays = budgetDays
-                                                                     .filter(d => d.enabled && d.day !== day.day)
-                                                                     .map(d => d.day);
-                                                                 if (otherEnabledDays.length > 0) {
-                                                                     applyProductsFromDay(day.day, otherEnabledDays);
-                                                                 } else {
-                                                                     showToast("Não há outros dias habilitados", "warning");
-                                                                 }
-                                                             }}
-                                                             className="h-7 px-2 text-xs bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300"
-                                                         >
-                                                             Aplicar para outros dias
-                                                         </Button>
-                                                         <Button
-                                                             variant="outline"
-                                                             size="sm"
-                                                             onClick={() => {
-                                                                 const allEnabledDays = budgetDays
-                                                                     .filter(d => d.enabled)
-                                                                     .map(d => d.day);
-                                                                 applyProductsFromDay(day.day, allEnabledDays);
-                                                             }}
-                                                             className="h-7 px-2 text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300"
-                                                         >
-                                                             Aplicar para todos os dias
-                                                         </Button>
+                                                         ))}
                                                      </div>
+                                                     
+                                                    {/* Resumo e ações compactas */}
+                                                    <div className="border-t pt-2.5 space-y-2">
+                                                        {/* Chips informativos */}
+                                                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                                            <span className="px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-blue-700">
+                                                                Subtotal: {formatCurrency(day.items.reduce((total, item) => total + (item.product.priceCents * item.quantity), 0))}
+                                                            </span>
+                                                            {day.discountCents > 0 && (
+                                                                <span className="px-2 py-0.5 rounded border border-red-200 bg-red-50 text-red-700">
+                                                                    Desconto: -{formatCurrency(day.discountCents)}
+                                                                </span>
+                                                            )}
+                                                            <span className="px-2 py-0.5 rounded border border-green-200 bg-green-50 text-green-700">
+                                                                Total: {formatCurrency(calculateDayTotal(day))}
+                                                            </span>
+                                                        </div>
+                                                         
+                                                         {/* Desconto e ações em linha */}
+                                                         <div className="flex items-center gap-2">
+                                                             <div className="relative flex-1">
+                                                                 <Tag className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                                                 <Input
+                                                                     id={`discount-${day.day}`}
+                                                                     type="text"
+                                                                     inputMode="decimal"
+                                                                     value={(() => {
+                                                                         if (day.discountCents === 0) return '';
+                                                                         const realValue = day.discountCents / 100;
+                                                                         return realValue.toLocaleString('pt-BR', {
+                                                                             minimumFractionDigits: 2,
+                                                                             maximumFractionDigits: 2
+                                                                         });
+                                                                     })()}
+                                                                     onChange={(e) => updateDayDiscount(day.day, e.target.value)}
+                                                                     placeholder="Desconto"
+                                                                     className="pl-8 h-7 text-xs"
+                                                                 />
+                                                             </div>
+                                                            <Button
+                                                                 variant="outline"
+                                                                 size="sm"
+                                                                 onClick={() => applyDiscountToOtherDays(day.day)}
+                                                                 disabled={day.discountCents === 0}
+                                                                title="Aplica este desconto aos outros dias selecionados"
+                                                                aria-label="Aplicar desconto aos outros dias"
+                                                                className="h-7 px-2 text-xs"
+                                                             >
+                                                                 <Tag className="h-3 w-3 mr-1" />
+                                                                Aplicar desconto
+                                                             </Button>
+                                                            <Button
+                                                                 variant="outline"
+                                                                 size="sm"
+                                                                 onClick={() => {
+                                                                     const otherEnabledDays = budgetDays
+                                                                         .filter(d => d.enabled && d.day !== day.day)
+                                                                         .map(d => d.day);
+                                                                     if (otherEnabledDays.length > 0) {
+                                                                         applyProductsFromDay(day.day, otherEnabledDays);
+                                                                     } else {
+                                                                         showToast("Não há outros dias habilitados", "warning");
+                                                                     }
+                                                                 }}
+                                                                title="Aplica os produtos deste dia aos outros dias selecionados"
+                                                                aria-label="Aplicar produtos aos outros dias"
+                                                                className="h-7 px-2 text-xs"
+                                                             >
+                                                                 <Package className="h-3 w-3 mr-1" />
+                                                                Aplicar produtos
+                                                             </Button>
+                                                         </div>
+                                                     </div>
+                                                 </>
+                                             ) : (
+                                                 <div className="text-center py-3 text-gray-400 text-sm">
+                                                     Nenhum produto
                                                  </div>
                                              )}
                                          </div>
@@ -671,17 +798,19 @@ export function BudgetModal({
                 {showProductList && selectedDay && (
                     <Dialog open={showProductList} onOpenChange={setShowProductList}>
                         <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden p-0 flex flex-col">
+                            <DialogTitle className="sr-only">Selecionar Produtos - {budgetDays.find(d => d.day === selectedDay)?.label}</DialogTitle>
+                            
                             {/* Header */}
                             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 relative">
                                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
                                 <div className="relative p-6 flex items-center justify-between">
                                     <div>
-                                        <DialogTitle className="flex items-center gap-3 text-xl font-bold text-gray-900">
+                                        <h2 className="flex items-center gap-3 text-xl font-bold text-gray-900">
                                             <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
                                                 <Package className="h-5 w-5 text-blue-600" />
                                             </div>
                                             Selecionar Produtos
-                                        </DialogTitle>
+                                        </h2>
                                         <p className="text-sm text-gray-600 mt-2 ml-13">
                                             Adicionando produtos para {budgetDays.find(d => d.day === selectedDay)?.label}
                                         </p>
@@ -690,9 +819,9 @@ export function BudgetModal({
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setShowProductList(false)}
-                                        className="h-10 w-10 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all"
+                                        className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
                                     >
-                                        <X className="h-5 w-5" />
+                                        <X className="h-6 w-6" />
                                     </Button>
                                 </div>
                                 
@@ -719,31 +848,57 @@ export function BudgetModal({
                                         <p className="mt-4 text-gray-600 text-lg">Carregando produtos...</p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {filteredProducts.map((product) => (
-                                            <div key={product.id} className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-lg transition-all bg-white">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="font-semibold text-gray-900 mb-1">{product.name}</div>
-                                                        <div className="text-sm text-gray-600 mb-2">
-                                                            {product.category?.name}
-                                                        </div>
-                                                        <div className="text-lg font-bold text-green-600">
+                                            <button
+                                                key={product.id}
+                                                onClick={() => {
+                                                    addProductToDay(product, selectedDay);
+                                                    showToast(`${product.name} adicionado`, "success");
+                                                }}
+                                                className="group flex items-center gap-3 rounded-lg border border-gray-200 p-3 bg-white transition-all duration-200 hover:border-blue-400 hover:shadow-md hover:scale-[1.01]"
+                                            >
+                                                {/* Imagem do produto */}
+                                                <div className="h-16 w-16 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden rounded-md border border-gray-200">
+                                                    {product.imageUrl ? (
+                                                        <img
+                                                            src={product.imageUrl}
+                                                            alt={product.name}
+                                                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                const target = e.target as HTMLImageElement;
+                                                                target.style.display = "none";
+                                                                target.parentElement!.innerHTML = `
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-8 w-8 text-gray-300">
+                                                                        <path d="M12 22l-8-4V6L12 2l8 4v12l-8 4z"/>
+                                                                        <path d="M12 2v20"/>
+                                                                        <path d="M4 6l8 4 8-4"/>
+                                                                    </svg>
+                                                                `;
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Package className="h-8 w-8 text-gray-300" />
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Conteúdo */}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-medium text-sm text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors mb-1">
+                                                        {product.name}
+                                                    </h3>
+                                                    
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-bold text-green-600">
                                                             {formatCurrency(product.priceCents)}
+                                                        </span>
+                                                        <div className="h-8 w-8 rounded-md bg-green-500 flex items-center justify-center shadow-sm group-hover:bg-green-600 group-hover:shadow transition-all">
+                                                            <Plus className="h-4 w-4 text-white" />
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            addProductToDay(product, selectedDay);
-                                                            showToast(`${product.name} adicionado`, "success");
-                                                        }}
-                                                        className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white border-green-500 hover:border-green-600 shadow-md hover:shadow-lg transition-all"
-                                                    >
-                                                        <Plus className="h-5 w-5" />
-                                                    </Button>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 )}

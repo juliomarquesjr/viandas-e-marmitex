@@ -19,6 +19,7 @@ type BudgetDay = {
     label: string;
     enabled: boolean;
     items: BudgetItem[];
+    discountCents?: number;
 };
 
 type BudgetData = {
@@ -171,10 +172,16 @@ function ThermalBudgetContent() {
         });
     };
 
-    const calculateDayTotal = (day: BudgetDay) => {
+    const calculateDaySubtotal = (day: BudgetDay) => {
         return day.items.reduce((total, item) => {
             return total + (item.product.priceCents * item.quantity);
         }, 0);
+    };
+
+    const calculateDayTotal = (day: BudgetDay) => {
+        const subtotal = calculateDaySubtotal(day);
+        const discount = day.discountCents || 0;
+        return Math.max(0, subtotal - discount);
     };
 
     const calculateWeeks = () => {
@@ -277,35 +284,51 @@ function ThermalBudgetContent() {
                     DIAS SELECIONADOS:
                 </div>
                 
-                {enabledDays.map((day, index) => (
-                    <div key={day.day} className="thermal-transaction">
-                        <div className="thermal-row">
-                            <span className="thermal-date">{day.label}</span>
-                            <span className="thermal-transaction-value">
-                                {formatCurrency(calculateDayTotal(day))}
-                            </span>
-                        </div>
-                        
-                        <div className="thermal-description">
-                            {day.items.length} produto{day.items.length !== 1 ? 's' : ''}
-                            {day.items.length > 0 && (
-                                <div style={{marginTop: '2px'}}>
-                                    {day.items.map((item, itemIndex) => (
-                                        <div key={itemIndex} style={{fontSize: '11px', marginBottom: '1px'}}>
-                                            {item.quantity}x {item.product.name.length > 25 
-                                                ? `${item.product.name.substring(0, 22)}...` 
-                                                : item.product.name}
+                {enabledDays.map((day, index) => {
+                    const subtotal = calculateDaySubtotal(day);
+                    const discount = day.discountCents || 0;
+                    const total = calculateDayTotal(day);
+                    
+                    return (
+                        <div key={day.day} className="thermal-transaction">
+                            <div className="thermal-row">
+                                <span className="thermal-date">{day.label}</span>
+                                <span className="thermal-transaction-value">
+                                    {formatCurrency(total)}
+                                </span>
+                            </div>
+                            
+                            <div className="thermal-description">
+                                {day.items.length} produto{day.items.length !== 1 ? 's' : ''}
+                                {day.items.length > 0 && (
+                                    <div className="thermal-item-details" style={{marginTop: '2px'}}>
+                                        {day.items.map((item, itemIndex) => (
+                                            <div key={itemIndex} className="thermal-text" style={{fontSize: '11px', marginBottom: '1px'}}>
+                                                {item.quantity}x {item.product.name.length > 25 
+                                                    ? `${item.product.name.substring(0, 22)}...` 
+                                                    : item.product.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {discount > 0 && (
+                                    <div className="thermal-description" style={{marginTop: '4px', paddingTop: '2px', borderTop: '1px dotted #333'}}>
+                                        <div className="thermal-text" style={{fontSize: '11px', marginBottom: '1px'}}>
+                                            Subtotal: {formatCurrency(subtotal)}
                                         </div>
-                                    ))}
-                                </div>
+                                        <div className="thermal-text" style={{fontSize: '11px', marginBottom: '1px'}}>
+                                            Desconto: -{formatCurrency(discount)}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {index < enabledDays.length - 1 && (
+                                <div className="thermal-divider"></div>
                             )}
                         </div>
-                        
-                        {index < enabledDays.length - 1 && (
-                            <div className="thermal-divider"></div>
-                        )}
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Totals */}
@@ -314,32 +337,54 @@ function ThermalBudgetContent() {
                     RESUMO FINANCEIRO:
                 </div>
                 
-                <div className="thermal-row">
-                    <span>Por semana:</span>
-                    <span className="thermal-value">
-                        {formatCurrency(budgetData.totalCents / weeks)}
-                    </span>
-                </div>
-                
-                <div className="thermal-row">
-                    <span>Semanas:</span>
-                    <span className="thermal-value">
-                        {weeks}
-                    </span>
-                </div>
-                
-                <div className="thermal-row">
-                    <span>TOTAL GERAL:</span>
-                    <span className="thermal-value">
-                        {formatCurrency(budgetData.totalCents)}
-                    </span>
-                </div>
+                {(() => {
+                    const totalSubtotal = enabledDays.reduce((sum, day) => sum + calculateDaySubtotal(day), 0) * weeks;
+                    const totalDiscount = enabledDays.reduce((sum, day) => sum + (day.discountCents || 0), 0) * weeks;
+                    const totalWithDiscount = budgetData.totalCents;
+                    
+                    return (
+                        <>
+                            <div className="thermal-row">
+                                <span>Subtotal por semana:</span>
+                                <span className="thermal-value">
+                                    {formatCurrency(totalSubtotal / weeks)}
+                                </span>
+                            </div>
+                            {totalDiscount > 0 && (
+                                <div className="thermal-row">
+                                    <span>Desconto por semana:</span>
+                                    <span className="thermal-value">
+                                        -{formatCurrency(totalDiscount / weeks)}
+                                    </span>
+                                </div>
+                            )}
+                            <div className="thermal-row">
+                                <span>Por semana:</span>
+                                <span className="thermal-value">
+                                    {formatCurrency(totalWithDiscount / weeks)}
+                                </span>
+                            </div>
+                            <div className="thermal-row">
+                                <span>Semanas:</span>
+                                <span className="thermal-value">
+                                    {weeks}
+                                </span>
+                            </div>
+                            <div className="thermal-row thermal-total">
+                                <span>TOTAL GERAL:</span>
+                                <span className="thermal-value">
+                                    {formatCurrency(totalWithDiscount)}
+                                </span>
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
 
             {/* Footer */}
             <div className="thermal-footer">
-                <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>Gerado em:</div>
-                <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>
+                <div className="thermal-text">Gerado em:</div>
+                <div className="thermal-text">
                     {new Date().toLocaleString('pt-BR', {
                         day: '2-digit',
                         month: '2-digit',
@@ -448,6 +493,14 @@ function ThermalBudgetContent() {
                 
                 .thermal-value {
                     font-weight: 500;
+                }
+                
+                .thermal-total {
+                    font-size: 16px;
+                    font-weight: 500;
+                    border-top: 2px solid #000;
+                    padding-top: 4px;
+                    margin-top: 4px;
                 }
                 
                 /* Transações (relatórios) */

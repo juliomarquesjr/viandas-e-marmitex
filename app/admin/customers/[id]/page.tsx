@@ -41,6 +41,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogTitle,
     DialogTrigger
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
@@ -1080,6 +1081,8 @@ export default function CustomerDetailPage() {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                  <DialogTitle className="sr-only">Relatório de Fechamento</DialogTitle>
+                  
                   {/* Header com gradiente */}
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
                     <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
@@ -1259,6 +1262,8 @@ export default function CustomerDetailPage() {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                  <DialogTitle className="sr-only">Adicionar Pagamento à Ficha</DialogTitle>
+                  
                   {/* Loading Overlay */}
                   {isProcessingPayment && (
                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
