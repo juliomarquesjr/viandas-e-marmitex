@@ -165,7 +165,8 @@ function ThermalBudgetContent() {
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("pt-BR", {
+        const date = parseLocalDate(dateString);
+        return date.toLocaleDateString("pt-BR", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
@@ -184,10 +185,21 @@ function ThermalBudgetContent() {
         return Math.max(0, subtotal - discount);
     };
 
+    const parseLocalDate = (dateString: string): Date => {
+        // For date strings in YYYY-MM-DD format, parse directly to avoid timezone conversion
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            // Create date in local timezone
+            return new Date(year, month - 1, day);
+        }
+        // For datetime strings, use the date as is
+        return new Date(dateString);
+    };
+
     const calculateWeeks = () => {
         if (!budgetData) return 0;
-        const start = new Date(budgetData.startDate);
-        const end = new Date(budgetData.endDate);
+        const start = parseLocalDate(budgetData.startDate);
+        const end = parseLocalDate(budgetData.endDate);
         const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         return Math.ceil(daysDiff / 7);
     };

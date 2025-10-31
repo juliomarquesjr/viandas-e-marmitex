@@ -31,11 +31,29 @@ type BudgetData = {
     totalCents: number;
 };
 
+type Customer = {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+    doc?: string;
+    address?: {
+        street?: string;
+        number?: string;
+        complement?: string;
+        neighborhood?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+    };
+};
+
 function FullBudgetContent() {
     const searchParams = useSearchParams();
     const dataParam = searchParams.get('data');
 
     const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
+    const [customer, setCustomer] = useState<Customer | null>(null);
     const [contactInfo, setContactInfo] = useState<{
         address: string;
         phones: { mobile: string; landline: string };
@@ -58,8 +76,19 @@ function FullBudgetContent() {
                 const budget = JSON.parse(decodeURIComponent(dataParam));
                 setBudgetData(budget);
 
-                // Carregar informações de contato do sistema
-                const configResponse = await fetch('/api/config');
+                // Carregar dados do cliente e informações de contato do sistema em paralelo
+                const [customerResponse, configResponse] = await Promise.all([
+                    fetch(`/api/customers/${budget.customerId}`),
+                    fetch('/api/config')
+                ]);
+
+                // Processar dados do cliente
+                if (customerResponse.ok) {
+                    const customerData = await customerResponse.json();
+                    setCustomer(customerData);
+                }
+
+                // Processar informações de contato do sistema
                 if (configResponse.ok) {
                     const config = await configResponse.json();
                     setSystemTitle(config.data?.systemTitle || 'COMIDA CASEIRA');
@@ -86,6 +115,16 @@ function FullBudgetContent() {
         loadData();
     }, [dataParam]);
 
+    // Auto print when page loads
+    useEffect(() => {
+        if (budgetData && !loading && !error) {
+            // Small delay to ensure content is rendered
+            setTimeout(() => {
+                window.print();
+            }, 500);
+        }
+    }, [budgetData, loading, error]);
+
     const formatCurrency = (cents: number) => {
         return new Intl.NumberFormat("pt-BR", {
             style: "currency",
@@ -93,8 +132,34 @@ function FullBudgetContent() {
         }).format(cents / 100);
     };
 
+    const formatCustomerAddress = (address?: Customer['address']) => {
+        if (!address) return null;
+        
+        const parts = [
+            address.street && `${address.street}${address.number ? `, ${address.number}` : ''}`,
+            address.complement,
+            address.neighborhood,
+            address.city && address.state && `${address.city}/${address.state}`,
+            address.zip
+        ].filter(Boolean);
+        
+        return parts.length > 0 ? parts.join(', ') : null;
+    };
+
+    const parseLocalDate = (dateString: string): Date => {
+        // For date strings in YYYY-MM-DD format, parse directly to avoid timezone conversion
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            // Create date in local timezone
+            return new Date(year, month - 1, day);
+        }
+        // For datetime strings, use the date as is
+        return new Date(dateString);
+    };
+
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("pt-BR", {
+        const date = parseLocalDate(dateString);
+        return date.toLocaleDateString("pt-BR", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
@@ -115,8 +180,8 @@ function FullBudgetContent() {
 
     const calculateWeeks = () => {
         if (!budgetData) return 0;
-        const start = new Date(budgetData.startDate);
-        const end = new Date(budgetData.endDate);
+        const start = parseLocalDate(budgetData.startDate);
+        const end = parseLocalDate(budgetData.endDate);
         const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
         return Math.ceil(daysDiff / 7);
     };
@@ -171,10 +236,10 @@ function FullBudgetContent() {
         <div className="min-h-screen bg-white p-8 print:p-0">
             <div className="max-w-4xl mx-auto print:max-w-none print:mx-0">
                 {/* Header */}
-                <div className="text-center mb-8 print:mb-4">
-                    <h1 className="text-3xl font-bold text-gray-900 print:text-2xl">{systemTitle}</h1>
-                    <p className="text-xl text-gray-600 print:text-lg mt-2">ORÇAMENTO DETALHADO</p>
-                    <div className="mt-4 print:mt-2 text-sm text-gray-500 print:text-xs">
+                <div className="text-center mb-4 print:mb-2">
+                    <h1 className="text-2xl font-bold text-gray-900 print:text-lg">{systemTitle}</h1>
+                    <p className="text-lg text-gray-600 print:text-sm mt-1 print:mt-0.5">ORÇAMENTO DETALHADO</p>
+                    <div className="mt-2 print:mt-1 text-xs text-gray-500 print:text-[10px]">
                         Gerado em {new Date().toLocaleDateString("pt-BR", {
                             day: "2-digit",
                             month: "2-digit", 
@@ -186,98 +251,98 @@ function FullBudgetContent() {
                 </div>
 
                 {/* Informações do Cliente */}
-                <div className="bg-gray-50 rounded-lg p-6 print:p-4 mb-8 print:mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 print:text-lg mb-4 print:mb-2">
+                <div className="bg-gray-50 rounded-lg p-4 print:p-2 mb-4 print:mb-2">
+                    <h2 className="text-lg font-semibold text-gray-900 print:text-sm mb-2 print:mb-1">
                         Informações do Cliente
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 print:gap-1.5 budget-customer-grid">
                         <div>
-                            <p className="text-sm text-gray-600 print:text-xs">Nome:</p>
-                            <p className="font-semibold text-gray-900 print:text-sm">{budgetData.customerName}</p>
+                            <p className="text-xs text-gray-600 print:text-[10px]">Nome:</p>
+                            <p className="font-semibold text-gray-900 print:text-xs">{budgetData.customerName}</p>
                         </div>
                         <div>
-                            <p className="text-sm text-gray-600 print:text-xs">Período:</p>
-                            <p className="font-semibold text-gray-900 print:text-sm">
+                            <p className="text-xs text-gray-600 print:text-[10px]">Período:</p>
+                            <p className="font-semibold text-gray-900 print:text-xs">
                                 {formatDate(budgetData.startDate)} a {formatDate(budgetData.endDate)}
                             </p>
                         </div>
-                        <div>
-                            <p className="text-sm text-gray-600 print:text-xs">Duração:</p>
-                            <p className="font-semibold text-gray-900 print:text-sm">{weeks} semanas</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600 print:text-xs">Dias por semana:</p>
-                            <p className="font-semibold text-gray-900 print:text-sm">{enabledDays.length} dias</p>
-                        </div>
                     </div>
+                    {customer && formatCustomerAddress(customer.address) && (
+                        <div className="mt-2 print:mt-1 pt-2 print:pt-1 border-t border-gray-200">
+                            <p className="text-xs text-gray-600 print:text-[10px] mb-0.5">Endereço:</p>
+                            <p className="font-semibold text-gray-900 print:text-xs">
+                                {formatCustomerAddress(customer.address)}
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Resumo Executivo */}
-                <div className="bg-blue-50 rounded-lg p-6 print:p-4 mb-8 print:mb-4">
-                    <h2 className="text-xl font-semibold text-blue-900 print:text-lg mb-4 print:mb-2">
+                <div className="bg-blue-50 rounded-lg p-3 print:p-2 mb-4 print:mb-2">
+                    <h2 className="text-base font-semibold text-blue-900 print:text-sm mb-2 print:mb-1">
                         Resumo Executivo
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print:gap-2 budget-executive-grid">
                         <div className="text-center">
-                            <div className="text-3xl font-bold text-blue-600 print:text-2xl">
+                            <div className="text-2xl font-bold text-blue-600 print:text-lg">
                                 {formatCurrency(totalPerWeek)}
                             </div>
-                            <div className="text-sm text-blue-800 print:text-xs">Por Semana</div>
+                            <div className="text-xs text-blue-800 print:text-[10px]">Por Semana</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-3xl font-bold text-green-600 print:text-2xl">
+                            <div className="text-2xl font-bold text-green-600 print:text-lg">
                                 {formatCurrency(budgetData.totalCents)}
                             </div>
-                            <div className="text-sm text-green-800 print:text-xs">Total Geral</div>
+                            <div className="text-xs text-green-800 print:text-[10px]">Total Geral</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-3xl font-bold text-purple-600 print:text-2xl">
+                            <div className="text-2xl font-bold text-purple-600 print:text-lg">
                                 {enabledDays.length}
                             </div>
-                            <div className="text-sm text-purple-800 print:text-xs">Dias Selecionados</div>
+                            <div className="text-xs text-purple-800 print:text-[10px]">Dias Selecionados</div>
                         </div>
                     </div>
                 </div>
 
                 {/* Detalhamento por Dia */}
-                <div className="mb-8 print:mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 print:text-lg mb-6 print:mb-3">
+                <div className="mb-4 print:mb-2">
+                    <h2 className="text-base font-semibold text-gray-900 print:text-sm mb-3 print:mb-1.5">
                         Detalhamento por Dia da Semana
                     </h2>
                     
-                    <div className="space-y-6 print:space-y-4">
+                    <div className="space-y-3 print:space-y-2">
                         {enabledDays.map((day) => {
                             const subtotal = calculateDaySubtotal(day);
                             const discount = day.discountCents || 0;
                             const total = calculateDayTotal(day);
                             
                             return (
-                                <div key={day.day} className="border rounded-lg p-6 print:p-4">
-                                    <div className="flex justify-between items-center mb-4 print:mb-2">
-                                        <h3 className="text-lg font-semibold text-gray-900 print:text-base">
+                                <div key={day.day} className="border rounded-lg p-3 print:p-2">
+                                    <div className="flex justify-between items-center mb-2 print:mb-1">
+                                        <h3 className="text-sm font-semibold text-gray-900 print:text-xs">
                                             {day.label}
                                         </h3>
-                                        <div className="text-lg font-bold text-green-600 print:text-base">
+                                        <div className="text-sm font-bold text-green-600 print:text-xs">
                                             {formatCurrency(total)}
                                         </div>
                                     </div>
                                     
                                     {day.items.length > 0 ? (
                                         <>
-                                            <div className="overflow-x-auto mb-4 print:mb-2">
+                                            <div className="overflow-x-auto mb-2 print:mb-1">
                                                 <table className="w-full">
                                                     <thead>
                                                         <tr className="border-b border-gray-200">
-                                                            <th className="text-left py-2 print:py-1 text-sm font-medium text-gray-700 print:text-xs">
+                                                            <th className="text-left py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
                                                                 Produto
                                                             </th>
-                                                            <th className="text-center py-2 print:py-1 text-sm font-medium text-gray-700 print:text-xs">
+                                                            <th className="text-center py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
                                                                 Qtd
                                                             </th>
-                                                            <th className="text-right py-2 print:py-1 text-sm font-medium text-gray-700 print:text-xs">
+                                                            <th className="text-right py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
                                                                 Preço Unit.
                                                             </th>
-                                                            <th className="text-right py-2 print:py-1 text-sm font-medium text-gray-700 print:text-xs">
+                                                            <th className="text-right py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
                                                                 Total
                                                             </th>
                                                         </tr>
@@ -285,16 +350,16 @@ function FullBudgetContent() {
                                                     <tbody>
                                                         {day.items.map((item, index) => (
                                                             <tr key={index} className="border-b border-gray-100">
-                                                                <td className="py-2 print:py-1 text-sm text-gray-900 print:text-xs">
+                                                                <td className="py-1 print:py-0.5 text-xs text-gray-900 print:text-[10px]">
                                                                     {item.product.name}
                                                                 </td>
-                                                                <td className="py-2 print:py-1 text-center text-sm text-gray-700 print:text-xs">
+                                                                <td className="py-1 print:py-0.5 text-center text-xs text-gray-700 print:text-[10px]">
                                                                     {item.quantity}
                                                                 </td>
-                                                                <td className="py-2 print:py-1 text-right text-sm text-gray-700 print:text-xs">
+                                                                <td className="py-1 print:py-0.5 text-right text-xs text-gray-700 print:text-[10px]">
                                                                     {formatCurrency(item.product.priceCents)}
                                                                 </td>
-                                                                <td className="py-2 print:py-1 text-right text-sm font-semibold text-gray-900 print:text-xs">
+                                                                <td className="py-1 print:py-0.5 text-right text-xs font-semibold text-gray-900 print:text-[10px]">
                                                                     {formatCurrency(item.product.priceCents * item.quantity)}
                                                                 </td>
                                                             </tr>
@@ -304,32 +369,36 @@ function FullBudgetContent() {
                                             </div>
                                             
                                             {/* Resumo do dia com desconto */}
-                                            <div className="bg-gray-50 rounded p-3 print:p-2 mt-4 print:mt-2">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm text-gray-700 print:text-xs">Subtotal:</span>
-                                                    <span className="text-sm font-medium print:text-xs">
-                                                        {formatCurrency(subtotal)}
-                                                    </span>
-                                                </div>
-                                                {discount > 0 && (
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-sm text-red-600 print:text-xs">Desconto:</span>
-                                                        <span className="text-sm font-medium text-red-600 print:text-xs">
-                                                            -{formatCurrency(discount)}
+                                            <div className="bg-gray-50 rounded p-2 print:p-1.5 mt-2 print:mt-1">
+                                                <div className="grid grid-cols-2 gap-2 print:gap-1.5 mb-1 print:mb-0.5">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-gray-700 print:text-[10px]">Subtotal:</span>
+                                                        <span className="text-xs font-medium print:text-[10px]">
+                                                            {formatCurrency(subtotal)}
                                                         </span>
                                                     </div>
-                                                )}
-                                                <div className="flex justify-between items-center pt-2 border-t border-gray-300 mt-1">
-                                                    <span className="text-base font-semibold text-gray-900 print:text-sm">Total do dia:</span>
-                                                    <span className="text-base font-bold text-green-600 print:text-sm">
+                                                    {discount > 0 ? (
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs text-red-600 print:text-[10px]">Desconto:</span>
+                                                            <span className="text-xs font-medium text-red-600 print:text-[10px]">
+                                                                -{formatCurrency(discount)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div></div>
+                                                    )}
+                                                </div>
+                                                <div className="flex justify-between items-center pt-1 border-t border-gray-300 mt-0.5">
+                                                    <span className="text-sm font-semibold text-gray-900 print:text-xs">Total do dia:</span>
+                                                    <span className="text-sm font-bold text-green-600 print:text-xs">
                                                         {formatCurrency(total)}
                                                     </span>
                                                 </div>
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="text-center py-4 print:py-2 text-gray-500">
-                                            <p className="text-sm print:text-xs">Nenhum produto selecionado para este dia</p>
+                                        <div className="text-center py-2 print:py-1 text-gray-500">
+                                            <p className="text-xs print:text-[10px]">Nenhum produto selecionado para este dia</p>
                                         </div>
                                     )}
                                 </div>
@@ -338,90 +407,12 @@ function FullBudgetContent() {
                     </div>
                 </div>
 
-                {/* Resumo Financeiro */}
-                <div className="bg-gray-50 rounded-lg p-6 print:p-4 mb-8 print:mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 print:text-lg mb-4 print:mb-2">
-                        Resumo Financeiro
-                    </h2>
-                    
-                    <div className="space-y-3 print:space-y-2">
-                        {(() => {
-                            const totalSubtotalPerDay = enabledDays.reduce((sum, day) => sum + calculateDaySubtotal(day), 0);
-                            const totalDiscountPerDay = enabledDays.reduce((sum, day) => sum + (day.discountCents || 0), 0);
-                            const totalPerDay = enabledDays.reduce((total, day) => total + calculateDayTotal(day), 0);
-                            const totalSubtotalPerWeek = totalSubtotalPerDay;
-                            const totalDiscountPerWeek = totalDiscountPerDay;
-                            
-                            return (
-                                <>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-700 print:text-sm">Subtotal por dia:</span>
-                                        <span className="font-semibold print:text-sm">
-                                            {formatCurrency(totalSubtotalPerDay)}
-                                        </span>
-                                    </div>
-                                    {totalDiscountPerDay > 0 && (
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-red-600 print:text-sm">Desconto por dia:</span>
-                                            <span className="font-semibold text-red-600 print:text-sm">
-                                                -{formatCurrency(totalDiscountPerDay)}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-700 print:text-sm">Total por dia:</span>
-                                        <span className="font-semibold print:text-sm">
-                                            {formatCurrency(totalPerDay)}
-                                        </span>
-                                    </div>
-                                    <div className="border-t border-gray-300 pt-3 print:pt-2 mt-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-gray-700 print:text-sm">Subtotal por semana:</span>
-                                            <span className="font-semibold print:text-sm">
-                                                {formatCurrency(totalSubtotalPerWeek)}
-                                            </span>
-                                        </div>
-                                        {totalDiscountPerWeek > 0 && (
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-red-600 print:text-sm">Desconto por semana:</span>
-                                                <span className="font-semibold text-red-600 print:text-sm">
-                                                    -{formatCurrency(totalDiscountPerWeek)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-gray-700 print:text-sm">Total por semana:</span>
-                                            <span className="font-semibold print:text-sm">
-                                                {formatCurrency(totalPerWeek)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-700 print:text-sm">Número de semanas:</span>
-                                        <span className="font-semibold print:text-sm">{weeks}</span>
-                                    </div>
-                                    <div className="border-t-2 border-gray-400 pt-3 print:pt-2 mt-2">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-lg font-semibold text-gray-900 print:text-base">
-                                                TOTAL GERAL:
-                                            </span>
-                                            <span className="text-xl font-bold text-green-600 print:text-lg">
-                                                {formatCurrency(budgetData.totalCents)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>
-
                 {/* Observações */}
-                <div className="bg-yellow-50 rounded-lg p-6 print:p-4 mb-8 print:mb-4">
-                    <h2 className="text-lg font-semibold text-yellow-800 print:text-base mb-3 print:mb-2">
+                <div className="bg-yellow-50 rounded-lg p-3 print:p-2 mb-4 print:mb-2">
+                    <h2 className="text-sm font-semibold text-yellow-800 print:text-xs mb-2 print:mb-1">
                         Observações Importantes
                     </h2>
-                    <ul className="space-y-2 print:space-y-1 text-sm text-yellow-700 print:text-xs">
+                    <ul className="space-y-1 print:space-y-0.5 text-xs text-yellow-700 print:text-[10px]">
                         <li>• Este é um orçamento estimativo baseado nos produtos e quantidades especificadas</li>
                         <li>• Os valores podem variar conforme a disponibilidade dos produtos</li>
                         <li>• Preços estão sujeitos a alterações sem aviso prévio</li>
@@ -432,16 +423,16 @@ function FullBudgetContent() {
 
                 {/* Informações de Contato */}
                 {contactInfo && (
-                    <div className="text-center text-sm text-gray-600 print:text-xs">
-                        <div className="mb-2 print:mb-1">
+                    <div className="text-center text-xs text-gray-600 print:text-[10px] mt-2 print:mt-1">
+                        <div className="mb-1 print:mb-0.5">
                             <strong>{systemTitle}</strong>
                         </div>
                         {contactInfo.address && (
-                            <div className="mb-1 print:mb-0">
+                            <div className="mb-0.5 print:mb-0">
                                 {contactInfo.address}
                             </div>
                         )}
-                        <div className="mb-1 print:mb-0">
+                        <div className="mb-0.5 print:mb-0">
                             {contactInfo.phones.mobile && `Tel: ${contactInfo.phones.mobile}`}
                             {contactInfo.phones.mobile && contactInfo.phones.landline && ' | '}
                             {contactInfo.phones.landline && `Tel: ${contactInfo.phones.landline}`}
@@ -454,6 +445,26 @@ function FullBudgetContent() {
                     </div>
                 )}
             </div>
+
+            {/* Estilos específicos para impressão */}
+            <style jsx global>{`
+                /* Em tela normal, as classes customizadas não fazem nada - o Tailwind controla */
+                .budget-customer-grid,
+                .budget-executive-grid {
+                    /* Deixa o Tailwind controlar via grid-cols-1 md:grid-cols-X */
+                }
+                
+                @media print {
+                    /* Em impressão, força as colunas corretas */
+                    .budget-customer-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    }
+                    
+                    .budget-executive-grid {
+                        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
@@ -472,3 +483,4 @@ export default function FullBudgetPage() {
         </Suspense>
     );
 }
+

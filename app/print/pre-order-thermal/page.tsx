@@ -29,11 +29,29 @@ type PreOrder = {
   };
 };
 
+type Customer = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  doc?: string;
+  address?: {
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+};
+
 function PreOrderThermalContent() {
   const searchParams = useSearchParams();
   const preOrderId = searchParams.get('preOrderId');
 
   const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [contactInfo, setContactInfo] = useState<{
     address: string;
     phones: { mobile: string; landline: string };
@@ -65,6 +83,19 @@ function PreOrderThermalContent() {
 
         const data = await preOrderResponse.json();
         setPreOrder(data);
+
+        // Buscar dados completos do cliente se houver customerId
+        if (data.customer?.id) {
+          try {
+            const customerResponse = await fetch(`/api/customers/${data.customer.id}`);
+            if (customerResponse.ok) {
+              const customerData = await customerResponse.json();
+              setCustomer(customerData);
+            }
+          } catch (err) {
+            console.error('Erro ao carregar dados do cliente:', err);
+          }
+        }
 
         // Processar informações de contato e título do sistema
         if (configResponse.ok) {
@@ -137,6 +168,20 @@ function PreOrderThermalContent() {
     });
   };
 
+  const formatCustomerAddress = (address?: Customer['address']) => {
+    if (!address) return null;
+    
+    const parts = [
+      address.street && `${address.street}${address.number ? `, ${address.number}` : ''}`,
+      address.complement,
+      address.neighborhood,
+      address.city && address.state && `${address.city}/${address.state}`,
+      address.zip
+    ].filter(Boolean);
+    
+    return parts.length > 0 ? parts.join(', ') : null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -197,6 +242,11 @@ function PreOrderThermalContent() {
           {preOrder.customer.phone && (
             <div className="thermal-text">
               Tel: {preOrder.customer.phone}
+            </div>
+          )}
+          {customer && formatCustomerAddress(customer.address) && (
+            <div className="thermal-text">
+              {formatCustomerAddress(customer.address)}
             </div>
           )}
         </div>

@@ -333,15 +333,6 @@ function CustomerReportThermalContent() {
           RESUMO FINANCEIRO:
         </div>
         
-        {showDebtBalance && (
-          <div className="thermal-row">
-            <span>Saldo Devedor:</span>
-            <span className="thermal-value">
-              {formatCurrency(summary.debtBalanceCents)}
-            </span>
-          </div>
-        )}
-        
         {showPeriodBalance && (
           <div className="thermal-row">
             <span>Saldo Período:</span>
@@ -380,6 +371,18 @@ function CustomerReportThermalContent() {
           }
           return null;
         })()}
+        
+        {/* Saldo Devedor - abaixo de pagamentos com quadro */}
+        {showDebtBalance && (
+          <div className="thermal-debt-balance">
+            <div className="thermal-row">
+              <span>Saldo Devedor:</span>
+              <span className="thermal-value">
+                {formatCurrency(summary.debtBalanceCents)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Transaction History - Compact */}
@@ -533,6 +536,14 @@ function CustomerReportThermalContent() {
         
         .thermal-value {
           font-weight: 500;
+        }
+        
+        /* Quadro do Saldo Devedor */
+        .thermal-debt-balance {
+          border: 1px dashed #666;
+          padding: 3px 4px;
+          margin-top: 4px;
+          margin-bottom: 2px;
         }
         
         /* Transações (relatórios) */
