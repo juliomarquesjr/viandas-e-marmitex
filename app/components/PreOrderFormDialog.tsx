@@ -3,6 +3,7 @@
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
+import { Dialog, DialogContent, DialogTitle } from "@/app/components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   FileText,
@@ -14,17 +15,26 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useToast } from "./Toast";
+import { CustomerSelectorDialog } from "./CustomerSelectorDialog";
 
 type Customer = {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
 };
 
 type Product = {
   id: string;
   name: string;
   priceCents: number;
+  barcode?: string;
+  imageUrl?: string;
+  active: boolean;
+  category?: {
+    id: string;
+    name: string;
+  };
 };
 
 type PreOrderItem = {
@@ -58,6 +68,7 @@ export function PreOrderFormDialog({
   preOrderId,
   onPreOrderSaved 
 }: PreOrderFormDialogProps) {
+  const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [preOrder, setPreOrder] = useState<PreOrder>({
@@ -69,6 +80,9 @@ export function PreOrderFormDialog({
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
 
   // Carregar clientes e produtos
   useEffect(() => {
@@ -78,16 +92,24 @@ export function PreOrderFormDialog({
       try {
         setLoading(true);
         
-        // Carregar clientes
+        // Carregar clientes e ordenar alfabeticamente
         const customersResponse = await fetch("/api/customers");
         if (!customersResponse.ok) {
           throw new Error(`Failed to fetch customers: ${customersResponse.status}`);
         }
         const customersData = await customersResponse.json();
-        setCustomers(customersData.data || []);
+        const sortedCustomers = (customersData.data || []).sort((a: Customer, b: Customer) => 
+          a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+        );
+        setCustomers(sortedCustomers);
 
-        // Carregar produtos
-        const productsResponse = await fetch("/api/products");
+        // Carregar produtos ativos
+        const productsResponse = await fetch("/api/products?active=true", {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (!productsResponse.ok) {
           throw new Error(`Failed to fetch products: ${productsResponse.status}`);
         }
@@ -165,41 +187,69 @@ export function PreOrderFormDialog({
     setPreOrder(prev => ({ ...prev, customerId }));
   };
 
-  const handleAddItem = () => {
-    setPreOrder(prev => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          productId: "",
-          quantity: 1,
-          priceCents: 0,
-        }
-      ]
-    }));
+  const handleCustomerSelect = (customer: Customer) => {
+    setPreOrder(prev => ({ ...prev, customerId: customer.id }));
+    setShowCustomerDialog(false);
   };
 
-  const handleItemChange = (index: number, field: string, value: string | number) => {
+  // Filtrar produtos por busca
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.barcode?.includes(searchQuery) ||
+    product.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Adicionar produto ao pré-pedido
+  const handleAddProduct = (product: Product) => {
+    const existingItem = preOrder.items.find(item => item.productId === product.id);
+    
+    if (existingItem) {
+      // Se o produto já existe, incrementa a quantidade
+      setPreOrder(prev => {
+        const newItems = prev.items.map(item =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+        return { ...prev, items: newItems };
+      });
+      showToast(`${product.name} adicionado (quantidade: ${existingItem.quantity + 1})`, "success");
+    } else {
+      // Adiciona novo item
+      setPreOrder(prev => ({
+        ...prev,
+        items: [
+          ...prev.items,
+          {
+            productId: product.id,
+            quantity: 1,
+            priceCents: product.priceCents
+          }
+        ]
+      }));
+      showToast(`${product.name} adicionado`, "success");
+    }
+    
+    setSearchQuery(""); // Limpar busca
+  };
+
+  // Atualizar quantidade do item
+  const handleItemQuantityChange = (index: number, quantity: number) => {
+    if (quantity <= 0) {
+      handleRemoveItem(index);
+      return;
+    }
     setPreOrder(prev => {
       const newItems = [...prev.items];
-      if (field === "productId") {
-        // Quando o produto muda, atualizar o preço
-        const product = products.find(p => p.id === value);
-        newItems[index] = {
-          ...newItems[index],
-          productId: value as string,
-          priceCents: product ? product.priceCents : 0
-        };
-      } else {
-        newItems[index] = {
-          ...newItems[index],
-          [field]: value
-        };
-      }
+      newItems[index] = {
+        ...newItems[index],
+        quantity
+      };
       return { ...prev, items: newItems };
     });
   };
 
+  // Remover item do pré-pedido
   const handleRemoveItem = (index: number) => {
     setPreOrder(prev => {
       const newItems = [...prev.items];
@@ -383,23 +433,52 @@ export function PreOrderFormDialog({
               <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
               <div className="space-y-2 mt-4">
-                <label className="text-sm font-medium text-gray-700">Cliente (opcional)</label>
-                <div className="relative">
-                  <select
-                    value={preOrder.customerId || ""}
-                    onChange={(e) => handleCustomerChange(e.target.value || null)}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
+                {preOrder.customerId ? (
+                  <div className="relative">
+                    {(() => {
+                      const selectedCustomer = customers.find(c => c.id === preOrder.customerId);
+                      return (
+                        <div className="flex items-center justify-between rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                              <User className="h-6 w-6 text-orange-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-base">{selectedCustomer?.name || "Cliente selecionado"}</div>
+                              <div className="text-sm text-gray-600">
+                                {selectedCustomer?.phone || "Telefone não informado"}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCustomerChange(null)}
+                            disabled={saving}
+                            className="h-10 w-10 rounded-full text-gray-600 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <X className="h-5 w-5" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCustomerDialog(true)}
                     disabled={saving}
+                    className="w-full justify-start text-left h-14 text-base pl-4 pr-4 py-3 rounded-xl border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all"
                   >
-                    <option value="">Venda avulsa (opcional)</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name} - {customer.phone}
-                      </option>
-                    ))}
-                  </select>
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                </div>
+                    <User className="mr-3 h-5 w-5 text-orange-600" />
+                    <div className="flex-1 text-left">
+                      <div className="font-medium text-gray-900">Selecionar cliente (opcional)</div>
+                      <div className="text-sm text-gray-500">Buscar por nome, telefone ou email</div>
+                    </div>
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -414,12 +493,12 @@ export function PreOrderFormDialog({
                 </div>
                 <Button 
                   type="button" 
-                  onClick={handleAddItem} 
+                  onClick={() => setShowProductModal(true)} 
                   disabled={saving}
                   className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm transition-all"
                 >
                   <Plus className="h-4 w-4" />
-                  Adicionar Item
+                  Adicionar Produtos
                 </Button>
               </div>
               <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
@@ -432,56 +511,70 @@ export function PreOrderFormDialog({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {preOrder.items.map((item, index) => (
-                      <div key={item.id || index} className="grid grid-cols-12 gap-3 items-center p-4 border border-gray-200 rounded-xl bg-white">
-                        <div className="col-span-7">
-                          <label className="text-xs font-medium text-gray-600 mb-1 block">Produto</label>
-                          <div className="relative">
-                            <select
-                              value={item.productId}
-                              onChange={(e) => handleItemChange(index, "productId", e.target.value)}
-                              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all appearance-none bg-white"
-                              required
-                              disabled={saving}
-                            >
-                              <option value="">Selecione um produto</option>
-                              {products.map((product) => (
-                                <option key={product.id} value={product.id}>
-                                  {product.name}
-                                </option>
-                              ))}
-                            </select>
-                            <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    {preOrder.items.map((item, index) => {
+                      const product = products.find(p => p.id === item.productId);
+                      return (
+                        <div key={item.id || index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors">
+                          {/* Imagem do produto (se disponível) */}
+                          <div className="h-12 w-12 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg border border-gray-200">
+                            {product?.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = "none";
+                                  target.parentElement!.innerHTML = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-6 w-6 text-gray-300">
+                                      <path d="M12 22l-8-4V6L12 2l8 4v12l-8 4z"/>
+                                      <path d="M12 2v20"/>
+                                      <path d="M4 6l8 4 8-4"/>
+                                    </svg>
+                                  `;
+                                }}
+                              />
+                            ) : (
+                              <Package className="h-6 w-6 text-gray-300" />
+                            )}
                           </div>
-                        </div>
-                        
-                        <div className="col-span-4">
-                          <label className="text-xs font-medium text-gray-600 mb-1 block">Quantidade</label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value) || 1)}
-                            className="w-full py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                            required
-                            disabled={saving}
-                          />
-                        </div>
-                        
-                        <div className="col-span-1 flex justify-end items-end pb-1">
+                          
+                          {/* Informações do produto */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">{product?.name || "Produto não encontrado"}</div>
+                            <div className="text-sm text-gray-500">
+                              {formatCurrency(item.priceCents)} x {item.quantity}
+                            </div>
+                          </div>
+                          
+                          {/* Quantidade */}
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium text-gray-600">Qtd:</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleItemQuantityChange(index, parseInt(e.target.value) || 1)}
+                              className="w-20 py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all text-center"
+                              disabled={saving}
+                            />
+                          </div>
+                          
+                          {/* Botão remover */}
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveItem(index)}
                             disabled={saving}
-                            className="h-8 w-8 p-0 rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-10 w-10 p-0 rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-5 w-5" />
                           </Button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -554,6 +647,143 @@ export function PreOrderFormDialog({
           </div>
         </div>
       </motion.div>
+
+      {/* Modal de seleção de produtos */}
+      {showProductModal && (
+        <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden p-0 flex flex-col">
+            <DialogTitle className="sr-only">Selecionar Produtos</DialogTitle>
+            
+            {/* Header */}
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+              <div className="relative p-6 flex items-center justify-between">
+                <div>
+                  <h2 className="flex items-center gap-3 text-xl font-bold text-gray-900">
+                    <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                      <Package className="h-5 w-5 text-orange-600" />
+                    </div>
+                    Selecionar Produtos
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-2 ml-13">
+                    Adicione produtos ao pré-pedido
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowProductModal(false)}
+                  className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+              
+              {/* Barra de busca */}
+              <div className="relative px-6 pb-6">
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar produtos por nome, código ou categoria..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-12 pl-10 pr-4 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
+                  />
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <Package className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
+                  <p className="mt-4 text-gray-600 text-lg">Carregando produtos...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        handleAddProduct(product);
+                      }}
+                      className="group flex items-center gap-3 rounded-lg border border-gray-200 p-3 bg-white transition-all duration-200 hover:border-orange-400 hover:shadow-md hover:scale-[1.01]"
+                    >
+                      {/* Imagem do produto */}
+                      <div className="h-16 w-16 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden rounded-md border border-gray-200">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = "none";
+                              target.parentElement!.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-8 w-8 text-gray-300">
+                                  <path d="M12 22l-8-4V6L12 2l8 4v12l-8 4z"/>
+                                  <path d="M12 2v20"/>
+                                  <path d="M4 6l8 4 8-4"/>
+                                </svg>
+                              `;
+                            }}
+                          />
+                        ) : (
+                          <Package className="h-8 w-8 text-gray-300" />
+                        )}
+                      </div>
+                      
+                      {/* Conteúdo */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm text-gray-900 line-clamp-1 group-hover:text-orange-700 transition-colors mb-1">
+                          {product.name}
+                        </h3>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-green-600">
+                            {formatCurrency(product.priceCents)}
+                          </span>
+                          <div className="h-8 w-8 rounded-md bg-orange-500 flex items-center justify-center shadow-sm group-hover:bg-orange-600 group-hover:shadow transition-all">
+                            <Plus className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50/50">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {filteredProducts.length} produto{filteredProducts.length !== 1 ? 's' : ''} encontrado{filteredProducts.length !== 1 ? 's' : ''}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowProductModal(false)}
+                    className="px-6 py-2 border-gray-300 hover:bg-gray-100 text-gray-700"
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal de seleção de clientes */}
+      <CustomerSelectorDialog
+        isOpen={showCustomerDialog}
+        onOpenChange={setShowCustomerDialog}
+        onSelect={handleCustomerSelect}
+        selectedCustomer={customers.find(c => c.id === preOrder.customerId) || null}
+      />
     </div>
   );
 }
