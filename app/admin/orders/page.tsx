@@ -1,6 +1,7 @@
 "use client";
 
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
+import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
 import { useToast } from "@/app/components/Toast";
@@ -138,6 +139,9 @@ export default function AdminOrdersPage() {
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  
+  // State for daily sales print modal
+  const [dailySalesPrintModalOpen, setDailySalesPrintModalOpen] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -330,6 +334,13 @@ export default function AdminOrdersPage() {
           </h1>
           <p className="text-muted-foreground">Acompanhe todas as vendas realizadas</p>
         </div>
+        <Button
+          onClick={() => setDailySalesPrintModalOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Printer className="h-4 w-4" />
+          Imprimir Vendas Diárias
+        </Button>
       </div>
 
       {/* Estatísticas */}
@@ -863,6 +874,12 @@ export default function AdminOrdersPage() {
         onConfirm={confirmDeleteOrder}
         confirmText="Excluir"
         cancelText="Cancelar"
+      />
+      
+      {/* Modal de Impressão de Vendas Diárias */}
+      <DailySalesPrintModal
+        open={dailySalesPrintModalOpen}
+        onOpenChange={setDailySalesPrintModalOpen}
       />
     </div>
   );
