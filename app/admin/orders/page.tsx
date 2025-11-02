@@ -2,6 +2,7 @@
 
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
+import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
 import { useToast } from "@/app/components/Toast";
@@ -23,7 +24,9 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
+  FileText,
   IdCard,
+  MoreVertical,
   Package,
   Printer,
   QrCode,
@@ -36,7 +39,8 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 type Order = {
   id: string;
@@ -53,6 +57,7 @@ type Order = {
     id: string;
     name: string;
     phone: string;
+    address?: any;
   } | null;
   items: {
     id: string;
@@ -115,8 +120,155 @@ const paymentMethodMap = {
   cartãodébito: { label: "Cartão de Débito", icon: CreditCard },
 };
 
+// Menu de opções por venda
+function OrderActionsMenu({
+  onViewDetails,
+  onPrint,
+  onViewCustomer,
+  onDelete,
+  hasCustomer,
+}: {
+  onViewDetails: () => void;
+  onPrint: () => void;
+  onViewCustomer: () => void;
+  onDelete: () => void;
+  hasCustomer: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ 
+    position: 'fixed',
+    zIndex: 50,
+    display: 'none'
+  });
+
+  // Fecha o menu ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+        setMenuStyle(prev => ({ ...prev, display: 'none' }));
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
+  // Calcular posição do menu quando abrir
+  useEffect(() => {
+    if (open && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const menuHeight = 200; // Altura aproximada do menu
+      
+      let top, bottom;
+      
+      // Verificar se o menu cabe abaixo do botão
+      if (rect.bottom + menuHeight <= window.innerHeight) {
+        // Abrir para baixo
+        top = `${rect.bottom + 4}px`;
+        bottom = 'auto';
+      } else {
+        // Abrir para cima
+        top = 'auto';
+        bottom = `${window.innerHeight - rect.top + 4}px`;
+      }
+      
+      setMenuStyle({
+        position: 'fixed',
+        top,
+        bottom,
+        right: `${window.innerWidth - rect.right}px`,
+        zIndex: 1000,
+        display: 'block'
+      });
+    } else {
+      setMenuStyle(prev => ({ ...prev, display: 'none' }));
+    }
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+        aria-label="Ações da venda"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreVertical className="h-5 w-5 text-muted-foreground" />
+      </Button>
+      <div 
+        role="menu"
+        className="w-40 bg-background border border-border rounded-lg shadow-xl py-2 animate-fade-in min-w-max"
+        style={menuStyle}
+      >
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onViewDetails();
+          }}
+        >
+          <FileText className="h-4 w-4 mr-2 text-blue-500" />
+          Ver detalhes
+        </button>
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onPrint();
+          }}
+        >
+          <Printer className="h-4 w-4 mr-2 text-blue-500" />
+          Imprimir recibo
+        </button>
+        {hasCustomer && (
+          <button
+            role="menuitem"
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+            onClick={() => {
+              setOpen(false);
+              setMenuStyle(prev => ({ ...prev, display: 'none' }));
+              onViewCustomer();
+            }}
+          >
+            <User className="h-4 w-4 mr-2 text-blue-500" />
+            Ver cliente
+          </button>
+        )}
+        <div className="border-t border-border my-1"></div>
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onDelete();
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Remover
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const { showToast } = useToast();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +294,10 @@ export default function AdminOrdersPage() {
   
   // State for daily sales print modal
   const [dailySalesPrintModalOpen, setDailySalesPrintModalOpen] = useState(false);
+  
+  // State for order details modal
+  const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const loadOrders = async () => {
     try {
@@ -262,6 +418,17 @@ export default function AdminOrdersPage() {
   const printThermalReceipt = (orderId: string) => {
     const receiptUrl = `/print/receipt-thermal?orderId=${orderId}`;
     window.open(receiptUrl, '_blank');
+  };
+
+  // Handler para visualizar detalhes da venda
+  const handleViewOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setOrderDetailsModalOpen(true);
+  };
+
+  // Handler para acessar ficha do cliente
+  const handleViewCustomer = (customerId: string) => {
+    router.push(`/admin/customers/${customerId}`);
   };
 
   const getStatusInfo = (status: string) => {
@@ -698,30 +865,14 @@ export default function AdminOrdersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-6 w-8">
-                          <div className="flex items-center gap-2">
-                            {/* Botão de Imprimir Recibo */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => printThermalReceipt(order.id)}
-                              className="h-9 w-9 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-border"
-                              title="Imprimir recibo térmico"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            
-                            {/* Botão de Excluir */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDeleteDialog(order.id)}
-                              className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-border"
-                              title="Excluir venda"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                        <td className="py-4 px-6">
+                          <OrderActionsMenu
+                            onViewDetails={() => handleViewOrderDetails(order)}
+                            onPrint={() => printThermalReceipt(order.id)}
+                            onViewCustomer={() => handleViewCustomer(order.customer!.id)}
+                            onDelete={() => openDeleteDialog(order.id)}
+                            hasCustomer={!!order.customer}
+                          />
                         </td>
                       </motion.tr>
                     );
@@ -855,6 +1006,14 @@ export default function AdminOrdersPage() {
           </CardContent>
         </AnimatedCard>
       )}
+
+      {/* Modal de Detalhes da Venda */}
+      <OrderDetailsModal
+        open={orderDetailsModalOpen}
+        onOpenChange={setOrderDetailsModalOpen}
+        order={selectedOrder}
+        onPrint={printThermalReceipt}
+      />
 
       {/* Modal de Análise Detalhada */}
       <SalesAnalysisModal 

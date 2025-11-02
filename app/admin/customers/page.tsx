@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
+  Loader2,
   MapPin,
   MoreVertical,
   Phone,
@@ -179,6 +180,7 @@ export default function AdminCustomersPage() {
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
   // Carregar clientes
   const loadCustomers = async () => {
@@ -373,6 +375,7 @@ export default function AdminCustomersPage() {
   };
 
   const deleteCustomer = async (id: string) => {
+    setIsDeletingCustomer(true);
     try {
       const response = await fetch(`/api/customers?id=${id}`, {
         method: "DELETE",
@@ -394,6 +397,8 @@ export default function AdminCustomersPage() {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete customer";
       setDeleteError(errorMessage);
       showToast(errorMessage, "error");
+    } finally {
+      setIsDeletingCustomer(false);
     }
   };
 
@@ -999,15 +1004,26 @@ export default function AdminCustomersPage() {
                     setDeleteError(null);
                   }}
                   className="px-6 py-2 rounded-lg border-input hover:bg-accent"
+                  disabled={isDeletingCustomer}
                 >
                   Cancelar
                 </Button>
                 <Button
                   onClick={() => deleteCustomer(deleteConfirm)}
-                  className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white"
+                  className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white disabled:opacity-50"
+                  disabled={isDeletingCustomer}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
+                  {isDeletingCustomer ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

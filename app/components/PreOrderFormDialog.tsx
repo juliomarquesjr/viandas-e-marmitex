@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/app/components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   FileText,
+  Loader2,
   Package,
   Plus,
   ShoppingCart,
@@ -379,23 +380,12 @@ export function PreOrderFormDialog({
         }
       }}
     >
-      <motion.div 
+        <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-3xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Loading Overlay durante salvamento */}
-        {saving && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="text-center">
-              <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
-              <p className="mt-4 text-lg font-semibold text-orange-600">Salvando pré-pedido...</p>
-              <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
-            </div>
-          </div>
-        )}
-        
         {/* Header with gradient */}
         <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
@@ -636,10 +626,10 @@ export function PreOrderFormDialog({
               className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
             >
               {saving ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
-                  Salvando...
-                </span>
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
               ) : (
                 preOrder.id ? "Atualizar Pré-Pedido" : "Criar Pré-Pedido"
               )}

@@ -1,4 +1,4 @@
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Trash2, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -12,12 +12,14 @@ interface DeleteProductDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 export function DeleteProductDialog({
   open,
   onClose,
   onConfirm,
+  isLoading = false,
 }: DeleteProductDialogProps) {
   if (!open) return null;
   return (
@@ -41,15 +43,26 @@ export function DeleteProductDialog({
               variant="outline"
               onClick={onClose}
               className="px-6 py-2 rounded-lg border-gray-200 hover:bg-gray-50"
+              disabled={isLoading}
             >
               Cancelar
             </Button>
             <Button
               onClick={onConfirm}
-              className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white"
+              className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white disabled:opacity-50"
+              disabled={isLoading}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

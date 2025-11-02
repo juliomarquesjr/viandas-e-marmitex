@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -18,6 +18,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   confirmText?: string;
   cancelText?: string;
+  isLoading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -28,6 +29,7 @@ export function ConfirmDialog({
   onConfirm,
   confirmText = "Confirmar",
   cancelText = "Cancelar",
+  isLoading = false,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,11 +48,19 @@ export function ConfirmDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="flex-1"
+            disabled={isLoading}
           >
             {cancelText}
           </Button>
-          <Button onClick={onConfirm} className="flex-1">
-            {confirmText}
+          <Button onClick={onConfirm} className="flex-1" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              confirmText
+            )}
           </Button>
         </div>
       </DialogContent>

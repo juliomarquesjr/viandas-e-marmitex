@@ -221,6 +221,7 @@ export default function AdminProductsPage() {
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   // Carregar produtos e categorias
   const loadProducts = async () => {
@@ -458,6 +459,7 @@ export default function AdminProductsPage() {
   };
 
   const deleteProduct = async (id: string) => {
+    setIsDeletingProduct(true);
     try {
       const response = await fetch(`/api/products?id=${id}`, {
         method: "DELETE",
@@ -487,6 +489,8 @@ export default function AdminProductsPage() {
       setDeleteConfirm(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete product");
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -1104,6 +1108,7 @@ export default function AdminProductsPage() {
         onConfirm={() => {
           if (deleteConfirm) deleteProduct(deleteConfirm);
         }}
+        isLoading={isDeletingProduct}
       />
 
       {/* Diálogo de Confirmação */}

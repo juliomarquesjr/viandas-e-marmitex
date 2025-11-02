@@ -238,6 +238,7 @@ export default function AdminPreOrdersPage() {
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [preOrderToDelete, setPreOrderToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -355,6 +356,7 @@ export default function AdminPreOrdersPage() {
   const confirmDeletePreOrder = async () => {
     if (!preOrderToDelete) return;
 
+    setIsDeleting(true);
     try {
       const response = await fetch(`/api/pre-orders?id=${preOrderToDelete}`, {
         method: "DELETE",
@@ -372,6 +374,8 @@ export default function AdminPreOrdersPage() {
     } catch (error) {
       console.error("Error deleting pre-order:", error);
       showToast("Erro ao excluir pré-pedido. Por favor, tente novamente.", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -832,6 +836,7 @@ export default function AdminPreOrdersPage() {
         onConfirm={confirmDeletePreOrder}
         confirmText="Excluir"
         cancelText="Cancelar"
+        isLoading={isDeleting}
       />
     </div>
   );

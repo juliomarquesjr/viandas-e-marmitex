@@ -178,6 +178,7 @@ export default function CustomerDetailPage() {
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<{id: string, isFichaPayment: boolean} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [filteredStats, setFilteredStats] = useState({
     pendingAmount: 0,
@@ -433,6 +434,7 @@ export default function CustomerDetailPage() {
   const confirmDeleteOrder = async () => {
     if (!orderToDelete) return;
 
+    setIsDeleting(true);
     try {
       // Use the appropriate API endpoint based on order type
       const endpoint = orderToDelete.isFichaPayment 
@@ -465,6 +467,8 @@ export default function CustomerDetailPage() {
     } catch (error) {
       console.error("Error deleting order:", error);
       showToast(`Erro ao excluir: ${(error as Error).message || "Por favor, tente novamente."}`, "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1788,6 +1792,7 @@ export default function CustomerDetailPage() {
         onConfirm={confirmDeleteOrder}
         confirmText="Excluir"
         cancelText="Cancelar"
+        isLoading={isDeleting}
       />
     </div>
   );

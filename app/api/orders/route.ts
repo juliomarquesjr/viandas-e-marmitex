@@ -78,7 +78,8 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              phone: true
+              phone: true,
+              address: true
             }
           },
           items: {
@@ -234,7 +235,8 @@ export async function POST(request: Request) {
             select: {
               id: true,
               name: true,
-              phone: true
+              phone: true,
+              address: true
             }
           },
           items: {

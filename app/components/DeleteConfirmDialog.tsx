@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
     Dialog,
@@ -18,6 +18,7 @@ interface DeleteConfirmDialogProps {
   onConfirm: () => void;
   confirmText?: string;
   cancelText?: string;
+  isLoading?: boolean;
 }
 
 export function DeleteConfirmDialog({
@@ -28,6 +29,7 @@ export function DeleteConfirmDialog({
   onConfirm,
   confirmText = "Excluir",
   cancelText = "Cancelar",
+  isLoading = false,
 }: DeleteConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,14 +48,23 @@ export function DeleteConfirmDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="flex-1"
+            disabled={isLoading}
           >
             {cancelText}
           </Button>
           <Button 
             onClick={onConfirm} 
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            disabled={isLoading}
           >
-            {confirmText}
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              confirmText
+            )}
           </Button>
         </div>
       </DialogContent>

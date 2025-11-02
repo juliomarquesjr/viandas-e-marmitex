@@ -17,9 +17,31 @@ export async function GET(request: Request) {
     const where: any = {};
     
     if (startDate && endDate) {
+      // Criar datas no início e fim do dia no timezone local para evitar problemas
+      // Parse a data como se fosse local (YYYY-MM-DD)
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+      const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+      
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+      const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+      
       where.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
+        gte: start,
+        lte: end
+      };
+    } else if (startDate) {
+      // Se só tem startDate, filtrar do início desse dia em diante
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+      const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+      where.date = {
+        gte: start
+      };
+    } else if (endDate) {
+      // Se só tem endDate, filtrar até o fim desse dia
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+      const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+      where.date = {
+        lte: end
       };
     }
     

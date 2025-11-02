@@ -66,59 +66,126 @@ function ExpenseActionsMenu({
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fecha o menu ao clicar fora
+  // Calcular posição do menu usando fixed positioning
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - buttonRect.bottom;
+      const menuHeight = 80;
+      
+      // Calcular posição: se não há espaço abaixo, abrir para cima
+      const top = spaceBelow < menuHeight 
+        ? buttonRect.top - menuHeight - 8 
+        : buttonRect.bottom + 8;
+      
+      setMenuPosition({
+        top,
+        left: buttonRect.right - 128, // 128px = largura do menu (w-32)
+      });
+    } else {
+      setMenuPosition(null);
+    }
+  }, [open]);
+
+  // Fecha o menu ao clicar fora ou fazer scroll
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      
+      // Verificar se o clique foi fora do botão, do container do menu e do dropdown
+      if (
+        menuRef.current && !menuRef.current.contains(target) && 
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
+
+    function handleScroll() {
+      setOpen(false);
     }
+
+    if (open) {
+      // Usar setTimeout para garantir que o evento onClick dos botões seja processado primeiro
+      setTimeout(() => {
+        document.addEventListener("click", handleClickOutside);
+      }, 0);
+      window.addEventListener("scroll", handleScroll, true);
+    } else {
+      document.removeEventListener("click", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+    }
+    
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [open]);
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Executar ação primeiro, depois fechar
+    onEdit();
+    setOpen(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Executar ação primeiro, depois fechar
+    onDelete();
+    setOpen(false);
+  };
+
   return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 p-0"
-        aria-label="Mais opções"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <MoreVertical className="h-5 w-5 text-muted-foreground" />
-      </Button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-2 w-32 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in">
+    <>
+      <div className="relative inline-block" ref={menuRef}>
+        <Button
+          ref={buttonRef}
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 p-0"
+          aria-label="Mais opções"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((v) => !v);
+          }}
+        >
+          <MoreVertical className="h-5 w-5 text-muted-foreground" />
+        </Button>
+      </div>
+      
+      {open && menuPosition && (
+        <div 
+          ref={dropdownRef}
+          className="fixed z-[100] w-32 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in"
+          style={{
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
-            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
+            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+            onClick={handleEdit}
           >
             <Edit className="h-4 w-4 mr-2 text-blue-500" /> Editar
           </button>
           <button
-            className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
+            className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+            onClick={handleDelete}
           >
             <Trash2 className="h-4 w-4 mr-2" /> Remover
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -149,14 +216,29 @@ function ExpenseFormDialog({
   });
   const [displayPrice, setDisplayPrice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { showToast } = useToast();
+  const [errors, setErrors] = useState<{
+    typeId?: string;
+    supplierTypeId?: string;
+    amountCents?: string;
+    description?: string;
+    date?: string;
+  }>({});
+  const [touched, setTouched] = useState<{
+    typeId?: boolean;
+    supplierTypeId?: boolean;
+    amountCents?: boolean;
+    description?: boolean;
+    date?: boolean;
+  }>({});
 
   useEffect(() => {
     if (expense) {
       setFormData({
-        typeId: expense.typeId,
-        supplierTypeId: expense.supplierTypeId,
-        amountCents: expense.amountCents,
-        description: expense.description,
+        typeId: expense.typeId || "",
+        supplierTypeId: expense.supplierTypeId || "",
+        amountCents: expense.amountCents || 0,
+        description: expense.description || "",
         date: expense.date instanceof Date 
           ? expense.date.toISOString().split("T")[0]
           : new Date(expense.date).toISOString().split("T")[0],
@@ -174,6 +256,9 @@ function ExpenseFormDialog({
       });
       setDisplayPrice("");
     }
+    // Limpar erros e campos tocados ao abrir/fechar
+    setErrors({});
+    setTouched({});
   }, [expense, isOpen]);
 
   // Função para formatar o valor digitado como moeda
@@ -203,11 +288,88 @@ function ExpenseFormDialog({
     setDisplayPrice(formattedValue);
     const cents = rawValue ? convertToCents(formattedValue) : 0;
     setFormData({ ...formData, amountCents: cents });
+    
+    // Limpar erro ao digitar
+    if (touched.amountCents && errors.amountCents) {
+      setErrors({ ...errors, amountCents: undefined });
+    }
+  };
+
+  // Validação de campo individual
+  const validateField = (field: keyof typeof errors, value: any): string | undefined => {
+    switch (field) {
+      case "typeId":
+        if (!value || value === "") {
+          return "Tipo de despesa é obrigatório";
+        }
+        return undefined;
+      case "supplierTypeId":
+        if (!value || value === "") {
+          return "Tipo de fornecedor é obrigatório";
+        }
+        return undefined;
+      case "amountCents":
+        if (!value || value <= 0) {
+          return "Valor deve ser maior que zero";
+        }
+        return undefined;
+      case "description":
+        if (!value || value.trim() === "") {
+          return "Descrição é obrigatória";
+        }
+        return undefined;
+      case "date":
+        if (!value || value === "") {
+          return "Data é obrigatória";
+        }
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  // Função para marcar campo como tocado e validar
+  const handleBlur = (field: keyof typeof errors) => {
+    setTouched({ ...touched, [field]: true });
+    const error = validateField(field, formData[field]);
+    setErrors({ ...errors, [field]: error });
+  };
+
+  // Função para validar todos os campos
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+    let isValid = true;
+
+    const fields: Array<keyof typeof errors> = ["typeId", "supplierTypeId", "amountCents", "description", "date"];
+    
+    fields.forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+        isValid = false;
+      }
+    });
+
+    setErrors(newErrors);
+    setTouched({
+      typeId: true,
+      supplierTypeId: true,
+      amountCents: true,
+      description: true,
+      date: true,
+    });
+
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.typeId || !formData.supplierTypeId || !formData.description.trim()) return;
+    
+    // Validar todos os campos
+    if (!validateForm()) {
+      showToast("Por favor, preencha todos os campos obrigatórios", "error");
+      return;
+    }
     
     setIsSaving(true);
     try {
@@ -272,12 +434,24 @@ function ExpenseFormDialog({
                   </label>
                   <div className="relative">
                     <Select
-                      value={formData.typeId}
-                      onValueChange={(value: string) =>
-                        setFormData({ ...formData, typeId: value })
-                      }
+                      key={`type-${expense?.id || 'new'}-${formData.typeId}`}
+                      value={formData.typeId || undefined}
+                      onValueChange={(value: string) => {
+                        setFormData({ ...formData, typeId: value });
+                        // Limpar erro ao selecionar
+                        if (touched.typeId && errors.typeId) {
+                          setErrors({ ...errors, typeId: undefined });
+                        }
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open && touched.typeId) {
+                          handleBlur("typeId");
+                        }
+                      }}
                     >
-                      <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                        touched.typeId && errors.typeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}>
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
                       <SelectContent 
@@ -295,6 +469,9 @@ function ExpenseFormDialog({
                     </Select>
                     <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   </div>
+                  {touched.typeId && errors.typeId && (
+                    <p className="text-sm text-red-500 mt-1">{errors.typeId}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -303,12 +480,24 @@ function ExpenseFormDialog({
                   </label>
                   <div className="relative">
                     <Select
-                      value={formData.supplierTypeId}
-                      onValueChange={(value: string) =>
-                        setFormData({ ...formData, supplierTypeId: value })
-                      }
+                      key={`supplier-${expense?.id || 'new'}-${formData.supplierTypeId}`}
+                      value={formData.supplierTypeId || undefined}
+                      onValueChange={(value: string) => {
+                        setFormData({ ...formData, supplierTypeId: value });
+                        // Limpar erro ao selecionar
+                        if (touched.supplierTypeId && errors.supplierTypeId) {
+                          setErrors({ ...errors, supplierTypeId: undefined });
+                        }
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open && touched.supplierTypeId) {
+                          handleBlur("supplierTypeId");
+                        }
+                      }}
                     >
-                      <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                        touched.supplierTypeId && errors.supplierTypeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}>
                         <SelectValue placeholder="Selecione o fornecedor" />
                       </SelectTrigger>
                       <SelectContent 
@@ -326,6 +515,9 @@ function ExpenseFormDialog({
                     </Select>
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                   </div>
+                  {touched.supplierTypeId && errors.supplierTypeId && (
+                    <p className="text-sm text-red-500 mt-1">{errors.supplierTypeId}</p>
+                  )}
                 </div>
               </div>
 
@@ -338,17 +530,22 @@ function ExpenseFormDialog({
                     <Input
                       value={displayPrice}
                       onChange={handlePriceChange}
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      onBlur={() => handleBlur("amountCents")}
+                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                        touched.amountCents && errors.amountCents ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}
                       placeholder="R$ 0,00"
                       required
                     />
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
-                  {formData.amountCents > 0 && (
+                  {touched.amountCents && errors.amountCents ? (
+                    <p className="text-sm text-red-500 mt-1">{errors.amountCents}</p>
+                  ) : formData.amountCents > 0 ? (
                     <p className="text-sm text-gray-500">
                       Valor em centavos: {formData.amountCents}
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
@@ -359,14 +556,24 @@ function ExpenseFormDialog({
                     <Input
                       type="date"
                       value={formData.date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, date: e.target.value })
-                      }
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                      onChange={(e) => {
+                        setFormData({ ...formData, date: e.target.value });
+                        // Limpar erro ao alterar
+                        if (touched.date && errors.date) {
+                          setErrors({ ...errors, date: undefined });
+                        }
+                      }}
+                      onBlur={() => handleBlur("date")}
+                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                        touched.date && errors.date ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}
                       required
                     />
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
+                  {touched.date && errors.date && (
+                    <p className="text-sm text-red-500 mt-1">{errors.date}</p>
+                  )}
                 </div>
               </div>
 
@@ -377,15 +584,25 @@ function ExpenseFormDialog({
                 <div className="relative">
                   <Input
                     value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, description: e.target.value });
+                      // Limpar erro ao digitar
+                      if (touched.description && errors.description) {
+                        setErrors({ ...errors, description: undefined });
+                      }
+                    }}
+                    onBlur={() => handleBlur("description")}
                     placeholder="Descrição da despesa"
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                      touched.description && errors.description ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                    }`}
                     required
                   />
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
+                {touched.description && errors.description && (
+                  <p className="text-sm text-red-500 mt-1">{errors.description}</p>
+                )}
               </div>
             </div>
           </form>
@@ -449,6 +666,7 @@ export default function ExpensesPage() {
   const [manageSupplierTypesOpen, setManageSupplierTypesOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseWithRelations | undefined>();
   const [deletingExpense, setDeletingExpense] = useState<ExpenseWithRelations | undefined>();
+  const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -456,6 +674,32 @@ export default function ExpensesPage() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
   const { showToast } = useToast();
+
+  // Agrupar despesas por mês/ano para a tabela
+  const groupExpensesByMonth = (expensesList: ExpenseWithRelations[]) => {
+    const grouped: { [key: string]: ExpenseWithRelations[] } = {};
+    
+    expensesList.forEach(expense => {
+      // Criar data local para evitar problemas de timezone
+      const date = expense.date instanceof Date 
+        ? expense.date 
+        : new Date(expense.date);
+      
+      // Extrair ano, mês e dia sem considerar timezone
+      // Usar valores locais para garantir consistência
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+      
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = [];
+      }
+      grouped[monthKey].push(expense);
+    });
+
+    // Ordenar por mês (mais recente primeiro)
+    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+  };
 
   // Evitar hydration mismatch e inicializar datas apenas no cliente
   useEffect(() => {
@@ -589,6 +833,7 @@ export default function ExpensesPage() {
   const handleDeleteExpense = async () => {
     if (!deletingExpense) return;
 
+    setIsDeletingExpense(true);
     try {
       const response = await fetch(`/api/expenses/${deletingExpense.id}`, {
         method: "DELETE",
@@ -608,6 +853,8 @@ export default function ExpensesPage() {
         error instanceof Error ? error.message : "Erro ao remover despesa",
         "error"
       );
+    } finally {
+      setIsDeletingExpense(false);
     }
   };
 
@@ -791,7 +1038,12 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de despesa" />
             </SelectTrigger>
-            <SelectContent className="z-[60]">
+            <SelectContent 
+              className="z-[9999] bg-white border border-gray-200 shadow-lg"
+              position="popper"
+              side="bottom"
+              align="start"
+            >
               <SelectItem value="all">Todos os tipos</SelectItem>
               {expenseTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id}>
@@ -810,7 +1062,12 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de fornecedor" />
             </SelectTrigger>
-            <SelectContent className="z-[60]">
+            <SelectContent 
+              className="z-[9999] bg-white border border-gray-200 shadow-lg"
+              position="popper"
+              side="bottom"
+              align="start"
+            >
               <SelectItem value="all">Todos os fornecedores</SelectItem>
               {supplierTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id}>
@@ -965,69 +1222,111 @@ export default function ExpensesPage() {
 
       {/* Tabela de despesas */}
       {viewMode === 'list' && (
-        <AnimatedCard className="p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Descrição</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fornecedor</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Valor</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Data</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
+        <>
+          {/* Exibir despesas agrupadas por mês */}
+          {groupExpensesByMonth(expenses).length > 0 ? (
+            groupExpensesByMonth(expenses).map(([monthKey, monthExpenses]) => {
+              const [year, month] = monthKey.split('-');
+              const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { 
+                month: 'long', 
+                year: 'numeric' 
+              });
+              const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amountCents, 0);
+
+              return (
+                <AnimatedCard key={monthKey} className="mb-6 p-0 overflow-hidden">
+                  {/* Cabeçalho do mês */}
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 px-6 py-4">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                          <Receipt className="h-4 w-4 text-orange-600" />
+                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-orange-600" />
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{expense.description}</div>
+                          <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                            {monthName}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {monthExpenses.length} despesa(s) no período
+                          </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant="outline" className="text-xs">
-                        {expense.type.name}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant="subtle" className="text-xs">
-                        {expense.supplierType.name}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        {formatCurrency(expense.amountCents)}
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Total do mês</p>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatCurrency(monthTotal)}
+                        </p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Calendar className="h-4 w-4" />
-                        {formatDate(expense.date)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <ExpenseActionsMenu
-                        onEdit={() => {
-                          setEditingExpense(expense);
-                          setIsFormOpen(true);
-                        }}
-                        onDelete={() => setDeletingExpense(expense)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </AnimatedCard>
+                    </div>
+                  </div>
+
+                  {/* Tabela de despesas do mês */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Descrição</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fornecedor</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Valor</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Data</th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {monthExpenses.map((expense) => (
+                          <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                                  <Receipt className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-900">{expense.description}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <Badge variant="outline" className="text-xs">
+                                {expense.type.name}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4">
+                              <Badge variant="subtle" className="text-xs">
+                                {expense.supplierType.name}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
+                                <DollarSign className="h-4 w-4 text-green-600" />
+                                {formatCurrency(expense.amountCents)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <Calendar className="h-4 w-4" />
+                                {formatDate(expense.date)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <ExpenseActionsMenu
+                                onEdit={() => {
+                                  setEditingExpense(expense);
+                                  setIsFormOpen(true);
+                                }}
+                                onDelete={() => setDeletingExpense(expense)}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </AnimatedCard>
+              );
+            })
+          ) : null}
+        </>
       )}
 
       {/* Estado vazio para tabela */}
@@ -1220,6 +1519,7 @@ export default function ExpensesPage() {
         onConfirm={handleDeleteExpense}
         title="Remover Despesa"
         description={`Tem certeza que deseja remover a despesa "${deletingExpense?.description}"? Esta ação não pode ser desfeita.`}
+        isLoading={isDeletingExpense}
       />
     </div>
   );
