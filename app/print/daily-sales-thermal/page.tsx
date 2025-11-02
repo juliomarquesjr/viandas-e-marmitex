@@ -249,11 +249,11 @@ function DailySalesThermalContent() {
           orders.map((order, orderIndex) => (
             <div key={order.id} className="thermal-transaction">
               <div className="thermal-transaction-type">
-                VENDA #{order.id.slice(-6).toUpperCase()} - {formatDateTime(order.createdAt)}
+                VENDA #{order.id.slice(-6).toUpperCase()}
               </div>
               
               {order.customer && (
-                <div className="thermal-description">
+                <div className="thermal-customer-name">
                   Cliente: {order.customer.name}
                 </div>
               )}
@@ -329,6 +329,12 @@ function DailySalesThermalContent() {
           margin: 0 auto;
           padding: 8px;
           background: white;
+          color: #000;
+        }
+        
+        /* Forçar cor preta para todos os textos (exceto botões) */
+        .thermal-report *:not(.thermal-btn):not(.thermal-btn *) {
+          color: #000 !important;
         }
         
         /* Cabeçalho */
@@ -361,15 +367,18 @@ function DailySalesThermalContent() {
           font-size: 16px;
           font-weight: 600;
           margin-bottom: 2px;
+          color: #000;
         }
         
         .thermal-subtitle {
           font-size: 13px;
           margin-bottom: 2px;
+          color: #000;
         }
         
         .thermal-date {
           font-size: 12px;
+          color: #000;
         }
         
         /* Seções */
@@ -383,12 +392,14 @@ function DailySalesThermalContent() {
           font-size: 13px;
           font-weight: 600;
           margin-bottom: 4px;
+          color: #000;
         }
         
         .thermal-text {
           font-size: 12px;
           font-weight: 500;
           margin-bottom: 2px;
+          color: #000;
         }
         
         /* Linhas de dados */
@@ -398,6 +409,7 @@ function DailySalesThermalContent() {
           font-size: 14px;
           font-weight: 500;
           margin-bottom: 2px;
+          color: #000;
         }
         
         .thermal-total {
@@ -406,10 +418,12 @@ function DailySalesThermalContent() {
           border-top: 2px solid #000;
           padding-top: 4px;
           margin-top: 4px;
+          color: #000;
         }
         
         .thermal-value {
           font-weight: 500;
+          color: #000;
         }
         
         /* Transações (relatórios) */
@@ -417,11 +431,12 @@ function DailySalesThermalContent() {
           margin-bottom: 6px;
           font-size: 12px;
           font-weight: 500;
+          color: #000;
         }
         
         .thermal-transaction-type {
           font-size: 11px;
-          color: #666;
+          color: #000;
           margin-bottom: 2px;
           font-weight: 600;
         }
@@ -429,6 +444,7 @@ function DailySalesThermalContent() {
         .thermal-transaction-value {
           font-weight: 500;
           font-size: 14px;
+          color: #000;
         }
         
         .thermal-description {
@@ -436,11 +452,22 @@ function DailySalesThermalContent() {
           font-weight: 500;
           word-wrap: break-word;
           margin-bottom: 2px;
+          color: #000;
+        }
+        
+        /* Nome do cliente com ênfase */
+        .thermal-customer-name {
+          font-size: 13px;
+          font-weight: 700;
+          word-wrap: break-word;
+          margin-bottom: 4px;
+          margin-top: 2px;
+          color: #000;
         }
         
         /* Separadores */
         .thermal-divider {
-          border-bottom: 1px solid #333;
+          border-bottom: 1px solid #000;
           margin: 4px 0;
         }
         
@@ -449,7 +476,7 @@ function DailySalesThermalContent() {
           text-align: center;
           font-size: 12px;
           font-weight: 500;
-          color: #333;
+          color: #000;
           margin-top: 8px;
           padding-top: 6px;
           border-top: 3px solid #000;
@@ -528,6 +555,7 @@ function DailySalesThermalContent() {
           * {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .thermal-report {
@@ -535,6 +563,12 @@ function DailySalesThermalContent() {
             width: 58mm;
             margin: 0;
             padding: 2mm;
+            color: #000 !important;
+          }
+          
+          .thermal-report * {
+            color: #000 !important;
+            border-color: #000 !important;
           }
           
           @page {

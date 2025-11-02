@@ -47,10 +47,10 @@ const formatCurrency = (cents: number) => {
 const formatDate = (date: Date | string) => {
   const dateObj = new Date(date);
   
-  // Extrair apenas a parte da data (ano, mês, dia) sem considerar timezone
-  const year = dateObj.getFullYear();
-  const month = dateObj.getMonth();
-  const day = dateObj.getDate();
+  // Extrair apenas a parte da data (ano, mês, dia) considerando UTC
+  const year = dateObj.getUTCFullYear();
+  const month = dateObj.getUTCMonth();
+  const day = dateObj.getUTCDate();
   
   // Criar uma nova data local com os mesmos valores
   const localDate = new Date(year, month, day);
@@ -680,15 +680,14 @@ export default function ExpensesPage() {
     const grouped: { [key: string]: ExpenseWithRelations[] } = {};
     
     expensesList.forEach(expense => {
-      // Criar data local para evitar problemas de timezone
+      // Criar data para evitar problemas de timezone
       const date = expense.date instanceof Date 
         ? expense.date 
         : new Date(expense.date);
       
-      // Extrair ano, mês e dia sem considerar timezone
-      // Usar valores locais para garantir consistência
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
+      // Extrair ano e mês considerando UTC para evitar problemas de timezone
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       
       if (!grouped[monthKey]) {
@@ -738,9 +737,23 @@ export default function ExpensesPage() {
         typeId: filters.typeId === "all" ? "" : filters.typeId,
         supplierTypeId: filters.supplierTypeId === "all" ? "" : filters.supplierTypeId,
       };
+      
+      // Se estiver no modo calendário, carregar todas as despesas do mês atual
+      let limit = pagination.limit;
+      if (viewMode === 'calendar') {
+        // Calcular início e fim do mês atual
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        normalized.startDate = firstDay.toISOString().split('T')[0];
+        normalized.endDate = lastDay.toISOString().split('T')[0];
+        limit = 1000; // Limite alto para garantir que todas as despesas do mês sejam carregadas
+      }
+      
       const params = new URLSearchParams({
         page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+        limit: limit.toString(),
         ...Object.fromEntries(
           Object.entries(normalized).filter(([_, value]) => value !== "")
         ),
@@ -787,7 +800,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (!mounted) return;
     loadExpenses();
-  }, [mounted, pagination.page, filters]);
+  }, [mounted, pagination.page, filters, viewMode, currentMonth]);
 
   useEffect(() => {
     loadTypes();
@@ -1174,11 +1187,11 @@ export default function ExpensesPage() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`h-24 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  className={`min-h-24 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col ${
                     isToday ? 'bg-blue-50 border-blue-200' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1 flex-shrink-0">
                     <span className={`text-sm font-medium ${
                       isToday ? 'text-blue-600' : 'text-gray-900'
                     }`}>
@@ -1191,12 +1204,12 @@ export default function ExpensesPage() {
                     )}
                   </div>
                   
-                  <div className="space-y-1 overflow-hidden">
-                    {dayExpenses.slice(0, 2).map((expense) => (
+                  <div className="flex-1 space-y-1 overflow-y-auto max-h-32">
+                    {dayExpenses.map((expense) => (
                       <div
                         key={expense.id}
                         className="text-xs bg-orange-100 text-orange-800 px-1 py-0.5 rounded truncate cursor-pointer hover:bg-orange-200 transition-colors"
-                        title={expense.supplierType.name}
+                        title={`${expense.supplierType.name} - ${formatCurrency(expense.amountCents)}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleExpenseClick(expense);
@@ -1207,11 +1220,6 @@ export default function ExpensesPage() {
                           : expense.supplierType.name}
                       </div>
                     ))}
-                    {dayExpenses.length > 2 && (
-                      <div className="text-xs text-gray-500">
-                        +{dayExpenses.length - 2} mais
-                      </div>
-                    )}
                   </div>
                 </div>
               );
