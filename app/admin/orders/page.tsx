@@ -1,7 +1,7 @@
 "use client";
 
-import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
+import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Order = {
   id: string;
@@ -298,6 +298,52 @@ export default function AdminOrdersPage() {
   // State for order details modal
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  
+  // Resumo de produtos agregado a partir de allOrders
+  const productSummary = useMemo(() => {
+    const map: { [key: string]: { productId: string; productName: string; totalQuantity: number } } = {};
+    for (const order of allOrders) {
+      for (const item of order.items) {
+        const id = item.product.id;
+        if (map[id]) {
+          map[id].totalQuantity += item.quantity;
+        } else {
+          map[id] = { productId: id, productName: item.product.name, totalQuantity: item.quantity };
+        }
+      }
+    }
+    return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [allOrders]);
+
+  // Scroll horizontal do resumo de produtos
+  const productsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollButtons = () => {
+    const el = productsScrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+  };
+
+  const scrollProducts = (dir: "left" | "right") => {
+    const el = productsScrollRef.current;
+    if (!el) return;
+    const delta = 320; // px por clique
+    el.scrollBy({ left: dir === "left" ? -delta : delta, behavior: "smooth" });
+    setTimeout(updateScrollButtons, 350);
+  };
+
+  useEffect(() => {
+    updateScrollButtons();
+    const el = productsScrollRef.current;
+    if (!el) return;
+    const onScroll = () => updateScrollButtons();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [productSummary]);
 
   const loadOrders = async () => {
     try {
@@ -630,6 +676,101 @@ export default function AdminOrdersPage() {
       <AnimatedCard>
         <SalesFilter onFilterChange={handleFilterChange} />
       </AnimatedCard>
+
+      {/* Resumo agregado de itens (quantidade por produto) */}
+      {allOrders.length > 0 && (
+        <AnimatedCard>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground">
+              Resumo de Produtos nas Vendas do Período
+            </CardTitle>
+            <CardDescription>
+              Quantidade total de cada produto nas vendas filtradas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              if (productSummary.length === 0) {
+                return (
+                  <div className="text-center py-6">
+                    <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">Nenhum produto encontrado nas vendas</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="relative">
+                  {productSummary.length > 4 && (
+                    <>
+                      {/* Gradientes de borda */}
+                      <div className="pointer-events-none absolute left-0 top-0 h-full w-10 bg-gradient-to-r from-background to-transparent z-10" />
+                      <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-background to-transparent z-10" />
+
+                      {/* Setas */}
+                      <button
+                        type="button"
+                        className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border bg-background shadow-md flex items-center justify-center transition-colors ${
+                          canScrollLeft ? "hover:bg-accent" : "opacity-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => canScrollLeft && scrollProducts("left")}
+                        aria-label="Deslizar para a esquerda"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border bg-background shadow-md flex items-center justify-center transition-colors ${
+                          canScrollRight ? "hover:bg-accent" : "opacity-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => canScrollRight && scrollProducts("right")}
+                        aria-label="Deslizar para a direita"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                  <div
+                    ref={productsScrollRef}
+                    className="overflow-x-auto scroll-smooth no-scrollbar"
+                  >
+                    <div className="flex gap-4 pr-10 pl-10">
+                      {productSummary.map((product) => (
+                        <div
+                          key={product.productId}
+                          className="flex min-w-[240px] items-center p-4 bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mr-4">
+                            <Package className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-semibold text-gray-900 truncate">
+                              {product.productName}
+                            </h3>
+                            <div className="mt-1 flex items-center">
+                              <span className="text-lg font-bold text-blue-600">
+                                {product.totalQuantity}
+                              </span>
+                              <span className="ml-2 text-xs text-gray-500">
+                                unidades
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            {/* Ocultar scrollbar de forma cross-browser apenas nesta seção */}
+            <style jsx>{`
+              .no-scrollbar::-webkit-scrollbar { display: none; }
+              .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
+          </CardContent>
+        </AnimatedCard>
+      )}
 
       {/* Tabela de Pedidos */}
       <AnimatedCard>

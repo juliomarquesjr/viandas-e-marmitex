@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 type OrderItem = {
   id: string;
@@ -164,6 +164,22 @@ function DailySalesA4Content() {
     return acc;
   }, {} as Record<string, { count: number; total: number }>);
 
+  // Resumo de produtos (quantidade total por produto)
+  const productSummary = useMemo(() => {
+    const map: Record<string, { productId: string; productName: string; totalQuantity: number }> = {};
+    for (const order of orders) {
+      for (const item of order.items) {
+        const id = item.product.id;
+        if (map[id]) {
+          map[id].totalQuantity += item.quantity;
+        } else {
+          map[id] = { productId: id, productName: item.product.name, totalQuantity: item.quantity };
+        }
+      }
+    }
+    return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [orders]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -257,6 +273,33 @@ function DailySalesA4Content() {
                     <td className="p-2">{method}</td>
                     <td className="p-2 text-center">{data.count}</td>
                     <td className="p-2 text-right font-semibold">{formatCurrency(data.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Resumo de Produtos */}
+      {productSummary.length > 0 && (
+        <div className="mb-2 avoid-break">
+          <h2 className="text-sm font-semibold mb-1 text-gray-800 border-b pb-1">
+            Resumo de Produtos
+          </h2>
+          <div className="border rounded overflow-hidden">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="text-left px-2 py-1 font-semibold">Produto</th>
+                  <th className="text-right px-2 py-1 font-semibold w-16">Qtde</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productSummary.map((p, idx) => (
+                  <tr key={p.productId} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-2 py-1 truncate">{p.productName}</td>
+                    <td className="px-2 py-1 text-right font-semibold">{p.totalQuantity}</td>
                   </tr>
                 ))}
               </tbody>
