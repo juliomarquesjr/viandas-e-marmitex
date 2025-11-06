@@ -296,28 +296,83 @@ export function BudgetModal({
         showToast(`Produtos aplicados para: ${targetDayNames}`, "success");
     };
 
+    // Mapear dia da semana para número (0 = domingo, 1 = segunda, etc.)
+    const getDayOfWeekNumber = (day: DayOfWeek): number => {
+        const dayMap: Record<DayOfWeek, number> = {
+            'sunday': 0,
+            'monday': 1,
+            'tuesday': 2,
+            'wednesday': 3,
+            'thursday': 4,
+            'friday': 5,
+            'saturday': 6
+        };
+        return dayMap[day];
+    };
+
+    // Contar quantas vezes um dia da semana ocorre no range de datas
+    const countDayOccurrences = (dayOfWeek: DayOfWeek, start: Date, end: Date): number => {
+        const targetDayNumber = getDayOfWeekNumber(dayOfWeek);
+        let count = 0;
+        
+        // Criar uma cópia da data de início para não modificar a original
+        // Usar UTC para evitar problemas de timezone
+        const currentDate = new Date(start);
+        currentDate.setHours(0, 0, 0, 0);
+        
+        // Ajustar para o primeiro dia da semana desejado no range
+        const currentDay = currentDate.getDay();
+        const daysToAdd = (targetDayNumber - currentDay + 7) % 7;
+        currentDate.setDate(currentDate.getDate() + daysToAdd);
+        
+        // Se o primeiro dia calculado estiver antes da data de início, pular para a próxima semana
+        if (currentDate < start) {
+            currentDate.setDate(currentDate.getDate() + 7);
+        }
+        
+        // Contar todas as ocorrências do dia da semana no range
+        const endDate = new Date(end);
+        endDate.setHours(23, 59, 59, 999);
+        
+        while (currentDate <= endDate) {
+            count++;
+            currentDate.setDate(currentDate.getDate() + 7); // Próxima semana
+        }
+        
+        return count;
+    };
+
     // Calcular total do orçamento
     const calculateBudgetTotal = () => {
         const enabledDays = budgetDays.filter(day => day.enabled);
         if (enabledDays.length === 0) return 0;
 
-        const totalPerDay = enabledDays.reduce((total, day) => {
+        if (!startDate || !endDate) return 0;
+        
+        // Criar datas sem problemas de timezone
+        const start = new Date(startDate + 'T00:00:00');
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate + 'T23:59:59');
+        end.setHours(23, 59, 59, 999);
+        
+        // Calcular total considerando apenas os dias que realmente ocorrem no período
+        let total = 0;
+        
+        for (const day of enabledDays) {
+            // Calcular total do dia
             const subtotal = day.items.reduce((daySum, item) => {
                 return daySum + (item.product.priceCents * item.quantity);
             }, 0);
             const dayTotal = Math.max(0, subtotal - day.discountCents);
-            return total + dayTotal;
-        }, 0);
+            
+            // Contar quantas vezes este dia da semana ocorre no período
+            const occurrences = countDayOccurrences(day.day, start, end);
+            
+            // Multiplicar o total do dia pelo número de ocorrências
+            total += dayTotal * occurrences;
+        }
 
-        // Calcular número de semanas no período
-        if (!startDate || !endDate) return 0;
-        
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        const weeks = Math.ceil(daysDiff / 7);
-
-        return totalPerDay * weeks;
+        return total;
     };
 
     // Calcular total por dia
@@ -464,6 +519,24 @@ export function BudgetModal({
             style: "currency",
             currency: "BRL",
         }).format(cents / 100);
+    };
+
+    // Calcular total de dias de entrega (soma de todas as ocorrências dos dias habilitados)
+    const calculateTotalDeliveryDays = () => {
+        const enabledDays = budgetDays.filter(day => day.enabled);
+        if (enabledDays.length === 0 || !startDate || !endDate) return 0;
+        
+        const start = new Date(startDate + 'T00:00:00');
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate + 'T23:59:59');
+        end.setHours(23, 59, 59, 999);
+        
+        let totalDays = 0;
+        for (const day of enabledDays) {
+            totalDays += countDayOccurrences(day.day, start, end);
+        }
+        
+        return totalDays;
     };
 
     const enabledDaysCount = budgetDays.filter(day => day.enabled).length;
@@ -755,9 +828,9 @@ export function BudgetModal({
                                     </div>
                                     <div className="text-center p-3 bg-white rounded-lg">
                                         <div className="text-2xl font-bold text-purple-600">
-                                            {Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 7))}
+                                            {calculateTotalDeliveryDays()}
                                         </div>
-                                        <div className="text-sm text-gray-600">Semanas</div>
+                                        <div className="text-sm text-gray-600">Dias de Entrega</div>
                                     </div>
                                 </div>
                             </CardContent>

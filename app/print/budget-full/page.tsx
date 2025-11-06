@@ -407,20 +407,6 @@ function FullBudgetContent() {
                     </div>
                 </div>
 
-                {/* Observações */}
-                <div className="bg-yellow-50 rounded-lg p-3 print:p-2 mb-4 print:mb-2">
-                    <h2 className="text-sm font-semibold text-yellow-800 print:text-xs mb-2 print:mb-1">
-                        Observações Importantes
-                    </h2>
-                    <ul className="space-y-1 print:space-y-0.5 text-xs text-yellow-700 print:text-[10px]">
-                        <li>• Este é um orçamento estimativo baseado nos produtos e quantidades especificadas</li>
-                        <li>• Os valores podem variar conforme a disponibilidade dos produtos</li>
-                        <li>• Preços estão sujeitos a alterações sem aviso prévio</li>
-                        <li>• O orçamento é válido por 7 dias a partir da data de emissão</li>
-                        <li>• Para confirmação do pedido, entre em contato conosco</li>
-                    </ul>
-                </div>
-
                 {/* Informações de Contato */}
                 {contactInfo && (
                     <div className="text-center text-xs text-gray-600 print:text-[10px] mt-2 print:mt-1">
