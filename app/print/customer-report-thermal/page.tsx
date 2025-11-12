@@ -540,8 +540,8 @@ function CustomerReportThermalContent() {
         
         /* Quadro do Saldo Devedor */
         .thermal-debt-balance {
-          border: 1px dashed #666;
-          padding: 3px 4px;
+          border: 2px solid #000;
+          padding: 4px 6px;
           margin-top: 4px;
           margin-bottom: 2px;
         }

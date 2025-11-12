@@ -156,8 +156,22 @@ export async function GET(
     // Calculate totals
     const periodConsumptionCents = periodOrders.reduce((sum, order) => sum + order.totalCents, 0);
     const pendingAmountCents = pendingOrders.reduce((sum, order) => sum + order.totalCents, 0);
-    const totalPaymentsCents = fichaPayments.reduce((sum, payment) => sum + payment.totalCents, 0);
-    const debtBalanceCents = pendingAmountCents - totalPaymentsCents;
+
+    const fichaPaymentsInPeriod = fichaPayments.filter(payment => {
+      return payment.createdAt >= startDateTime && payment.createdAt <= endDateTime;
+    });
+
+    const totalPaymentsInPeriodCents = fichaPaymentsInPeriod.reduce(
+      (sum, payment) => sum + payment.totalCents,
+      0
+    );
+
+    const totalPaymentsAllTimeCents = fichaPayments.reduce(
+      (sum, payment) => sum + payment.totalCents,
+      0
+    );
+
+    const debtBalanceCents = pendingAmountCents - totalPaymentsAllTimeCents;
 
     // Separate pending orders by period (in period vs outside period)
     const pendingInPeriod = pendingOrders.filter(order => 
@@ -183,7 +197,7 @@ export async function GET(
         periodConsumptionCents,
         debtBalanceCents,
         pendingAmountCents,
-        totalPaymentsCents,
+        totalPaymentsCents: totalPaymentsInPeriodCents,
         pendingInPeriodCents,
         pendingOutsidePeriodCents
       },
