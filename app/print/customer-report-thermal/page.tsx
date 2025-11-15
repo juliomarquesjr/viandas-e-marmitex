@@ -1,6 +1,7 @@
 "use client";
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -212,11 +213,10 @@ function CustomerReportThermalContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Gerando Relatório de Fechamento"
+        subtitle="Processando dados do cliente..."
+      />
     );
   }
 
@@ -687,11 +687,10 @@ function CustomerReportThermalContent() {
 export default function CustomerReportThermalPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Carregando Relatório"
+        subtitle="Aguarde um momento..."
+      />
     }>
       <CustomerReportThermalContent />
     </Suspense>

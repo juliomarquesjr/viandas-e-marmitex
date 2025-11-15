@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { ReportLoading } from '@/app/components/ReportLoading';
 
 type Customer = {
   id: string;
@@ -168,12 +169,10 @@ function CustomerReportContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-lg mb-2">Carregando relatório...</div>
-          <div className="text-sm text-gray-500">Aguarde um momento</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Gerando Relatório de Fechamento"
+        subtitle="Processando dados do cliente..."
+      />
     );
   }
 
@@ -427,12 +426,10 @@ function CustomerReportContent() {
 export default function CustomerReportPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-lg mb-2">Carregando relatório...</div>
-          <div className="text-sm text-gray-500">Aguarde um momento</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Carregando Relatório"
+        subtitle="Aguarde um momento..."
+      />
     }>
       <CustomerReportContent />
     </Suspense>

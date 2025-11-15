@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { ReportLoading } from '@/app/components/ReportLoading';
 
 type OrderItem = {
   id: string;
@@ -182,12 +183,10 @@ function DailySalesA4Content() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-lg mb-2">Carregando relatório...</div>
-          <div className="text-sm text-gray-500">Aguarde um momento</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Gerando Relatório de Vendas"
+        subtitle="Processando dados do dia..."
+      />
     );
   }
 
@@ -431,12 +430,10 @@ function DailySalesA4Content() {
 export default function DailySalesA4Page() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-lg mb-2">Carregando relatório...</div>
-          <div className="text-sm text-gray-500">Aguarde um momento</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Carregando Relatório"
+        subtitle="Aguarde um momento..."
+      />
     }>
       <DailySalesA4Content />
     </Suspense>

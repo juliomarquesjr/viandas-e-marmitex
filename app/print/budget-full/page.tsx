@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { ReportLoading } from '@/app/components/ReportLoading';
 
 type BudgetItem = {
     productId: string;
@@ -188,12 +189,10 @@ function FullBudgetContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-                    <p className="mt-4 text-gray-600">Carregando orçamento...</p>
-                </div>
-            </div>
+            <ReportLoading 
+                title="Gerando Orçamento"
+                subtitle="Processando dados..."
+            />
         );
     }
 
@@ -458,12 +457,10 @@ function FullBudgetContent() {
 export default function FullBudgetPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-                    <p className="mt-4 text-gray-600">Carregando...</p>
-                </div>
-            </div>
+            <ReportLoading 
+                title="Carregando Orçamento"
+                subtitle="Aguarde um momento..."
+            />
         }>
             <FullBudgetContent />
         </Suspense>

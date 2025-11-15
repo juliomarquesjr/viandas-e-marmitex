@@ -4,41 +4,14 @@ import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { ProfitReportData } from '@/lib/types';
 
-type OrderItem = {
-  id: string;
-  quantity: number;
-  priceCents: number;
-  product: {
-    id: string;
-    name: string;
-  };
-};
-
-type Order = {
-  id: string;
-  status: string;
-  subtotalCents: number;
-  discountCents: number;
-  deliveryFeeCents: number;
-  totalCents: number;
-  paymentMethod: string | null;
-  createdAt: string;
-  cashReceivedCents?: number;
-  changeCents?: number;
-  items: OrderItem[];
-  customer?: {
-    id: string;
-    name: string;
-    phone?: string;
-  } | null;
-};
-
-function DailySalesThermalContent() {
+function ProfitReportThermalContent() {
   const searchParams = useSearchParams();
-  const dateParam = searchParams.get('date');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [reportData, setReportData] = useState<ProfitReportData | null>(null);
   const [contactInfo, setContactInfo] = useState<{
     address: string;
     phones: { mobile: string; landline: string };
@@ -49,8 +22,8 @@ function DailySalesThermalContent() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (!dateParam) {
-        setError('Data não fornecida');
+      if (!startDate || !endDate) {
+        setError('Período não fornecido');
         setLoading(false);
         return;
       }
@@ -58,25 +31,22 @@ function DailySalesThermalContent() {
       try {
         setLoading(true);
         
-        // Buscar vendas do dia
         const params = new URLSearchParams({
-          startDate: dateParam,
-          endDate: dateParam,
-          size: '1000',
-          page: '1'
+          startDate,
+          endDate,
         });
 
-        const [ordersResponse, configResponse] = await Promise.all([
-          fetch(`/api/orders?${params.toString()}`),
+        const [reportResponse, configResponse] = await Promise.all([
+          fetch(`/api/reports/profits?${params.toString()}`),
           fetch('/api/config')
         ]);
 
-        if (!ordersResponse.ok) {
-          throw new Error('Falha ao carregar vendas');
+        if (!reportResponse.ok) {
+          throw new Error('Falha ao carregar relatório');
         }
 
-        const ordersData = await ordersResponse.json();
-        setOrders(ordersData.data || []);
+        const data = await reportResponse.json();
+        setReportData(data);
 
         // Processar informações de contato e título do sistema
         if (configResponse.ok) {
@@ -99,16 +69,15 @@ function DailySalesThermalContent() {
             contactConfigs.find((c: any) => c.key === 'contact_address_state')?.value,
             contactConfigs.find((c: any) => c.key === 'contact_address_zipcode')?.value,
             contactConfigs.find((c: any) => c.key === 'contact_address_complement')?.value
-          ].filter(part => part && part.trim());
+          ].filter(Boolean);
           
-          const formattedAddress = addressParts.join(', ');
+          const address = addressParts.join(', ');
           
-          // Extrair telefones
           const mobile = contactConfigs.find((c: any) => c.key === 'contact_phone_mobile')?.value || '';
           const landline = contactConfigs.find((c: any) => c.key === 'contact_phone_landline')?.value || '';
           
           setContactInfo({
-            address: formattedAddress,
+            address,
             phones: { mobile, landline }
           });
         }
@@ -120,199 +89,153 @@ function DailySalesThermalContent() {
     };
 
     loadData();
-  }, [dateParam]);
+  }, [startDate, endDate]);
 
   // Auto print when page loads
   useEffect(() => {
-    if (orders.length > 0 && !loading && !error) {
+    if (reportData && !loading && !error) {
       setTimeout(() => {
         window.print();
       }, 500);
     }
-  }, [orders, loading, error]);
+  }, [reportData, loading, error]);
 
   const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
     }).format(cents / 100);
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+    return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getPaymentMethodLabel = (method: string | null) => {
-    const methodMap: { [key: string]: string } = {
-      'cash': 'Dinheiro',
-      'credit': 'Cartão Crédito',
-      'debit': 'Cartão Débito',
-      'pix': 'PIX',
-      'invoice': 'Ficha do Cliente'
-    };
-    return method ? methodMap[method] || method : 'Não informado';
-  };
-
-  // Calcular totais
-  const totalSales = orders.reduce((sum, order) => sum + order.totalCents, 0);
-  const totalOrdersCount = orders.length;
-
   if (loading) {
     return (
       <ReportLoading 
-        title="Gerando Relatório de Vendas"
-        subtitle="Processando dados do dia..."
+        title="Gerando Relatório de Lucros"
+        subtitle="Processando dados financeiros..."
       />
     );
   }
 
-  if (error) {
+  if (error || !reportData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <div className="text-sm mb-2">Erro ao carregar</div>
-          <div className="text-xs">{error}</div>
+      <div className="thermal-report">
+        <div className="thermal-header">
+          <div className="thermal-title">Erro</div>
+          <div className="thermal-subtitle">{error || 'Dados não encontrados'}</div>
         </div>
       </div>
     );
   }
+
+  const { period, revenue, expenses, profit } = reportData;
 
   return (
     <div className="thermal-report">
       {/* Header */}
       <div className="thermal-header">
-        {/* Logo */}
-        <div className="thermal-logo">
-          <img 
-            src="/img/logo_print.png" 
-            alt="Logo" 
-            className="thermal-logo-img"
-          />
-        </div>
-        
-        <div className="thermal-title">
-          {systemTitle}
-        </div>
-        <div className="thermal-subtitle">
-          RELATÓRIO DE VENDAS DIÁRIAS
-        </div>
-        <div className="thermal-date">
-          {dateParam ? formatDate(dateParam) : ''}
+        <div className="thermal-title">{systemTitle}</div>
+        <div className="thermal-subtitle">RELATÓRIO DE LUCROS</div>
+        <div className="thermal-period">
+          {formatDate(period.startDate)} a {formatDate(period.endDate)}
         </div>
       </div>
 
-      {/* Resumo */}
+      {/* Resumo Geral */}
       <div className="thermal-section">
-        <div className="thermal-section-title">
-          RESUMO:
-        </div>
+        <div className="thermal-section-title">RESUMO GERAL</div>
+        
         <div className="thermal-row">
-          <span>Total de Vendas:</span>
-          <span className="thermal-value">
-            {totalOrdersCount}
-          </span>
+          <span>Receitas:</span>
+          <span className="thermal-value">{formatCurrency(revenue.total)}</span>
         </div>
+        <div className="thermal-text" style={{ fontSize: '11px', marginLeft: '4px' }}>
+          Vendas: {formatCurrency(revenue.sales)}
+        </div>
+        <div className="thermal-text" style={{ fontSize: '11px', marginLeft: '4px' }}>
+          Fichas: {formatCurrency(revenue.fichaPayments)}
+        </div>
+        
+        <div className="thermal-divider"></div>
+        
         <div className="thermal-row">
-          <span>Total Recebido:</span>
-          <span className="thermal-value">
-            {formatCurrency(totalSales)}
-          </span>
+          <span>Despesas:</span>
+          <span className="thermal-value">{formatCurrency(expenses.total)}</span>
+        </div>
+        
+        <div className="thermal-divider"></div>
+        
+        <div className="thermal-row" style={{ fontSize: '16px', fontWeight: '600', marginTop: '4px' }}>
+          <span>LUCRO LÍQUIDO:</span>
+          <span className="thermal-value">{formatCurrency(profit.total)}</span>
+        </div>
+        <div className="thermal-text" style={{ fontSize: '12px', textAlign: 'center', marginTop: '2px' }}>
+          Margem: {profit.percentage.toFixed(2)}%
         </div>
       </div>
 
-      {/* Vendas */}
-      <div className="thermal-section">
-        <div className="thermal-section-title">
-          VENDAS:
-        </div>
-        
-        {orders.length === 0 ? (
-          <div className="thermal-text" style={{ textAlign: 'center', marginTop: '8px' }}>
-            Nenhuma venda encontrada
-          </div>
-        ) : (
-          orders.map((order, orderIndex) => (
-            <div key={order.id} className="thermal-transaction">
-              <div className="thermal-transaction-type">
-                VENDA #{order.id.slice(-6).toUpperCase()}
-              </div>
-              
-              {order.customer && (
-                <div className="thermal-customer-name">
-                  Cliente: {order.customer.name}
-                </div>
-              )}
-              
-              <div className="thermal-description">
-                {order.items.map(item => 
-                  `${item.quantity}x ${item.product.name.substring(0, 20)}${item.product.name.length > 20 ? '...' : ''}`
-                ).join(', ')}
-              </div>
-              
-              <div className="thermal-description">
-                Pagamento: {getPaymentMethodLabel(order.paymentMethod)}
-              </div>
-              
+      {/* Despesas por Tipo */}
+      {expenses.details.length > 0 && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">DESPESAS POR TIPO</div>
+          {expenses.details.map((expense) => (
+            <div key={expense.typeId} style={{ marginBottom: '4px' }}>
               <div className="thermal-row">
-                <span>Total:</span>
-                <span className="thermal-transaction-value">
-                  {formatCurrency(order.totalCents)}
+                <span style={{ fontSize: '12px' }}>{expense.typeName}:</span>
+                <span className="thermal-value" style={{ fontSize: '12px' }}>
+                  {formatCurrency(expense.amountCents)}
                 </span>
               </div>
-              
-              {orderIndex < orders.length - 1 && (
-                <div className="thermal-divider"></div>
-              )}
+              <div className="thermal-text" style={{ fontSize: '10px', marginLeft: '4px' }}>
+                {expense.count} despesa(s)
+              </div>
             </div>
-          ))
-        )}
-      </div>
-
-      {/* Totais Finais */}
-      {orders.length > 0 && (
-        <div className="thermal-section">
-          <div className="thermal-section-title">
-            TOTAIS:
-          </div>
-          <div className="thermal-row">
-            <span>Total de Vendas:</span>
-            <span className="thermal-value">
-              {totalOrdersCount}
-            </span>
-          </div>
-          <div className="thermal-row thermal-total">
-            <span>Total Recebido:</span>
-            <span className="thermal-value">
-              {formatCurrency(totalSales)}
-            </span>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Contact Footer */}
+      {/* Top 5 Dias */}
+      {reportData.dailyBreakdown && reportData.dailyBreakdown.length > 0 && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">TOP 5 DIAS</div>
+          {reportData.dailyBreakdown.slice(0, 5).map((day: any, index: number) => {
+            const dayTotal = Number(day.sales_revenue || 0) + Number(day.ficha_revenue || 0);
+            return (
+              <div key={index} style={{ marginBottom: '4px' }}>
+                <div className="thermal-row">
+                  <span style={{ fontSize: '11px' }}>{formatDate(day.date)}:</span>
+                  <span className="thermal-value" style={{ fontSize: '12px' }}>
+                    {formatCurrency(dayTotal)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Footer */}
       <ThermalFooter contactInfo={contactInfo || undefined} />
 
       {/* Print button for screen view */}
       <div className="no-print thermal-print-btn">
-        <button
-          onClick={() => window.print()}
-          className="thermal-btn"
-        >
+        <button className="thermal-btn" onClick={() => window.print()}>
           Imprimir Relatório
         </button>
       </div>
@@ -345,24 +268,6 @@ function DailySalesThermalContent() {
           padding-bottom: 6px;
         }
         
-        /* Logo */
-        .thermal-logo {
-          margin-bottom: 6px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-        
-        .thermal-logo-img {
-          max-width: 50px;
-          max-height: 50px;
-          width: auto;
-          height: auto;
-          filter: brightness(0) contrast(100%);
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        
         .thermal-title {
           font-size: 16px;
           font-weight: 600;
@@ -376,7 +281,7 @@ function DailySalesThermalContent() {
           color: #000;
         }
         
-        .thermal-date {
+        .thermal-period {
           font-size: 12px;
           color: #000;
         }
@@ -412,56 +317,8 @@ function DailySalesThermalContent() {
           color: #000;
         }
         
-        .thermal-total {
-          font-size: 16px;
-          font-weight: 500;
-          border-top: 2px solid #000;
-          padding-top: 4px;
-          margin-top: 4px;
-          color: #000;
-        }
-        
         .thermal-value {
           font-weight: 500;
-          color: #000;
-        }
-        
-        /* Transações (relatórios) */
-        .thermal-transaction {
-          margin-bottom: 6px;
-          font-size: 12px;
-          font-weight: 500;
-          color: #000;
-        }
-        
-        .thermal-transaction-type {
-          font-size: 11px;
-          color: #000;
-          margin-bottom: 2px;
-          font-weight: 600;
-        }
-        
-        .thermal-transaction-value {
-          font-weight: 500;
-          font-size: 14px;
-          color: #000;
-        }
-        
-        .thermal-description {
-          font-size: 12px;
-          font-weight: 500;
-          word-wrap: break-word;
-          margin-bottom: 2px;
-          color: #000;
-        }
-        
-        /* Nome do cliente com ênfase */
-        .thermal-customer-name {
-          font-size: 13px;
-          font-weight: 700;
-          word-wrap: break-word;
-          margin-bottom: 4px;
-          margin-top: 2px;
           color: #000;
         }
         
@@ -581,7 +438,7 @@ function DailySalesThermalContent() {
   );
 }
 
-export default function DailySalesThermalPage() {
+export default function ProfitReportThermalPage() {
   return (
     <Suspense fallback={
       <ReportLoading 
@@ -589,7 +446,7 @@ export default function DailySalesThermalPage() {
         subtitle="Aguarde um momento..."
       />
     }>
-      <DailySalesThermalContent />
+      <ProfitReportThermalContent />
     </Suspense>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -206,11 +207,10 @@ function ThermalBudgetContent() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="text-sm mb-2">Carregando...</div>
-                </div>
-            </div>
+            <ReportLoading 
+                title="Gerando Orçamento"
+                subtitle="Processando dados..."
+            />
         );
     }
 
@@ -650,12 +650,10 @@ function ThermalBudgetContent() {
 export default function ThermalBudgetPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-                    <p className="mt-4 text-gray-600">Carregando...</p>
-                </div>
-            </div>
+            <ReportLoading 
+                title="Carregando Orçamento"
+                subtitle="Aguarde um momento..."
+            />
         }>
             <ThermalBudgetContent />
         </Suspense>

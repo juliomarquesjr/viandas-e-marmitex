@@ -1,6 +1,7 @@
 "use client";
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -184,11 +185,10 @@ function PreOrderThermalContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Gerando Pré-Pedido"
+        subtitle="Processando dados..."
+      />
     );
   }
 
@@ -579,11 +579,10 @@ function PreOrderThermalContent() {
 export default function PreOrderThermalPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Carregando Pré-Pedido"
+        subtitle="Aguarde um momento..."
+      />
     }>
       <PreOrderThermalContent />
     </Suspense>

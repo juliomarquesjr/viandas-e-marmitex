@@ -1,6 +1,7 @@
 "use client";
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -153,11 +154,10 @@ function ThermalReceiptContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Gerando Recibo"
+        subtitle="Processando dados do pedido..."
+      />
     );
   }
 
@@ -566,11 +566,10 @@ function ThermalReceiptContent() {
 export default function ThermalReceiptPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-sm mb-2">Carregando...</div>
-        </div>
-      </div>
+      <ReportLoading 
+        title="Carregando Recibo"
+        subtitle="Aguarde um momento..."
+      />
     }>
       <ThermalReceiptContent />
     </Suspense>

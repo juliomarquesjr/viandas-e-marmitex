@@ -107,6 +107,7 @@ export interface ProfitReportData {
   period: {
     startDate: string;
     endDate: string;
+    days: number;
   };
   revenue: {
     sales: number; // Vendas confirmadas em centavos
@@ -126,9 +127,31 @@ export interface ProfitReportData {
     total: number; // Lucro total em centavos
     percentage: number; // Percentual de lucro
   };
+  metrics: {
+    totalOrders: number;
+    averageTicket: number; // Ticket médio em centavos
+    averageDailyRevenue: number; // Receita média diária em centavos
+    averageDailyExpenses: number; // Despesa média diária em centavos
+  };
   dailyBreakdown: Array<{
     date: string;
     sales_revenue: number;
     ficha_revenue: number;
+  }>;
+  dailyChartData: Array<{
+    date: string;
+    sales_revenue: number;
+    ficha_revenue: number;
+    total_revenue: number;
+    expenses: number;
+    profit: number;
+  }>;
+  topDays: Array<{
+    date: string;
+    sales_revenue: number;
+    ficha_revenue: number;
+    total_revenue: number;
+    expenses: number;
+    profit: number;
   }>;
 }
