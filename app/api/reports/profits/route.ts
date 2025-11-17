@@ -33,10 +33,11 @@ export async function GET(request: Request) {
     const endDateOnly = new Date(endDate + 'T23:59:59.999Z');
 
     // Calcular receitas e métricas
-    // IMPORTANTE: Para relatório de lucros, consideramos TODOS os pedidos (pending + confirmed)
-    // pois mesmo os pendentes representam receita do período
+    // Regra:
+    // - Vendas: TODOS os pedidos não-ficha (pending + confirmed) = R$ 6.094,90 em nov/2025
+    // - Fichas: APENAS confirmadas (entrada real de dinheiro dos clientes)
     const [salesRevenue, fichaPaymentsRevenue, expenses, ordersCount] = await Promise.all([
-      // Vendas (todos os status, excluindo ficha_payment)
+      // Vendas: Todos os pedidos não-ficha (todos os status)
       prisma.order.aggregate({
         where: {
           paymentMethod: { not: 'ficha_payment' },
@@ -53,10 +54,11 @@ export async function GET(request: Request) {
         }
       }),
 
-      // Pagamentos ficha (todos os status)
+      // Pagamentos ficha confirmados (entrada de dinheiro)
       prisma.order.aggregate({
         where: {
           paymentMethod: 'ficha_payment',
+          status: 'confirmed',
           createdAt: {
             gte: startDateTime,
             lte: endDateTime
@@ -154,7 +156,9 @@ export async function GET(request: Request) {
 
     // Buscar detalhes das receitas por dia
     // Converter para timezone do Brasil e retornar como string YYYY-MM-DD para evitar problemas de timezone
-    // IMPORTANTE: Considerar TODOS os pedidos (pending + confirmed) para o relatório de lucros
+    // Regra por dia:
+    // - sales_revenue: TODOS os pedidos não-ficha (pending + confirmed)
+    // - ficha_revenue: SOMENTE fichas confirmadas (entrada de dinheiro)
     const dailyRevenue = await prisma.$queryRaw`
       SELECT 
         TO_CHAR(DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM-DD') as date,
@@ -163,7 +167,7 @@ export async function GET(request: Request) {
           ELSE 0 
         END) as sales_revenue,
         SUM(CASE 
-          WHEN "paymentMethod" = 'ficha_payment' THEN "totalCents"
+          WHEN "paymentMethod" = 'ficha_payment' AND status = 'confirmed' THEN "totalCents"
           ELSE 0 
         END) as ficha_revenue
       FROM "Order"

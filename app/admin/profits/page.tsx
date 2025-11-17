@@ -20,8 +20,6 @@ import { GenerateProfitReportDialog } from "./components/GenerateProfitReportDia
 import { 
   BarChart, 
   Bar, 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -448,70 +446,64 @@ export default function ProfitsPage() {
             </div>
           </div>
 
-          {/* Gráficos */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Gráfico de Evolução Diária */}
-            <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Evolução Diária</h3>
-                <p className="text-sm text-slate-600 mt-1">
-                  Receitas, despesas e lucros ao longo do período
-                </p>
-              </div>
-              {chartData.length > 0 ? (
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickLine={false} 
-                        axisLine={false}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value: number) => `R$ ${value.toFixed(0)}`}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <Tooltip
-                        formatter={(value: number) => formatCurrency(value * 100)}
-                        labelStyle={{ color: "#0f172a", fontWeight: 500 }}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="receita" 
-                        stroke="#22C55E" 
-                        strokeWidth={2}
-                        name="Receita"
-                        dot={{ r: 4 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="despesas" 
-                        stroke="#EF4444" 
-                        strokeWidth={2}
-                        name="Despesas"
-                        dot={{ r: 4 }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="lucro" 
-                        stroke="#3B82F6" 
-                        strokeWidth={2}
-                        name="Lucro"
-                        dot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <ChartLoading message="Carregando dados do gráfico..." />
-              )}
+          {/* Gráfico de Evolução Diária - Linha Completa */}
+          <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-slate-800">Evolução Diária</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Receitas, despesas e lucros ao longo do período
+              </p>
             </div>
+            {chartData.length > 0 ? (
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis 
+                      dataKey="date" 
+                      tickLine={false} 
+                      axisLine={false}
+                      style={{ fontSize: '12px' }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value: number) => `R$ ${value.toFixed(0)}`}
+                      style={{ fontSize: '12px' }}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => formatCurrency(value * 100)}
+                      labelStyle={{ color: "#0f172a", fontWeight: 500 }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="receita" 
+                      fill="#22C55E" 
+                      name="Receita"
+                      radius={[6, 6, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="despesas" 
+                      fill="#EF4444" 
+                      name="Despesas"
+                      radius={[6, 6, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="lucro" 
+                      fill="#3B82F6" 
+                      name="Lucro"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <ChartLoading message="Carregando dados do gráfico..." />
+            )}
+          </div>
 
+          {/* Despesas por Tipo e Top 5 Dias Mais Lucrativos - Lado a Lado */}
+          <div className="grid gap-6 lg:grid-cols-2">
             {/* Gráfico de Despesas por Tipo */}
             <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
               <div className="mb-6">
@@ -548,52 +540,52 @@ export default function ProfitsPage() {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Top 5 Dias Mais Lucrativos */}
-          {reportData.topDays && reportData.topDays.length > 0 && (
-            <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
-              <div className="mb-6 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-sm">
-                  <Award className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Top 5 Dias Mais Lucrativos</h3>
-                  <p className="text-sm text-slate-600 mt-1">
-                    Os dias com maior lucro líquido no período
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {reportData.topDays.map((day, index) => (
-                  <div
-                    key={day.date}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200/60 hover:shadow-md transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold shadow-sm">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {formatDate(day.date)}
-                        </p>
-                        <p className="text-sm text-slate-600">
-                          Receita: {formatCurrency(day.total_revenue)} | 
-                          Despesas: {formatCurrency(day.expenses)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="px-4 py-2 bg-white rounded-lg border border-yellow-200 shadow-sm">
-                      <p className="text-lg font-bold text-green-600">
-                        {formatCurrency(day.profit)}
-                      </p>
-                    </div>
+            {/* Top 5 Dias Mais Lucrativos */}
+            {reportData.topDays && reportData.topDays.length > 0 && (
+              <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-sm">
+                    <Award className="h-5 w-5 text-white" />
                   </div>
-                ))}
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">Top 5 Dias Mais Lucrativos</h3>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Os dias com maior lucro líquido no período
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                  {reportData.topDays.map((day, index) => (
+                    <div
+                      key={day.date}
+                      className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200/60 hover:shadow-md transition-all duration-200"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold shadow-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {formatDate(day.date)}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            Receita: {formatCurrency(day.total_revenue)} | 
+                            Despesas: {formatCurrency(day.expenses)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 bg-white rounded-lg border border-yellow-200 shadow-sm">
+                        <p className="text-lg font-bold text-green-600">
+                          {formatCurrency(day.profit)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Receitas por Dia e Despesas por Tipo - Lado a Lado */}
           <div className="grid gap-6 lg:grid-cols-2">

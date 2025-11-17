@@ -673,6 +673,8 @@ export default function ExpensesPage() {
   const [selectedExpense, setSelectedExpense] = useState<ExpenseWithRelations | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
+  const [allExpenses, setAllExpenses] = useState<ExpenseWithRelations[]>([]);
   const { showToast } = useToast();
 
   // Agrupar despesas por mês/ano para a tabela
@@ -699,6 +701,28 @@ export default function ExpensesPage() {
     // Ordenar por mês (mais recente primeiro)
     return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
   };
+
+  // Obter meses agrupados e dados do mês atual para paginação
+  const monthsGrouped = React.useMemo(() => {
+    if (viewMode === 'list' && allExpenses.length > 0) {
+      return groupExpensesByMonth(allExpenses);
+    }
+    return [];
+  }, [viewMode, allExpenses]);
+
+  // Atualizar expenses quando mudar o índice do mês
+  React.useEffect(() => {
+    if (viewMode === 'list' && monthsGrouped.length > 0) {
+      if (currentMonthIndex >= 0 && currentMonthIndex < monthsGrouped.length) {
+        setExpenses(monthsGrouped[currentMonthIndex][1]);
+        // Não atualizar pagination.page aqui para evitar loop com o useEffect que chama loadExpenses
+        setPagination(prev => ({
+          ...prev,
+          totalPages: monthsGrouped.length
+        }));
+      }
+    }
+  }, [currentMonthIndex, monthsGrouped, viewMode]);
 
   // Evitar hydration mismatch e inicializar datas apenas no cliente
   useEffect(() => {
@@ -738,8 +762,10 @@ export default function ExpensesPage() {
         supplierTypeId: filters.supplierTypeId === "all" ? "" : filters.supplierTypeId,
       };
       
-      // Se estiver no modo calendário, carregar todas as despesas do mês atual
       let limit = pagination.limit;
+      let page = pagination.page;
+      
+      // Se estiver no modo calendário, carregar todas as despesas do mês atual
       if (viewMode === 'calendar') {
         // Calcular início e fim do mês atual
         const year = currentMonth.getFullYear();
@@ -749,10 +775,14 @@ export default function ExpensesPage() {
         normalized.startDate = firstDay.toISOString().split('T')[0];
         normalized.endDate = lastDay.toISOString().split('T')[0];
         limit = 1000; // Limite alto para garantir que todas as despesas do mês sejam carregadas
+      } else if (viewMode === 'list') {
+        // No modo lista, buscar todos os dados do período para paginar por mês no frontend
+        limit = 10000; // Limite muito alto para pegar todos os dados
+        page = 1;
       }
       
       const params = new URLSearchParams({
-        page: pagination.page.toString(),
+        page: page.toString(),
         limit: limit.toString(),
         ...Object.fromEntries(
           Object.entries(normalized).filter(([_, value]) => value !== "")
@@ -762,8 +792,24 @@ export default function ExpensesPage() {
       const response = await fetch(`/api/expenses?${params}`);
       if (!response.ok) throw new Error("Failed to fetch expenses");
       const data = await response.json();
-      setExpenses(data.expenses);
-      setPagination(data.pagination);
+      
+      if (viewMode === 'list') {
+        // No modo lista, armazenar todos os dados e resetar índice do mês
+        setAllExpenses(data.expenses);
+        setCurrentMonthIndex(0);
+        // Agrupar por mês para calcular total de meses
+        const grouped = groupExpensesByMonth(data.expenses);
+        setExpenses(grouped.length > 0 ? grouped[0][1] : []);
+        setPagination({
+          ...pagination,
+          total: data.expenses.length,
+          totalPages: grouped.length
+        });
+      } else {
+        // No modo calendário, usar paginação normal
+        setExpenses(data.expenses);
+        setPagination(data.pagination);
+      }
     } catch (error) {
       console.error("Error loading expenses:", error);
       showToast("Erro ao carregar despesas", "error");
@@ -799,8 +845,16 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    loadExpenses();
-  }, [mounted, pagination.page, filters, viewMode, currentMonth]);
+    // No modo lista, não recarregar quando pagination.page muda (paginação é por mês no frontend)
+    // No modo calendário, recarregar quando currentMonth muda
+    if (viewMode === 'list') {
+      // Só recarregar quando filters ou viewMode mudarem
+      loadExpenses();
+    } else {
+      // No modo calendário, recarregar normalmente
+      loadExpenses();
+    }
+  }, [mounted, filters, viewMode, currentMonth]);
 
   useEffect(() => {
     loadTypes();
@@ -874,6 +928,7 @@ export default function ExpensesPage() {
   // Aplicar filtros
   const applyFilters = () => {
     setPagination({ ...pagination, page: 1 });
+    setCurrentMonthIndex(0); // Resetar para o primeiro mês ao aplicar filtros
     loadExpenses();
   };
 
@@ -941,6 +996,7 @@ export default function ExpensesPage() {
 
   const handleViewModeChange = (mode: 'list' | 'calendar') => {
     setViewMode(mode);
+    setCurrentMonthIndex(0); // Resetar para o primeiro mês ao mudar de modo
     localStorage.setItem('expenses-view-mode', mode);
   };
 
@@ -1231,9 +1287,9 @@ export default function ExpensesPage() {
       {/* Tabela de despesas */}
       {viewMode === 'list' && (
         <>
-          {/* Exibir despesas agrupadas por mês */}
-          {groupExpensesByMonth(expenses).length > 0 ? (
-            groupExpensesByMonth(expenses).map(([monthKey, monthExpenses]) => {
+          {/* Exibir despesas do mês atual */}
+          {monthsGrouped.length > 0 && currentMonthIndex < monthsGrouped.length ? (() => {
+            const [monthKey, monthExpenses] = monthsGrouped[currentMonthIndex];
               const [year, month] = monthKey.split('-');
               const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { 
                 month: 'long', 
@@ -1241,32 +1297,32 @@ export default function ExpensesPage() {
               });
               const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amountCents, 0);
 
-              return (
-                <AnimatedCard key={monthKey} className="mb-6 p-0 overflow-hidden">
-                  {/* Cabeçalho do mês */}
-                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 px-6 py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                          <Calendar className="h-5 w-5 text-orange-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                            {monthName}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            {monthExpenses.length} despesa(s) no período
-                          </p>
-                        </div>
+            return (
+              <AnimatedCard key={monthKey} className="mb-6 p-0 overflow-hidden">
+                {/* Cabeçalho do mês */}
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                        <Calendar className="h-5 w-5 text-orange-600" />
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600">Total do mês</p>
-                        <p className="text-xl font-bold text-green-600">
-                          {formatCurrency(monthTotal)}
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                          {monthName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {monthExpenses.length} despesa(s) no período
                         </p>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Total do mês</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {formatCurrency(monthTotal)}
+                      </p>
+                    </div>
                   </div>
+                </div>
 
                   {/* Tabela de despesas do mês */}
                   <div className="overflow-x-auto">
@@ -1332,8 +1388,7 @@ export default function ExpensesPage() {
                   </div>
                 </AnimatedCard>
               );
-            })
-          ) : null}
+          })() : null}
         </>
       )}
 
@@ -1356,34 +1411,48 @@ export default function ExpensesPage() {
         </AnimatedCard>
       )}
 
-      {/* Paginação */}
-      {viewMode === 'list' && pagination.totalPages > 1 && (
+      {/* Paginação por mês */}
+      {viewMode === 'list' && monthsGrouped.length > 1 && (
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            onClick={() =>
-              setPagination({ ...pagination, page: pagination.page - 1 })
-            }
-            disabled={pagination.page === 1}
+            onClick={() => {
+              if (currentMonthIndex > 0) {
+                setCurrentMonthIndex(currentMonthIndex - 1);
+              }
+            }}
+            disabled={currentMonthIndex === 0}
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
-            Anterior
+            Mês Anterior
           </Button>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Página {pagination.page} de {pagination.totalPages}
-            </span>
+            {currentMonthIndex < monthsGrouped.length && (() => {
+              const [monthKey] = monthsGrouped[currentMonthIndex];
+              const [year, month] = monthKey.split('-');
+              const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { 
+                month: 'long', 
+                year: 'numeric' 
+              });
+              return (
+                <span className="text-sm text-muted-foreground capitalize">
+                  {monthName} ({currentMonthIndex + 1} de {monthsGrouped.length})
+                </span>
+              );
+            })()}
           </div>
 
           <Button
             variant="outline"
-            onClick={() =>
-              setPagination({ ...pagination, page: pagination.page + 1 })
-            }
-            disabled={pagination.page === pagination.totalPages}
+            onClick={() => {
+              if (currentMonthIndex < monthsGrouped.length - 1) {
+                setCurrentMonthIndex(currentMonthIndex + 1);
+              }
+            }}
+            disabled={currentMonthIndex >= monthsGrouped.length - 1}
           >
-            Próxima
+            Próximo Mês
             <ChevronRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
