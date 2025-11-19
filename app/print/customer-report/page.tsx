@@ -44,6 +44,17 @@ type FichaPayment = {
   status: string;
 };
 
+type MonthlySummary = {
+  month: string;
+  monthFormatted: string;
+  initialBalanceCents: number;
+  purchasesCents: number;
+  paymentsCents: number;
+  monthlyBalanceCents: number;
+  finalBalanceCents: number;
+  status: 'devedor' | 'credito' | 'zerado';
+};
+
 type ReportData = {
   customer: Customer;
   period: {
@@ -69,6 +80,7 @@ type ReportData = {
     };
     fichaPayments: FichaPayment[];
   };
+  monthlySummary?: MonthlySummary[];
   metadata: {
     generatedAt: string;
     totalPeriodOrders: number;
@@ -101,7 +113,10 @@ function CustomerReportContent() {
       try {
         setLoading(true);
         const response = await fetch(
-          `/api/customers/${customerId}/report?startDate=${startDate}&endDate=${endDate}`
+          `/api/customers/${customerId}/report?startDate=${startDate}&endDate=${endDate}`,
+          {
+            credentials: 'include'
+          }
         );
 
         if (!response.ok) {
@@ -301,40 +316,60 @@ function CustomerReportContent() {
         </div>
       </div>
 
-      {/* Financial Summary - Ultra Compact */}
-      <div className="mb-3 avoid-break">
-        <h2 className="text-sm font-semibold mb-1 text-gray-800 border-b pb-1">
-          Resumo Financeiro
-        </h2>
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          {showDebtBalance && (
-            <div className="text-center border rounded p-1">
-              <div className="font-medium text-gray-600">Saldo Devedor</div>
-              <div className={`text-sm font-bold ${
-                summary.debtBalanceCents > 0 ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {formatCurrency(summary.debtBalanceCents)}
-              </div>
-            </div>
-          )}
-          {showPeriodBalance && (
-            <div className="text-center border rounded p-1">
-              <div className="font-medium text-gray-600">Saldo Período</div>
-              <div className="text-sm font-bold text-orange-600">
-                {formatCurrency(summary.pendingInPeriodCents)}
-              </div>
-            </div>
-          )}
-          {showPaymentsTotal && (
-            <div className="text-center border rounded p-1">
-              <div className="font-medium text-gray-600">Pagamentos</div>
-              <div className="text-sm font-bold text-blue-600">
-                {formatCurrency(summary.totalPaymentsCents)}
-              </div>
-            </div>
-          )}
+      {/* Monthly Summary - Resumo Mensal */}
+      {reportData.monthlySummary && reportData.monthlySummary.length > 0 && (
+        <div className="mb-4 avoid-break">
+          <h2 className="text-sm font-semibold mb-2 text-gray-800 border-b pb-1">
+            Resumo Mensal
+          </h2>
+          <div className="border rounded overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="text-right p-2 font-semibold">Saldo Anterior</th>
+                  <th className="text-right p-2 font-semibold">Compras Período</th>
+                  <th className="text-right p-2 font-semibold">Pagamento Período</th>
+                  <th className="text-right p-2 font-bold text-base bg-yellow-100">Valor a Pagar</th>
+                  <th className="text-center p-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportData.monthlySummary.map((month, index) => (
+                  <tr key={month.month} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className={`p-2 text-right font-semibold ${
+                      month.initialBalanceCents > 0 ? 'text-red-600' : 
+                      month.initialBalanceCents < 0 ? 'text-green-600' : 
+                      'text-gray-600'
+                    }`}>
+                      {month.initialBalanceCents >= 0 ? '+' : ''}{formatCurrency(month.initialBalanceCents)}
+                    </td>
+                    <td className="p-2 text-right">{formatCurrency(month.purchasesCents)}</td>
+                    <td className="p-2 text-right">{formatCurrency(month.paymentsCents)}</td>
+                    <td className={`p-2 text-right font-bold text-base border-2 ${
+                      month.status === 'devedor' ? 'text-red-700 bg-red-50 border-red-300' : 
+                      month.status === 'credito' ? 'text-green-700 bg-green-50 border-green-300' : 
+                      'text-gray-700 bg-gray-50 border-gray-300'
+                    }`}>
+                      {formatCurrency(month.finalBalanceCents)}
+                    </td>
+                    <td className="p-2 text-center">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        month.status === 'devedor' ? 'bg-red-100 text-red-700' : 
+                        month.status === 'credito' ? 'bg-green-100 text-green-700' : 
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {month.status === 'devedor' ? 'DEVEDOR' : 
+                         month.status === 'credito' ? 'CRÉDITO' : 
+                         'ZERADO'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Complete Transaction History - Compact */}
       {allTransactions.length > 0 && (

@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request) {
   try {
@@ -44,8 +45,11 @@ export async function GET(request: Request) {
       prisma.customer.count({ where })
     ]);
     
+    // Não retornar senhas
+    const customersWithoutPasswords = customers.map(({ password, ...customer }) => customer);
+    
     return NextResponse.json({
-      data: customers,
+      data: customersWithoutPasswords,
       ...(shouldPaginate && {
         pagination: {
           page,
@@ -76,6 +80,12 @@ export async function POST(request: Request) {
       );
     }
     
+    // Hash da senha se fornecida e não vazia
+    let hashedPassword = undefined;
+    if (body.password && typeof body.password === 'string' && body.password.trim()) {
+      hashedPassword = await bcrypt.hash(body.password.trim(), 10);
+    }
+    
     const customer = await prisma.customer.create({
       data: {
         name: body.name,
@@ -83,16 +93,20 @@ export async function POST(request: Request) {
         email: body.email,
         doc: body.doc,
         barcode: body.barcode,
+        password: hashedPassword,
         address: body.address ? JSON.parse(JSON.stringify(body.address)) : undefined,
         active: body.active !== undefined ? body.active : true
       }
     });
     
-    return NextResponse.json(customer);
+    // Não retornar a senha
+    const { password, ...customerWithoutPassword } = customer;
+    return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error creating customer:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create customer';
     return NextResponse.json(
-      { error: 'Failed to create customer' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -101,7 +115,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, ...data } = body;
+    const { id, password, ...data } = body;
     
     if (!id) {
       return NextResponse.json(
@@ -118,24 +132,35 @@ export async function PUT(request: Request) {
       );
     }
     
+    // Preparar dados de atualização
+    const updateData: any = {
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      doc: data.doc,
+      barcode: data.barcode,
+      address: data.address ? JSON.parse(JSON.stringify(data.address)) : undefined,
+      active: data.active !== undefined ? data.active : true
+    };
+    
+    // Hash da senha se fornecida e não vazia
+    if (password && typeof password === 'string' && password.trim()) {
+      updateData.password = await bcrypt.hash(password.trim(), 10);
+    }
+    
     const customer = await prisma.customer.update({
       where: { id },
-      data: {
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        doc: data.doc,
-        barcode: data.barcode,
-        address: data.address ? JSON.parse(JSON.stringify(data.address)) : undefined,
-        active: data.active !== undefined ? data.active : true
-      }
+      data: updateData
     });
     
-    return NextResponse.json(customer);
+    // Não retornar a senha
+    const { password: _, ...customerWithoutPassword } = customer;
+    return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error updating customer:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update customer';
     return NextResponse.json(
-      { error: 'Failed to update customer' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

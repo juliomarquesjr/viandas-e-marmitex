@@ -18,7 +18,9 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(customer);
+    // Não retornar a senha
+    const { password, ...customerWithoutPassword } = customer;
+    return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error fetching customer:', error);
     return NextResponse.json(

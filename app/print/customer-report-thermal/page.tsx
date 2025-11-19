@@ -45,6 +45,17 @@ type FichaPayment = {
   status: string;
 };
 
+type MonthlySummary = {
+  month: string;
+  monthFormatted: string;
+  initialBalanceCents: number;
+  purchasesCents: number;
+  paymentsCents: number;
+  monthlyBalanceCents: number;
+  finalBalanceCents: number;
+  status: 'devedor' | 'credito' | 'zerado';
+};
+
 type ReportData = {
   customer: Customer;
   period: {
@@ -70,6 +81,7 @@ type ReportData = {
     };
     fichaPayments: FichaPayment[];
   };
+  monthlySummary?: MonthlySummary[];
   metadata: {
     generatedAt: string;
     totalPeriodOrders: number;
@@ -109,8 +121,12 @@ function CustomerReportThermalContent() {
         
         // Carregar relatório e informações de contato em paralelo
         const [reportResponse, configResponse] = await Promise.all([
-          fetch(`/api/customers/${customerId}/report?startDate=${startDate}&endDate=${endDate}`),
-          fetch('/api/config')
+          fetch(`/api/customers/${customerId}/report?startDate=${startDate}&endDate=${endDate}`, {
+            credentials: 'include'
+          }),
+          fetch('/api/config', {
+            credentials: 'include'
+          })
         ]);
 
         if (!reportResponse.ok) {
@@ -327,63 +343,54 @@ function CustomerReportThermalContent() {
         )}
       </div>
 
-      {/* Financial Summary - Compact */}
-      <div className="thermal-section">
-        <div className="thermal-section-title">
-          RESUMO FINANCEIRO:
-        </div>
-        
-        {showPeriodBalance && (
-          <div className="thermal-row">
-            <span>Saldo Período:</span>
-            <span className="thermal-value">
-              {formatCurrency(summary.pendingInPeriodCents)}
-            </span>
+      {/* Monthly Summary - Resumo Mensal */}
+      {reportData.monthlySummary && reportData.monthlySummary.length > 0 && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">
+            RESUMO MENSAL:
           </div>
-        )}
-        
-        {/* Mostrar Tot. Pagamentos apenas se houver pagamentos realizados no período */}
-        {showPaymentsTotal && (() => {
-          // Verificar se há pagamentos no período
-          const paymentsInPeriod = details.fichaPayments.filter(payment => {
-            const paymentDate = new Date(payment.createdAt);
-            const startDateTime = new Date(period.startDateTime);
-            const endDateTime = new Date(period.endDateTime);
-            return paymentDate >= startDateTime && paymentDate <= endDateTime;
-          });
           
-          // Só exibe se houver pagamentos no período
-          if (paymentsInPeriod.length > 0) {
-            // Calcular o total dos pagamentos apenas do período
-            const totalPaymentsInPeriodCents = paymentsInPeriod.reduce(
-              (total, payment) => total + payment.totalCents, 
-              0
-            );
-            
-            return (
-              <div className="thermal-row">
-                <span>Pagamentos:</span>
-                <span className="thermal-value">
-                  {formatCurrency(totalPaymentsInPeriodCents)}
+          {reportData.monthlySummary.map((month, index) => (
+            <div key={month.month} style={{ marginBottom: '6px', borderBottom: index < reportData.monthlySummary!.length - 1 ? '1px solid #333' : 'none', paddingBottom: '4px' }}>
+              <div className="thermal-row" style={{ fontSize: '11px' }}>
+                <span>Saldo Anterior:</span>
+                <span style={{ fontWeight: '600' }}>
+                  {month.initialBalanceCents >= 0 ? '+' : ''}{formatCurrency(month.initialBalanceCents)}
                 </span>
               </div>
-            );
-          }
-          return null;
-        })()}
-        
-        {/* Saldo Devedor - abaixo de pagamentos com quadro */}
-        {showDebtBalance && (
-          <div className="thermal-debt-balance">
-            <div className="thermal-row">
-              <span>Saldo Devedor:</span>
-              <span className="thermal-value">
-                {formatCurrency(summary.debtBalanceCents)}
-              </span>
+              
+              <div className="thermal-row" style={{ fontSize: '11px' }}>
+                <span>Compras Período:</span>
+                <span>{formatCurrency(month.purchasesCents)}</span>
+              </div>
+              
+              <div className="thermal-row" style={{ fontSize: '11px' }}>
+                <span>Pagamento Período:</span>
+                <span>{formatCurrency(month.paymentsCents)}</span>
+              </div>
+              
+              <div className="thermal-debt-balance" style={{ marginTop: '4px', marginBottom: '2px' }}>
+                <div className="thermal-row" style={{ fontSize: '13px', fontWeight: '700' }}>
+                  <span>Valor a Pagar:</span>
+                  <span style={{ 
+                    color: '#000',
+                    fontWeight: '700',
+                    fontSize: '14px'
+                  }}>
+                    {formatCurrency(month.finalBalanceCents)}
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ fontSize: '10px', textAlign: 'right', marginTop: '2px', fontWeight: '600' }}>
+                {month.status === 'devedor' && 'DEVEDOR'}
+                {month.status === 'credito' && 'CREDITO'}
+                {month.status === 'zerado' && 'ZERADO'}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Transaction History - Compact */}
       {allTransactions.length > 0 && (

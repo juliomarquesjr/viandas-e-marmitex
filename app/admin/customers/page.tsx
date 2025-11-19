@@ -151,6 +151,7 @@ export default function AdminCustomersPage() {
     email: "",
     doc: "",
     barcode: "",
+    password: "",
     street: "",
     number: "",
     complement: "",
@@ -225,6 +226,7 @@ export default function AdminCustomersPage() {
       email: "",
       doc: "",
       barcode: "",
+      password: "",
       street: "",
       number: "",
       complement: "",
@@ -246,6 +248,7 @@ export default function AdminCustomersPage() {
         email: customer.email || "",
         doc: customer.doc || "",
         barcode: customer.barcode || "",
+        password: "", // Não preencher senha ao editar por segurança
         street: address.street || "",
         number: address.number || "",
         complement: address.complement || "",
@@ -294,7 +297,7 @@ export default function AdminCustomersPage() {
         zip: formData.zip,
       };
 
-      const customerData = {
+      const customerData: any = {
         name: formData.name,
         phone: formData.phone,
         email: formData.email || undefined,
@@ -304,6 +307,11 @@ export default function AdminCustomersPage() {
         active: formData.active,
       };
 
+      // Incluir senha apenas se fornecida e não vazia
+      if (formData.password && formData.password.trim()) {
+        customerData.password = formData.password.trim();
+      }
+
       if (editingCustomer) {
         // Editar cliente existente
         const response = await fetch(`/api/customers`, {
@@ -312,7 +320,10 @@ export default function AdminCustomersPage() {
           body: JSON.stringify({ id: editingCustomer.id, ...customerData }),
         });
 
-        if (!response.ok) throw new Error("Failed to update customer");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to update customer");
+        }
         const updatedCustomer = await response.json();
 
         // Verificar se o código de barras foi alterado
@@ -347,7 +358,10 @@ export default function AdminCustomersPage() {
           body: JSON.stringify(customerData),
         });
 
-        if (!response.ok) throw new Error("Failed to create customer");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to create customer");
+        }
         const newCustomer = await response.json();
 
         // Verificar se o código de barras foi definido

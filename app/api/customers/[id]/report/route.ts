@@ -161,17 +161,35 @@ export async function GET(
       return payment.createdAt >= startDateTime && payment.createdAt <= endDateTime;
     });
 
+    // Filtrar pagamentos de ficha até a data de final do fechamento (para cálculo do saldo devedor)
+    const fichaPaymentsUntilEndDate = fichaPayments.filter(payment => {
+      return payment.createdAt <= endDateTime;
+    });
+
+    // Filtrar pedidos pendentes até a data de final do fechamento (para cálculo do saldo devedor)
+    const pendingOrdersUntilEndDate = pendingOrders.filter(order => {
+      return order.createdAt <= endDateTime;
+    });
+
     const totalPaymentsInPeriodCents = fichaPaymentsInPeriod.reduce(
       (sum, payment) => sum + payment.totalCents,
       0
     );
 
-    const totalPaymentsAllTimeCents = fichaPayments.reduce(
+    // Calcular total de pagamentos até a data de final do fechamento (não incluir pagamentos posteriores)
+    const totalPaymentsUntilEndDateCents = fichaPaymentsUntilEndDate.reduce(
       (sum, payment) => sum + payment.totalCents,
       0
     );
 
-    const debtBalanceCents = pendingAmountCents - totalPaymentsAllTimeCents;
+    // Calcular total de pedidos pendentes até a data de final do fechamento
+    const pendingAmountUntilEndDateCents = pendingOrdersUntilEndDate.reduce(
+      (sum, order) => sum + order.totalCents,
+      0
+    );
+
+    // Saldo devedor deve considerar apenas pedidos pendentes e pagamentos até a data de final do fechamento
+    const debtBalanceCents = pendingAmountUntilEndDateCents - totalPaymentsUntilEndDateCents;
 
     // Separate pending orders by period (in period vs outside period)
     const pendingInPeriod = pendingOrders.filter(order => 
@@ -183,6 +201,103 @@ export async function GET(
 
     const pendingInPeriodCents = pendingInPeriod.reduce((sum, order) => sum + order.totalCents, 0);
     const pendingOutsidePeriodCents = pendingOutsidePeriod.reduce((sum, order) => sum + order.totalCents, 0);
+
+    // Calcular resumo mensal (agrupar por mês dentro do período)
+    const monthlySummary: Array<{
+      month: string;
+      monthFormatted: string;
+      initialBalanceCents: number;
+      purchasesCents: number;
+      paymentsCents: number;
+      monthlyBalanceCents: number;
+      finalBalanceCents: number;
+      status: 'devedor' | 'credito' | 'zerado';
+    }> = [];
+
+    try {
+      // Calcular saldo inicial (antes do período)
+      const ordersBeforePeriod = pendingOrders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        return orderDate < startDateTime;
+      });
+      const paymentsBeforePeriod = fichaPayments.filter(p => {
+        const paymentDate = new Date(p.createdAt);
+        return paymentDate < startDateTime;
+      });
+      const initialBalanceCents = 
+        ordersBeforePeriod.reduce((sum, o) => sum + o.totalCents, 0) -
+        paymentsBeforePeriod.reduce((sum, p) => sum + p.totalCents, 0);
+
+      // Agrupar transações do período por mês
+      const monthlyGroups = new Map<string, {
+        purchases: number;
+        payments: number;
+      }>();
+
+      // Adicionar compras do período
+      periodOrders.forEach(order => {
+        try {
+          const orderDate = new Date(order.createdAt);
+          const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
+          if (!monthlyGroups.has(monthKey)) {
+            monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
+          }
+          const group = monthlyGroups.get(monthKey);
+          if (group) {
+            group.purchases += order.totalCents;
+          }
+        } catch (err) {
+          console.error('Error processing order date:', err);
+        }
+      });
+
+      // Adicionar pagamentos do período
+      fichaPaymentsInPeriod.forEach(payment => {
+        try {
+          const paymentDate = new Date(payment.createdAt);
+          const monthKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+          if (!monthlyGroups.has(monthKey)) {
+            monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
+          }
+          const group = monthlyGroups.get(monthKey);
+          if (group) {
+            group.payments += payment.totalCents;
+          }
+        } catch (err) {
+          console.error('Error processing payment date:', err);
+        }
+      });
+
+      // Ordenar meses e calcular saldos acumulados
+      const sortedMonths = Array.from(monthlyGroups.keys()).sort();
+      let accumulatedBalance = initialBalanceCents;
+
+      sortedMonths.forEach((monthKey) => {
+        const group = monthlyGroups.get(monthKey);
+        if (!group) return;
+
+        const monthlyBalance = group.purchases - group.payments;
+        const initialBalance = accumulatedBalance;
+        accumulatedBalance += monthlyBalance;
+
+        const [year, month] = monthKey.split('-');
+        const monthFormatted = `${month}/${year}`;
+
+        monthlySummary.push({
+          month: monthKey,
+          monthFormatted,
+          initialBalanceCents: initialBalance,
+          purchasesCents: group.purchases,
+          paymentsCents: group.payments,
+          monthlyBalanceCents: monthlyBalance,
+          finalBalanceCents: accumulatedBalance,
+          status: accumulatedBalance > 0 ? 'devedor' : accumulatedBalance < 0 ? 'credito' : 'zerado'
+        });
+      });
+    } catch (error) {
+      console.error('Error calculating monthly summary:', error);
+      // Continua sem o resumo mensal se houver erro
+    }
 
     // Prepare report data
     const reportData = {
@@ -210,6 +325,7 @@ export async function GET(
         },
         fichaPayments
       },
+      monthlySummary,
       metadata: {
         generatedAt: new Date(),
         totalPeriodOrders: periodOrders.length,

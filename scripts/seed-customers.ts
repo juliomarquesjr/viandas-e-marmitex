@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import bcrypt from 'bcryptjs';
 
 async function main() {
   const customers = [
@@ -92,15 +93,32 @@ async function main() {
     });
 
     if (!existingCustomer) {
+      // Criar senha padrão baseada no telefone (sem formatação)
+      const phoneWithoutFormatting = customerData.phone.replace(/\D/g, '');
+      const defaultPassword = await bcrypt.hash(phoneWithoutFormatting, 10);
+      
       await prisma.customer.create({
         data: {
           ...customerData,
+          password: defaultPassword, // Senha padrão é o telefone sem formatação
           address: customerData.address ? JSON.stringify(customerData.address) : undefined
         }
       });
-      console.log(`Created customer: ${customerData.name}`);
+      console.log(`Created customer: ${customerData.name} - Senha padrão: ${phoneWithoutFormatting}`);
     } else {
-      console.log(`Customer already exists: ${customerData.name}`);
+      // Se o cliente já existe mas não tem senha, criar uma
+      if (!existingCustomer.password) {
+        const phoneWithoutFormatting = customerData.phone.replace(/\D/g, '');
+        const defaultPassword = await bcrypt.hash(phoneWithoutFormatting, 10);
+        
+        await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: { password: defaultPassword }
+        });
+        console.log(`Updated customer password: ${customerData.name} - Senha padrão: ${phoneWithoutFormatting}`);
+      } else {
+        console.log(`Customer already exists: ${customerData.name}`);
+      }
     }
   }
 }

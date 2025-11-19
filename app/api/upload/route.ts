@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     try {
       console.log('Lendo formData');
-      const formData = await request.formData();
+      const formData = await request.formData() as unknown as FormData;
       console.log('FormData recebido:', [...formData.entries()]);
       
       const file = formData.get('file') as File;

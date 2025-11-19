@@ -1,9 +1,9 @@
 import { authOptions } from '@/lib/auth';
+import { readFile, unlink, writeFile } from 'fs/promises';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
-import { writeFile, unlink, readFile } from 'fs/promises';
-import { join } from 'path';
 import { tmpdir } from 'os';
+import { join } from 'path';
 import { Client } from 'pg';
 
 export async function POST(req: Request) {
@@ -30,10 +30,13 @@ export async function POST(req: Request) {
     }
 
     // Obter dados do formulário
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const confirmed = formData.get('confirmed') === 'true';
-    const autoBackupEnabled = formData.get('autoBackup') === 'true';
+    const formData = await req.formData() as unknown as FormData;
+    const fileEntry = formData.get('file');
+    const file = fileEntry instanceof File ? fileEntry : null;
+    const confirmedEntry = formData.get('confirmed');
+    const confirmed = String(confirmedEntry) === 'true';
+    const autoBackupEntry = formData.get('autoBackup');
+    const autoBackupEnabled = String(autoBackupEntry) === 'true';
 
     // Validações
     if (!file) {

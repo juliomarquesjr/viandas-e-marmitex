@@ -5,6 +5,7 @@ import {
     Barcode as BarcodeIcon,
     Check,
     FileText,
+    Lock,
     Mail,
     MapPin,
     Phone,
@@ -22,6 +23,7 @@ interface CustomerFormData {
   email: string;
   doc: string;
   barcode: string;
+  password: string;
   street: string;
   number: string;
   complement: string;
@@ -205,6 +207,29 @@ export function CustomerFormDialog({
                   />
                   <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Senha {editingCustomer ? "(deixe em branco para não alterar)" : ""}
+                </label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    placeholder={editingCustomer ? "Nova senha (opcional)" : "Senha para acesso ao app"}
+                    value={formData.password}
+                    onChange={(e) =>
+                      updateFormData("password", e.target.value)
+                    }
+                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                  />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {!editingCustomer && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Senha para o cliente acessar o aplicativo mobile
+                  </p>
+                )}
               </div>
 
               {/* Barcode Section */}

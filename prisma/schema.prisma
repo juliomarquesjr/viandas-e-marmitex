@@ -34,6 +34,7 @@ model Customer {
   email      String?  @unique
   doc        String?  // CPF/CNPJ
   barcode    String?  @unique // Código de barras para identificação rápida no PDV
+  password   String?  // Senha para acesso ao app mobile (hash bcrypt)
   address    Json?    // Endereço em formato JSON
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
