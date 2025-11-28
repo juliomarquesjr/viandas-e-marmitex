@@ -298,18 +298,22 @@ export async function POST(req: Request) {
             const isIgnorableError = 
               errorMsg.includes('already exists') || 
               errorMsg.includes('does not exist') ||
-              errorMsg.includes('relation') ||
-              errorMsg.includes('constraint') ||
+              (errorMsg.includes('relation') && !errorMsg.includes('syntax')) ||
+              (errorMsg.includes('constraint') && !errorMsg.includes('syntax')) ||
               errorMsg.includes('duplicate') ||
-              errorMsg.includes('no schema has been selected') ||
-              errorMsg.includes('syntax error') ||
-              errorMsg.includes('current transaction is aborted');
+              errorMsg.includes('no schema has been selected');
+            
+            // Erros de sintaxe são CRÍTICOS e não devem ser ignorados
+            if (errorMsg.includes('syntax error')) {
+              console.error('[RESTORE] ERRO CRÍTICO: Erro de sintaxe no SQL:', command.substring(0, 200));
+              console.error('[RESTORE] Erro completo:', error.message);
+              await client.query('ROLLBACK');
+              throw new Error(`Erro de sintaxe SQL ao restaurar backup: ${error.message}. Comando: ${command.substring(0, 200)}`);
+            }
             
             if (isIgnorableError) {
               // Log de avisos que são ignorados
-              if (errorMsg.includes('syntax error')) {
-                console.warn('[RESTORE] Aviso: Erro de sintaxe ignorado:', command.substring(0, 150));
-              } else if (errorMsg.includes('current transaction is aborted')) {
+              if (errorMsg.includes('current transaction is aborted')) {
                 console.warn('[RESTORE] Aviso: Transação abortada, reiniciando transação');
                 // Reiniciar transação
                 await client.query('ROLLBACK');

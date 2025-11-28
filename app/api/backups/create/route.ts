@@ -203,17 +203,11 @@ export async function POST(req: Request) {
               colDef += ' NOT NULL';
             }
             if (col.column_default) {
-              // Garantir que valores DEFAULT sejam tratados corretamente
-              // Se o default contém funções ou strings, manter como está
-              // Se é um valor simples, pode precisar de aspas
+              // O column_default do PostgreSQL já vem formatado corretamente
+              // Pode incluir casts como 'pending'::text, funções como now(), ou valores simples
+              // Usar diretamente como vem do banco, pois já está no formato SQL correto
               const defaultVal = col.column_default.trim();
-              if (defaultVal.match(/^['"].*['"]$/) || defaultVal.match(/^[A-Z_]+\(/)) {
-                // Já é uma string ou função
-                colDef += ` DEFAULT ${defaultVal}`;
-              } else {
-                // Valor simples - manter como está (pode ser número, boolean, etc)
-                colDef += ` DEFAULT ${defaultVal}`;
-              }
+              colDef += ` DEFAULT ${defaultVal}`;
             }
             return colDef;
           }).join(', ');
