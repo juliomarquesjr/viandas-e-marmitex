@@ -497,18 +497,40 @@ async function generateBackupContent(client: Client): Promise<string> {
     updateRule: row.update_rule,
   }));
 
+  // Exportar tipos ENUM antes de criar tabelas
+  backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
+  const enumTypesResult = await client.query(`
+    SELECT 
+      t.typname as enum_name,
+      string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
+    FROM pg_type t
+    JOIN pg_enum e ON t.oid = e.enumtypid
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public'
+    GROUP BY t.typname
+    ORDER BY t.typname
+  `);
+
+  for (const enumType of enumTypesResult.rows) {
+    const values = enumType.enum_values.split(',').map((v: string) => `'${v}'`).join(', ');
+    backupContent += `DROP TYPE IF EXISTS "${enumType.enum_name}" CASCADE;\n`;
+    backupContent += `CREATE TYPE "${enumType.enum_name}" AS ENUM (${values});\n\n`;
+  }
+
   for (const tableName of tables) {
 
     backupContent += `\n-- Table: ${tableName}\n`;
     backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
 
     // CREATE TABLE
+    // Para tipos USER-DEFINED (ENUMs), usar udt_name em vez de data_type
     const createResult = await client.query(`
       SELECT 
         'CREATE TABLE "' || $1 || '" (' || 
         string_agg(
           '"' || column_name || '" ' || 
           CASE 
+            WHEN data_type = 'USER-DEFINED' THEN udt_name
             WHEN data_type = 'character varying' THEN 'VARCHAR(' || COALESCE(character_maximum_length::text, '') || ')'
             WHEN data_type = 'integer' THEN 'INTEGER'
             WHEN data_type = 'bigint' THEN 'BIGINT'

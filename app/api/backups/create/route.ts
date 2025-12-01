@@ -132,6 +132,26 @@ export async function POST(req: Request) {
         updateRule: row.update_rule,
       }));
 
+      // Exportar tipos ENUM antes de criar tabelas
+      backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
+      const enumTypesResult = await client.query(`
+        SELECT 
+          t.typname as enum_name,
+          string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'public'
+        GROUP BY t.typname
+        ORDER BY t.typname
+      `);
+
+      for (const enumType of enumTypesResult.rows) {
+        const values = enumType.enum_values.split(',').map((v: string) => `'${v}'`).join(', ');
+        backupContent += `DROP TYPE IF EXISTS "${enumType.enum_name}" CASCADE;\n`;
+        backupContent += `CREATE TYPE "${enumType.enum_name}" AS ENUM (${values});\n\n`;
+      }
+
       // Para cada tabela (agora ordenada por dependências)
       for (const tableName of tables) {
         backupContent += `\n--\n-- Table: ${tableName}\n--\n\n`;
@@ -140,10 +160,12 @@ export async function POST(req: Request) {
         backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
 
         // CREATE TABLE - obter colunas primeiro
+        // Para tipos USER-DEFINED (ENUMs), usar udt_name em vez de data_type
         const columnsResult = await client.query(`
           SELECT 
             column_name,
             data_type,
+            udt_name,
             character_maximum_length,
             numeric_precision,
             numeric_scale,
@@ -157,45 +179,50 @@ export async function POST(req: Request) {
         if (columnsResult.rows.length > 0) {
           const columns = columnsResult.rows.map((col: any) => {
             let typeDef = '';
-            switch (col.data_type) {
-              case 'character varying':
-                typeDef = `VARCHAR(${col.character_maximum_length || ''})`;
-                break;
-              case 'character':
-                typeDef = `CHAR(${col.character_maximum_length || ''})`;
-                break;
-              case 'numeric':
-                typeDef = `NUMERIC(${col.numeric_precision || ''},${col.numeric_scale || '0'})`;
-                break;
-              case 'integer':
-                typeDef = 'INTEGER';
-                break;
-              case 'bigint':
-                typeDef = 'BIGINT';
-                break;
-              case 'boolean':
-                typeDef = 'BOOLEAN';
-                break;
-              case 'text':
-                typeDef = 'TEXT';
-                break;
-              case 'timestamp without time zone':
-                typeDef = 'TIMESTAMP';
-                break;
-              case 'timestamp with time zone':
-                typeDef = 'TIMESTAMPTZ';
-                break;
-              case 'jsonb':
-                typeDef = 'JSONB';
-                break;
-              case 'json':
-                typeDef = 'JSON';
-                break;
-              case 'uuid':
-                typeDef = 'UUID';
-                break;
-              default:
-                typeDef = col.data_type.toUpperCase();
+            // Se for USER-DEFINED, usar udt_name (nome do tipo ENUM)
+            if (col.data_type === 'USER-DEFINED') {
+              typeDef = col.udt_name;
+            } else {
+              switch (col.data_type) {
+                case 'character varying':
+                  typeDef = `VARCHAR(${col.character_maximum_length || ''})`;
+                  break;
+                case 'character':
+                  typeDef = `CHAR(${col.character_maximum_length || ''})`;
+                  break;
+                case 'numeric':
+                  typeDef = `NUMERIC(${col.numeric_precision || ''},${col.numeric_scale || '0'})`;
+                  break;
+                case 'integer':
+                  typeDef = 'INTEGER';
+                  break;
+                case 'bigint':
+                  typeDef = 'BIGINT';
+                  break;
+                case 'boolean':
+                  typeDef = 'BOOLEAN';
+                  break;
+                case 'text':
+                  typeDef = 'TEXT';
+                  break;
+                case 'timestamp without time zone':
+                  typeDef = 'TIMESTAMP';
+                  break;
+                case 'timestamp with time zone':
+                  typeDef = 'TIMESTAMPTZ';
+                  break;
+                case 'jsonb':
+                  typeDef = 'JSONB';
+                  break;
+                case 'json':
+                  typeDef = 'JSON';
+                  break;
+                case 'uuid':
+                  typeDef = 'UUID';
+                  break;
+                default:
+                  typeDef = col.data_type.toUpperCase();
+              }
             }
             
             let colDef = `"${col.column_name}" ${typeDef}`;
