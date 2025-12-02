@@ -176,24 +176,43 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
       // Converter para array
       const descriptorArray = descriptorToArray(descriptor);
 
-      // Enviar para API de autenticação
+      // Gerar nonce e timestamp para proteção contra replay
+      const nonce = `${Date.now()}-${Math.random().toString(36).substring(7)}-${Math.random().toString(36).substring(7)}`;
+      const timestamp = Date.now();
+
+      // Enviar para API de autenticação com nonce e timestamp
       const response = await fetch("/api/auth/facial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ descriptor: descriptorArray }),
+        body: JSON.stringify({ 
+          descriptor: descriptorArray,
+          nonce,
+          timestamp
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Verificar se é rate limit
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          throw new Error(errorData.error || `Muitas tentativas. Aguarde ${retryAfter} segundos.`);
+        }
+        
         throw new Error(errorData.error || "Erro na autenticação");
       }
 
-      const { user } = await response.json();
+      const { user, token } = await response.json();
 
-      // Criar sessão usando NextAuth com senha especial para login facial
+      if (!token) {
+        throw new Error("Token de autenticação não recebido");
+      }
+
+      // Criar sessão usando NextAuth com token JWT
       const signInResult = await signIn("credentials", {
         email: user.email,
-        password: "__FACIAL_LOGIN__", // Senha especial para login facial
+        password: token, // Token JWT temporário
         redirect: false,
       });
 
