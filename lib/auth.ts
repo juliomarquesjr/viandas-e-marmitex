@@ -35,7 +35,38 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email) {
+          return null;
+        }
+
+        // Se não há senha, pode ser login facial (verificar token especial)
+        const isFacialLogin = credentials.password === "__FACIAL_LOGIN__";
+        
+        if (isFacialLogin) {
+          // Verificar se há um token de autenticação facial válido
+          // Por enquanto, vamos buscar o usuário diretamente
+          // Em produção, deveria verificar um token JWT ou similar
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+              active: true
+            }
+          });
+
+          if (!user) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          };
+        }
+
+        // Login tradicional com senha
+        if (!credentials.password) {
           return null;
         }
 

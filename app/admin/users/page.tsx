@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import {
     AlertCircle,
     Calendar,
+    Camera,
     Check,
     Edit,
     Mail,
@@ -20,9 +21,11 @@ import {
     User,
     UserPlus,
     Users,
-    X
+    X,
+    ScanFace
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { FacialCaptureModal } from "../components/FacialCaptureModal";
 
 type User = {
   id: string;
@@ -31,6 +34,7 @@ type User = {
   phone?: string;
   role: "admin" | "pdv";
   status: "active" | "inactive";
+  facialImageUrl?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -60,6 +64,8 @@ export default function AdminUsersPage() {
 
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [facialModalOpen, setFacialModalOpen] = useState(false);
+  const [selectedUserForFacial, setSelectedUserForFacial] = useState<User | null>(null);
 
   // Carregar usuários
   const loadUsers = async () => {
@@ -227,7 +233,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <AnimatedCard delay={0.1}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -286,6 +292,22 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
                 <Shield className="h-12 w-12 text-purple-600" />
+              </div>
+            </CardContent>
+          </AnimatedCard>
+
+          <AnimatedCard delay={0.5}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-indigo-600">
+                    Com Reconhecimento Facial
+                  </p>
+                  <p className="text-3xl font-bold text-indigo-900">
+                    {users.filter(u => u.facialImageUrl).length}
+                  </p>
+                </div>
+                <ScanFace className="h-12 w-12 text-indigo-600" />
               </div>
             </CardContent>
           </AnimatedCard>
@@ -434,7 +456,7 @@ export default function AdminUsersPage() {
 
                       {/* Status e Perfil */}
                       <div className="flex flex-col items-end gap-3">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {(() => {
                             const roleInfo = getRoleInfo(user.role);
                             const Icon = roleInfo.icon;
@@ -454,10 +476,34 @@ export default function AdminUsersPage() {
                               </Badge>
                             );
                           })()}
+
+                          {user.facialImageUrl && (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-200 border px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5">
+                              <ScanFace className="h-3.5 w-3.5" />
+                              Reconhecimento Facial
+                            </Badge>
+                          )}
                         </div>
 
                         {/* Ações */}
                         <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUserForFacial(user);
+                              setFacialModalOpen(true);
+                            }}
+                            className={`h-9 px-3 rounded-lg transition-all duration-300 ${
+                              user.facialImageUrl
+                                ? "border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
+                                : "border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+                            }`}
+                            title={user.facialImageUrl ? "Atualizar foto facial" : "Cadastrar foto facial"}
+                          >
+                            <Camera className="h-4 w-4 mr-1" />
+                            {user.facialImageUrl ? "Atualizar Foto" : "Foto Facial"}
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -676,6 +722,23 @@ export default function AdminUsersPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal de Captura Facial */}
+        {facialModalOpen && selectedUserForFacial && (
+          <FacialCaptureModal
+            isOpen={facialModalOpen}
+            onClose={() => {
+              setFacialModalOpen(false);
+              setSelectedUserForFacial(null);
+            }}
+            userId={selectedUserForFacial.id}
+            userName={selectedUserForFacial.name}
+            currentFacialImageUrl={selectedUserForFacial.facialImageUrl}
+            onSuccess={() => {
+              loadUsers();
+            }}
+          />
         )}
       </div>
     </ProtectedRoute>
