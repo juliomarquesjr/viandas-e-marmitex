@@ -1,8 +1,8 @@
 "use client";
 
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { ReportLoading } from '@/app/components/ReportLoading';
 
 type BudgetItem = {
     productId: string;
