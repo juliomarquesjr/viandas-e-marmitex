@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from "bcryptjs";
+import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
@@ -99,7 +99,9 @@ export async function POST(request: Request) {
         email: body.email,
         password: hashedPassword,
         role: body.role || 'pdv',
-        active: body.status === 'active'
+        active: body.status === 'active',
+        facialImageUrl: body.facialImageUrl || undefined,
+        facialDescriptor: body.facialDescriptor || undefined
       }
     });
     
@@ -130,39 +132,73 @@ export async function PUT(request: Request) {
       );
     }
     
-    // Validação básica
-    if (!data.name || !data.email) {
+    // Buscar usuário existente
+    const existingUser = await prisma.user.findUnique({
+      where: { id }
+    });
+    
+    if (!existingUser) {
       return NextResponse.json(
-        { error: 'Name and email are required' },
-        { status: 400 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
     
-    // Verificar se o email já existe em outro usuário
-    const existingUser = await prisma.user.findFirst({
-      where: { 
-        email: data.email,
-        NOT: { id }
-      }
-    });
+    // Se está atualizando apenas dados faciais (sem name/email), não validar
+    const isFacialOnlyUpdate = !data.name && !data.email && (data.facialImageUrl !== undefined || data.facialDescriptor !== undefined);
     
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      );
+    // Validação básica (apenas se não for atualização apenas facial)
+    if (!isFacialOnlyUpdate) {
+      if (!data.name || !data.email) {
+        return NextResponse.json(
+          { error: 'Name and email are required' },
+          { status: 400 }
+        );
+      }
+      
+      // Verificar se o email já existe em outro usuário
+      const emailExists = await prisma.user.findFirst({
+        where: { 
+          email: data.email,
+          NOT: { id }
+        }
+      });
+      
+      if (emailExists) {
+        return NextResponse.json(
+          { error: 'User with this email already exists' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Preparar dados de atualização
+    let updateData: any = {};
+    
+    // Se não for atualização apenas facial, incluir campos básicos
+    if (!isFacialOnlyUpdate) {
+      updateData.name = data.name;
+      updateData.email = data.email;
+      if (data.role !== undefined) {
+        updateData.role = data.role;
+      }
+      if (data.status !== undefined) {
+        updateData.active = data.status === 'active';
+      }
     }
     
     // Atualizar senha se fornecida
-    let updateData: any = {
-      name: data.name,
-      email: data.email,
-      role: data.role || 'pdv',
-      active: data.status === 'active'
-    };
-    
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
+    }
+    
+    // Atualizar dados faciais se fornecidos
+    if (data.facialImageUrl !== undefined) {
+      updateData.facialImageUrl = data.facialImageUrl || null;
+    }
+    
+    if (data.facialDescriptor !== undefined) {
+      updateData.facialDescriptor = data.facialDescriptor || null;
     }
     
     const user = await prisma.user.update({

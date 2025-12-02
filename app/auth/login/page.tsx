@@ -4,10 +4,11 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
-import { AlertCircle, ChefHat, Eye, EyeOff, Mail, Utensils } from "lucide-react";
+import { AlertCircle, Camera, ChefHat, Eye, EyeOff, Mail, Utensils } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FacialLogin } from "../components/FacialLogin";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginMode, setLoginMode] = useState<"traditional" | "facial">("traditional");
   const router = useRouter();
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -103,26 +105,72 @@ export default function LoginPage() {
       </div>
       
       {/* Conteúdo principal */}
-      <div className="relative min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
+      <div className="relative min-h-screen flex items-center justify-center p-6 overflow-visible">
+        <div className="w-full max-w-md relative z-10">
           {/* Logo e título */}
-          <div className="text-center mb-8">
-            <div className="mx-auto mb-6 relative">
-              <div className="h-20 w-20 mx-auto rounded-3xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl">
+          <div className="flex items-center justify-center gap-5 mb-8">
+            <div className="relative flex-shrink-0">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-xl ring-2 ring-orange-200/50">
                 <ChefHat className="h-10 w-10 text-white" />
               </div>
-              <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-green-400 border-2 border-white shadow-lg" />
+              <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-green-400 border-2 border-white shadow-md animate-pulse" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent mb-2">
-              Comida Caseira
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Sabor que aquece o coração
-            </p>
+            <div className="text-center">
+              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent leading-tight tracking-tight">
+                Comida Caseira
+              </h1>
+              <p className="text-gray-600 text-base font-semibold mt-1.5 tracking-wide">
+                Sabor que aquece o coração
+              </p>
+            </div>
           </div>
           
-          {/* Card de login */}
-          <Card className="backdrop-blur-xl bg-white/80 border-0 shadow-2xl">
+          {/* Container flex para card e balão */}
+          <div className="relative flex items-center justify-center">
+            {/* Balão flutuante com dicas - aparece apenas no modo facial */}
+            {loginMode === "facial" && (
+              <div className="absolute right-full mr-8 hidden lg:block animate-float z-20">
+                {/* Balão de fala melhorado */}
+                <div className="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-2xl border-2 border-orange-200/80 p-6 w-80 relative z-10 animate-pulse-slow backdrop-blur-sm">
+                  {/* Ponta do balão apontando para o card */}
+                  <div className="absolute -right-4 top-10 w-0 h-0 border-t-[18px] border-t-transparent border-l-[24px] border-l-white border-b-[18px] border-b-transparent drop-shadow-lg"></div>
+                  <div className="absolute -right-5 top-9 w-0 h-0 border-t-[19px] border-t-transparent border-l-[26px] border-l-orange-200/80 border-b-[19px] border-b-transparent"></div>
+                  
+                  {/* Conteúdo do balão */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-400 flex items-center justify-center shadow-md">
+                        <span className="text-lg">💡</span>
+                      </div>
+                      <p className="text-sm font-bold text-orange-700">
+                        Dicas para melhor resultado
+                      </p>
+                    </div>
+                    <ul className="space-y-2.5">
+                      <li className="flex items-start gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
+                        <span className="text-xs text-gray-700 leading-relaxed">Mantenha boa iluminação</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
+                        <span className="text-xs text-gray-700 leading-relaxed">Olhe diretamente para a câmera</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
+                        <span className="text-xs text-gray-700 leading-relaxed">Mantenha o rosto centralizado</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
+                        <span className="text-xs text-gray-700 leading-relaxed">Remova óculos se possível</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Card de login */}
+            <Card className="backdrop-blur-xl bg-white/80 border-0 shadow-2xl w-full max-w-md">
             <CardHeader className="text-center pb-6">
               <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">
                 Bem-vindo de volta!
@@ -131,8 +179,43 @@ export default function LoginPage() {
                 Faça login para gerenciar seu restaurante
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <form onSubmit={handleSubmit} className="space-y-5">
+            <CardContent className="space-y-5 min-h-[450px] max-h-[600px] flex flex-col">
+              {/* Seleção de modo de login */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant={loginMode === "traditional" ? "default" : "outline"}
+                  onClick={() => setLoginMode("traditional")}
+                  className={`flex-1 h-12 rounded-xl font-semibold transition-all duration-200 ${
+                    loginMode === "traditional"
+                      ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl"
+                      : "border-2 hover:bg-gray-50"
+                  }`}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email/Senha
+                </Button>
+                <Button
+                  type="button"
+                  variant={loginMode === "facial" ? "default" : "outline"}
+                  onClick={() => setLoginMode("facial")}
+                  className={`flex-1 h-12 rounded-xl font-semibold transition-all duration-200 ${
+                    loginMode === "facial"
+                      ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl"
+                      : "border-2 hover:bg-gray-50"
+                  }`}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Reconhecimento Facial
+                </Button>
+              </div>
+
+              {loginMode === "facial" ? (
+                <>
+                  <FacialLogin onCancel={() => setLoginMode("traditional")} />
+                </>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5 flex-1 flex flex-col">
                 {error && (
                   <Alert variant="destructive" className="border-red-200 bg-red-50">
                     <AlertCircle className="h-4 w-4" />
@@ -208,6 +291,7 @@ export default function LoginPage() {
                   )}
                 </Button>
               </form>
+              )}
               
               {/* Footer */}
               <div className="pt-6 border-t border-gray-200">
@@ -223,6 +307,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </div>

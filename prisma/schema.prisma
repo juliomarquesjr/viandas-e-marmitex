@@ -16,14 +16,16 @@ datasource db {
 
 // Modelo de Usuário (administradores, funcionários, etc.)
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("pdv") // admin, pdv
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(uuid())
+  name              String
+  email             String   @unique
+  password          String
+  role              String   @default("pdv") // admin, pdv
+  active            Boolean  @default(true)
+  facialImageUrl    String?  // URL da imagem facial para login por reconhecimento
+  facialDescriptor  Json?    // Descriptor facial (array de números) para comparação rápida
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Modelo de Cliente
