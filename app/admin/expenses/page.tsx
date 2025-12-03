@@ -13,6 +13,7 @@ import {
   List,
   MoreVertical,
   Plus,
+  QrCode,
   Receipt,
   Settings,
   Trash2,
@@ -35,6 +36,10 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
+import { QRScannerModal } from "../../components/QRScannerModal";
+import { InvoiceDataDisplay } from "../../components/InvoiceDataDisplay";
+import { InvoiceData } from "@/lib/nf-scanner/types";
+import { formatValueToCents } from "@/lib/nf-scanner/utils";
 
 // Função para formatar moeda
 const formatCurrency = (cents: number) => {
@@ -232,6 +237,9 @@ function ExpenseFormDialog({
     description?: boolean;
     date?: boolean;
   }>({});
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [isInvoiceDisplayOpen, setIsInvoiceDisplayOpen] = useState(false);
+  const [scannedInvoiceData, setScannedInvoiceData] = useState<InvoiceData | null>(null);
 
   useEffect(() => {
     if (expense) {
@@ -380,6 +388,41 @@ function ExpenseFormDialog({
     }
   };
 
+  // Handler para quando QR code é escaneado
+  const handleQRCodeScanned = (invoiceData: InvoiceData) => {
+    setScannedInvoiceData(invoiceData);
+    setIsQRScannerOpen(false);
+    setIsInvoiceDisplayOpen(true);
+  };
+
+  // Handler para usar dados da nota para preencher despesa
+  const handleUseInvoiceForExpense = () => {
+    if (!scannedInvoiceData) return;
+
+    // Preencher campos automaticamente
+    const newFormData = { ...formData };
+    
+    // Valor total em centavos
+    newFormData.amountCents = formatValueToCents(scannedInvoiceData.totais.valorTotal);
+    const formatted = (newFormData.amountCents / 100).toFixed(2);
+    setDisplayPrice(`R$ ${formatted.replace(".", ",")}`);
+
+    // Data de emissão
+    newFormData.date = scannedInvoiceData.dataEmissao;
+
+    // Descrição com dados da nota
+    const itemsDescription = scannedInvoiceData.itens
+      .map((item) => `${item.descricao} (${item.quantidade}x)`)
+      .join(", ");
+    newFormData.description = `${scannedInvoiceData.emitente.razaoSocial} - ${itemsDescription}`;
+
+    setFormData(newFormData);
+    setIsInvoiceDisplayOpen(false);
+    setScannedInvoiceData(null);
+    
+    showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -524,9 +567,21 @@ function ExpenseFormDialog({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Valor <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                      Valor <span className="text-red-500">*</span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsQRScannerOpen(true)}
+                      className="text-xs h-7 px-2 gap-1.5 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+                    >
+                      <QrCode className="h-3 w-3" />
+                      Escanear Nota
+                    </Button>
+                  </div>
                   <div className="relative">
                     <Input
                       value={displayPrice}
@@ -641,6 +696,25 @@ function ExpenseFormDialog({
           </div>
         </div>
       </motion.div>
+
+      {/* Modal de Scanner QR Code */}
+      <QRScannerModal
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onQRCodeScanned={handleQRCodeScanned}
+      />
+
+      {/* Modal de Exibição de Dados da Nota */}
+      {isInvoiceDisplayOpen && scannedInvoiceData && (
+        <InvoiceDataDisplay
+          invoiceData={scannedInvoiceData}
+          onUseForExpense={handleUseInvoiceForExpense}
+          onClose={() => {
+            setIsInvoiceDisplayOpen(false);
+            setScannedInvoiceData(null);
+          }}
+        />
+      )}
     </div>
   );
 }
