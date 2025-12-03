@@ -17,26 +17,21 @@ export async function GET(request: Request) {
     const where: any = {};
     
     if (startDate && endDate) {
-      // Criar datas em UTC para evitar problemas de timezone
-      // As datas são salvas em UTC (veja linha 174), então precisamos comparar em UTC também
-      const start = new Date(startDate + 'T00:00:00.000Z');
-      const end = new Date(endDate + 'T23:59:59.999Z');
-      
+      // Usar comparação de datas usando cast para date no PostgreSQL
+      // Isso garante que apenas a parte da data seja comparada, ignorando horário e timezone
       where.date = {
-        gte: start,
-        lte: end
+        gte: new Date(startDate + 'T00:00:00.000Z'),
+        lte: new Date(endDate + 'T23:59:59.999Z')
       };
     } else if (startDate) {
-      // Se só tem startDate, filtrar do início desse dia em diante (UTC)
-      const start = new Date(startDate + 'T00:00:00.000Z');
+      // Se só tem startDate, filtrar do início desse dia em diante
       where.date = {
-        gte: start
+        gte: new Date(startDate + 'T00:00:00.000Z')
       };
     } else if (endDate) {
-      // Se só tem endDate, filtrar até o fim desse dia (UTC)
-      const end = new Date(endDate + 'T23:59:59.999Z');
+      // Se só tem endDate, filtrar até o fim desse dia
       where.date = {
-        lte: end
+        lte: new Date(endDate + 'T23:59:59.999Z')
       };
     }
     
@@ -49,6 +44,76 @@ export async function GET(request: Request) {
     }
 
     const skip = (page - 1) * limit;
+
+    // Se temos filtro de data, usar query raw para comparar apenas a parte da data
+    // Isso evita problemas de timezone comparando apenas a data, não o horário (como no relatório de lucros)
+    if (startDate || endDate) {
+      // Construir condições WHERE dinamicamente
+      const conditions: string[] = [];
+      
+      // Usar CAST para garantir comparação apenas da parte da data
+      if (startDate && endDate) {
+        conditions.push(`CAST(e.date AS DATE) >= CAST('${startDate}' AS DATE) AND CAST(e.date AS DATE) <= CAST('${endDate}' AS DATE)`);
+      } else if (startDate) {
+        conditions.push(`CAST(e.date AS DATE) >= CAST('${startDate}' AS DATE)`);
+      } else if (endDate) {
+        conditions.push(`CAST(e.date AS DATE) <= CAST('${endDate}' AS DATE)`);
+      }
+      
+      if (typeId) {
+        conditions.push(`e."typeId" = '${typeId}'`);
+      }
+      
+      if (supplierTypeId) {
+        conditions.push(`e."supplierTypeId" = '${supplierTypeId}'`);
+      }
+      
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      
+      // Buscar total
+      const totalResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
+        `SELECT COUNT(*)::int as count FROM "Expense" e ${whereClause}`
+      );
+      
+      // Buscar despesas
+      const expensesRaw = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT e.*, 
+         json_build_object('id', et.id, 'name', et.name) as type,
+         json_build_object('id', st.id, 'name', st.name) as "supplierType"
+         FROM "Expense" e
+         INNER JOIN "ExpenseType" et ON e."typeId" = et.id
+         INNER JOIN "SupplierType" st ON e."supplierTypeId" = st.id
+         ${whereClause}
+         ORDER BY e.date DESC
+         LIMIT ${limit} OFFSET ${skip}`
+      );
+      
+      // Converter resultados
+      const expenses = expensesRaw.map((row: any) => ({
+        id: row.id,
+        typeId: row.typeId,
+        supplierTypeId: row.supplierTypeId,
+        amountCents: Number(row.amountCents),
+        description: row.description,
+        date: new Date(row.date),
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+        type: row.type,
+        supplierType: row.supplierType
+      }));
+      
+      const total = Number(totalResult[0]?.count || 0);
+      
+      return NextResponse.json({
+        expenses,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      });
+    }
 
     const [expenses, total] = await Promise.all([
       prisma.expense.findMany({

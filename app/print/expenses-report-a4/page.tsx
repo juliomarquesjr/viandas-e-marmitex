@@ -110,12 +110,12 @@ function ExpensesReportA4Content() {
         year: 'numeric'
       });
     }
+    // Se for Date ou string ISO, extrair apenas a parte da data (YYYY-MM-DD) para evitar problemas de timezone
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${day}/${month}/${year}`;
   };
 
   const formatDateTime = (dateString: string) => {
