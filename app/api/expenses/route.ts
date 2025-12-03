@@ -17,29 +17,24 @@ export async function GET(request: Request) {
     const where: any = {};
     
     if (startDate && endDate) {
-      // Criar datas no início e fim do dia no timezone local para evitar problemas
-      // Parse a data como se fosse local (YYYY-MM-DD)
-      const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-      const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-      
-      const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-      const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+      // Criar datas em UTC para evitar problemas de timezone
+      // As datas são salvas em UTC (veja linha 174), então precisamos comparar em UTC também
+      const start = new Date(startDate + 'T00:00:00.000Z');
+      const end = new Date(endDate + 'T23:59:59.999Z');
       
       where.date = {
         gte: start,
         lte: end
       };
     } else if (startDate) {
-      // Se só tem startDate, filtrar do início desse dia em diante
-      const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-      const start = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+      // Se só tem startDate, filtrar do início desse dia em diante (UTC)
+      const start = new Date(startDate + 'T00:00:00.000Z');
       where.date = {
         gte: start
       };
     } else if (endDate) {
-      // Se só tem endDate, filtrar até o fim desse dia
-      const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-      const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+      // Se só tem endDate, filtrar até o fim desse dia (UTC)
+      const end = new Date(endDate + 'T23:59:59.999Z');
       where.date = {
         lte: end
       };
