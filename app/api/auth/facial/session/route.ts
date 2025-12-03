@@ -1,49 +1,41 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { verifyFacialAuthToken } from '@/lib/facial-auth-token';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, email } = body;
+    const { token } = body;
 
-    if (!userId || !email) {
+    if (!token) {
       return NextResponse.json(
-        { error: 'User ID e email são obrigatórios' },
+        { error: 'Token de autenticação facial é obrigatório' },
         { status: 400 }
       );
     }
 
-    // Buscar usuário
-    const user = await prisma.user.findUnique({
-      where: { id: userId, email, active: true },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-    });
-
-    if (!user) {
+    // Verificar e decodificar token JWT
+    const payload = verifyFacialAuthToken(token);
+    
+    if (!payload) {
+      console.warn('[FACIAL_SESSION] Token inválido ou expirado');
       return NextResponse.json(
-        { error: 'Usuário não encontrado' },
-        { status: 404 }
+        { error: 'Token inválido ou expirado. Faça login novamente.' },
+        { status: 401 }
       );
     }
 
-    // Retornar dados do usuário
-    // O cliente fará signIn usando o email e senha especial para login facial
+    // Retornar dados do usuário do token
+    // O cliente fará signIn usando o email e token como senha especial
     return NextResponse.json({
       success: true,
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        id: payload.userId,
+        email: payload.email,
+        role: payload.role,
       },
     });
   } catch (error) {
-    console.error('Erro ao criar sessão:', error);
+    console.error('[FACIAL_SESSION] Erro ao criar sessão:', error);
     return NextResponse.json(
       { error: 'Erro ao processar requisição' },
       { status: 500 }
