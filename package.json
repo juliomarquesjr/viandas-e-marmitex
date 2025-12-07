@@ -36,6 +36,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.12",
     "html2canvas": "^1.4.1",
+    "jose": "^6.1.2",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.539.0",
     "next": "15.4.6",
