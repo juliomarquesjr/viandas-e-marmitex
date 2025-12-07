@@ -298,18 +298,22 @@ export async function POST(req: Request) {
             const isIgnorableError = 
               errorMsg.includes('already exists') || 
               errorMsg.includes('does not exist') ||
-              errorMsg.includes('relation') ||
-              errorMsg.includes('constraint') ||
+              (errorMsg.includes('relation') && !errorMsg.includes('syntax')) ||
+              (errorMsg.includes('constraint') && !errorMsg.includes('syntax')) ||
               errorMsg.includes('duplicate') ||
-              errorMsg.includes('no schema has been selected') ||
-              errorMsg.includes('syntax error') ||
-              errorMsg.includes('current transaction is aborted');
+              errorMsg.includes('no schema has been selected');
+            
+            // Erros de sintaxe são CRÍTICOS e não devem ser ignorados
+            if (errorMsg.includes('syntax error')) {
+              console.error('[RESTORE] ERRO CRÍTICO: Erro de sintaxe no SQL:', command.substring(0, 200));
+              console.error('[RESTORE] Erro completo:', error.message);
+              await client.query('ROLLBACK');
+              throw new Error(`Erro de sintaxe SQL ao restaurar backup: ${error.message}. Comando: ${command.substring(0, 200)}`);
+            }
             
             if (isIgnorableError) {
               // Log de avisos que são ignorados
-              if (errorMsg.includes('syntax error')) {
-                console.warn('[RESTORE] Aviso: Erro de sintaxe ignorado:', command.substring(0, 150));
-              } else if (errorMsg.includes('current transaction is aborted')) {
+              if (errorMsg.includes('current transaction is aborted')) {
                 console.warn('[RESTORE] Aviso: Transação abortada, reiniciando transação');
                 // Reiniciar transação
                 await client.query('ROLLBACK');
@@ -437,21 +441,96 @@ async function generateBackupContent(client: Client): Promise<string> {
     ORDER BY tablename
   `);
 
-  const tables = tablesResult.rows.map((r: any) => r.tablename);
+  let tables = tablesResult.rows.map((r: any) => r.tablename).filter((t: string) => !t.startsWith('_prisma'));
+
+  // Obter dependências de foreign keys para ordenar tabelas corretamente
+  const fkResult = await client.query(`
+    SELECT
+      tc.table_name as table_name,
+      kcu.column_name as column_name,
+      ccu.table_name AS foreign_table_name,
+      ccu.column_name AS foreign_column_name,
+      tc.constraint_name,
+      rc.delete_rule,
+      rc.update_rule
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+      AND ccu.table_schema = tc.table_schema
+    JOIN information_schema.referential_constraints AS rc
+      ON rc.constraint_name = tc.constraint_name
+      AND rc.constraint_schema = tc.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+  `);
+
+  // Criar mapa de dependências
+  const dependencies = new Map<string, Set<string>>();
+  const allTables = new Set(tables);
+  
+  for (const row of fkResult.rows) {
+    const table = row.table_name;
+    const dependsOn = row.foreign_table_name;
+    
+    if (allTables.has(table) && allTables.has(dependsOn) && table !== dependsOn) {
+      if (!dependencies.has(table)) {
+        dependencies.set(table, new Set());
+      }
+      dependencies.get(table)!.add(dependsOn);
+    }
+  }
+
+  // Ordenar tabelas por dependências (topological sort)
+  tables = topologicalSort(tables, dependencies);
+
+  // Obter informações de foreign keys para exportação posterior
+  const foreignKeysInfo = fkResult.rows.map((row: any) => ({
+    tableName: row.table_name,
+    constraintName: row.constraint_name,
+    columnName: row.column_name,
+    foreignTableName: row.foreign_table_name,
+    foreignColumnName: row.foreign_column_name,
+    deleteRule: row.delete_rule,
+    updateRule: row.update_rule,
+  }));
+
+  // Exportar tipos ENUM antes de criar tabelas
+  backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
+  const enumTypesResult = await client.query(`
+    SELECT 
+      t.typname as enum_name,
+      string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
+    FROM pg_type t
+    JOIN pg_enum e ON t.oid = e.enumtypid
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public'
+    GROUP BY t.typname
+    ORDER BY t.typname
+  `);
+
+  for (const enumType of enumTypesResult.rows) {
+    const values = enumType.enum_values.split(',').map((v: string) => `'${v}'`).join(', ');
+    backupContent += `DROP TYPE IF EXISTS "${enumType.enum_name}" CASCADE;\n`;
+    backupContent += `CREATE TYPE "${enumType.enum_name}" AS ENUM (${values});\n\n`;
+  }
 
   for (const tableName of tables) {
-    if (tableName.startsWith('_prisma')) continue;
 
     backupContent += `\n-- Table: ${tableName}\n`;
     backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
 
     // CREATE TABLE
+    // Para tipos USER-DEFINED (ENUMs), usar udt_name em vez de data_type
     const createResult = await client.query(`
       SELECT 
         'CREATE TABLE "' || $1 || '" (' || 
         string_agg(
           '"' || column_name || '" ' || 
           CASE 
+            WHEN data_type = 'USER-DEFINED' THEN udt_name
             WHEN data_type = 'character varying' THEN 'VARCHAR(' || COALESCE(character_maximum_length::text, '') || ')'
             WHEN data_type = 'integer' THEN 'INTEGER'
             WHEN data_type = 'bigint' THEN 'BIGINT'
@@ -527,6 +606,84 @@ async function generateBackupContent(client: Client): Promise<string> {
     }
   }
 
+  // Foreign Keys (após criar todas as tabelas)
+  backupContent += `\n--\n-- Foreign Keys\n--\n\n`;
+  
+  // Agrupar foreign keys por constraint name (pois uma FK pode ter múltiplas colunas)
+  const fkByConstraint = new Map<string, any[]>();
+  for (const fk of foreignKeysInfo) {
+    if (!fkByConstraint.has(fk.constraintName)) {
+      fkByConstraint.set(fk.constraintName, []);
+    }
+    fkByConstraint.get(fk.constraintName)!.push(fk);
+  }
+
+  // Exportar foreign keys
+  for (const [constraintName, fkColumns] of fkByConstraint.entries()) {
+    const firstFk = fkColumns[0];
+    const columns = fkColumns.map((fk: any) => `"${fk.columnName}"`).join(', ');
+    const foreignColumns = fkColumns.map((fk: any) => `"${fk.foreignColumnName}"`).join(', ');
+    const deleteRule = firstFk.deleteRule ? ` ON DELETE ${firstFk.deleteRule}` : '';
+    const updateRule = firstFk.updateRule ? ` ON UPDATE ${firstFk.updateRule}` : '';
+    
+    backupContent += `ALTER TABLE "${firstFk.tableName}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY (${columns}) REFERENCES "${firstFk.foreignTableName}" (${foreignColumns})${deleteRule}${updateRule};\n`;
+  }
+
+  // Índices (exceto primary keys que já foram criados)
+  backupContent += `\n--\n-- Indexes\n--\n\n`;
+  const indexesResult = await client.query(`
+    SELECT indexdef 
+    FROM pg_indexes 
+    WHERE schemaname = 'public'
+    AND indexname NOT LIKE '%_pkey'
+  `);
+
+  for (const index of indexesResult.rows) {
+    if (index.indexdef) {
+      backupContent += index.indexdef + ';\n';
+    }
+  }
+
   return backupContent;
+}
+
+// Função auxiliar para ordenação topológica (respeitando dependências)
+function topologicalSort(tables: string[], dependencies: Map<string, Set<string>>): string[] {
+  const sorted: string[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(table: string) {
+    if (visiting.has(table)) {
+      // Ciclo detectado - retornar ordem original
+      return tables;
+    }
+    if (visited.has(table)) {
+      return;
+    }
+
+    visiting.add(table);
+    
+    const deps = dependencies.get(table);
+    if (deps) {
+      for (const dep of deps) {
+        if (tables.includes(dep)) {
+          visit(dep);
+        }
+      }
+    }
+
+    visiting.delete(table);
+    visited.add(table);
+    sorted.push(table);
+  }
+
+  for (const table of tables) {
+    if (!visited.has(table)) {
+      visit(table);
+    }
+  }
+
+  return sorted;
 }
 

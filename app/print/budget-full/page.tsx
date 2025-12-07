@@ -1,8 +1,8 @@
 "use client";
 
+import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { ReportLoading } from '@/app/components/ReportLoading';
 
 type BudgetItem = {
     productId: string;
@@ -187,6 +187,18 @@ function FullBudgetContent() {
         return Math.ceil(daysDiff / 7);
     };
 
+    const calculateTotalPerWeek = () => {
+        if (!budgetData) return 0;
+        
+        // Calcular o total de uma semana típica somando os totais de cada dia habilitado
+        // Cada dia habilitado ocorre uma vez por semana
+        const enabledDays = budgetData.days.filter(day => day.enabled);
+        return enabledDays.reduce((total, day) => {
+            const dayTotal = calculateDayTotal(day);
+            return total + dayTotal;
+        }, 0);
+    };
+
     if (loading) {
         return (
             <ReportLoading 
@@ -229,7 +241,7 @@ function FullBudgetContent() {
 
     const enabledDays = budgetData.days.filter(day => day.enabled);
     const weeks = calculateWeeks();
-    const totalPerWeek = budgetData.totalCents / weeks;
+    const totalPerWeek = calculateTotalPerWeek();
 
     return (
         <div className="min-h-screen bg-white p-8 print:p-0">

@@ -2,6 +2,7 @@
 
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/app/components/ui/dialog";
 import { motion } from "framer-motion";
@@ -50,7 +51,7 @@ type PreOrder = {
   id?: string;
   customerId: string | null;
   subtotalCents: number;
-  // Removido discountCents e deliveryFeeCents conforme solicitado
+  discountCents: number;
   totalCents: number;
   notes: string | null;
   items: PreOrderItem[];
@@ -75,10 +76,12 @@ export function PreOrderFormDialog({
   const [preOrder, setPreOrder] = useState<PreOrder>({
     customerId: null,
     subtotalCents: 0,
+    discountCents: 0,
     totalCents: 0,
     notes: null,
     items: [],
   });
+  const [discountInput, setDiscountInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -133,11 +136,16 @@ export function PreOrderFormDialog({
             priceCents: item.priceCents
           }));
           
-          // Remover campos não utilizados do objeto recebido
-          const { discountCents, deliveryFeeCents, ...cleanPreOrderData } = preOrderData;
+          // Carregar desconto e inicializar input
+          const discountCents = preOrderData.discountCents || 0;
+          setDiscountInput((discountCents / 100).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }));
           
           setPreOrder({
-            ...cleanPreOrderData,
+            ...preOrderData,
+            discountCents,
             items: processedItems
           });
         } else {
@@ -145,10 +153,12 @@ export function PreOrderFormDialog({
           setPreOrder({
             customerId: null,
             subtotalCents: 0,
+            discountCents: 0,
             totalCents: 0,
             notes: null,
             items: [],
           });
+          setDiscountInput("");
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -156,10 +166,12 @@ export function PreOrderFormDialog({
         setPreOrder({
           customerId: null,
           subtotalCents: 0,
+          discountCents: 0,
           totalCents: 0,
           notes: null,
           items: [],
         });
+        setDiscountInput("");
       } finally {
         setLoading(false);
       }
@@ -168,21 +180,20 @@ export function PreOrderFormDialog({
     loadData();
   }, [open, preOrderId]);
 
-  // Atualizar totais quando os itens mudarem
+  // Atualizar totais quando os itens ou desconto mudarem
   useEffect(() => {
     const subtotal = preOrder.items.reduce(
       (sum, item) => sum + item.quantity * item.priceCents,
       0
     );
-    // Total é igual ao subtotal já que não temos desconto nem taxa de entrega
-    const total = subtotal;
+    const total = subtotal - preOrder.discountCents;
     
     setPreOrder(prev => ({
       ...prev,
       subtotalCents: subtotal,
       totalCents: total
     }));
-  }, [preOrder.items]);
+  }, [preOrder.items, preOrder.discountCents]);
 
   const handleCustomerChange = (customerId: string | null) => {
     setPreOrder(prev => ({ ...prev, customerId }));
@@ -275,13 +286,13 @@ export function PreOrderFormDialog({
         priceCents: item.priceCents
       }));
       
-      // Adicionar campos obrigatórios do banco de dados com valores padrão
+      // Adicionar campos obrigatórios do banco de dados
       const preOrderToSend = {
         ...(preOrder.id && { id: preOrder.id }), // Incluir ID apenas se estiver editando
         customerId: preOrder.customerId,
         items: itemsToSend,
         notes: preOrder.notes,
-        discountCents: 0,      // Valor padrão
+        discountCents: preOrder.discountCents || 0,
         deliveryFeeCents: 0    // Valor padrão
       };
       
@@ -315,6 +326,43 @@ export function PreOrderFormDialog({
       style: "currency",
       currency: "BRL",
     }).format(cents / 100);
+  };
+
+  // Handle discount input change and convert to cents
+  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Aplicar máscara monetária para valor
+    let value = e.target.value;
+    
+    // Remove tudo que não é dígito
+    value = value.replace(/\D/g, '');
+    
+    // Converte para número (centavos)
+    let numValue = parseInt(value || '0');
+    
+    // Converte centavos para reais
+    let realValue = numValue / 100;
+    
+    // Formata como moeda brasileira
+    let formattedValue = realValue.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    });
+    
+    // Remove o símbolo R$ para exibir apenas o valor
+    formattedValue = formattedValue.replace('R$\u00A0', '');
+    
+    // Update the input state
+    setDiscountInput(formattedValue);
+    
+    // Convert to number for validation
+    const maxDiscount = preOrder.subtotalCents;
+    const discountCents = Math.round(Math.min(realValue * 100, maxDiscount));
+    
+    setPreOrder(prev => ({
+      ...prev,
+      discountCents
+    }));
   };
 
   // Don't render anything if the dialog is not open
@@ -570,17 +618,55 @@ export function PreOrderFormDialog({
               </div>
             </div>
 
-            {/* Valores Section - Apenas Total */}
+            {/* Valores Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2">
                 <Tag className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">Total</h3>
+                <h3 className="text-base font-semibold text-orange-800">Valores</h3>
               </div>
               <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
-              <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 mt-4">
-                <div className="text-2xl font-bold text-orange-900">
-                  {formatCurrency(preOrder.totalCents)}
+              <div className="space-y-4 mt-4">
+                {/* Subtotal */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <span className="text-sm font-medium text-gray-700">Subtotal:</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    {formatCurrency(preOrder.subtotalCents)}
+                  </span>
+                </div>
+
+                {/* Desconto */}
+                <div className="space-y-2">
+                  <Label htmlFor="discount" className="text-sm font-medium text-gray-700">
+                    Desconto (R$)
+                  </Label>
+                  <Input
+                    id="discount"
+                    type="text"
+                    value={discountInput}
+                    onChange={handleDiscountChange}
+                    placeholder="0,00"
+                    className="w-full pl-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                    disabled={saving}
+                  />
+                  {preOrder.discountCents > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-200">
+                      <span className="text-sm font-medium text-red-700">Desconto aplicado:</span>
+                      <span className="text-base font-semibold text-red-900">
+                        -{formatCurrency(preOrder.discountCents)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-semibold text-orange-800">Total:</span>
+                    <div className="text-2xl font-bold text-orange-900">
+                      {formatCurrency(preOrder.totalCents)}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

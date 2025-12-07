@@ -72,27 +72,100 @@ export async function POST(req: Request) {
         ORDER BY tablename
       `);
 
-      const tables = tablesResult.rows.map((r: any) => r.tablename);
+      let tables = tablesResult.rows.map((r: any) => r.tablename).filter((t: string) => !t.startsWith('_prisma'));
       
       if (tables.length === 0) {
         throw new Error('Nenhuma tabela encontrada no banco de dados');
       }
 
-      // Para cada tabela
-      for (const tableName of tables) {
-        // Pular tabelas do Prisma
-        if (tableName.startsWith('_prisma')) continue;
+      // Obter dependências de foreign keys para ordenar tabelas corretamente
+      const fkResult = await client.query(`
+        SELECT
+          tc.table_name as table_name,
+          kcu.column_name as column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name,
+          tc.constraint_name,
+          rc.delete_rule,
+          rc.update_rule
+        FROM information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+        JOIN information_schema.referential_constraints AS rc
+          ON rc.constraint_name = tc.constraint_name
+          AND rc.constraint_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_schema = 'public'
+      `);
 
+      // Criar mapa de dependências
+      const dependencies = new Map<string, Set<string>>();
+      const allTables = new Set(tables);
+      
+      for (const row of fkResult.rows) {
+        const table = row.table_name;
+        const dependsOn = row.foreign_table_name;
+        
+        if (allTables.has(table) && allTables.has(dependsOn) && table !== dependsOn) {
+          if (!dependencies.has(table)) {
+            dependencies.set(table, new Set());
+          }
+          dependencies.get(table)!.add(dependsOn);
+        }
+      }
+
+      // Ordenar tabelas por dependências (topological sort)
+      tables = topologicalSort(tables, dependencies);
+
+      // Obter informações de foreign keys para exportação posterior
+      const foreignKeysInfo = fkResult.rows.map((row: any) => ({
+        tableName: row.table_name,
+        constraintName: row.constraint_name,
+        columnName: row.column_name,
+        foreignTableName: row.foreign_table_name,
+        foreignColumnName: row.foreign_column_name,
+        deleteRule: row.delete_rule,
+        updateRule: row.update_rule,
+      }));
+
+      // Exportar tipos ENUM antes de criar tabelas
+      backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
+      const enumTypesResult = await client.query(`
+        SELECT 
+          t.typname as enum_name,
+          string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'public'
+        GROUP BY t.typname
+        ORDER BY t.typname
+      `);
+
+      for (const enumType of enumTypesResult.rows) {
+        const values = enumType.enum_values.split(',').map((v: string) => `'${v}'`).join(', ');
+        backupContent += `DROP TYPE IF EXISTS "${enumType.enum_name}" CASCADE;\n`;
+        backupContent += `CREATE TYPE "${enumType.enum_name}" AS ENUM (${values});\n\n`;
+      }
+
+      // Para cada tabela (agora ordenada por dependências)
+      for (const tableName of tables) {
         backupContent += `\n--\n-- Table: ${tableName}\n--\n\n`;
 
         // DROP TABLE
         backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
 
         // CREATE TABLE - obter colunas primeiro
+        // Para tipos USER-DEFINED (ENUMs), usar udt_name em vez de data_type
         const columnsResult = await client.query(`
           SELECT 
             column_name,
             data_type,
+            udt_name,
             character_maximum_length,
             numeric_precision,
             numeric_scale,
@@ -106,45 +179,50 @@ export async function POST(req: Request) {
         if (columnsResult.rows.length > 0) {
           const columns = columnsResult.rows.map((col: any) => {
             let typeDef = '';
-            switch (col.data_type) {
-              case 'character varying':
-                typeDef = `VARCHAR(${col.character_maximum_length || ''})`;
-                break;
-              case 'character':
-                typeDef = `CHAR(${col.character_maximum_length || ''})`;
-                break;
-              case 'numeric':
-                typeDef = `NUMERIC(${col.numeric_precision || ''},${col.numeric_scale || '0'})`;
-                break;
-              case 'integer':
-                typeDef = 'INTEGER';
-                break;
-              case 'bigint':
-                typeDef = 'BIGINT';
-                break;
-              case 'boolean':
-                typeDef = 'BOOLEAN';
-                break;
-              case 'text':
-                typeDef = 'TEXT';
-                break;
-              case 'timestamp without time zone':
-                typeDef = 'TIMESTAMP';
-                break;
-              case 'timestamp with time zone':
-                typeDef = 'TIMESTAMPTZ';
-                break;
-              case 'jsonb':
-                typeDef = 'JSONB';
-                break;
-              case 'json':
-                typeDef = 'JSON';
-                break;
-              case 'uuid':
-                typeDef = 'UUID';
-                break;
-              default:
-                typeDef = col.data_type.toUpperCase();
+            // Se for USER-DEFINED, usar udt_name (nome do tipo ENUM)
+            if (col.data_type === 'USER-DEFINED') {
+              typeDef = col.udt_name;
+            } else {
+              switch (col.data_type) {
+                case 'character varying':
+                  typeDef = `VARCHAR(${col.character_maximum_length || ''})`;
+                  break;
+                case 'character':
+                  typeDef = `CHAR(${col.character_maximum_length || ''})`;
+                  break;
+                case 'numeric':
+                  typeDef = `NUMERIC(${col.numeric_precision || ''},${col.numeric_scale || '0'})`;
+                  break;
+                case 'integer':
+                  typeDef = 'INTEGER';
+                  break;
+                case 'bigint':
+                  typeDef = 'BIGINT';
+                  break;
+                case 'boolean':
+                  typeDef = 'BOOLEAN';
+                  break;
+                case 'text':
+                  typeDef = 'TEXT';
+                  break;
+                case 'timestamp without time zone':
+                  typeDef = 'TIMESTAMP';
+                  break;
+                case 'timestamp with time zone':
+                  typeDef = 'TIMESTAMPTZ';
+                  break;
+                case 'jsonb':
+                  typeDef = 'JSONB';
+                  break;
+                case 'json':
+                  typeDef = 'JSON';
+                  break;
+                case 'uuid':
+                  typeDef = 'UUID';
+                  break;
+                default:
+                  typeDef = col.data_type.toUpperCase();
+              }
             }
             
             let colDef = `"${col.column_name}" ${typeDef}`;
@@ -152,17 +230,11 @@ export async function POST(req: Request) {
               colDef += ' NOT NULL';
             }
             if (col.column_default) {
-              // Garantir que valores DEFAULT sejam tratados corretamente
-              // Se o default contém funções ou strings, manter como está
-              // Se é um valor simples, pode precisar de aspas
+              // O column_default do PostgreSQL já vem formatado corretamente
+              // Pode incluir casts como 'pending'::text, funções como now(), ou valores simples
+              // Usar diretamente como vem do banco, pois já está no formato SQL correto
               const defaultVal = col.column_default.trim();
-              if (defaultVal.match(/^['"].*['"]$/) || defaultVal.match(/^[A-Z_]+\(/)) {
-                // Já é uma string ou função
-                colDef += ` DEFAULT ${defaultVal}`;
-              } else {
-                // Valor simples - manter como está (pode ser número, boolean, etc)
-                colDef += ` DEFAULT ${defaultVal}`;
-              }
+              colDef += ` DEFAULT ${defaultVal}`;
             }
             return colDef;
           }).join(', ');
@@ -227,7 +299,30 @@ export async function POST(req: Request) {
         }
       }
 
-      // Índices
+      // Foreign Keys (após criar todas as tabelas)
+      backupContent += `\n--\n-- Foreign Keys\n--\n\n`;
+      
+      // Agrupar foreign keys por constraint name (pois uma FK pode ter múltiplas colunas)
+      const fkByConstraint = new Map<string, any[]>();
+      for (const fk of foreignKeysInfo) {
+        if (!fkByConstraint.has(fk.constraintName)) {
+          fkByConstraint.set(fk.constraintName, []);
+        }
+        fkByConstraint.get(fk.constraintName)!.push(fk);
+      }
+
+      // Exportar foreign keys
+      for (const [constraintName, fkColumns] of fkByConstraint.entries()) {
+        const firstFk = fkColumns[0];
+        const columns = fkColumns.map(fk => `"${fk.columnName}"`).join(', ');
+        const foreignColumns = fkColumns.map(fk => `"${fk.foreignColumnName}"`).join(', ');
+        const deleteRule = firstFk.deleteRule ? ` ON DELETE ${firstFk.deleteRule}` : '';
+        const updateRule = firstFk.updateRule ? ` ON UPDATE ${firstFk.updateRule}` : '';
+        
+        backupContent += `ALTER TABLE "${firstFk.tableName}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY (${columns}) REFERENCES "${firstFk.foreignTableName}" (${foreignColumns})${deleteRule}${updateRule};\n`;
+      }
+
+      // Índices (exceto primary keys que já foram criados)
       backupContent += `\n--\n-- Indexes\n--\n\n`;
       const indexesResult = await client.query(`
         SELECT indexdef 
@@ -289,6 +384,46 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+// Função auxiliar para ordenação topológica (respeitando dependências)
+function topologicalSort(tables: string[], dependencies: Map<string, Set<string>>): string[] {
+  const sorted: string[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(table: string) {
+    if (visiting.has(table)) {
+      // Ciclo detectado - retornar ordem original
+      return tables;
+    }
+    if (visited.has(table)) {
+      return;
+    }
+
+    visiting.add(table);
+    
+    const deps = dependencies.get(table);
+    if (deps) {
+      for (const dep of deps) {
+        if (tables.includes(dep)) {
+          visit(dep);
+        }
+      }
+    }
+
+    visiting.delete(table);
+    visited.add(table);
+    sorted.push(table);
+  }
+
+  for (const table of tables) {
+    if (!visited.has(table)) {
+      visit(table);
+    }
+  }
+
+  return sorted;
 }
 
 // Função auxiliar para formatar bytes

@@ -15,6 +15,8 @@ import {
     Printer,
     Receipt,
     ShoppingCart,
+    Tag,
+    Ticket,
     Trash2,
     User,
     Users,
@@ -516,7 +518,7 @@ export default function AdminPreOrdersPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <AnimatedCard delay={0.1}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -556,13 +558,31 @@ export default function AdminPreOrdersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-amber-600">
-                  Com Desconto
+                  Itens com Desconto
                 </p>
                 <p className="text-3xl font-bold text-amber-900">
                   {preOrders.filter((preOrder) => preOrder.discountCents > 0).length}
                 </p>
               </div>
-              <Package className="h-12 w-12 text-amber-600" />
+              <Tag className="h-12 w-12 text-amber-600" />
+            </div>
+          </CardContent>
+        </AnimatedCard>
+
+        <AnimatedCard delay={0.4}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600">
+                  Total de Desconto
+                </p>
+                <p className="text-3xl font-bold text-red-900">
+                  {formatCurrency(
+                    preOrders.reduce((sum, preOrder) => sum + preOrder.discountCents, 0)
+                  )}
+                </p>
+              </div>
+              <Ticket className="h-12 w-12 text-red-600" />
             </div>
           </CardContent>
         </AnimatedCard>

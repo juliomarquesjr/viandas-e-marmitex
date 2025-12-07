@@ -249,20 +249,17 @@ function ProfitReportA4Content() {
                 <tr className="bg-gray-100">
                   <th className="p-2 text-left border-b border-gray-300">Data</th>
                   <th className="p-2 text-right border-b border-gray-300">Vendas</th>
-                  <th className="p-2 text-right border-b border-gray-300">Fichas</th>
                   <th className="p-2 text-right border-b border-gray-300">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {dailyBreakdown.map((day: any, index: number) => {
                   const sales = Number(day.sales_revenue || 0);
-                  const fichas = Number(day.ficha_revenue || 0);
-                  const total = sales + fichas;
+                  const total = sales + Number(day.ficha_revenue || 0);
                   return (
                     <tr key={index} className="border-b border-gray-200">
                       <td className="p-2">{formatDate(day.date)}</td>
                       <td className="p-2 text-right">{formatCurrency(sales)}</td>
-                      <td className="p-2 text-right">{formatCurrency(fichas)}</td>
                       <td className="p-2 text-right font-medium">{formatCurrency(total)}</td>
                     </tr>
                   );
@@ -270,7 +267,7 @@ function ProfitReportA4Content() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan={3} className="p-2 text-right">
+                  <td colSpan={2} className="p-2 text-right">
                     TOTAL GERAL:
                   </td>
                   <td className="p-2 text-right text-lg">

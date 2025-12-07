@@ -13,10 +13,12 @@ import {
   List,
   MoreVertical,
   Plus,
+  QrCode,
   Receipt,
   Settings,
   Trash2,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -34,6 +36,10 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
+import { QRScannerModal } from "../../components/QRScannerModal";
+import { InvoiceDataDisplay } from "../../components/InvoiceDataDisplay";
+import { InvoiceData } from "@/lib/nf-scanner/types";
+import { formatValueToCents } from "@/lib/nf-scanner/utils";
 
 // Função para formatar moeda
 const formatCurrency = (cents: number) => {
@@ -231,6 +237,9 @@ function ExpenseFormDialog({
     description?: boolean;
     date?: boolean;
   }>({});
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [isInvoiceDisplayOpen, setIsInvoiceDisplayOpen] = useState(false);
+  const [scannedInvoiceData, setScannedInvoiceData] = useState<InvoiceData | null>(null);
 
   useEffect(() => {
     if (expense) {
@@ -379,6 +388,41 @@ function ExpenseFormDialog({
     }
   };
 
+  // Handler para quando QR code é escaneado
+  const handleQRCodeScanned = (invoiceData: InvoiceData) => {
+    setScannedInvoiceData(invoiceData);
+    setIsQRScannerOpen(false);
+    setIsInvoiceDisplayOpen(true);
+  };
+
+  // Handler para usar dados da nota para preencher despesa
+  const handleUseInvoiceForExpense = () => {
+    if (!scannedInvoiceData) return;
+
+    // Preencher campos automaticamente
+    const newFormData = { ...formData };
+    
+    // Valor total em centavos
+    newFormData.amountCents = formatValueToCents(scannedInvoiceData.totais.valorTotal);
+    const formatted = (newFormData.amountCents / 100).toFixed(2);
+    setDisplayPrice(`R$ ${formatted.replace(".", ",")}`);
+
+    // Data de emissão
+    newFormData.date = scannedInvoiceData.dataEmissao;
+
+    // Descrição com dados da nota
+    const itemsDescription = scannedInvoiceData.itens
+      .map((item) => `${item.descricao} (${item.quantidade}x)`)
+      .join(", ");
+    newFormData.description = `${scannedInvoiceData.emitente.razaoSocial} - ${itemsDescription}`;
+
+    setFormData(newFormData);
+    setIsInvoiceDisplayOpen(false);
+    setScannedInvoiceData(null);
+    
+    showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -523,9 +567,21 @@ function ExpenseFormDialog({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Valor <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                      Valor <span className="text-red-500">*</span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsQRScannerOpen(true)}
+                      className="text-xs h-7 px-2 gap-1.5 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+                    >
+                      <QrCode className="h-3 w-3" />
+                      Escanear Nota
+                    </Button>
+                  </div>
                   <div className="relative">
                     <Input
                       value={displayPrice}
@@ -640,6 +696,267 @@ function ExpenseFormDialog({
           </div>
         </div>
       </motion.div>
+
+      {/* Modal de Scanner QR Code */}
+      <QRScannerModal
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onQRCodeScanned={handleQRCodeScanned}
+      />
+
+      {/* Modal de Exibição de Dados da Nota */}
+      {isInvoiceDisplayOpen && scannedInvoiceData && (
+        <InvoiceDataDisplay
+          invoiceData={scannedInvoiceData}
+          onUseForExpense={handleUseInvoiceForExpense}
+          onClose={() => {
+            setIsInvoiceDisplayOpen(false);
+            setScannedInvoiceData(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Modal de Relatório de Despesas
+function ExpenseReportModal({
+  isOpen,
+  onClose,
+  supplierTypes,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  supplierTypes: SupplierType[];
+}) {
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [errors, setErrors] = useState<{
+    suppliers?: string;
+    startDate?: string;
+    endDate?: string;
+  }>({});
+  const { showToast } = useToast();
+
+  // Resetar formulário ao abrir/fechar
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedSupplierIds([]);
+      setStartDate("");
+      setEndDate("");
+      setErrors({});
+    }
+  }, [isOpen]);
+
+  const handleToggleSupplier = (supplierId: string) => {
+    setSelectedSupplierIds((prev) =>
+      prev.includes(supplierId)
+        ? prev.filter((id) => id !== supplierId)
+        : [...prev, supplierId]
+    );
+    // Limpar erro ao selecionar
+    if (errors.suppliers) {
+      setErrors({ ...errors, suppliers: undefined });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+
+    if (selectedSupplierIds.length === 0) {
+      newErrors.suppliers = "Selecione pelo menos um fornecedor";
+    }
+
+    if (!startDate) {
+      newErrors.startDate = "Data inicial é obrigatória";
+    }
+
+    if (!endDate) {
+      newErrors.endDate = "Data final é obrigatória";
+    }
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      newErrors.endDate = "Data final deve ser maior ou igual à data inicial";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleGenerateReport = () => {
+    if (!validateForm()) {
+      showToast("Por favor, preencha todos os campos obrigatórios", "error");
+      return;
+    }
+
+    // Construir URL com query params
+    const params = new URLSearchParams({
+      supplierTypeIds: selectedSupplierIds.join(","),
+      startDate,
+      endDate,
+    });
+
+    // Abrir relatório em nova aba
+    window.open(`/print/expenses-report-a4?${params.toString()}`, "_blank");
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
+          <div className="relative flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-orange-600" />
+                Gerar Relatório de Despesas
+              </h2>
+              <p className="text-gray-600 mt-1 text-sm">
+                Selecione os fornecedores e o período para gerar o relatório
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Seleção de Fornecedores */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                Fornecedores <span className="text-red-500">*</span>
+              </label>
+              <div className="border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
+                {supplierTypes.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Nenhum fornecedor cadastrado
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {supplierTypes.map((supplier) => (
+                      <label
+                        key={supplier.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedSupplierIds.includes(supplier.id)}
+                          onChange={() => handleToggleSupplier(supplier.id)}
+                          className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                        />
+                        <span className="text-sm text-gray-700 flex-1">
+                          {supplier.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {errors.suppliers && (
+                <p className="text-sm text-red-500">{errors.suppliers}</p>
+              )}
+            </div>
+
+            {/* Período */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  Data Inicial <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (errors.startDate) {
+                        setErrors({ ...errors, startDate: undefined });
+                      }
+                    }}
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                      errors.startDate
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                        : ""
+                    }`}
+                    required
+                  />
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.startDate && (
+                  <p className="text-sm text-red-500">{errors.startDate}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  Data Final <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      if (errors.endDate) {
+                        setErrors({ ...errors, endDate: undefined });
+                      }
+                    }}
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
+                      errors.endDate
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                        : ""
+                    }`}
+                    required
+                  />
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.endDate && (
+                  <p className="text-sm text-red-500">{errors.endDate}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleGenerateReport}
+              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Gerar Relatório
+            </Button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -675,6 +992,7 @@ export default function ExpensesPage() {
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [allExpenses, setAllExpenses] = useState<ExpenseWithRelations[]>([]);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const { showToast } = useToast();
 
   // Agrupar despesas por mês/ano para a tabela
@@ -1088,6 +1406,14 @@ export default function ExpensesPage() {
               </div>
             )}
           </div>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => setIsReportModalOpen(true)}
+          >
+            <FileText className="h-4 w-4" />
+            Gerar Relatório
+          </Button>
           <Button className="bg-primary hover:bg-primary/90" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Despesa
@@ -1482,6 +1808,13 @@ export default function ExpensesPage() {
         isOpen={manageSupplierTypesOpen}
         onClose={() => setManageSupplierTypesOpen(false)}
         onChanged={() => loadTypes()}
+      />
+
+      {/* Modal de Relatório */}
+      <ExpenseReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        supplierTypes={supplierTypes}
       />
 
       {/* Balão Flutuante de Resumo da Despesa */}

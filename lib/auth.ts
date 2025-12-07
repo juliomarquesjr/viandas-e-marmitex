@@ -35,7 +35,59 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email) {
+          return null;
+        }
+
+        // Login facial: verificar se a senha é um token JWT válido
+        // O token JWT é enviado como "senha" para compatibilidade com NextAuth
+        if (credentials.password && credentials.password.startsWith('eyJ')) {
+          try {
+            const { verifyFacialAuthToken } = await import('@/lib/facial-auth-token');
+            const payload = verifyFacialAuthToken(credentials.password);
+            
+            if (!payload) {
+              return null; // Token inválido ou expirado
+            }
+
+            // Verificar se o email do token corresponde ao email fornecido
+            if (payload.email !== credentials.email) {
+              console.warn('[AUTH] Email do token não corresponde ao email fornecido');
+              return null;
+            }
+
+            // Buscar usuário para garantir que ainda está ativo
+            const user = await prisma.user.findUnique({
+              where: {
+                email: payload.email,
+                active: true
+              }
+            });
+
+            if (!user) {
+              return null;
+            }
+
+            // Verificar se o ID do token corresponde ao ID do usuário
+            if (user.id !== payload.userId) {
+              console.warn('[AUTH] ID do token não corresponde ao ID do usuário');
+              return null;
+            }
+
+            return {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role
+            };
+          } catch (error) {
+            console.error('[AUTH] Erro ao verificar token facial:', error);
+            return null;
+          }
+        }
+
+        // Login tradicional com senha
+        if (!credentials.password) {
           return null;
         }
 
