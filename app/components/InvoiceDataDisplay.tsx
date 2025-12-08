@@ -2,8 +2,7 @@
 
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { X, Copy, Check, FileText, Calendar, Building2, Package, DollarSign } from "lucide-react";
-import { useState } from "react";
+import { X, FileText, Calendar, Building2, Package, DollarSign, QrCode } from "lucide-react";
 import { InvoiceData } from "@/lib/nf-scanner/types";
 import { formatCentsToValue } from "@/lib/nf-scanner/utils";
 
@@ -11,20 +10,22 @@ interface InvoiceDataDisplayProps {
   invoiceData: InvoiceData;
   onUseForExpense: () => void;
   onClose: () => void;
+  onScanAgain?: () => void;
 }
 
 export function InvoiceDataDisplay({
   invoiceData,
   onUseForExpense,
   onClose,
+  onScanAgain,
 }: InvoiceDataDisplayProps) {
-  const [copied, setCopied] = useState(false);
-
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (valueInCents: number) => {
+    // Converte centavos para reais antes de formatar
+    const valueInReais = formatCentsToValue(valueInCents);
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(value);
+    }).format(valueInReais);
   };
 
   const formatDate = (dateStr: string) => {
@@ -33,27 +34,6 @@ export function InvoiceDataDisplay({
       return date.toLocaleDateString("pt-BR");
     } catch {
       return dateStr;
-    }
-  };
-
-  const copyToClipboard = async () => {
-    const text = `
-NOTA FISCAL ${invoiceData.modelo === "65" ? "NFC-e" : "NFe"}
-Chave de Acesso: ${invoiceData.chaveAcesso}
-Número: ${invoiceData.numero}
-Data: ${formatDate(invoiceData.dataEmissao)}
-Emitente: ${invoiceData.emitente.razaoSocial} (CNPJ: ${invoiceData.emitente.cnpj})
-Total: ${formatCurrency(invoiceData.totais.valorTotal)}
-Itens: ${invoiceData.itens.length}
-${invoiceData.itens.map((item, idx) => `${idx + 1}. ${item.descricao} - ${formatCurrency(item.valorTotal)}`).join("\n")}
-    `.trim();
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Erro ao copiar:", err);
     }
   };
 
@@ -77,14 +57,30 @@ ${invoiceData.itens.map((item, idx) => `${idx + 1}. ${item.descricao} - ${format
                 {invoiceData.modelo === "65" ? "NFC-e" : invoiceData.modelo === "55" ? "NFe" : "Cupom"} - {invoiceData.uf}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {onScanAgain ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onScanAgain}
+                  className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex-shrink-0"
+                  title="Escanear outra nota"
+                  type="button"
+                >
+                  <QrCode className="h-4 w-4" />
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex-shrink-0"
+                title="Fechar"
+                type="button"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -219,41 +215,21 @@ ${invoiceData.itens.map((item, idx) => `${idx + 1}. ${item.descricao} - ${format
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-gray-200 bg-gray-50/50">
-          <div className="flex justify-between items-center gap-2">
-            <Button
-              variant="outline"
+          <div className="flex justify-end items-center gap-2">
+            <Button 
+              variant="outline" 
               size="sm"
-              onClick={copyToClipboard}
-              className="flex items-center gap-2"
+              onClick={onClose}
             >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  Copiado!
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5" />
-                  Copiar
-                </>
-              )}
+              Fechar
             </Button>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={onClose}
-              >
-                Fechar
-              </Button>
-              <Button
-                size="sm"
-                onClick={onUseForExpense}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
-              >
-                Usar para Despesa
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              onClick={onUseForExpense}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Usar para Despesa
+            </Button>
           </div>
         </div>
       </Card>
