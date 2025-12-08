@@ -39,7 +39,6 @@ import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialo
 import { QRScannerModal } from "../../components/QRScannerModal";
 import { InvoiceDataDisplay } from "../../components/InvoiceDataDisplay";
 import { InvoiceData } from "@/lib/nf-scanner/types";
-import { formatValueToCents } from "@/lib/nf-scanner/utils";
 
 // Função para formatar moeda
 const formatCurrency = (cents: number) => {
@@ -402,19 +401,15 @@ function ExpenseFormDialog({
     // Preencher campos automaticamente
     const newFormData = { ...formData };
     
-    // Valor total em centavos
-    newFormData.amountCents = formatValueToCents(scannedInvoiceData.totais.valorTotal);
+    // Valor total já está em centavos, usar diretamente
+    newFormData.amountCents = scannedInvoiceData.totais.valorTotal;
     const formatted = (newFormData.amountCents / 100).toFixed(2);
     setDisplayPrice(`R$ ${formatted.replace(".", ",")}`);
 
     // Data de emissão
     newFormData.date = scannedInvoiceData.dataEmissao;
 
-    // Descrição com dados da nota
-    const itemsDescription = scannedInvoiceData.itens
-      .map((item) => `${item.descricao} (${item.quantidade}x)`)
-      .join(", ");
-    newFormData.description = `${scannedInvoiceData.emitente.razaoSocial} - ${itemsDescription}`;
+    // Descrição não é preenchida automaticamente
 
     setFormData(newFormData);
     setIsInvoiceDisplayOpen(false);
@@ -463,11 +458,23 @@ function ExpenseFormDialog({
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Seção Informações da Despesa */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Receipt className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">
-                  Informações da Despesa
-                </h3>
+              <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-orange-600" />
+                  <h3 className="text-base font-semibold text-orange-800">
+                    Informações da Despesa
+                  </h3>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsQRScannerOpen(true)}
+                  className="text-xs h-7 px-2 gap-1.5 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
+                >
+                  <QrCode className="h-3 w-3" />
+                  Escanear Nota
+                </Button>
               </div>
               <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
@@ -567,21 +574,9 @@ function ExpenseFormDialog({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      Valor <span className="text-red-500">*</span>
-                    </label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsQRScannerOpen(true)}
-                      className="text-xs h-7 px-2 gap-1.5 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
-                    >
-                      <QrCode className="h-3 w-3" />
-                      Escanear Nota
-                    </Button>
-                  </div>
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    Valor <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <Input
                       value={displayPrice}
@@ -595,13 +590,9 @@ function ExpenseFormDialog({
                     />
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   </div>
-                  {touched.amountCents && errors.amountCents ? (
+                  {touched.amountCents && errors.amountCents && (
                     <p className="text-sm text-red-500 mt-1">{errors.amountCents}</p>
-                  ) : formData.amountCents > 0 ? (
-                    <p className="text-sm text-gray-500">
-                      Valor em centavos: {formData.amountCents}
-                    </p>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -712,6 +703,11 @@ function ExpenseFormDialog({
           onClose={() => {
             setIsInvoiceDisplayOpen(false);
             setScannedInvoiceData(null);
+          }}
+          onScanAgain={() => {
+            setIsInvoiceDisplayOpen(false);
+            setScannedInvoiceData(null);
+            setIsQRScannerOpen(true);
           }}
         />
       )}

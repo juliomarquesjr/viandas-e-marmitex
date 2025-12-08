@@ -49,28 +49,69 @@ export function normalizeChaveAcesso(chaveAcesso: string): string {
  */
 export function extractChaveFromURL(url: string): string | null {
   try {
-    const urlObj = new URL(url);
+    // Tenta criar URL - pode falhar se não tiver protocolo
+    let urlObj: URL;
+    try {
+      urlObj = new URL(url);
+    } catch {
+      // Se não tiver protocolo, adiciona https://
+      try {
+        urlObj = new URL(`https://${url}`);
+      } catch {
+        // Se ainda falhar, tenta extrair diretamente
+        return null;
+      }
+    }
     
     // Tenta extrair do parâmetro 'p' (padrão NFCe)
+    // O parâmetro pode ter formato: chave|versao|tipo ou apenas chave
     const pParam = urlObj.searchParams.get('p');
-    if (pParam && validateChaveAcesso(pParam)) {
-      return normalizeChaveAcesso(pParam);
+    if (pParam) {
+      // Remove tudo após o primeiro | (parâmetros adicionais)
+      const chavePart = pParam.split('|')[0];
+      const cleaned = normalizeChaveAcesso(chavePart);
+      if (validateChaveAcesso(cleaned)) {
+        return cleaned;
+      }
+      // Se não validou, tenta pegar os primeiros 44 dígitos
+      const allDigits = cleaned.replace(/\D/g, '');
+      if (allDigits.length >= 44) {
+        const chave = allDigits.substring(0, 44);
+        if (validateChaveAcesso(chave)) {
+          return chave;
+        }
+      }
+    }
+    
+    // Tenta extrair de outros parâmetros de query
+    for (const [key, value] of urlObj.searchParams.entries()) {
+      const cleaned = normalizeChaveAcesso(value);
+      if (validateChaveAcesso(cleaned)) {
+        return cleaned;
+      }
     }
     
     // Tenta extrair do pathname
     const pathParts = urlObj.pathname.split('/');
     for (const part of pathParts) {
-      if (validateChaveAcesso(part)) {
-        return normalizeChaveAcesso(part);
+      if (part) {
+        const cleaned = normalizeChaveAcesso(part);
+        if (validateChaveAcesso(cleaned)) {
+          return cleaned;
+        }
+      }
+    }
+    
+    // Tenta extrair do hash
+    if (urlObj.hash) {
+      const cleaned = normalizeChaveAcesso(urlObj.hash.replace('#', ''));
+      if (validateChaveAcesso(cleaned)) {
+        return cleaned;
       }
     }
     
     return null;
   } catch {
-    // Se não for uma URL válida, tenta extrair diretamente
-    if (validateChaveAcesso(url)) {
-      return normalizeChaveAcesso(url);
-    }
     return null;
   }
 }
@@ -79,13 +120,42 @@ export function extractChaveFromURL(url: string): string | null {
  * Extrai a chave de acesso de uma string (pode ser URL ou chave direta)
  */
 export function extractChaveAcesso(input: string): string | null {
+  if (!input || typeof input !== 'string') {
+    return null;
+  }
+  
+  // Remove espaços e quebras de linha
+  const cleaned = input.trim().replace(/\s+/g, '');
+  
   // Primeiro tenta como URL
-  const fromURL = extractChaveFromURL(input);
+  const fromURL = extractChaveFromURL(cleaned);
   if (fromURL) return fromURL;
   
-  // Se não funcionou, tenta como chave direta
-  if (validateChaveAcesso(input)) {
-    return normalizeChaveAcesso(input);
+  // Tenta encontrar sequência de 44 dígitos no texto
+  // Isso ajuda quando há texto antes ou depois da chave
+  const digitSequence = cleaned.match(/\d{44}/);
+  if (digitSequence) {
+    const chave = digitSequence[0];
+    if (validateChaveAcesso(chave)) {
+      return normalizeChaveAcesso(chave);
+    }
+  }
+  
+  // Se não funcionou, tenta como chave direta (normalizada)
+  const normalized = normalizeChaveAcesso(cleaned);
+  if (validateChaveAcesso(normalized)) {
+    return normalized;
+  }
+  
+  // Última tentativa: procura por padrão de chave de acesso (44 dígitos)
+  // mesmo que tenha outros caracteres misturados
+  const allDigits = cleaned.replace(/\D/g, '');
+  if (allDigits.length >= 44) {
+    // Pega os primeiros 44 dígitos
+    const chave = allDigits.substring(0, 44);
+    if (validateChaveAcesso(chave)) {
+      return chave;
+    }
   }
   
   return null;

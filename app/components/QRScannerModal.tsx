@@ -24,6 +24,7 @@ export function QRScannerModal({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qrDetected, setQrDetected] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,8 +38,21 @@ export function QRScannerModal({
       setQrDetected(false);
       setScanning(false);
       setProcessing(false);
+      setVideoReady(false);
     }
   }, [isOpen]);
+
+  // Iniciar câmera automaticamente quando o modal abrir no modo webcam
+  useEffect(() => {
+    if (isOpen && mode === "webcam" && !stream && !processing) {
+      // Pequeno delay para garantir que o modal está totalmente aberto
+      const timer = setTimeout(() => {
+        startWebcam();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode]);
 
   // Limpar ao fechar
   useEffect(() => {
@@ -47,50 +61,98 @@ export function QRScannerModal({
     }
   }, [isOpen]);
 
+  // Atualizar vídeo quando stream mudar
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = stream;
+      
+      // Forçar reprodução
+      video.play().catch((err) => {
+        console.error("Erro ao reproduzir vídeo:", err);
+      });
+      
+      // Aguardar o vídeo estar pronto para iniciar scanning
+      const handleVideoReady = () => {
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          setVideoReady(true);
+          // Aguardar um pouco para garantir que o vídeo está renderizando
+          setTimeout(() => {
+            startScanning();
+          }, 300);
+        } else {
+          // Se ainda não tiver dimensões, tentar novamente
+          setTimeout(handleVideoReady, 100);
+        }
+      };
+      
+      // Usar múltiplos eventos para garantir que capturamos quando o vídeo está pronto
+      video.addEventListener("loadedmetadata", handleVideoReady, { once: true });
+      video.addEventListener("loadeddata", handleVideoReady, { once: true });
+      video.addEventListener("canplay", handleVideoReady, { once: true });
+      
+      // Fallback: se após 2 segundos ainda não estiver pronto, tentar iniciar scanning
+      const timeoutId = setTimeout(() => {
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          startScanning();
+        }
+      }, 2000);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        // Remover event listeners se o componente desmontar
+        video.removeEventListener("loadedmetadata", handleVideoReady);
+        video.removeEventListener("loadeddata", handleVideoReady);
+        video.removeEventListener("canplay", handleVideoReady);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stream]);
+
   // Iniciar webcam
   const startWebcam = async () => {
     try {
       setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          facingMode: "environment", // Câmera traseira no mobile
-        },
-        audio: false,
-      });
-      setStream(mediaStream);
-
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = mediaStream;
-        
-        // Aguardar o vídeo estar pronto antes de iniciar scanning
-        const handleVideoReady = () => {
-          video.play().catch((err) => {
-            console.error("Erro ao iniciar reprodução:", err);
+      
+      // Tentar primeiro com environment (mobile), depois fallback para user (desktop)
+      let mediaStream: MediaStream | null = null;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            facingMode: "environment", // Câmera traseira no mobile
+          },
+          audio: false,
+        });
+      } catch (envError) {
+        // Se falhar com environment, tentar com user (desktop)
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+              facingMode: "user", // Câmera frontal no desktop
+            },
+            audio: false,
           });
-          
-          // Aguardar alguns frames estarem disponíveis
-          const checkReady = () => {
-            if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-              setTimeout(() => {
-                startScanning();
-              }, 500);
-            } else {
-              setTimeout(checkReady, 100);
-            }
-          };
-          
-          checkReady();
-        };
-        
-        if (video.readyState >= video.HAVE_METADATA) {
-          handleVideoReady();
-        } else {
-          video.addEventListener("loadedmetadata", handleVideoReady, { once: true });
+        } catch (userError) {
+          // Se ambos falharem, tentar sem facingMode
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+            },
+            audio: false,
+          });
         }
       }
+
+      if (!mediaStream) {
+        throw new Error("Não foi possível acessar a câmera");
+      }
+
+      setStream(mediaStream);
     } catch (err) {
       console.error("Erro ao acessar webcam:", err);
       if (err instanceof Error) {
@@ -118,6 +180,7 @@ export function QRScannerModal({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setVideoReady(false);
     stopScanning();
   };
 
@@ -213,8 +276,14 @@ export function QRScannerModal({
     setError(null);
 
     try {
+      // Log para debug
+      console.log("QR Code detectado:", qrData.substring(0, 100) + (qrData.length > 100 ? "..." : ""));
+      
+      // Limpar e normalizar os dados do QR code
+      const cleanedData = qrData.trim();
+      
       const formData = new FormData();
-      formData.append("qrData", qrData);
+      formData.append("qrData", cleanedData);
 
       const response = await fetch("/api/nf-scanner/process-qr", {
         method: "POST",
@@ -223,7 +292,9 @@ export function QRScannerModal({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao processar QR code");
+        const errorMessage = errorData.error || "Erro ao processar QR code";
+        console.error("Erro da API:", errorData);
+        throw new Error(errorMessage);
       }
 
       const { data } = await response.json();
@@ -382,12 +453,27 @@ export function QRScannerModal({
                       playsInline
                       muted
                       className="w-full h-full object-cover"
+                      style={{ 
+                        transform: 'scaleX(1)',
+                        backgroundColor: '#000'
+                      }}
                     />
                     <canvas ref={canvasRef} className="hidden" />
+                    {/* Overlay de carregamento */}
+                    {stream && !videoReady && (
+                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                        <div className="text-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-white mx-auto mb-2" />
+                          <p className="text-sm text-white">Iniciando câmera...</p>
+                        </div>
+                      </div>
+                    )}
                     {/* Overlay de guia mais sutil */}
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                      <div className="border-2 border-white/40 rounded-lg w-56 h-56" />
-                    </div>
+                    {stream && videoReady && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="border-2 border-white/40 rounded-lg w-56 h-56" />
+                      </div>
+                    )}
                     {qrDetected && (
                       <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center backdrop-blur-sm">
                         <div className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium shadow-lg">

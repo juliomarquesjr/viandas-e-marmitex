@@ -17,33 +17,66 @@ const parser = new XMLParser({
  */
 export function parseNFXML(xml: string): InvoiceData | null {
   try {
+    // Log para debug
+    console.log('Iniciando parse do XML, tamanho:', xml.length);
+    console.log('Primeiros 500 caracteres do XML:', xml.substring(0, 500));
+    
     const json = parser.parse(xml);
     
+    // Log da estrutura parseada
+    console.log('Estrutura JSON parseada (chaves principais):', Object.keys(json));
+    
     // Tenta encontrar a estrutura da nota (pode variar)
-    let nfeProc = json.nfeProc || json.NFe || json.NFCe || json;
+    let nfeProc = json.nfeProc || json.NFe || json.NFCe || json.nfeProc || json;
     
     // Se estiver dentro de um wrapper
-    if (nfeProc.NFe) {
+    if (nfeProc && nfeProc.NFe) {
       nfeProc = nfeProc.NFe;
     }
     
-    if (nfeProc.infNFe) {
+    // Log da estrutura encontrada
+    if (nfeProc) {
+      console.log('Estrutura nfeProc encontrada, chaves:', Object.keys(nfeProc));
+    }
+    
+    if (nfeProc && nfeProc.infNFe) {
+      console.log('Encontrado infNFe, parseando...');
       return parseNFeStructure(nfeProc);
     }
     
-    if (nfeProc.infNFCe) {
+    if (nfeProc && nfeProc.infNFCe) {
+      console.log('Encontrado infNFCe, parseando...');
       return parseNFCeStructure(nfeProc);
     }
     
     // Tenta encontrar qualquer estrutura que contenha infNFe ou infNFCe
     const infNFe = findInObject(json, 'infNFe') || findInObject(json, 'infNFCe');
     if (infNFe) {
+      console.log('Encontrado infNFe/infNFCe via busca recursiva, parseando...');
       return parseNFeStructure({ infNFe });
     }
     
+    // Última tentativa: procurar por qualquer estrutura que pareça uma nota fiscal
+    console.log('Estrutura não encontrada, tentando busca mais ampla...');
+    const possibleKeys = ['NFe', 'NFCe', 'nfeProc', 'procNFe', 'procNFCe'];
+    for (const key of possibleKeys) {
+      if (json[key]) {
+        const result = parseNFeStructure(json[key]);
+        if (result) {
+          console.log(`Estrutura encontrada em ${key}`);
+          return result;
+        }
+      }
+    }
+    
+    console.error('Não foi possível encontrar estrutura de nota fiscal no XML');
     return null;
   } catch (error) {
     console.error('Erro ao parsear XML:', error);
+    if (error instanceof Error) {
+      console.error('Mensagem de erro:', error.message);
+      console.error('Stack:', error.stack);
+    }
     return null;
   }
 }
@@ -53,35 +86,61 @@ export function parseNFXML(xml: string): InvoiceData | null {
  */
 function parseNFeStructure(nfe: any): InvoiceData | null {
   try {
-    const infNFe = nfe.infNFe || nfe;
+    console.log('Parseando estrutura NFe, chaves disponíveis:', Object.keys(nfe));
+    
+    const infNFe = nfe.infNFe || nfe.infNFCe || nfe;
+    console.log('infNFe encontrado, chaves:', infNFe ? Object.keys(infNFe) : 'não encontrado');
+    
     const ide = infNFe['@_'] || infNFe.ide || {};
     const emit = infNFe.emit || {};
     const dest = infNFe.dest || {};
     const det = infNFe.det || [];
     const total = infNFe.total || {};
-    const totalICMSTot = total.ICMSTot || total.ICMS || {};
+    const totalICMSTot = total.ICMSTot || total.ICMS || total || {};
     
-    const chaveAcesso = infNFe['@_Id']?.replace('NFe', '') || ide.chave || '';
-    const modelo = ide.mod || ide['@_mod'] || '55';
-    const numero = ide.nNF || ide['@_nNF'] || '';
-    const serie = ide.serie || ide['@_serie'] || '';
+    // Extrair chave de acesso de diferentes formatos
+    let chaveAcesso = '';
+    if (infNFe['@_Id']) {
+      // Formato: NFe43251192016757010154651140000088121948994141 ou NFCe4325...
+      chaveAcesso = infNFe['@_Id'].replace(/^NFe?/i, '').replace(/^NFCe?/i, '');
+    } else if (infNFe['@_id']) {
+      chaveAcesso = infNFe['@_id'].replace(/^NFe?/i, '').replace(/^NFCe?/i, '');
+    } else if (ide.chave) {
+      chaveAcesso = ide.chave;
+    } else if (ide['@_chave']) {
+      chaveAcesso = ide['@_chave'];
+    }
     
-    const dataEmissao = formatDate(ide.dhEmi || ide.dEmi || ide['@_dhEmi'] || ide['@_dEmi']);
-    const dataEntradaSaida = ide.dhSaiEnt ? formatDate(ide.dhSaiEnt) : undefined;
+    // Normalizar chave de acesso (remover caracteres não numéricos)
+    chaveAcesso = chaveAcesso.replace(/\D/g, '');
+    
+    console.log('Chave de acesso extraída:', chaveAcesso);
+    const modelo = ide.mod || ide['@_mod'] || ide.Mod || ide['@_Mod'] || '55';
+    const numero = ide.nNF || ide['@_nNF'] || ide.nNF || ide['@_nNF'] || '';
+    const serie = ide.serie || ide['@_serie'] || ide.Serie || ide['@_Serie'] || '';
+    
+    const dataEmissao = formatDate(
+      ide.dhEmi || ide.dEmi || ide['@_dhEmi'] || ide['@_dEmi'] || 
+      ide.dhEmissao || ide['@_dhEmissao'] || ide.dEmissao || ide['@_dEmissao']
+    );
+    const dataEntradaSaida = (ide.dhSaiEnt || ide['@_dhSaiEnt']) ? formatDate(ide.dhSaiEnt || ide['@_dhSaiEnt']) : undefined;
     
     const uf = extractUFFromChave(chaveAcesso) || '';
     
+    console.log('Dados extraídos:', { modelo, numero, serie, dataEmissao, uf, chaveAcesso: chaveAcesso.substring(0, 20) + '...' });
+    
+    const enderecoEmit = emit.enderEmit || emit.endereco || emit.enderEmit;
     const emitente: InvoiceEmitent = {
-      cnpj: emit.CNPJ || emit['@_CNPJ'] || '',
-      razaoSocial: emit.xNome || emit['@_xNome'] || '',
-      nomeFantasia: emit.xFant || emit['@_xFant'],
-      endereco: emit.enderEmit ? {
-        logradouro: emit.enderEmit.xLgr || emit.enderEmit['@_xLgr'],
-        numero: emit.enderEmit.nro || emit.enderEmit['@_nro'],
-        bairro: emit.enderEmit.xBairro || emit.enderEmit['@_xBairro'],
-        municipio: emit.enderEmit.xMun || emit.enderEmit['@_xMun'],
-        uf: emit.enderEmit.UF || emit.enderEmit['@_UF'],
-        cep: emit.enderEmit.CEP || emit.enderEmit['@_CEP'],
+      cnpj: emit.CNPJ || emit['@_CNPJ'] || emit.cnpj || emit['@_cnpj'] || '',
+      razaoSocial: emit.xNome || emit['@_xNome'] || emit.razaoSocial || '',
+      nomeFantasia: emit.xFant || emit['@_xFant'] || emit.nomeFantasia,
+      endereco: enderecoEmit ? {
+        logradouro: enderecoEmit.xLgr || enderecoEmit['@_xLgr'],
+        numero: enderecoEmit.nro || enderecoEmit['@_nro'],
+        bairro: enderecoEmit.xBairro || enderecoEmit['@_xBairro'],
+        municipio: enderecoEmit.xMun || enderecoEmit['@_xMun'],
+        uf: enderecoEmit.UF || enderecoEmit['@_UF'],
+        cep: enderecoEmit.CEP || enderecoEmit['@_CEP'],
       } : undefined,
     };
     
