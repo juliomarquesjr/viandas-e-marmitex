@@ -15,6 +15,7 @@ import {
     Mail,
     MapPin,
     Phone,
+    QrCode,
     RefreshCw,
     Save,
     Send,
@@ -57,6 +58,7 @@ export default function SettingsPage() {
     email_from_address: '',
     email_reply_to: '',
     email_enabled: 'false',
+    payment_pix_key: '',
   });
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -1003,6 +1005,55 @@ export default function SettingsPage() {
                     Digite um email válido para testar as configurações SMTP
                   </p>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Configurações de Pagamento */}
+        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <QrCode className="h-6 w-6 text-purple-600" />
+              Configurações de Pagamento
+            </CardTitle>
+            <CardDescription className="text-gray-600 mt-1">
+              Configure os dados de pagamento PIX
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {/* Seção PIX */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <QrCode className="h-4 w-4 text-purple-600" />
+                <h3 className="text-base font-semibold text-purple-800">
+                  Chave PIX
+                </h3>
+              </div>
+              <div className="mt-3 h-px bg-gradient-to-r from-purple-100 via-purple-300 to-purple-100"></div>
+              
+              <div className="space-y-2 mt-4">
+                <Label 
+                  htmlFor="payment_pix_key"
+                  className="text-sm font-medium text-gray-700 flex items-center gap-1"
+                >
+                  Chave PIX
+                  <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="payment_pix_key"
+                    value={formData.payment_pix_key}
+                    onChange={(e) => handleInputChange('payment_pix_key', e.target.value)}
+                    placeholder="CPF, CNPJ, Email, Telefone ou Chave Aleatória"
+                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 shadow-sm transition-all"
+                  />
+                  <QrCode className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  A chave PIX será usada para gerar os QR codes de pagamento nos recibos. 
+                  Pode ser CPF (11 dígitos), CNPJ (14 dígitos), email, telefone (com DDD) ou chave aleatória.
+                </p>
               </div>
             </div>
           </CardContent>

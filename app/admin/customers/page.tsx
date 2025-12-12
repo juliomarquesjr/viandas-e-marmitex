@@ -17,7 +17,7 @@ import {
   User,
   X
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { CustomerFormDialog } from "../../components/CustomerFormDialog";
 import { useToast } from "../../components/Toast";
@@ -168,7 +168,8 @@ export default function AdminCustomersPage() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Estados de filtros e busca
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Valor do input (atualizado imediatamente)
+  const [searchTerm, setSearchTerm] = useState(""); // Termo de busca efetivo (com debounce)
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "inactive"
   >("all");
@@ -183,8 +184,17 @@ export default function AdminCustomersPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
+  // Debounce do termo de busca (1 segundo)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // Carregar clientes
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -204,14 +214,14 @@ export default function AdminCustomersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, statusFilter]);
 
   // Carregar clientes na montagem e quando filtros mudarem
   useEffect(() => {
     loadCustomers();
     // Resetar para a primeira página quando filtros mudarem
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [loadCustomers]);
 
   // Resetar para a primeira página quando mudar itens por página
   useEffect(() => {
@@ -297,10 +307,13 @@ export default function AdminCustomersPage() {
         zip: formData.zip,
       };
 
+      // Converter email vazio para null (banco não aceita string vazia)
+      const emailValue = formData.email?.trim() || null;
+      
       const customerData: any = {
         name: formData.name,
         phone: formData.phone,
-        email: formData.email || undefined,
+        email: emailValue,
         doc: formData.doc || undefined,
         barcode: formData.barcode || undefined,
         address: Object.values(address).some((v) => v) ? address : undefined,
@@ -617,11 +630,11 @@ export default function AdminCustomersPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar clientes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10 pr-4 py-2 text-sm"
               />
-              {searchTerm && (
+              {searchInput && (
                 <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
                   {customers.length}
                 </Badge>
@@ -673,6 +686,7 @@ export default function AdminCustomersPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  setSearchInput("");
                   setSearchTerm("");
                   setStatusFilter("all");
                 }}

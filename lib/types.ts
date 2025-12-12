@@ -4,7 +4,7 @@ export interface SystemConfig {
   key: string;
   value: string | null;
   type: 'text' | 'json' | 'image';
-  category: 'general' | 'contact' | 'branding' | 'email';
+  category: 'general' | 'contact' | 'branding' | 'email' | 'payment';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +31,7 @@ export interface ConfigFormData {
   email_from_address: string;
   email_reply_to: string;
   email_enabled: string;
+  payment_pix_key: string;
 }
 
 // Tipos para o sistema de despesas

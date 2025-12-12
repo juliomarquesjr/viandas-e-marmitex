@@ -134,6 +134,14 @@ const defaultConfigs = [
     value: 'false',
     type: 'text',
     category: 'email'
+  },
+
+  // Configurações de Pagamento
+  {
+    key: 'payment_pix_key',
+    value: '',
+    type: 'text',
+    category: 'payment'
   }
 ];
 

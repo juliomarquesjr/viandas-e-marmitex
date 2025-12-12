@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     // Validar categorias permitidas
-    const allowedCategories = ['general', 'contact', 'branding'];
+    const allowedCategories = ['general', 'contact', 'branding', 'email', 'payment'];
     if (!allowedCategories.includes(category)) {
       return NextResponse.json({ 
         error: `Categoria inválida. Use: ${allowedCategories.join(', ')}` 

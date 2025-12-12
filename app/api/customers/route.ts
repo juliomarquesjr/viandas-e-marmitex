@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@/lib/generated/prisma';
 
 export async function GET(request: Request) {
   try {
@@ -80,6 +81,23 @@ export async function POST(request: Request) {
       );
     }
     
+    // Converter email vazio para null (banco não aceita string vazia)
+    const emailValue = body.email?.trim() || null;
+    
+    // Validar unicidade de email se fornecido
+    if (emailValue) {
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { email: emailValue }
+      });
+      
+      if (existingCustomer) {
+        return NextResponse.json(
+          { error: 'Este email já está cadastrado para outro cliente' },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Hash da senha se fornecida e não vazia
     let hashedPassword = undefined;
     if (body.password && typeof body.password === 'string' && body.password.trim()) {
@@ -90,7 +108,7 @@ export async function POST(request: Request) {
       data: {
         name: body.name,
         phone: body.phone,
-        email: body.email,
+        email: emailValue,
         doc: body.doc,
         barcode: body.barcode,
         password: hashedPassword,
@@ -104,6 +122,39 @@ export async function POST(request: Request) {
     return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error creating customer:', error);
+    
+    // Verificar se é erro de constraint única do Prisma (P2002)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        // Violação de constraint única
+        const target = error.meta?.target as string[] | undefined;
+        if (target?.includes('email')) {
+          return NextResponse.json(
+            { error: 'Este email já está cadastrado para outro cliente' },
+            { status: 400 }
+          );
+        }
+        if (target?.includes('barcode')) {
+          return NextResponse.json(
+            { error: 'Este código de barras já está cadastrado para outro cliente' },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'Já existe um registro com estes dados únicos' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Fallback para outros tipos de erro
+    if (error instanceof Error && (error.message.includes('Unique constraint') || error.message.includes('email'))) {
+      return NextResponse.json(
+        { error: 'Este email já está cadastrado para outro cliente' },
+        { status: 400 }
+      );
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Failed to create customer';
     return NextResponse.json(
       { error: errorMessage },
@@ -132,11 +183,28 @@ export async function PUT(request: Request) {
       );
     }
     
+    // Converter email vazio para null (banco não aceita string vazia)
+    const emailValue = data.email?.trim() || null;
+    
+    // Validar unicidade de email se fornecido e diferente do atual
+    if (emailValue) {
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { email: emailValue }
+      });
+      
+      if (existingCustomer && existingCustomer.id !== id) {
+        return NextResponse.json(
+          { error: 'Este email já está cadastrado para outro cliente' },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Preparar dados de atualização
     const updateData: any = {
       name: data.name,
       phone: data.phone,
-      email: data.email,
+      email: emailValue,
       doc: data.doc,
       barcode: data.barcode,
       address: data.address ? JSON.parse(JSON.stringify(data.address)) : undefined,
@@ -158,6 +226,39 @@ export async function PUT(request: Request) {
     return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error updating customer:', error);
+    
+    // Verificar se é erro de constraint única do Prisma (P2002)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        // Violação de constraint única
+        const target = error.meta?.target as string[] | undefined;
+        if (target?.includes('email')) {
+          return NextResponse.json(
+            { error: 'Este email já está cadastrado para outro cliente' },
+            { status: 400 }
+          );
+        }
+        if (target?.includes('barcode')) {
+          return NextResponse.json(
+            { error: 'Este código de barras já está cadastrado para outro cliente' },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'Já existe um registro com estes dados únicos' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Fallback para outros tipos de erro
+    if (error instanceof Error && (error.message.includes('Unique constraint') || error.message.includes('email'))) {
+      return NextResponse.json(
+        { error: 'Este email já está cadastrado para outro cliente' },
+        { status: 400 }
+      );
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Failed to update customer';
     return NextResponse.json(
       { error: errorMessage },

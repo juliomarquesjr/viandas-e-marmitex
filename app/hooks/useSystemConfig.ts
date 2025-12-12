@@ -44,7 +44,8 @@ export function useSystemConfig() {
         value: value || '',
         type: key.includes('logo') ? 'image' : 'text',
         category: key.startsWith('contact_') ? 'contact' : 
-                  key.startsWith('email_') ? 'email' : 'branding'
+                  key.startsWith('email_') ? 'email' :
+                  key.startsWith('payment_') ? 'payment' : 'branding'
       }));
 
       const response = await fetch('/api/config', {
@@ -103,6 +104,7 @@ export function useSystemConfig() {
       email_from_address: getConfigValue('email_from_address'),
       email_reply_to: getConfigValue('email_reply_to'),
       email_enabled: getConfigValue('email_enabled', 'false'),
+      payment_pix_key: getConfigValue('payment_pix_key'),
     };
   }, [getConfigValue]);
 
