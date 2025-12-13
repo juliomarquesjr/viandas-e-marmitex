@@ -66,6 +66,7 @@ model Product {
   barcode         String?  @unique
   categoryId      String?
   priceCents      Int      @default(0) // Preço em centavos para evitar problemas de arredondamento
+  pricePerKgCents Int?     // Preço por quilo em centavos (opcional)
   description     String?
   stockEnabled    Boolean  @default(false)
   stock           Int?
@@ -129,6 +130,7 @@ model OrderItem {
   productId String
   quantity  Int      @default(1)
   priceCents Int     @default(0) // Preço no momento da venda
+  weightKg  Decimal? // Peso em quilos quando aplicável (para produtos vendidos por quilo)
 
   // Relacionamentos
   order     Order   @relation(fields: [orderId], references: [id])
@@ -184,6 +186,7 @@ model PreOrderItem {
   productId  String
   quantity   Int       @default(1)
   priceCents Int       @default(0)
+  weightKg   Decimal?  // Peso em quilos quando aplicável (para produtos vendidos por quilo)
 
   // Relacionamentos
   preOrder   PreOrder  @relation(fields: [preOrderId], references: [id])
