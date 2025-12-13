@@ -45,9 +45,6 @@ function ThermalReceiptContent() {
   const [systemTitle, setSystemTitle] = useState<string>('COMIDA CASEIRA');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string | null>(null);
-  const [pixChave, setPixChave] = useState<string | null>(null);
-  const [generatingQr, setGeneratingQr] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -83,7 +80,6 @@ function ThermalReceiptContent() {
           const configs = await configResponse.json();
           const contactConfigs = configs.filter((config: any) => config.category === 'contact');
           const brandingConfigs = configs.filter((config: any) => config.category === 'branding');
-          const paymentConfigs = configs.filter((config: any) => config.category === 'payment');
           
           // Extrair título do sistema
           const systemTitleConfig = brandingConfigs.find((c: any) => c.key === 'branding_system_title');
@@ -114,16 +110,6 @@ function ThermalReceiptContent() {
             phones: { mobile, landline }
           });
           
-          // Extrair chave PIX - priorizar payment_pix_key
-          const pixChaveConfig = paymentConfigs.find((c: any) => c.key === 'payment_pix_key');
-          if (pixChaveConfig?.value && pixChaveConfig.value.trim()) {
-            setPixChave(pixChaveConfig.value.trim());
-            console.log('Chave PIX encontrada nas configurações:', pixChaveConfig.value);
-          } else if (mobile && mobile.trim()) {
-            // Fallback para telefone móvel se não tiver chave PIX configurada
-            setPixChave(mobile.replace(/\D/g, ''));
-            console.log('Usando telefone móvel como chave PIX:', mobile);
-          }
         } else {
           // Se não conseguir carregar configurações, definir valores vazios
           setContactInfo({
@@ -142,120 +128,14 @@ function ThermalReceiptContent() {
     loadData();
   }, [orderId]);
   
-  // Gerar QR code PIX quando os dados necessários estiverem disponíveis
-  useEffect(() => {
-    const generatePixQr = async () => {
-      // Só gerar se for pagamento PIX e ainda não tiver QR code
-      // Verificar se paymentMethod é 'pix' (case insensitive)
-      const isPixPayment = order?.paymentMethod?.toLowerCase() === 'pix';
-      
-      // Condições para gerar: PIX, tem valor, não tem QR code ainda, não está carregando, não está gerando
-      if (isPixPayment && order && order.totalCents > 0 && !pixQrCodeUrl && !loading && !generatingQr) {
-        console.log('Iniciando geração do QR code PIX...');
-        setGeneratingQr(true);
-        try {
-          // Usar chave PIX configurada, telefone móvel como fallback
-          let chavePix = pixChave;
-          if (!chavePix && contactInfo?.phones.mobile) {
-            chavePix = contactInfo.phones.mobile.replace(/\D/g, '');
-          }
-          
-          // Validar se temos uma chave PIX válida
-          if (!chavePix || chavePix.length < 10) {
-            console.warn('Chave PIX não configurada ou inválida. Configure em Configurações > Pagamento > Chave PIX');
-            setGeneratingQr(false);
-            return;
-          }
-          
-          console.log('Gerando QR code PIX com:', { chavePix, valorCents: order.totalCents });
-          
-          // Buscar cidade diretamente das configurações (carregar novamente se necessário)
-          let cidadePix = 'BR'; // Valor padrão
-          try {
-            const configResponse = await fetch('/api/config/public');
-            if (configResponse.ok) {
-              const configs = await configResponse.json();
-              const contactConfigs = configs.filter((config: any) => config.category === 'contact');
-              const cidadeConfig = contactConfigs.find((c: any) => c.key === 'contact_address_city');
-              
-              if (cidadeConfig?.value && cidadeConfig.value.trim()) {
-                const cidadeRaw = cidadeConfig.value.trim();
-                // Validar que não é um CEP (formato 00000-000 ou 00000000)
-                const cepRegex = /^\d{5}-?\d{3}$/;
-                if (!cepRegex.test(cidadeRaw)) {
-                  // Remover espaços extras e limitar a 15 caracteres (padrão PIX)
-                  cidadePix = cidadeRaw.replace(/\s+/g, ' ').trim().substring(0, 15);
-                }
-              }
-            }
-          } catch (err) {
-            console.warn('Erro ao buscar cidade das configurações, usando padrão BR:', err);
-          }
-          
-          // Garantir que o nome tenha pelo menos 1 caractere e remover espaços extras
-          const nomePix = (systemTitle && systemTitle.trim()) 
-            ? systemTitle.trim().replace(/\s+/g, ' ').substring(0, 25) 
-            : 'PIX';
-          
-          const qrResponse = await fetch('/api/pix/generate-qr', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              chavePix,
-              valorCents: order.totalCents,
-              nomeBeneficiario: nomePix,
-              cidade: cidadePix
-              // Removido identificador - pode causar problemas em alguns apps
-            })
-          });
-          
-          if (qrResponse.ok) {
-            const qrData = await qrResponse.json();
-            console.log('QR code gerado com sucesso:', qrData);
-            if (qrData.qrCodeUrl) {
-              setPixQrCodeUrl(qrData.qrCodeUrl);
-              console.log('URL do QR code definida');
-            } else {
-              console.error('QR code gerado mas sem URL:', qrData);
-              // Definir uma URL vazia para evitar loop
-              setPixQrCodeUrl('');
-            }
-          } else {
-            const errorData = await qrResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
-            console.error('Erro ao gerar QR code PIX:', errorData, 'Status:', qrResponse.status);
-            // Definir uma URL vazia para evitar loop infinito
-            setPixQrCodeUrl('');
-          }
-        } catch (err) {
-          console.error('Erro ao gerar QR code PIX:', err);
-          // Definir uma URL vazia para evitar loop infinito
-          setPixQrCodeUrl('');
-        } finally {
-          setGeneratingQr(false);
-        }
-      }
-    };
-    
-    // Aguardar um pouco para garantir que todos os dados foram carregados
-    const timer = setTimeout(() => {
-      generatePixQr();
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [order, contactInfo, systemTitle, pixChave, pixQrCodeUrl, loading, generatingQr]);
-
-  // Auto print when page loads (aguardar QR code se for PIX)
+  // Auto print when page loads
   useEffect(() => {
     if (order && !loading && !error) {
-      // Se for PIX, aguardar um pouco mais para o QR code ser gerado
-      const delay = order.paymentMethod === 'pix' ? 2000 : 500;
       setTimeout(() => {
         window.print();
-      }, delay);
+      }, 500);
     }
-  }, [order, loading, error, pixQrCodeUrl]);
+  }, [order, loading, error]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -443,55 +323,6 @@ function ThermalReceiptContent() {
           </>
         )}
         
-        {(order.paymentMethod?.toLowerCase() === 'pix') && (
-          <div style={{marginTop: '8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-            {generatingQr && !pixQrCodeUrl && (
-              <div className="thermal-text" style={{fontSize: '11px', marginBottom: '8px'}}>
-                Gerando QR Code...
-              </div>
-            )}
-            {pixQrCodeUrl ? (
-              <>
-                <div className="thermal-text" style={{marginBottom: '4px', fontSize: '11px'}}>
-                  Escaneie o QR Code para pagar
-                </div>
-                <div style={{display: 'flex', justifyContent: 'center', width: '100%'}}>
-                  <img 
-                    src={pixQrCodeUrl} 
-                    alt="QR Code PIX" 
-                    onError={(e) => {
-                      console.error('Erro ao carregar imagem do QR code:', e);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('QR code carregado com sucesso');
-                    }}
-                    style={{
-                      width: '150px',
-                      height: '150px',
-                      maxWidth: '100%',
-                      border: '2px solid #000',
-                      padding: '4px',
-                      backgroundColor: '#fff',
-                      display: 'block',
-                      margin: '0 auto'
-                    }}
-                  />
-                </div>
-                <div className="thermal-text" style={{marginTop: '4px', fontSize: '10px', fontWeight: 'bold'}}>
-                  Valor: {formatCurrency(order.totalCents)}
-                </div>
-                <div className="thermal-text" style={{marginTop: '2px', fontSize: '9px', color: '#666'}}>
-                  (Valor já incluído no QR Code)
-                </div>
-              </>
-            ) : !generatingQr && (
-              <div className="thermal-text" style={{fontSize: '10px', color: '#666'}}>
-                {pixChave ? 'Aguardando geração do QR code...' : 'Configure a chave PIX nas configurações'}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Contact Footer */}

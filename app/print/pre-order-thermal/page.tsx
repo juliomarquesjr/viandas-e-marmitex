@@ -60,6 +60,9 @@ function PreOrderThermalContent() {
   const [systemTitle, setSystemTitle] = useState<string>('COMIDA CASEIRA');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string | null>(null);
+  const [pixChave, setPixChave] = useState<string | null>(null);
+  const [generatingQr, setGeneratingQr] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -75,7 +78,7 @@ function PreOrderThermalContent() {
         // Carregar pré-pedido e informações de contato em paralelo
         const [preOrderResponse, configResponse] = await Promise.all([
           fetch(`/api/pre-orders?id=${preOrderId}`),
-          fetch('/api/config')
+          fetch('/api/config/public')
         ]);
 
         if (!preOrderResponse.ok) {
@@ -103,6 +106,7 @@ function PreOrderThermalContent() {
           const configs = await configResponse.json();
           const contactConfigs = configs.filter((config: any) => config.category === 'contact');
           const brandingConfigs = configs.filter((config: any) => config.category === 'branding');
+          const paymentConfigs = configs.filter((config: any) => config.category === 'payment');
           
           // Extrair título do sistema
           const systemTitleConfig = brandingConfigs.find((c: any) => c.key === 'branding_system_title');
@@ -131,6 +135,15 @@ function PreOrderThermalContent() {
             address: formattedAddress,
             phones: { mobile, landline }
           });
+          
+          // Extrair chave PIX - priorizar payment_pix_key
+          const pixChaveConfig = paymentConfigs.find((c: any) => c.key === 'payment_pix_key');
+          if (pixChaveConfig?.value && pixChaveConfig.value.trim()) {
+            setPixChave(pixChaveConfig.value.trim());
+          } else if (mobile && mobile.trim()) {
+            // Fallback para telefone móvel se não tiver chave PIX configurada
+            setPixChave(mobile.replace(/\D/g, ''));
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -142,15 +155,112 @@ function PreOrderThermalContent() {
     loadData();
   }, [preOrderId]);
 
-  // Auto print when page loads
+  // Gerar QR code PIX quando os dados necessários estiverem disponíveis
+  useEffect(() => {
+    const generatePixQr = async () => {
+      // Gerar QR Code para pré-pedido se tiver valor e chave PIX
+      if (preOrder && preOrder.totalCents > 0 && !pixQrCodeUrl && !loading && !generatingQr && pixChave) {
+        setGeneratingQr(true);
+        try {
+          // Validar se temos uma chave PIX válida
+          if (!pixChave || pixChave.length < 10) {
+            setGeneratingQr(false);
+            return;
+          }
+          
+          // Buscar cidade diretamente das configurações
+          let cidadePix = 'BR';
+          try {
+            const configResponse = await fetch('/api/config/public');
+            if (configResponse.ok) {
+              const configs = await configResponse.json();
+              const contactConfigs = configs.filter((config: any) => config.category === 'contact');
+              const cidadeConfig = contactConfigs.find((c: any) => c.key === 'contact_address_city');
+              
+              if (cidadeConfig?.value && cidadeConfig.value.trim()) {
+                const cidadeRaw = cidadeConfig.value.trim();
+                const cepRegex = /^\d{5}-?\d{3}$/;
+                if (!cepRegex.test(cidadeRaw)) {
+                  cidadePix = cidadeRaw.replace(/\s+/g, ' ').trim().substring(0, 15);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('Erro ao buscar cidade das configurações, usando padrão BR:', err);
+          }
+          
+          // Garantir que o nome tenha pelo menos 1 caractere e remover espaços extras
+          const nomePix = (systemTitle && systemTitle.trim()) 
+            ? systemTitle.trim().replace(/\s+/g, ' ').substring(0, 25) 
+            : 'PIX';
+          
+          const qrResponse = await fetch('/api/pix/generate-qr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chavePix: pixChave,
+              valorCents: preOrder.totalCents,
+              nomeBeneficiario: nomePix,
+              cidade: cidadePix
+            })
+          });
+          
+          if (qrResponse.ok) {
+            const qrData = await qrResponse.json();
+            if (qrData.qrCodeUrl) {
+              setPixQrCodeUrl(qrData.qrCodeUrl);
+            } else {
+              setPixQrCodeUrl('');
+            }
+          } else {
+            setPixQrCodeUrl('');
+          }
+        } catch (err) {
+          console.error('Erro ao gerar QR code PIX:', err);
+          setPixQrCodeUrl('');
+        } finally {
+          setGeneratingQr(false);
+        }
+      }
+    };
+    
+    const timer = setTimeout(() => {
+      generatePixQr();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [preOrder, contactInfo, systemTitle, pixChave, pixQrCodeUrl, loading, generatingQr]);
+
+  // Auto print when page loads (aguardar QR code se necessário)
   useEffect(() => {
     if (preOrder && !loading && !error) {
-      // Small delay to ensure content is rendered
-      setTimeout(() => {
-        window.print();
-      }, 500);
+      // Se não houver chave PIX, imprimir após um pequeno delay
+      if (!pixChave) {
+        setTimeout(() => {
+          window.print();
+        }, 500);
+        return;
+      }
+      
+      // Se houver chave PIX, aguardar o QR Code ser gerado
+      // Verificar se já foi gerado ou se não está mais gerando (erro ou sem chave válida)
+      if (pixQrCodeUrl) {
+        // QR Code já foi gerado, aguardar tempo suficiente para renderizar a imagem
+        setTimeout(() => {
+          window.print();
+        }, 2000);
+      } else if (!generatingQr && pixChave) {
+        // Não está gerando e não tem QR Code - pode ser erro ou chave inválida
+        // Aguardar um pouco e imprimir mesmo assim
+        setTimeout(() => {
+          window.print();
+        }, 3000);
+      }
+      // Se estiver gerando, aguardar o próximo ciclo (quando generatingQr mudar)
     }
-  }, [preOrder, loading, error]);
+  }, [preOrder, loading, error, pixQrCodeUrl, pixChave, generatingQr]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -321,6 +431,54 @@ function PreOrderThermalContent() {
           <div className="thermal-text">
             {preOrder.notes}
           </div>
+        </div>
+      )}
+
+      {/* QR Code PIX */}
+      {pixChave && (
+        <div style={{marginTop: '8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          {generatingQr && !pixQrCodeUrl && (
+            <div className="thermal-text" style={{fontSize: '14px', marginBottom: '8px', fontWeight: 'bold'}}>
+              Gerando QR Code...
+            </div>
+          )}
+          {pixQrCodeUrl ? (
+            <>
+              <div className="thermal-text" style={{marginBottom: '6px', fontSize: '14px', fontWeight: 'bold'}}>
+                Escaneie o QR Code para pagar
+              </div>
+              <div style={{display: 'flex', justifyContent: 'center', width: '100%'}}>
+                <img 
+                  src={pixQrCodeUrl} 
+                  alt="QR Code PIX" 
+                  onError={(e) => {
+                    console.error('Erro ao carregar imagem do QR code:', e);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  style={{
+                    width: '150px',
+                    height: '150px',
+                    maxWidth: '100%',
+                    border: '2px solid #000',
+                    padding: '4px',
+                    backgroundColor: '#fff',
+                    display: 'block',
+                    margin: '0 auto'
+                  }}
+                />
+              </div>
+              <div className="thermal-text" style={{marginTop: '6px', fontSize: '13px', fontWeight: 'bold'}}>
+                Valor: {formatCurrency(preOrder.totalCents)}
+              </div>
+              <div className="thermal-text" style={{marginTop: '4px', fontSize: '12px', color: '#000'}}>
+                (Valor já incluído no QR Code)
+              </div>
+            </>
+          ) : !generatingQr && (
+            <div className="thermal-text" style={{fontSize: '13px', color: '#666'}}>
+              Aguardando geração do QR code...
+            </div>
+          )}
         </div>
       )}
 
