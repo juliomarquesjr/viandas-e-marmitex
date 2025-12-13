@@ -20,6 +20,7 @@ type Product = {
   id: string;
   name: string;
   priceCents: number;
+  pricePerKgCents?: number;
   barcode?: string;
   imageUrl?: string;
   active: boolean;
@@ -312,8 +313,19 @@ export function CustomerPresetModal({
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{preset.product.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatPrice(preset.product.priceCents)}
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs text-muted-foreground">
+                                {preset.product.pricePerKgCents && preset.product.pricePerKgCents > 0 ? (
+                                  <>{formatPrice(preset.product.pricePerKgCents)}/kg</>
+                                ) : (
+                                  <>{formatPrice(preset.product.priceCents)}</>
+                                )}
+                              </div>
+                              {preset.product.pricePerKgCents && preset.product.pricePerKgCents > 0 && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                  Por Quilo
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -440,9 +452,20 @@ export function CustomerPresetModal({
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium truncate">{product.name}</div>
-                                <div className="text-muted-foreground">
-                                  {formatPrice(product.priceCents)}
-                                  {product.barcode && ` • ${product.barcode}`}
+                                <div className="flex items-center gap-2">
+                                  <div className="text-muted-foreground">
+                                    {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                                      <>{formatPrice(product.pricePerKgCents)}/kg</>
+                                    ) : (
+                                      <>{formatPrice(product.priceCents)}</>
+                                    )}
+                                    {product.barcode && ` • ${product.barcode}`}
+                                  </div>
+                                  {product.pricePerKgCents && product.pricePerKgCents > 0 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      Por Quilo
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               {selectedProductId === product.id && (
@@ -470,7 +493,16 @@ export function CustomerPresetModal({
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold truncate text-primary">{selectedProduct.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {formatPrice(selectedProduct.priceCents)}
+                              {selectedProduct.pricePerKgCents && selectedProduct.pricePerKgCents > 0 ? (
+                                <>{formatPrice(selectedProduct.pricePerKgCents)}/kg</>
+                              ) : (
+                                <>{formatPrice(selectedProduct.priceCents)}</>
+                              )}
+                              {selectedProduct.pricePerKgCents && selectedProduct.pricePerKgCents > 0 && (
+                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                  Por Quilo
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

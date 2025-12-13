@@ -29,6 +29,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { CustomerSelector } from "../components/CustomerSelector";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { useToast } from "../components/Toast";
+import { WeightInputModal } from "../components/WeightInputModal";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Clock } from "../components/ui/clock";
@@ -41,7 +42,14 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 
-type CartItem = { id: string; name: string; price: number; qty: number };
+type CartItem = { 
+  id: string; 
+  name: string; 
+  price: number; 
+  qty: number;
+  weightKg?: number;
+  isWeightBased?: boolean;
+};
 type Customer = {
   id: string;
   name: string;
@@ -53,6 +61,7 @@ type Product = {
   id: string;
   name: string;
   priceCents: number;
+  pricePerKgCents?: number;
   barcode?: string;
   imageUrl?: string;
   active: boolean;
@@ -106,6 +115,8 @@ export default function PDVPage() {
   const [cashReceived, setCashReceived] = useState<string>("");
   const [change, setChange] = useState<number>(0);
   const [customSaleDate, setCustomSaleDate] = useState<string>(""); // Data customizada para admin
+  const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const demoDataEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
 
   // Obter data de hoje no formato YYYY-MM-DD
@@ -278,10 +289,17 @@ export default function PDVPage() {
       return;
     }
 
-    // Adicionar produto ao carrinho
+    // Se o produto tem preço por quilo, abrir modal de peso
+    if (product.pricePerKgCents && product.pricePerKgCents > 0) {
+      setPendingProduct(product);
+      setIsWeightModalOpen(true);
+      return;
+    }
+
+    // Adicionar produto ao carrinho (produto unitário)
     setCart((prev) => {
       const existingIndex = prev.findIndex(
-        (item) => item.id === product.id
+        (item) => item.id === product.id && !item.isWeightBased
       );
       if (existingIndex >= 0) {
         const updated = [...prev];
@@ -297,6 +315,7 @@ export default function PDVPage() {
         name: product.name,
         price: product.priceCents / 100,
         qty: 1,
+        isWeightBased: false,
       };
       setSelectedIndex(prev.length);
       return [...prev, item];
@@ -307,6 +326,43 @@ export default function PDVPage() {
     setQuery("");
     inputRef.current?.focus();
   }, [canAddProductToCart, playBeepSound]);
+
+  // Função para adicionar produto por quilo ao carrinho
+  const handleAddWeightBasedProduct = useCallback((weightKg: number) => {
+    if (!pendingProduct) return;
+
+    const pricePerKg = pendingProduct.pricePerKgCents! / 100;
+    const totalPrice = pricePerKg * weightKg;
+
+    setCart((prev) => {
+      const item: CartItem = {
+        id: pendingProduct.id,
+        name: pendingProduct.name,
+        price: totalPrice,
+        qty: 1,
+        weightKg: weightKg,
+        isWeightBased: true,
+      };
+      setSelectedIndex(prev.length);
+      return [...prev, item];
+    });
+
+    setIsWeightModalOpen(false);
+    setPendingProduct(null);
+    playBeepSound();
+    setQuery("");
+    inputRef.current?.focus();
+  }, [pendingProduct, playBeepSound]);
+
+  // Função para formatar preço
+  const formatPriceToReais = useCallback((cents: number): string => {
+    if (!cents || isNaN(cents) || cents <= 0) return "R$ 0,00";
+    return (cents / 100).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+    });
+  }, []);
 
   useEffect(() => {
     if (query.trim() !== "") {
@@ -599,6 +655,7 @@ export default function PDVPage() {
         productId: item.id,
         quantity: item.qty,
         priceCents: Math.round(item.price * 100),
+        weightKg: item.weightKg || undefined,
       }));
 
       const subtotalCents = Math.round(subtotal * 100);
@@ -934,8 +991,19 @@ export default function PDVPage() {
                                   
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="flex flex-col gap-1">
-                                      <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
-                                        R$ {price.toFixed(2)}
+                                      <div className="flex items-center gap-2">
+                                        <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
+                                          {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                                            <>R$ {(product.pricePerKgCents / 100).toFixed(2)}/kg</>
+                                          ) : (
+                                            <>R$ {price.toFixed(2)}</>
+                                          )}
+                                        </div>
+                                        {product.pricePerKgCents && product.pricePerKgCents > 0 && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            Por Quilo
+                                          </span>
+                                        )}
                                       </div>
                                       
                                       {product.stockEnabled && product.stock !== undefined && (
@@ -1027,8 +1095,19 @@ export default function PDVPage() {
                                   
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="flex flex-col gap-1">
-                                      <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
-                                        R$ {price.toFixed(2)}
+                                      <div className="flex items-center gap-2">
+                                        <div className="whitespace-nowrap rounded-full bg-white/80 px-3 py-1 text-sm shadow-sm font-medium">
+                                          {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                                            <>R$ {(product.pricePerKgCents / 100).toFixed(2)}/kg</>
+                                          ) : (
+                                            <>R$ {price.toFixed(2)}</>
+                                          )}
+                                        </div>
+                                        {product.pricePerKgCents && product.pricePerKgCents > 0 && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            Por Quilo
+                                          </span>
+                                        )}
                                       </div>
                                       
                                       {product.stockEnabled && product.stock !== undefined && (
@@ -1106,39 +1185,53 @@ export default function PDVPage() {
                     {item.name}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    R$ {item.price.toFixed(2)}
+                    {item.isWeightBased && item.weightKg ? (
+                      <>
+                        {item.weightKg.toFixed(3)} kg × R$ {(item.price / item.weightKg).toFixed(2)}/kg
+                      </>
+                    ) : (
+                      <>R$ {item.price.toFixed(2)}</>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setCart((prev) =>
-                        prev.map((it, i) =>
-                          i === idx
-                            ? { ...it, qty: Math.max(1, it.qty - 1) }
-                            : it
-                        )
-                      )
-                    }
-                    className="h-8 w-8 p-0"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <div className="w-8 text-center text-sm">{item.qty}</div>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setCart((prev) =>
-                        prev.map((it, i) =>
-                          i === idx ? { ...it, qty: it.qty + 1 } : it
-                        )
-                      )
-                    }
-                    className="h-8 w-8 p-0"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  {!item.isWeightBased ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setCart((prev) =>
+                            prev.map((it, i) =>
+                              i === idx
+                                ? { ...it, qty: Math.max(1, it.qty - 1) }
+                                : it
+                            )
+                          )
+                        }
+                        className="h-8 w-8 p-0"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <div className="w-8 text-center text-sm">{item.qty}</div>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setCart((prev) =>
+                            prev.map((it, i) =>
+                              i === idx ? { ...it, qty: it.qty + 1 } : it
+                            )
+                          )
+                        }
+                        className="h-8 w-8 p-0"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="w-8 text-center text-sm text-muted-foreground">
+                      {item.weightKg?.toFixed(3)} kg
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end">
                   <Button
@@ -1739,6 +1832,21 @@ export default function PDVPage() {
         onOpenChange={setReceiptModalOpen}
         orderId={lastOrderId}
       />
+
+      {/* Modal de Peso */}
+      {pendingProduct && (
+        <WeightInputModal
+          open={isWeightModalOpen}
+          onClose={() => {
+            setIsWeightModalOpen(false);
+            setPendingProduct(null);
+          }}
+          onConfirm={handleAddWeightBasedProduct}
+          productName={pendingProduct.name}
+          pricePerKgCents={pendingProduct.pricePerKgCents!}
+          formatPriceToReais={formatPriceToReais}
+        />
+      )}
     </div>
   );
 }

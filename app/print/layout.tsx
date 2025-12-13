@@ -11,9 +11,8 @@ export default function PrintLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <head>
-        <style>{`
+    <>
+      <style>{`
           @media print {
             @page {
               margin: 0.25in;
@@ -269,12 +268,9 @@ export default function PrintLayout({
             }
           }
         `}</style>
-      </head>
-      <body>
-        <div className="print-container">
-          {children}
-        </div>
-      </body>
-    </html>
+      <div className="print-container">
+        {children}
+      </div>
+    </>
   );
 }

@@ -11,8 +11,10 @@ type BudgetItem = {
         id: string;
         name: string;
         priceCents: number;
+        pricePerKgCents?: number;
     };
     quantity: number;
+    weightKg?: number | null;
 };
 
 type BudgetDay = {
@@ -316,9 +318,19 @@ function ThermalBudgetContent() {
                                     <div className="thermal-item-details" style={{marginTop: '2px'}}>
                                         {day.items.map((item, itemIndex) => (
                                             <div key={itemIndex} className="thermal-text" style={{fontSize: '11px', marginBottom: '1px'}}>
-                                                {item.quantity}x {item.product.name.length > 25 
-                                                    ? `${item.product.name.substring(0, 22)}...` 
-                                                    : item.product.name}
+                                                {item.weightKg && Number(item.weightKg) > 0 ? (
+                                                    <>
+                                                        {Number(item.weightKg).toFixed(3)} kg × {item.product.name.length > 20 
+                                                            ? `${item.product.name.substring(0, 17)}...` 
+                                                            : item.product.name}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {item.quantity}x {item.product.name.length > 25 
+                                                            ? `${item.product.name.substring(0, 22)}...` 
+                                                            : item.product.name}
+                                                    </>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

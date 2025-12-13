@@ -8,6 +8,7 @@ type OrderItem = {
   id: string;
   quantity: number;
   priceCents: number;
+  weightKg?: number | null;
   product: {
     id: string;
     name: string;
@@ -343,7 +344,9 @@ function DailySalesA4Content() {
                     <td className="p-1 text-xs">
                       <div className="whitespace-normal">
                         {order.items.map(item => 
-                          `${item.quantity}x ${item.product.name}`
+                          item.weightKg && Number(item.weightKg) > 0
+                            ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                            : `${item.quantity}x ${item.product.name}`
                         ).join(', ')}
                       </div>
                       {(order.discountCents > 0 || order.deliveryFeeCents > 0) && (

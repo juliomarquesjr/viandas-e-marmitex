@@ -113,12 +113,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // Validação: produto deve ter priceCents OU pricePerKgCents, mas não ambos
+    const hasPriceCents = body.priceCents !== undefined && body.priceCents !== null && parseInt(body.priceCents) > 0;
+    const hasPricePerKgCents = body.pricePerKgCents !== undefined && body.pricePerKgCents !== null && parseInt(body.pricePerKgCents) > 0;
+
+    if (hasPriceCents && hasPricePerKgCents) {
+      return NextResponse.json(
+        { error: "Product cannot have both priceCents and pricePerKgCents" },
+        { status: 400 }
+      );
+    }
+
+    if (!hasPriceCents && !hasPricePerKgCents) {
+      return NextResponse.json(
+        { error: "Product must have either priceCents or pricePerKgCents" },
+        { status: 400 }
+      );
+    }
+
     const product = await prisma.product.create({
       data: {
         name: body.name,
         barcode: body.barcode,
         categoryId: body.categoryId || null,
-        priceCents: parseInt(body.priceCents) || 0,
+        priceCents: hasPriceCents ? parseInt(body.priceCents) : 0,
+        pricePerKgCents: hasPricePerKgCents ? parseInt(body.pricePerKgCents) : null,
         description: body.description,
         stockEnabled: body.stockEnabled || false,
         stock: body.stockEnabled && body.stock ? parseInt(body.stock) : null,
@@ -156,6 +175,24 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // Validação: produto deve ter priceCents OU pricePerKgCents, mas não ambos
+    const hasPriceCents = data.priceCents !== undefined && data.priceCents !== null && parseInt(data.priceCents) > 0;
+    const hasPricePerKgCents = data.pricePerKgCents !== undefined && data.pricePerKgCents !== null && parseInt(data.pricePerKgCents) > 0;
+
+    if (hasPriceCents && hasPricePerKgCents) {
+      return NextResponse.json(
+        { error: "Product cannot have both priceCents and pricePerKgCents" },
+        { status: 400 }
+      );
+    }
+
+    if (!hasPriceCents && !hasPricePerKgCents) {
+      return NextResponse.json(
+        { error: "Product must have either priceCents or pricePerKgCents" },
+        { status: 400 }
+      );
+    }
+
     // Get current product to check for old image
     const currentProduct = await prisma.product.findUnique({
       where: { id },
@@ -175,7 +212,8 @@ export async function PUT(request: Request) {
         name: data.name,
         barcode: data.barcode,
         categoryId: data.categoryId || null,
-        priceCents: parseInt(data.priceCents) || 0,
+        priceCents: hasPriceCents ? parseInt(data.priceCents) : 0,
+        pricePerKgCents: hasPricePerKgCents ? parseInt(data.pricePerKgCents) : null,
         description: data.description,
         stockEnabled: data.stockEnabled || false,
         stock: data.stockEnabled && data.stock ? parseInt(data.stock) : null,

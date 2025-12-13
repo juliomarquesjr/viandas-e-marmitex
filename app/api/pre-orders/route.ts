@@ -156,17 +156,38 @@ export async function POST(request: Request) {
       );
     }
     
+    // Buscar produtos que precisam de cálculo de peso
+    const productIds = body.items.map((item: any) => item.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, pricePerKgCents: true }
+    });
+    const productsMap = new Map(products.map(p => [p.id, p]));
+
     // Calcular totais
     let subtotalCents = 0;
-    const itemsData = body.items.map((item: any) => {
-      const itemTotal = item.priceCents * item.quantity;
+    const itemsData = await Promise.all(body.items.map(async (item: any) => {
+      // Se o item tiver peso (weightKg), calcular preço baseado no peso
+      let itemPriceCents = item.priceCents;
+      if (item.weightKg && item.weightKg > 0) {
+        const product = productsMap.get(item.productId);
+        
+        if (product && product.pricePerKgCents) {
+          // Calcular: preço por quilo * peso (convertido para centavos)
+          itemPriceCents = Math.round(parseFloat(product.pricePerKgCents.toString()) * parseFloat(item.weightKg.toString()));
+        }
+      }
+      
+      const itemTotal = itemPriceCents * item.quantity;
       subtotalCents += itemTotal;
+      
       return {
         productId: item.productId,
         quantity: item.quantity,
-        priceCents: item.priceCents
+        priceCents: itemPriceCents,
+        weightKg: item.weightKg ? parseFloat(item.weightKg.toString()) : null
       };
-    });
+    }));
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;
@@ -309,7 +330,8 @@ async function convertPreOrderToOrder(request: Request) {
             create: preOrder.items.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
-              priceCents: item.priceCents
+              priceCents: item.priceCents,
+              weightKg: item.weightKg ? parseFloat(item.weightKg.toString()) : null
             }))
           }
         },
@@ -399,17 +421,38 @@ export async function PUT(request: Request) {
       );
     }
     
+    // Buscar produtos que precisam de cálculo de peso
+    const productIds = body.items?.map((item: any) => item.productId) || [];
+    const products = productIds.length > 0 ? await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, pricePerKgCents: true }
+    }) : [];
+    const productsMap = new Map(products.map(p => [p.id, p]));
+
     // Calcular totais
     let subtotalCents = 0;
-    const itemsData = body.items?.map((item: any) => {
-      const itemTotal = item.priceCents * item.quantity;
+    const itemsData = await Promise.all((body.items || []).map(async (item: any) => {
+      // Se o item tiver peso (weightKg), calcular preço baseado no peso
+      let itemPriceCents = item.priceCents;
+      if (item.weightKg && item.weightKg > 0) {
+        const product = productsMap.get(item.productId);
+        
+        if (product && product.pricePerKgCents) {
+          // Calcular: preço por quilo * peso (convertido para centavos)
+          itemPriceCents = Math.round(parseFloat(product.pricePerKgCents.toString()) * parseFloat(item.weightKg.toString()));
+        }
+      }
+      
+      const itemTotal = itemPriceCents * item.quantity;
       subtotalCents += itemTotal;
+      
       return {
         productId: item.productId,
         quantity: item.quantity,
-        priceCents: item.priceCents
+        priceCents: itemPriceCents,
+        weightKg: item.weightKg ? parseFloat(item.weightKg.toString()) : null
       };
-    }) || [];
+    }));
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;

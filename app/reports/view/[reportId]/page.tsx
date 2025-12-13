@@ -21,6 +21,7 @@ type OrderItem = {
   id: string;
   quantity: number;
   priceCents: number;
+  weightKg?: number | null;
   product: {
     id: string;
     name: string;
@@ -244,7 +245,9 @@ function ReportViewerContent() {
     // Adicionar pedidos do período
     details.periodOrders.forEach(order => {
       const itemsDescription = order.items.map(item => 
-        `${item.quantity}x ${item.product.name}`
+        item.weightKg && Number(item.weightKg) > 0
+          ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+          : `${item.quantity}x ${item.product.name}`
       ).join(', ');
       
       transactions.push({

@@ -62,6 +62,7 @@ type Product = {
     id: string;
     name: string;
     priceCents: number;
+    pricePerKgCents?: number;
     barcode?: string;
     imageUrl?: string;
     active: boolean;
@@ -963,9 +964,20 @@ export function BudgetModal({
                                                     </h3>
                                                     
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-bold text-green-600">
-                                                            {formatCurrency(product.priceCents)}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-bold text-green-600">
+                                                                {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                                                                    <>{formatCurrency(product.pricePerKgCents)}/kg</>
+                                                                ) : (
+                                                                    <>{formatCurrency(product.priceCents)}</>
+                                                                )}
+                                                            </span>
+                                                            {product.pricePerKgCents && product.pricePerKgCents > 0 && (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                                    Por Quilo
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <div className="h-8 w-8 rounded-md bg-green-500 flex items-center justify-center shadow-sm group-hover:bg-green-600 group-hover:shadow transition-all">
                                                             <Plus className="h-4 w-4 text-white" />
                                                         </div>

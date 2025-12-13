@@ -3,6 +3,7 @@
 import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
+import { OrderSummaryModal } from "@/app/components/OrderSummaryModal";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
 import { useToast } from "@/app/components/Toast";
@@ -63,9 +64,11 @@ type Order = {
     id: string;
     quantity: number;
     priceCents: number;
+    weightKg?: number | null;
     product: {
       id: string;
       name: string;
+      pricePerKgCents?: number | null;
     };
   }[];
 };
@@ -123,12 +126,14 @@ const paymentMethodMap = {
 // Menu de opções por venda
 function OrderActionsMenu({
   onViewDetails,
+  onViewSummary,
   onPrint,
   onViewCustomer,
   onDelete,
   hasCustomer,
 }: {
   onViewDetails: () => void;
+  onViewSummary: () => void;
   onPrint: () => void;
   onViewCustomer: () => void;
   onDelete: () => void;
@@ -210,6 +215,18 @@ function OrderActionsMenu({
         className="w-40 bg-background border border-border rounded-lg shadow-xl py-2 animate-fade-in min-w-max"
         style={menuStyle}
       >
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onViewSummary();
+          }}
+        >
+          <Package className="h-4 w-4 mr-2 text-blue-500" />
+          Ver resumo
+        </button>
         <button
           role="menuitem"
           className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
@@ -298,6 +315,9 @@ export default function AdminOrdersPage() {
   // State for order details modal
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  
+  // State for order summary modal
+  const [orderSummaryModalOpen, setOrderSummaryModalOpen] = useState(false);
   
   // Resumo de produtos agregado a partir de allOrders
   const productSummary = useMemo(() => {
@@ -470,6 +490,12 @@ export default function AdminOrdersPage() {
   const handleViewOrderDetails = (order: Order) => {
     setSelectedOrder(order);
     setOrderDetailsModalOpen(true);
+  };
+
+  // Handler para visualizar resumo da venda
+  const handleViewOrderSummary = (order: Order) => {
+    setSelectedOrder(order);
+    setOrderSummaryModalOpen(true);
   };
 
   // Handler para acessar ficha do cliente
@@ -813,9 +839,6 @@ export default function AdminOrdersPage() {
                       Cliente
                     </th>
                     <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Itens
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Valor
                     </th>
                     <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
@@ -873,34 +896,6 @@ export default function AdminOrdersPage() {
                               </div>
                             </div>
                           )}
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                              <Package className="h-4 w-4 text-orange-600" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-foreground">
-                                {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                              </div>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {order.items.slice(0, 2).map((item, idx) => (
-                                  <span 
-                                    key={idx}
-                                    className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 border border-orange-200"
-                                  >
-                                    {item.quantity}x {truncateText(item.product.name, 15)}
-                                  </span>
-                                ))}
-                                {order.items.length > 2 && (
-                                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
-                                    +{order.items.length - 2} mais
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
                         </td>
 
                         <td className="py-4 px-6">
@@ -1009,6 +1004,7 @@ export default function AdminOrdersPage() {
                         <td className="py-4 px-6">
                           <OrderActionsMenu
                             onViewDetails={() => handleViewOrderDetails(order)}
+                            onViewSummary={() => handleViewOrderSummary(order)}
                             onPrint={() => printThermalReceipt(order.id)}
                             onViewCustomer={() => handleViewCustomer(order.customer!.id)}
                             onDelete={() => openDeleteDialog(order.id)}
@@ -1147,6 +1143,13 @@ export default function AdminOrdersPage() {
           </CardContent>
         </AnimatedCard>
       )}
+
+      {/* Modal de Resumo da Venda */}
+      <OrderSummaryModal
+        open={orderSummaryModalOpen}
+        onOpenChange={setOrderSummaryModalOpen}
+        order={selectedOrder}
+      />
 
       {/* Modal de Detalhes da Venda */}
       <OrderDetailsModal

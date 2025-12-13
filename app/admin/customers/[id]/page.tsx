@@ -108,9 +108,12 @@ type Order = {
   items: {
     id: string;
     quantity: number;
+    priceCents: number;
+    weightKg?: number | null;
     product: {
       id: string;
       name: string;
+      pricePerKgCents?: number | null;
     };
   }[];
   type?: string; // Adicionado para identificar ficha payments
@@ -1609,10 +1612,26 @@ export default function CustomerDetailPage() {
                                 {order.items.length} item
                                 {order.items.length !== 1 ? "s" : ""}
                               </div>
-                              <div className="text-xs text-gray-500 truncate max-w-xs">
-                                {order.items
-                                  .map((item) => item.product.name)
-                                  .join(", ")}
+                              <div className="text-xs text-gray-500 space-y-1 max-w-xs">
+                                {order.items.map((item, idx) => (
+                                  <div key={idx} className="truncate">
+                                    {item.weightKg && Number(item.weightKg) > 0 ? (
+                                      <>
+                                        {Number(item.weightKg).toFixed(3)} kg × {item.product.name}
+                                        {item.product.pricePerKgCents && (
+                                          <span className="text-gray-400"> (R$ {(item.product.pricePerKgCents / 100).toFixed(2)}/kg)</span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {item.quantity}x {item.product.name}
+                                        {item.priceCents > 0 && (
+                                          <span className="text-gray-400"> (R$ {(item.priceCents / 100).toFixed(2)})</span>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </>
                           )}

@@ -13,7 +13,7 @@ import {
     Wallet,
     X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Category, Product } from "../admin/products/page";
 import { ImageCropModal } from "./ImageCropModal";
 import { Button } from "./ui/button";
@@ -57,18 +57,50 @@ export function ProductFormDialog({
   const [displayPrice, setDisplayPrice] = useState("");
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [priceType, setPriceType] = useState<"unit" | "perKg">("unit");
+  const hasInitializedPriceType = useRef(false);
+  const previousOpenState = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
+  }, []);
 
-    // Inicializa o displayPrice com o valor formatado
-    if (formData.priceCents) {
-      const cents = parseInt(formData.priceCents) || 0;
-      setDisplayPrice(formatPriceToReais(cents));
-    } else {
-      setDisplayPrice("");
+  // Determinar tipo de preço apenas quando o modal abre pela primeira vez
+  useEffect(() => {
+    if (!open) {
+      // Resetar quando o modal fecha
+      if (previousOpenState.current) {
+        setPriceType("unit");
+        setDisplayPrice("");
+        hasInitializedPriceType.current = false;
+      }
+      previousOpenState.current = false;
+      return;
     }
-  }, [formData.priceCents, formatPriceToReais]);
+
+    // Se o modal acabou de abrir (não estava aberto antes) e ainda não inicializamos
+    if (!previousOpenState.current && !hasInitializedPriceType.current) {
+      previousOpenState.current = true;
+      
+      // Determinar tipo de preço baseado nos dados do formulário apenas na abertura
+      if (formData.pricePerKgCents && parseInt(formData.pricePerKgCents) > 0) {
+        setPriceType("perKg");
+        const cents = parseInt(formData.pricePerKgCents) || 0;
+        setDisplayPrice(formatPriceToReais(cents));
+        hasInitializedPriceType.current = true;
+      } else if (formData.priceCents && parseInt(formData.priceCents) > 0) {
+        setPriceType("unit");
+        const cents = parseInt(formData.priceCents) || 0;
+        setDisplayPrice(formatPriceToReais(cents));
+        hasInitializedPriceType.current = true;
+      } else {
+        // Se não há valores, manter o tipo padrão
+        setPriceType("unit");
+        setDisplayPrice("");
+        hasInitializedPriceType.current = true;
+      }
+    }
+  }, [open]);
 
   if (!open || !isClient) return null;
 
@@ -117,9 +149,30 @@ export function ProductFormDialog({
     const formattedValue = rawValue ? formatCurrencyInput(rawValue) : "";
     setDisplayPrice(formattedValue);
 
-    // Converte para centavos e atualiza o formData
+    // Converte para centavos e atualiza o formData baseado no tipo de preço
     const cents = rawValue ? convertToCents(formattedValue) : 0;
-    updateFormData("priceCents", cents.toString());
+    if (priceType === "perKg") {
+      updateFormData("pricePerKgCents", cents.toString());
+      updateFormData("priceCents", "0");
+    } else {
+      updateFormData("priceCents", cents.toString());
+      updateFormData("pricePerKgCents", null);
+    }
+  };
+
+  // Função para lidar com mudança no tipo de preço
+  const handlePriceTypeChange = (type: "unit" | "perKg") => {
+    // Marcar como inicializado para evitar que o useEffect reset o valor
+    hasInitializedPriceType.current = true;
+    setPriceType(type);
+    setDisplayPrice("");
+    if (type === "perKg") {
+      updateFormData("priceCents", "0");
+      updateFormData("pricePerKgCents", "");
+    } else {
+      updateFormData("pricePerKgCents", null);
+      updateFormData("priceCents", "");
+    }
   };
 
   const generateRandomBarcode = () => {
@@ -298,22 +351,54 @@ export function ProductFormDialog({
                     >
                       Preço <span className="text-red-500">*</span>
                     </Label>
-                    <div className="relative">
-                      <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <input
-                        id="price"
-                        value={displayPrice}
-                        onChange={handlePriceChange}
-                        className="pl-10 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all"
-                        placeholder="R$ 0,00"
-                      />
-                    </div>
-                    {formData.priceCents &&
-                      parseInt(formData.priceCents) > 0 && (
-                        <p className="text-sm text-gray-500">
-                          Valor em centavos: {formData.priceCents}
-                        </p>
+                    <div className="space-y-3">
+                      {/* Toggle para tipo de preço */}
+                      <div className="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="radio"
+                            name="priceType"
+                            checked={priceType === "unit"}
+                            onChange={() => handlePriceTypeChange("unit")}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Preço Unitário</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input
+                            type="radio"
+                            name="priceType"
+                            checked={priceType === "perKg"}
+                            onChange={() => handlePriceTypeChange("perKg")}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Preço por Quilo</span>
+                        </label>
+                      </div>
+                      <div className="relative">
+                        <Wallet className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          id="price"
+                          value={displayPrice}
+                          onChange={handlePriceChange}
+                          className="pl-10 pr-4 py-3 w-full rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 focus:outline-none shadow-sm transition-all"
+                          placeholder={priceType === "perKg" ? "R$ 0,00/kg" : "R$ 0,00"}
+                        />
+                      </div>
+                      {priceType === "perKg" && (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            Por Quilo
+                          </span>
+                        </div>
                       )}
+                      {(priceType === "unit" && formData.priceCents && parseInt(formData.priceCents) > 0) ||
+                       (priceType === "perKg" && formData.pricePerKgCents && parseInt(formData.pricePerKgCents) > 0) ? (
+                        <p className="text-sm text-gray-500">
+                          Valor em centavos: {priceType === "perKg" ? formData.pricePerKgCents : formData.priceCents}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

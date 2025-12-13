@@ -51,9 +51,11 @@ type Order = {
     id: string;
     quantity: number;
     priceCents: number;
+    weightKg?: number | null;
     product: {
       id: string;
       name: string;
+      pricePerKgCents?: number | null;
     };
   }[];
 };
@@ -397,7 +399,15 @@ export function OrderDetailsModal({
                         {item.product.name}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatCurrency(item.priceCents)} cada
+                        {item.weightKg && Number(item.weightKg) > 0 ? (
+                          <>
+                            {Number(item.weightKg).toFixed(3)} kg × {formatCurrency(item.priceCents / Number(item.weightKg))}/kg
+                          </>
+                        ) : (
+                          <>
+                            {formatCurrency(item.priceCents)} cada
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

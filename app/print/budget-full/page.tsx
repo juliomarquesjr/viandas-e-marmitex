@@ -10,8 +10,10 @@ type BudgetItem = {
         id: string;
         name: string;
         priceCents: number;
+        pricePerKgCents?: number;
     };
     quantity: number;
+    weightKg?: number | null;
 };
 
 type BudgetDay = {
@@ -365,10 +367,26 @@ function FullBudgetContent() {
                                                                     {item.product.name}
                                                                 </td>
                                                                 <td className="py-1 print:py-0.5 text-center text-xs text-gray-700 print:text-[10px]">
-                                                                    {item.quantity}
+                                                                    {item.weightKg && Number(item.weightKg) > 0 ? (
+                                                                        <>
+                                                                            {Number(item.weightKg).toFixed(3)} kg
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            {item.quantity}
+                                                                        </>
+                                                                    )}
                                                                 </td>
                                                                 <td className="py-1 print:py-0.5 text-right text-xs text-gray-700 print:text-[10px]">
-                                                                    {formatCurrency(item.product.priceCents)}
+                                                                    {item.weightKg && Number(item.weightKg) > 0 ? (
+                                                                        <>
+                                                                            {formatCurrency((item.product.pricePerKgCents || item.product.priceCents / Number(item.weightKg)) / 100)}/kg
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            {formatCurrency(item.product.priceCents)}
+                                                                        </>
+                                                                    )}
                                                                 </td>
                                                                 <td className="py-1 print:py-0.5 text-right text-xs font-semibold text-gray-900 print:text-[10px]">
                                                                     {formatCurrency(item.product.priceCents * item.quantity)}

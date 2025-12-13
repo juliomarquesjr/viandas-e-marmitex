@@ -9,6 +9,7 @@ type PreOrderItem = {
   id: string;
   quantity: number;
   priceCents: number;
+  weightKg?: number | null;
   product: {
     id: string;
     name: string;
@@ -379,7 +380,17 @@ function PreOrderThermalContent() {
             </div>
             
             <div className="thermal-item-details">
-              <span>{item.quantity}x {formatCurrency(item.priceCents)}</span>
+              <span>
+                {item.weightKg && Number(item.weightKg) > 0 ? (
+                  <>
+                    {Number(item.weightKg).toFixed(3)} kg × {formatCurrency(item.priceCents / Number(item.weightKg))}/kg
+                  </>
+                ) : (
+                  <>
+                    {item.quantity}x {formatCurrency(item.priceCents)}
+                  </>
+                )}
+              </span>
               <span className="thermal-item-total">
                 {formatCurrency(item.quantity * item.priceCents)}
               </span>

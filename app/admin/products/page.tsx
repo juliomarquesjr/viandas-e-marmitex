@@ -119,6 +119,7 @@ export type Product = {
   barcode?: string;
   categoryId?: string;
   priceCents: number;
+  pricePerKgCents?: number;
   active: boolean;
   createdAt: string;
   description?: string;
@@ -150,6 +151,7 @@ export default function AdminProductsPage() {
     barcode: "",
     category_id: "",
     priceCents: "",
+    pricePerKgCents: "",
     description: "",
     stockEnabled: false,
     stock: "",
@@ -260,6 +262,7 @@ export default function AdminProductsPage() {
       barcode: "",
       category_id: "",
       priceCents: "",
+      pricePerKgCents: "",
       description: "",
       stockEnabled: false,
       stock: "",
@@ -337,7 +340,8 @@ export default function AdminProductsPage() {
         name: product.name,
         barcode: product.barcode || "",
         category_id: product.categoryId || "",
-        priceCents: product.priceCents.toString(),
+        priceCents: product.priceCents?.toString() || "",
+        pricePerKgCents: product.pricePerKgCents?.toString() || "",
         description: product.description || "",
         stockEnabled: product.stockEnabled,
         stock: product.stock?.toString() || "",
@@ -363,22 +367,36 @@ export default function AdminProductsPage() {
 
     // Converter o preço formatado para centavos
     let priceCents = 0;
+    let pricePerKgCents: number | undefined = undefined;
+    
     if (formData.priceCents) {
       priceCents = parseInt(formData.priceCents);
     }
+    
+    if (formData.pricePerKgCents) {
+      pricePerKgCents = parseInt(formData.pricePerKgCents);
+    }
 
-    // Validação do preço
-    if (isNaN(priceCents) || priceCents <= 0) {
-      alert("Por favor, insira um preço válido maior que zero.");
+    // Validação: deve ter priceCents OU pricePerKgCents, mas não ambos
+    const hasPriceCents = !isNaN(priceCents) && priceCents > 0;
+    const hasPricePerKgCents = pricePerKgCents !== undefined && !isNaN(pricePerKgCents) && pricePerKgCents > 0;
+
+    if (hasPriceCents && hasPricePerKgCents) {
+      alert("O produto não pode ter preço unitário e preço por quilo simultaneamente.");
+      return;
+    }
+
+    if (!hasPriceCents && !hasPricePerKgCents) {
+      alert("Por favor, insira um preço válido (unitário ou por quilo) maior que zero.");
       return;
     }
 
     try {
-      const productData = {
+      const productData: any = {
         name: formData.name,
         barcode: formData.barcode || undefined,
         categoryId: formData.category_id || undefined,
-        priceCents: priceCents,
+        priceCents: hasPriceCents ? priceCents : 0,
         description: formData.description || undefined,
         stockEnabled: formData.stockEnabled,
         stock:
@@ -389,6 +407,11 @@ export default function AdminProductsPage() {
         imageUrl: formData.imageUrl || undefined,
         productType: formData.productType,
       };
+
+      // Adicionar pricePerKgCents apenas se for preço por quilo
+      if (hasPricePerKgCents) {
+        productData.pricePerKgCents = pricePerKgCents;
+      }
 
       if (editingProduct) {
         // Editar produto existente
@@ -888,7 +911,18 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-lg font-semibold text-foreground">
-                          {formatPriceToReais(product.priceCents || 0)}
+                          <div className="flex items-center gap-2">
+                            {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                              <>
+                                <span>{formatPriceToReais(product.pricePerKgCents)}</span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                  /kg
+                                </span>
+                              </>
+                            ) : (
+                              <span>{formatPriceToReais(product.priceCents || 0)}</span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
