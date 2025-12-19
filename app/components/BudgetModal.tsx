@@ -523,39 +523,6 @@ export function BudgetModal({
         return Object.values(dayMap);
     };
 
-    // Gerar orçamento térmico
-    const generateThermalBudget = () => {
-        if (!startDate || !endDate) {
-            showToast("Por favor, preencha as datas de início e fim", "warning");
-            return;
-        }
-
-        const enabledDates = Array.from(budgetDates.values()).filter(d => d.enabled && d.items.length > 0);
-        if (enabledDates.length === 0) {
-            showToast("Por favor, adicione produtos em pelo menos um dia", "warning");
-            return;
-        }
-
-        const budgetDays = convertToBudgetDays();
-        const enabledDays = budgetDays.filter(day => day.enabled);
-
-        const budgetData = {
-            customerId,
-            customerName,
-            startDate,
-            endDate,
-            days: enabledDays,
-            sameProductsAllDays: false,
-            totalCents: calculateBudgetTotal()
-        };
-
-        const params = new URLSearchParams({
-            data: JSON.stringify(budgetData)
-        });
-
-        window.open(`/print/budget-thermal?${params.toString()}`, '_blank');
-    };
-
     // Gerar orçamento completo (A4)
     const generateFullBudget = () => {
         if (!startDate || !endDate) {
@@ -1037,14 +1004,6 @@ export function BudgetModal({
                             className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
                         >
                             Cancelar
-                        </Button>
-                        <Button
-                            onClick={generateThermalBudget}
-                            disabled={!startDate || !endDate || enabledDatesCount === 0}
-                            className="px-6 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white border-orange-500 hover:border-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Printer className="h-4 w-4 mr-2" />
-                            Impressão Térmica
                         </Button>
                         <Button
                             onClick={generateFullBudget}
