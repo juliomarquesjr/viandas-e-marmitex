@@ -156,27 +156,46 @@ export async function POST(request: Request) {
       );
     }
     
-    // Buscar produtos que precisam de cálculo de peso
+    // Buscar produtos para validação
     const productIds = body.items.map((item: any) => item.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, pricePerKgCents: true }
+      select: { id: true, name: true, priceCents: true, pricePerKgCents: true }
     });
     const productsMap = new Map(products.map(p => [p.id, p]));
-
-    // Calcular totais
-    let subtotalCents = 0;
-    const itemsData = await Promise.all(body.items.map(async (item: any) => {
-      // Se o item tiver peso (weightKg), calcular preço baseado no peso
-      let itemPriceCents = item.priceCents;
-      if (item.weightKg && item.weightKg > 0) {
-        const product = productsMap.get(item.productId);
-        
-        if (product && product.pricePerKgCents) {
-          // Calcular: preço por quilo * peso (convertido para centavos)
-          itemPriceCents = Math.round(parseFloat(product.pricePerKgCents.toString()) * parseFloat(item.weightKg.toString()));
-        }
+    
+    // Validar que todos os produtos têm valor unitário (não são por peso)
+    for (const item of body.items) {
+      const product = productsMap.get(item.productId);
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product with ID ${item.productId} not found` },
+          { status: 400 }
+        );
       }
+      
+      // Verificar se o produto é por peso
+      if (product.pricePerKgCents && product.pricePerKgCents > 0) {
+        return NextResponse.json(
+          { error: `Produto "${product.name}" é vendido por peso e não pode ser adicionado a pré-pedidos. Apenas produtos com valor unitário são permitidos.` },
+          { status: 400 }
+        );
+      }
+      
+      // Verificar se o produto tem valor unitário válido
+      if (!product.priceCents || product.priceCents <= 0) {
+        return NextResponse.json(
+          { error: `Produto "${product.name}" não possui valor unitário válido.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Calcular totais (apenas produtos com valor unitário)
+    let subtotalCents = 0;
+    const itemsData = body.items.map((item: any) => {
+      const product = productsMap.get(item.productId);
+      const itemPriceCents = product?.priceCents || item.priceCents || 0;
       
       const itemTotal = itemPriceCents * item.quantity;
       subtotalCents += itemTotal;
@@ -184,10 +203,9 @@ export async function POST(request: Request) {
       return {
         productId: item.productId,
         quantity: item.quantity,
-        priceCents: itemPriceCents,
-        weightKg: item.weightKg ? parseFloat(item.weightKg.toString()) : null
+        priceCents: itemPriceCents
       };
-    }));
+    });
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;
@@ -421,27 +439,46 @@ export async function PUT(request: Request) {
       );
     }
     
-    // Buscar produtos que precisam de cálculo de peso
+    // Buscar produtos para validação
     const productIds = body.items?.map((item: any) => item.productId) || [];
     const products = productIds.length > 0 ? await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, pricePerKgCents: true }
+      select: { id: true, name: true, priceCents: true, pricePerKgCents: true }
     }) : [];
     const productsMap = new Map(products.map(p => [p.id, p]));
-
-    // Calcular totais
-    let subtotalCents = 0;
-    const itemsData = await Promise.all((body.items || []).map(async (item: any) => {
-      // Se o item tiver peso (weightKg), calcular preço baseado no peso
-      let itemPriceCents = item.priceCents;
-      if (item.weightKg && item.weightKg > 0) {
-        const product = productsMap.get(item.productId);
-        
-        if (product && product.pricePerKgCents) {
-          // Calcular: preço por quilo * peso (convertido para centavos)
-          itemPriceCents = Math.round(parseFloat(product.pricePerKgCents.toString()) * parseFloat(item.weightKg.toString()));
-        }
+    
+    // Validar que todos os produtos têm valor unitário (não são por peso)
+    for (const item of (body.items || [])) {
+      const product = productsMap.get(item.productId);
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product with ID ${item.productId} not found` },
+          { status: 400 }
+        );
       }
+      
+      // Verificar se o produto é por peso
+      if (product.pricePerKgCents && product.pricePerKgCents > 0) {
+        return NextResponse.json(
+          { error: `Produto "${product.name}" é vendido por peso e não pode ser adicionado a pré-pedidos. Apenas produtos com valor unitário são permitidos.` },
+          { status: 400 }
+        );
+      }
+      
+      // Verificar se o produto tem valor unitário válido
+      if (!product.priceCents || product.priceCents <= 0) {
+        return NextResponse.json(
+          { error: `Produto "${product.name}" não possui valor unitário válido.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Calcular totais (apenas produtos com valor unitário)
+    let subtotalCents = 0;
+    const itemsData = (body.items || []).map((item: any) => {
+      const product = productsMap.get(item.productId);
+      const itemPriceCents = product?.priceCents || item.priceCents || 0;
       
       const itemTotal = itemPriceCents * item.quantity;
       subtotalCents += itemTotal;
@@ -449,10 +486,9 @@ export async function PUT(request: Request) {
       return {
         productId: item.productId,
         quantity: item.quantity,
-        priceCents: itemPriceCents,
-        weightKg: item.weightKg ? parseFloat(item.weightKg.toString()) : null
+        priceCents: itemPriceCents
       };
-    }));
+    });
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;

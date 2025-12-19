@@ -189,6 +189,51 @@ function FullBudgetContent() {
         return Math.ceil(daysDiff / 7);
     };
 
+    // Gerar todas as datas do período
+    const generateAllDatesInPeriod = () => {
+        if (!budgetData) return [];
+        const dates: string[] = [];
+        const start = parseLocalDate(budgetData.startDate);
+        const end = parseLocalDate(budgetData.endDate);
+        
+        const currentDate = new Date(start);
+        while (currentDate <= end) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            dates.push(dateStr);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        return dates;
+    };
+
+    // Obter o dia da semana de uma data
+    const getDayOfWeek = (dateString: string): string => {
+        const date = parseLocalDate(dateString);
+        const dayIndex = date.getDay();
+        const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+        return dayNames[dayIndex];
+    };
+
+    // Obter dados do dia da semana para uma data específica
+    const getDayDataForDate = (dateString: string): BudgetDay | null => {
+        const dayOfWeek = getDayOfWeek(dateString);
+        // Mapear para o formato usado no BudgetDay
+        const dayMap: Record<string, string> = {
+            'domingo': 'sunday',
+            'segunda-feira': 'monday',
+            'terça-feira': 'tuesday',
+            'quarta-feira': 'wednesday',
+            'quinta-feira': 'thursday',
+            'sexta-feira': 'friday',
+            'sábado': 'saturday'
+        };
+        
+        const dayKey = dayMap[dayOfWeek];
+        if (!dayKey) return null;
+        
+        return budgetData?.days.find(day => day.day === dayKey) || null;
+    };
+
     const calculateTotalPerWeek = () => {
         if (!budgetData) return 0;
         
@@ -241,9 +286,34 @@ function FullBudgetContent() {
         );
     }
 
-    const enabledDays = budgetData.days.filter(day => day.enabled);
-    const weeks = calculateWeeks();
-    const totalPerWeek = calculateTotalPerWeek();
+    // Calcular total de desconto (considerando quantas vezes cada dia ocorre no período)
+    const calculateTotalDiscount = () => {
+        if (!budgetData) return 0;
+        const allDates = generateAllDatesInPeriod();
+        let totalDiscount = 0;
+        
+        allDates.forEach(dateStr => {
+            const dayData = getDayDataForDate(dateStr);
+            if (dayData && dayData.enabled && dayData.discountCents) {
+                totalDiscount += dayData.discountCents;
+            }
+        });
+        
+        return totalDiscount;
+    };
+
+    // Contar quantas datas do período têm itens
+    const countDatesWithItems = () => {
+        if (!budgetData) return 0;
+        const allDates = generateAllDatesInPeriod();
+        return allDates.filter(dateStr => {
+            const dayData = getDayDataForDate(dateStr);
+            return dayData && dayData.enabled && dayData.items.length > 0;
+        }).length;
+    };
+
+    const totalDiscount = calculateTotalDiscount();
+    const datesWithItems = countDatesWithItems();
 
     return (
         <div className="min-h-screen bg-white p-8 print:p-0">
@@ -297,142 +367,89 @@ function FullBudgetContent() {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print:gap-2 budget-executive-grid">
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600 print:text-lg">
-                                {formatCurrency(totalPerWeek)}
-                            </div>
-                            <div className="text-xs text-blue-800 print:text-[10px]">Por Semana</div>
-                        </div>
-                        <div className="text-center">
                             <div className="text-2xl font-bold text-green-600 print:text-lg">
                                 {formatCurrency(budgetData.totalCents)}
                             </div>
                             <div className="text-xs text-green-800 print:text-[10px]">Total Geral</div>
                         </div>
                         <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600 print:text-lg">
+                                {formatCurrency(totalDiscount)}
+                            </div>
+                            <div className="text-xs text-red-800 print:text-[10px]">Total de Desconto</div>
+                        </div>
+                        <div className="text-center">
                             <div className="text-2xl font-bold text-purple-600 print:text-lg">
-                                {enabledDays.length}
+                                {datesWithItems}
                             </div>
                             <div className="text-xs text-purple-800 print:text-[10px]">Dias Selecionados</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Detalhamento por Dia */}
-                <div className="mb-4 print:mb-2">
-                    <h2 className="text-base font-semibold text-gray-900 print:text-sm mb-3 print:mb-1.5">
-                        Detalhamento por Dia da Semana
+                {/* Detalhamento por Data do Período */}
+                <div className="mb-2 print:mb-1">
+                    <h2 className="text-sm font-semibold text-gray-900 print:text-xs mb-2 print:mb-1">
+                        Detalhamento por Data do Período
                     </h2>
                     
-                    <div className="space-y-3 print:space-y-2">
-                        {enabledDays.map((day) => {
-                            const subtotal = calculateDaySubtotal(day);
-                            const discount = day.discountCents || 0;
-                            const total = calculateDayTotal(day);
-                            
-                            return (
-                                <div key={day.day} className="border rounded-lg p-3 print:p-2">
-                                    <div className="flex justify-between items-center mb-2 print:mb-1">
-                                        <h3 className="text-sm font-semibold text-gray-900 print:text-xs">
-                                            {day.label}
-                                        </h3>
-                                        <div className="text-sm font-bold text-green-600 print:text-xs">
-                                            {formatCurrency(total)}
-                                        </div>
-                                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse text-[9px] print:text-[8px]">
+                            <thead>
+                                <tr className="border-b border-gray-400">
+                                    <th className="text-left py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900 w-[12%]">
+                                        Data
+                                    </th>
+                                    <th className="text-left py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900">
+                                        Itens
+                                    </th>
+                                    <th className="text-center py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900 w-[8%]">
+                                        Qtd
+                                    </th>
+                                    <th className="text-right py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900 w-[12%]">
+                                        Total
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {generateAllDatesInPeriod().map((dateStr) => {
+                                    const dayData = getDayDataForDate(dateStr);
                                     
-                                    {day.items.length > 0 ? (
-                                        <>
-                                            <div className="overflow-x-auto mb-2 print:mb-1">
-                                                <table className="w-full">
-                                                    <thead>
-                                                        <tr className="border-b border-gray-200">
-                                                            <th className="text-left py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
-                                                                Produto
-                                                            </th>
-                                                            <th className="text-center py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
-                                                                Qtd
-                                                            </th>
-                                                            <th className="text-right py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
-                                                                Preço Unit.
-                                                            </th>
-                                                            <th className="text-right py-1 print:py-0.5 text-xs font-medium text-gray-700 print:text-[10px]">
-                                                                Total
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {day.items.map((item, index) => (
-                                                            <tr key={index} className="border-b border-gray-100">
-                                                                <td className="py-1 print:py-0.5 text-xs text-gray-900 print:text-[10px]">
-                                                                    {item.product.name}
-                                                                </td>
-                                                                <td className="py-1 print:py-0.5 text-center text-xs text-gray-700 print:text-[10px]">
-                                                                    {item.weightKg && Number(item.weightKg) > 0 ? (
-                                                                        <>
-                                                                            {Number(item.weightKg).toFixed(3)} kg
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            {item.quantity}
-                                                                        </>
-                                                                    )}
-                                                                </td>
-                                                                <td className="py-1 print:py-0.5 text-right text-xs text-gray-700 print:text-[10px]">
-                                                                    {item.weightKg && Number(item.weightKg) > 0 ? (
-                                                                        <>
-                                                                            {formatCurrency((item.product.pricePerKgCents || item.product.priceCents / Number(item.weightKg)) / 100)}/kg
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            {formatCurrency(item.product.priceCents)}
-                                                                        </>
-                                                                    )}
-                                                                </td>
-                                                                <td className="py-1 print:py-0.5 text-right text-xs font-semibold text-gray-900 print:text-[10px]">
-                                                                    {formatCurrency(item.product.priceCents * item.quantity)}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            
-                                            {/* Resumo do dia com desconto */}
-                                            <div className="bg-gray-50 rounded p-2 print:p-1.5 mt-2 print:mt-1">
-                                                <div className="grid grid-cols-2 gap-2 print:gap-1.5 mb-1 print:mb-0.5">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-gray-700 print:text-[10px]">Subtotal:</span>
-                                                        <span className="text-xs font-medium print:text-[10px]">
-                                                            {formatCurrency(subtotal)}
-                                                        </span>
-                                                    </div>
-                                                    {discount > 0 ? (
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="text-xs text-red-600 print:text-[10px]">Desconto:</span>
-                                                            <span className="text-xs font-medium text-red-600 print:text-[10px]">
-                                                                -{formatCurrency(discount)}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <div></div>
-                                                    )}
-                                                </div>
-                                                <div className="flex justify-between items-center pt-1 border-t border-gray-300 mt-0.5">
-                                                    <span className="text-sm font-semibold text-gray-900 print:text-xs">Total do dia:</span>
-                                                    <span className="text-sm font-bold text-green-600 print:text-xs">
-                                                        {formatCurrency(total)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="text-center py-2 print:py-1 text-gray-500">
-                                            <p className="text-xs print:text-[10px]">Nenhum produto selecionado para este dia</p>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                    if (!dayData || !dayData.enabled || dayData.items.length === 0) {
+                                        return null;
+                                    }
+                                    
+                                    const discount = dayData.discountCents || 0;
+                                    const total = calculateDayTotal(dayData);
+                                    
+                                    // Formatar itens separados por vírgula
+                                    const itemsText = dayData.items.map((item) => {
+                                        const qty = item.weightKg && Number(item.weightKg) > 0 
+                                            ? `${Number(item.weightKg).toFixed(2)}kg` 
+                                            : item.quantity;
+                                        return `${item.product.name} (${qty})`;
+                                    }).join(', ');
+                                    
+                                    return (
+                                        <tr key={dateStr} className="border-b border-gray-200">
+                                            <td className="py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900 text-[9px] print:text-[8px]">
+                                                {formatDate(dateStr)}
+                                            </td>
+                                            <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-gray-900 text-[9px] print:text-[8px]">
+                                                {itemsText}
+                                            </td>
+                                            <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-center text-gray-700 text-[9px] print:text-[8px]">
+                                                {dayData.items.length}
+                                            </td>
+                                            <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-right font-bold text-green-700 text-[9px] print:text-[8px]">
+                                                {formatCurrency(total)}
+                                                {discount > 0 && ` (desc: -${formatCurrency(discount)})`}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

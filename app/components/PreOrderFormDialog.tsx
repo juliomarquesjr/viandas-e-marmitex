@@ -205,15 +205,39 @@ export function PreOrderFormDialog({
     setShowCustomerDialog(false);
   };
 
-  // Filtrar produtos por busca
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.barcode?.includes(searchQuery) ||
-    product.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filtrar produtos por busca e excluir produtos por peso
+  const filteredProducts = products.filter(product => {
+    // Apenas produtos com valor unitário (priceCents válido e sem pricePerKgCents)
+    const hasUnitPrice = product.priceCents && product.priceCents > 0;
+    const hasWeightPrice = product.pricePerKgCents && product.pricePerKgCents > 0;
+    
+    // Excluir produtos por peso
+    if (hasWeightPrice || !hasUnitPrice) {
+      return false;
+    }
+    
+    // Filtrar por busca
+    return (
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.barcode?.includes(searchQuery) ||
+      product.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   // Adicionar produto ao pré-pedido
   const handleAddProduct = (product: Product) => {
+    // Validar que o produto tem valor unitário válido
+    if (!product.priceCents || product.priceCents <= 0) {
+      showToast("Este produto não pode ser adicionado. Apenas produtos com valor unitário são permitidos.", "error");
+      return;
+    }
+    
+    // Verificar se é produto por peso
+    if (product.pricePerKgCents && product.pricePerKgCents > 0) {
+      showToast("Produtos por peso não podem ser adicionados a pré-pedidos.", "error");
+      return;
+    }
+    
     const existingItem = preOrder.items.find(item => item.productId === product.id);
     
     if (existingItem) {
@@ -462,16 +486,20 @@ export function PreOrderFormDialog({
         
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Cliente Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <User className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">Cliente</h3>
+            <div className="space-y-4 pb-6 border-b border-gray-200">
+              <div className="flex items-center gap-3 pb-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shadow-sm">
+                  <User className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Cliente</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Selecione o cliente do pré-pedido (opcional)</p>
+                </div>
               </div>
-              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2">
                 {preOrder.customerId ? (
                   <div className="relative">
                     {(() => {
@@ -522,96 +550,176 @@ export function PreOrderFormDialog({
             </div>
 
             {/* Itens do Pré-Pedido */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-orange-600" />
-                  <h3 className="text-base font-semibold text-orange-800">
-                    Itens ({preOrder.items.length})
-                  </h3>
+            <div className="space-y-4 pb-6 border-b border-gray-200">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shadow-sm">
+                    <Package className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">
+                      Itens do Pré-Pedido
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {preOrder.items.length} {preOrder.items.length === 1 ? 'item adicionado' : 'itens adicionados'}
+                    </p>
+                  </div>
                 </div>
                 <Button 
                   type="button" 
                   onClick={() => setShowProductModal(true)} 
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                 >
                   <Plus className="h-4 w-4" />
                   Adicionar Produtos
                 </Button>
               </div>
-              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+              <div className="h-[2px] bg-gradient-to-r from-transparent via-orange-300 to-transparent rounded-full"></div>
               
               <div className="space-y-3 mt-4">
                 {preOrder.items.length === 0 ? (
-                  <div className="text-center py-8 bg-orange-50 rounded-xl border border-orange-200">
-                    <Package className="h-12 w-12 text-orange-300 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500">Nenhum item adicionado</p>
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative overflow-hidden text-center py-12 bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-2xl border-2 border-dashed border-orange-200"
+                  >
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2ZjYjY3NSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIgb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-30"></div>
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 mb-4 shadow-lg">
+                        <Package className="h-10 w-10 text-orange-400" />
+                      </div>
+                      <h4 className="text-base font-semibold text-gray-700 mb-1">Nenhum item adicionado</h4>
+                      <p className="text-sm text-gray-500">Clique em "Adicionar Produtos" para começar</p>
+                    </div>
+                  </motion.div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-4">
                     {preOrder.items.map((item, index) => {
                       const product = products.find(p => p.id === item.productId);
+                      const itemTotal = item.priceCents * item.quantity;
                       return (
-                        <div key={item.id || index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors">
-                          {/* Imagem do produto (se disponível) */}
-                          <div className="h-12 w-12 flex-shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg border border-gray-200">
-                            {product?.imageUrl ? (
-                              <img
-                                src={product.imageUrl}
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = "none";
-                                  target.parentElement!.innerHTML = `
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-6 w-6 text-gray-300">
-                                      <path d="M12 22l-8-4V6L12 2l8 4v12l-8 4z"/>
-                                      <path d="M12 2v20"/>
-                                      <path d="M4 6l8 4 8-4"/>
-                                    </svg>
-                                  `;
-                                }}
-                              />
-                            ) : (
-                              <Package className="h-6 w-6 text-gray-300" />
-                            )}
-                          </div>
-                          
-                          {/* Informações do produto */}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">{product?.name || "Produto não encontrado"}</div>
-                            <div className="text-sm text-gray-500">
-                              {formatCurrency(item.priceCents)} x {item.quantity}
+                        <motion.div
+                          key={item.id || index}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-orange-300"
+                        >
+                          <div className="flex items-start gap-4 p-5">
+                            {/* Miniatura do produto - maior e mais destacada */}
+                            <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-gray-200 group-hover:border-orange-300 transition-all duration-300 shadow-md group-hover:shadow-lg group-hover:scale-105">
+                              {product?.imageUrl ? (
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `
+                                        <div class="h-full w-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-100">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package text-orange-400">
+                                            <path d="M12 22l-8-4V6L12 2l8 4v12l-8 4z"/>
+                                            <path d="M12 2v20"/>
+                                            <path d="M4 6l8 4 8-4"/>
+                                          </svg>
+                                        </div>
+                                      `;
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-100">
+                                  <Package className="h-8 w-8 text-orange-400" />
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          
-                          {/* Quantidade */}
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium text-gray-600">Qtd:</label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => handleItemQuantityChange(index, parseInt(e.target.value) || 1)}
-                              className="w-20 py-2 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all text-center"
+                            
+                            {/* Informações do produto */}
+                            <div className="flex-1 min-w-0 pt-1">
+                              <h4 className="font-semibold text-gray-900 text-base mb-1.5 line-clamp-2 group-hover:text-orange-700 transition-colors">
+                                {product?.name || "Produto não encontrado"}
+                              </h4>
+                              
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-medium text-gray-500">Preço unitário:</span>
+                                  <span className="text-sm font-semibold text-gray-700">
+                                    {formatCurrency(item.priceCents)}
+                                  </span>
+                                </div>
+                                <span className="text-gray-300">•</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-medium text-gray-500">Quantidade:</span>
+                                  <span className="text-sm font-semibold text-orange-600">
+                                    {item.quantity}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Controles de quantidade */}
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleItemQuantityChange(index, Math.max(1, item.quantity - 1))}
+                                    disabled={saving || item.quantity <= 1}
+                                    className="h-7 w-7 p-0 rounded-md text-gray-600 hover:text-orange-600 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    <span className="text-sm font-bold">−</span>
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemQuantityChange(index, parseInt(e.target.value) || 1)}
+                                    className="w-12 h-7 py-0 px-2 rounded-md border-0 text-center text-sm font-semibold focus:ring-1 focus:ring-orange-500 focus:ring-offset-0"
+                                    disabled={saving}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleItemQuantityChange(index, item.quantity + 1)}
+                                    disabled={saving}
+                                    className="h-7 w-7 p-0 rounded-md text-gray-600 hover:text-orange-600 hover:bg-orange-50"
+                                  >
+                                    <span className="text-sm font-bold">+</span>
+                                  </Button>
+                                </div>
+                                
+                                {/* Total do item */}
+                                <div className="ml-auto flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Subtotal:</span>
+                                  <span className="text-base font-bold text-green-600">
+                                    {formatCurrency(itemTotal)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Botão remover */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(index)}
                               disabled={saving}
-                            />
+                              className="absolute top-3 right-3 h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                           
-                          {/* Botão remover */}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveItem(index)}
-                            disabled={saving}
-                            className="h-10 w-10 p-0 rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-5 w-5" />
-                          </Button>
-                        </div>
+                          {/* Barra decorativa inferior */}
+                          <div className="h-1 bg-gradient-to-r from-orange-200 via-orange-300 to-amber-200 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </motion.div>
                       );
                     })}
                   </div>
@@ -620,12 +728,16 @@ export function PreOrderFormDialog({
             </div>
 
             {/* Valores Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Tag className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">Valores</h3>
+            <div className="space-y-4 pb-6 border-b border-gray-200">
+              <div className="flex items-center gap-3 pb-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shadow-sm">
+                  <Tag className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Valores</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Resumo financeiro do pré-pedido</p>
+                </div>
               </div>
-              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
               <div className="space-y-4 mt-4">
                 {/* Subtotal */}
@@ -647,7 +759,7 @@ export function PreOrderFormDialog({
                     value={discountInput}
                     onChange={handleDiscountChange}
                     placeholder="0,00"
-                    className="w-full pl-4 py-3 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
+                    className="w-full pl-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all font-medium"
                     disabled={saving}
                   />
                   {preOrder.discountCents > 0 && (
@@ -661,12 +773,10 @@ export function PreOrderFormDialog({
                 </div>
 
                 {/* Total */}
-                <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-semibold text-orange-800">Total:</span>
-                    <div className="text-2xl font-bold text-orange-900">
-                      {formatCurrency(preOrder.totalCents)}
-                    </div>
+                <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
+                  <span className="text-base font-semibold text-orange-800">Total:</span>
+                  <div className="text-2xl font-bold text-orange-900">
+                    {formatCurrency(preOrder.totalCents)}
                   </div>
                 </div>
               </div>
@@ -674,13 +784,17 @@ export function PreOrderFormDialog({
 
             {/* Observações Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <FileText className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">Observações</h3>
+              <div className="flex items-center gap-3 pb-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shadow-sm">
+                  <FileText className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Observações</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Adicione informações adicionais sobre o pré-pedido</p>
+                </div>
               </div>
-              <div className="h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
               
-              <div className="relative mt-4">
+              <div className="relative">
                 <Textarea
                   value={preOrder.notes || ""}
                   onChange={(e) => setPreOrder(prev => ({ ...prev, notes: e.target.value }))}
@@ -822,17 +936,8 @@ export function PreOrderFormDialog({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-green-600">
-                              {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
-                                <>{formatCurrency(product.pricePerKgCents)}/kg</>
-                              ) : (
-                                <>{formatCurrency(product.priceCents)}</>
-                              )}
+                              {formatCurrency(product.priceCents)}
                             </span>
-                            {product.pricePerKgCents && product.pricePerKgCents > 0 && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                Por Quilo
-                              </span>
-                            )}
                           </div>
                           <div className="h-8 w-8 rounded-md bg-orange-500 flex items-center justify-center shadow-sm group-hover:bg-orange-600 group-hover:shadow transition-all">
                             <Plus className="h-4 w-4 text-white" />

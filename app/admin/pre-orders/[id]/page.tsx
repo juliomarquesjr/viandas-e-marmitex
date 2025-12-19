@@ -17,6 +17,7 @@ type Product = {
   id: string;
   name: string;
   priceCents: number;
+  pricePerKgCents?: number;
 };
 
 type PreOrderItem = {
@@ -63,10 +64,16 @@ export default function PreOrderFormPage({ params }: { params: Promise<{ id?: st
         const customersData = await customersResponse.json();
         setCustomers(customersData.data || []);
 
-        // Carregar produtos
+        // Carregar produtos (apenas com valor unitário)
         const productsResponse = await fetch("/api/products");
         const productsData = await productsResponse.json();
-        setProducts(productsData.data || []);
+        // Filtrar apenas produtos com valor unitário (excluir produtos por peso)
+        const unitPriceProducts = (productsData.data || []).filter((product: Product) => {
+          const hasUnitPrice = product.priceCents && product.priceCents > 0;
+          const hasWeightPrice = product.pricePerKgCents && product.pricePerKgCents > 0;
+          return hasUnitPrice && !hasWeightPrice;
+        });
+        setProducts(unitPriceProducts);
 
         // Se estamos editando um pré-pedido existente
         const resolvedParams = await params;
@@ -124,6 +131,15 @@ export default function PreOrderFormPage({ params }: { params: Promise<{ id?: st
       if (field === "productId") {
         // Quando o produto muda, atualizar o preço
         const product = products.find(p => p.id === value);
+        // Validar que o produto tem valor unitário válido
+        if (product && (!product.priceCents || product.priceCents <= 0)) {
+          alert("Este produto não pode ser adicionado. Apenas produtos com valor unitário são permitidos.");
+          return prev;
+        }
+        if (product && product.pricePerKgCents && product.pricePerKgCents > 0) {
+          alert("Produtos por peso não podem ser adicionados a pré-pedidos.");
+          return prev;
+        }
         newItems[index] = {
           ...newItems[index],
           productId: value as string,
