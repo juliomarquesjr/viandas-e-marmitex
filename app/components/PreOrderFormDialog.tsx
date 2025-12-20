@@ -109,7 +109,7 @@ export function PreOrderFormDialog({
         setCustomers(sortedCustomers);
 
         // Carregar produtos ativos
-        const productsResponse = await fetch("/api/products?active=true", {
+        const productsResponse = await fetch("/api/products?status=active", {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache'
@@ -205,8 +205,13 @@ export function PreOrderFormDialog({
     setShowCustomerDialog(false);
   };
 
-  // Filtrar produtos por busca e excluir produtos por peso
+  // Filtrar produtos por busca e excluir produtos por peso e desabilitados
   const filteredProducts = products.filter(product => {
+    // Excluir produtos desabilitados
+    if (!product.active) {
+      return false;
+    }
+    
     // Apenas produtos com valor unitário (priceCents válido e sem pricePerKgCents)
     const hasUnitPrice = product.priceCents && product.priceCents > 0;
     const hasWeightPrice = product.pricePerKgCents && product.pricePerKgCents > 0;

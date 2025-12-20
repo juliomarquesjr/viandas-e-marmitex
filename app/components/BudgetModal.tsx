@@ -138,7 +138,7 @@ export function BudgetModal({
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const response = await fetch("/api/products?active=true", {
+            const response = await fetch("/api/products?status=active", {
                 cache: 'no-store',
                 headers: {
                     'Cache-Control': 'no-cache'
@@ -247,9 +247,14 @@ export function BudgetModal({
         }
     }, [allDatesInPeriod]);
 
-    // Filtrar produtos por busca - apenas produtos com valor unitário (não por quilo)
+    // Filtrar produtos por busca - apenas produtos ativos com valor unitário (não por quilo)
     // Mostrar apenas quando há busca ativa
     const filteredProducts = products.filter(product => {
+        // Excluir produtos desabilitados
+        if (!product.active) {
+            return false;
+        }
+        
         // Excluir produtos por quilo
         if (product.pricePerKgCents && product.pricePerKgCents > 0) {
             return false;
@@ -273,6 +278,22 @@ export function BudgetModal({
 
     // Adicionar produto a uma data específica
     const addProductToDate = (product: Product, date: string) => {
+        // Validação de segurança: apenas produtos ativos com valor unitário
+        if (!product.active) {
+            showToast("Este produto está desabilitado e não pode ser adicionado", "error");
+            return;
+        }
+        
+        if (product.pricePerKgCents && product.pricePerKgCents > 0) {
+            showToast("Produtos por peso não podem ser adicionados a orçamentos", "error");
+            return;
+        }
+        
+        if (!product.priceCents || product.priceCents <= 0) {
+            showToast("Este produto não possui valor unitário válido", "error");
+            return;
+        }
+        
         setBudgetDates(prev => {
             const newMap = new Map(prev);
             const budgetDate = newMap.get(date) || {
@@ -365,7 +386,13 @@ export function BudgetModal({
             return;
         }
 
-        const selectedProducts = products.filter(p => selectedProductsForBulk.has(p.id));
+        const selectedProducts = products.filter(p => 
+            selectedProductsForBulk.has(p.id) && 
+            p.active && 
+            p.priceCents && 
+            p.priceCents > 0 && 
+            (!p.pricePerKgCents || p.pricePerKgCents <= 0)
+        );
         let appliedCount = 0;
 
         setBudgetDates(prev => {

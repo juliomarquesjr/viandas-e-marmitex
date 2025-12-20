@@ -18,6 +18,7 @@ type Product = {
   name: string;
   priceCents: number;
   pricePerKgCents?: number;
+  active: boolean;
 };
 
 type PreOrderItem = {
@@ -64,11 +65,15 @@ export default function PreOrderFormPage({ params }: { params: Promise<{ id?: st
         const customersData = await customersResponse.json();
         setCustomers(customersData.data || []);
 
-        // Carregar produtos (apenas com valor unitário)
-        const productsResponse = await fetch("/api/products");
+        // Carregar produtos ativos (apenas com valor unitário)
+        const productsResponse = await fetch("/api/products?status=active");
         const productsData = await productsResponse.json();
-        // Filtrar apenas produtos com valor unitário (excluir produtos por peso)
+        // Filtrar apenas produtos ativos com valor unitário (excluir produtos por peso e desabilitados)
         const unitPriceProducts = (productsData.data || []).filter((product: Product) => {
+          // Excluir produtos desabilitados
+          if (!product.active) {
+            return false;
+          }
           const hasUnitPrice = product.priceCents && product.priceCents > 0;
           const hasWeightPrice = product.pricePerKgCents && product.pricePerKgCents > 0;
           return hasUnitPrice && !hasWeightPrice;
