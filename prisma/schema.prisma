@@ -26,6 +26,9 @@ model User {
   facialDescriptor  Json?    // Descriptor facial (array de números) para comparação rápida
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  // Relacionamentos
+  deliveryPreOrders PreOrder[] // Pré-pedidos atribuídos para entrega
 }
 
 // Modelo de Cliente
@@ -159,24 +162,43 @@ model CustomerProductPreset {
   @@index([productId])
 }
 
+// Enum para status de entrega
+enum DeliveryStatus {
+  pending
+  preparing
+  out_for_delivery
+  in_transit
+  delivered
+  cancelled
+}
+
 // Modelo de Pré-Pedido
 model PreOrder {
-  id              String         @id @default(uuid())
-  customerId      String?
-  subtotalCents   Int            @default(0)
-  discountCents   Int            @default(0)
-  deliveryFeeCents Int           @default(0)
-  totalCents      Int            @default(0)
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                  String          @id @default(uuid())
+  customerId          String?
+  subtotalCents       Int            @default(0)
+  discountCents       Int            @default(0)
+  deliveryFeeCents    Int            @default(0)
+  totalCents          Int            @default(0)
+  notes               String?
+  deliveryStatus      DeliveryStatus @default(pending)
+  deliveryPersonId    String?
+  estimatedDeliveryTime DateTime?
+  deliveryStartedAt   DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   // Relacionamentos
-  customer        Customer?      @relation(fields: [customerId], references: [id])
-  items           PreOrderItem[]
+  customer            Customer?      @relation(fields: [customerId], references: [id])
+  items               PreOrderItem[]
+  deliveryPerson      User?          @relation(fields: [deliveryPersonId], references: [id])
+  tracking            DeliveryTracking[]
 
   @@index([customerId])
   @@index([createdAt])
+  @@index([deliveryStatus])
+  @@index([deliveryPersonId])
 }
 
 // Modelo de Item do Pré-Pedido
@@ -258,4 +280,22 @@ model Expense {
   @@index([typeId])
   @@index([supplierTypeId])
   @@index([date])
+}
+
+// Modelo de Rastreamento de Entrega
+model DeliveryTracking {
+  id          String    @id @default(uuid())
+  preOrderId  String
+  latitude    Decimal?
+  longitude   Decimal?
+  status      String    // Status no momento do tracking
+  notes       String?   // Observações do entregador
+  timestamp   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  // Relacionamentos
+  preOrder    PreOrder  @relation(fields: [preOrderId], references: [id], onDelete: Cascade)
+
+  @@index([preOrderId])
+  @@index([timestamp])
 }

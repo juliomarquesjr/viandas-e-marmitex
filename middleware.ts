@@ -1,6 +1,6 @@
+import { getToken } from "next-auth/jwt";
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 
 export default withAuth(
   async function middleware(req) {
@@ -11,6 +11,12 @@ export default withAuth(
     if (pathname.startsWith("/customer")) {
       // Se está tentando acessar login, permitir
       if (pathname === "/customer/login") {
+        return NextResponse.next();
+      }
+      
+      // Permitir acesso público à página de rastreamento (tracking)
+      // Isso permite que links compartilhados funcionem sem autenticação
+      if (pathname.match(/^\/customer\/pre-orders\/[^\/]+\/tracking$/)) {
         return NextResponse.next();
       }
       
@@ -30,6 +36,23 @@ export default withAuth(
         return NextResponse.redirect(new URL("/customer/login", req.url));
       }
       
+      return NextResponse.next();
+    }
+    
+    // Rotas de entregador
+    if (pathname.startsWith("/delivery")) {
+      // Se não tem token, redireciona para login
+      if (!token) {
+        return NextResponse.redirect(new URL("/auth/login", req.url));
+      }
+      
+      // Verificar se é token de cliente tentando acessar área de entregador
+      if ((token as any).customerId) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
+      
+      // Qualquer usuário autenticado (admin, pdv) pode acessar área de entregador
+      // Mas apenas entregadores atribuídos verão suas entregas
       return NextResponse.next();
     }
     
@@ -85,6 +108,8 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/pdv/:path*",
-    "/customer/:path*"
+    "/customer/:path*",
+    "/delivery/:path*"
+    // /tracking não está no matcher, então é público por padrão
   ]
 };

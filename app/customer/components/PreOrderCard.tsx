@@ -1,8 +1,11 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/customer-auth";
-import { Calendar, Package, ShoppingCart } from "lucide-react";
+import { Calendar, Package, ShoppingCart, MapPin } from "lucide-react";
+import Link from "next/link";
 
 interface PreOrderItem {
   quantity: number;
@@ -14,6 +17,14 @@ interface PreOrderItem {
   };
 }
 
+type DeliveryStatus = 
+  | "pending" 
+  | "preparing" 
+  | "out_for_delivery" 
+  | "in_transit" 
+  | "delivered" 
+  | "cancelled";
+
 interface PreOrder {
   id: string;
   totalCents: number;
@@ -22,6 +33,7 @@ interface PreOrder {
   deliveryFeeCents: number;
   notes?: string | null;
   createdAt: string;
+  deliveryStatus?: DeliveryStatus;
   items: PreOrderItem[];
 }
 
@@ -43,6 +55,11 @@ export function PreOrderCard({ preOrder }: PreOrderCardProps) {
               <Calendar className="h-3 w-3" />
               {formatDate(preOrder.createdAt)}
             </p>
+            {preOrder.deliveryStatus && (
+              <div className="mt-2">
+                <DeliveryStatusBadge status={preOrder.deliveryStatus} />
+              </div>
+            )}
           </div>
           <div className="text-right">
             <p className="text-xl font-bold text-orange-600">
@@ -103,6 +120,20 @@ export function PreOrderCard({ preOrder }: PreOrderCardProps) {
               <p className="text-sm text-gray-600 italic">
                 <strong>Observações:</strong> {preOrder.notes}
               </p>
+            </div>
+          )}
+
+          {/* Botão de Rastreamento */}
+          {preOrder.deliveryStatus && 
+           preOrder.deliveryStatus !== "pending" && 
+           preOrder.deliveryStatus !== "cancelled" && (
+            <div className="border-t pt-3">
+              <Link href={`/customer/pre-orders/${preOrder.id}/tracking`}>
+                <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Acompanhar Entrega
+                </Button>
+              </Link>
             </div>
           )}
         </div>

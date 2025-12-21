@@ -32,6 +32,8 @@ export interface ConfigFormData {
   email_reply_to: string;
   email_enabled: string;
   payment_pix_key: string;
+  restaurant_latitude: string;
+  restaurant_longitude: string;
 }
 
 // Tipos para o sistema de despesas

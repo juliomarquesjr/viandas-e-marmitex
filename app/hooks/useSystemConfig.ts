@@ -105,6 +105,8 @@ export function useSystemConfig() {
       email_reply_to: getConfigValue('email_reply_to'),
       email_enabled: getConfigValue('email_enabled', 'false'),
       payment_pix_key: getConfigValue('payment_pix_key'),
+      restaurant_latitude: getConfigValue('restaurant_latitude'),
+      restaurant_longitude: getConfigValue('restaurant_longitude'),
     };
   }, [getConfigValue]);
 

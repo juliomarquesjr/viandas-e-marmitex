@@ -9,6 +9,7 @@ import {
     Database,
     Gauge,
     LogOut,
+    MapPin,
     Menu,
     Package,
     Receipt,
@@ -142,6 +143,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavItem href="/admin/users" icon={Users} label="Usuários" />
             )}
             <Separator className="my-4 bg-white/20" />
+            <NavItem href="/delivery/dashboard" icon={MapPin} label="Entregas" />
             <NavItem href="/admin/expenses" icon={Receipt} label="Despesas" />
             <NavItem href="/admin/profits" icon={BarChart3} label="Lucros" />
             <Separator className="my-8 bg-white/20" />
@@ -266,6 +268,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <NavItem href="/admin/users" icon={Users} label="Usuários" />
                 )}
                 <Separator className="my-4 bg-white/20" />
+                <NavItem href="/delivery/dashboard" icon={MapPin} label="Entregas" />
                 <NavItem href="/admin/expenses" icon={Receipt} label="Despesas" />
                 <NavItem href="/admin/profits" icon={BarChart3} label="Lucros" />
                 <Separator className="my-8 bg-white/20" />

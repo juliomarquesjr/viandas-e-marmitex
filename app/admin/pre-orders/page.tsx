@@ -20,7 +20,8 @@ import {
     Trash2,
     User,
     Users,
-    X
+    X,
+    MapPin
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,7 @@ import { useEffect, useRef, useState } from "react";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
+import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { useToast } from "@/app/components/Toast";
 
 // Menu de opções por pré-pedido
@@ -37,11 +39,13 @@ function PreOrderActionsMenu({
   onDelete,
   onPrint,
   onConvert,
+  onTrack,
 }: {
   onEdit: () => void;
   onDelete: () => void;
   onPrint: () => void;
   onConvert: () => void;
+  onTrack: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -158,6 +162,19 @@ function PreOrderActionsMenu({
           Converter em venda
         </button>
         
+        <button
+          role="menuitem"
+          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
+          onClick={() => {
+            setOpen(false);
+            setMenuStyle(prev => ({ ...prev, display: 'none' }));
+            onTrack();
+          }}
+        >
+          <MapPin className="h-4 w-4 mr-2 text-green-500" />
+          Rastrear Entrega
+        </button>
+        
         <div className="border-t border-border my-1"></div>
         
         <button
@@ -186,6 +203,7 @@ type PreOrder = {
   notes: string | null;
   createdAt: string;
   customerId: string | null;
+  deliveryStatus?: string;
   customer: {
     id: string;
     name: string;
@@ -687,6 +705,9 @@ export default function AdminPreOrdersPage() {
                     <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
                       Data
                     </th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
+                      Status Entrega
+                    </th>
                     <th className="text-left py-4 px-6 font-semibold text-foreground text-sm w-8">
                       Ações
                     </th>
@@ -796,12 +817,34 @@ export default function AdminPreOrdersPage() {
                             </div>
                           </div>
                         </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col gap-2">
+                            {preOrder.deliveryStatus ? (
+                              <DeliveryStatusBadge 
+                                status={preOrder.deliveryStatus as any}
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                            {preOrder.deliveryStatus && 
+                             preOrder.deliveryStatus !== "pending" && 
+                             preOrder.deliveryStatus !== "cancelled" && (
+                              <Link href={`/admin/pre-orders/${preOrder.id}/tracking`}>
+                                <Button variant="ghost" size="sm" className="h-7 text-xs">
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  Rastrear
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-4 px-6 w-8">
                           <PreOrderActionsMenu
                             onEdit={() => openEditPreOrderDialog(preOrder.id)}
                             onDelete={() => openDeleteDialog(preOrder.id)}
                             onPrint={() => printThermalReceipt(preOrder.id)}
                             onConvert={() => convertToOrder(preOrder)}
+                            onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
                           />
                         </td>
                       </motion.tr>

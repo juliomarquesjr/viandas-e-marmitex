@@ -44,14 +44,15 @@ export async function GET(request: Request) {
     const preOrders = await prisma.preOrder.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true
-          }
-        },
+      select: {
+        id: true,
+        totalCents: true,
+        subtotalCents: true,
+        discountCents: true,
+        deliveryFeeCents: true,
+        notes: true,
+        createdAt: true,
+        deliveryStatus: true,
         items: {
           include: {
             product: {

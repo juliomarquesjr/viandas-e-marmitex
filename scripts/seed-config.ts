@@ -48,6 +48,18 @@ const defaultConfigs = [
     category: 'contact'
   },
   {
+    key: 'restaurant_latitude',
+    value: '',
+    type: 'text',
+    category: 'contact'
+  },
+  {
+    key: 'restaurant_longitude',
+    value: '',
+    type: 'text',
+    category: 'contact'
+  },
+  {
     key: 'contact_phone_mobile',
     value: '',
     type: 'text',

@@ -54,7 +54,16 @@ export async function GET(request: Request) {
         skip: (page - 1) * size,
         take: size,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          customerId: true,
+          subtotalCents: true,
+          discountCents: true,
+          deliveryFeeCents: true,
+          totalCents: true,
+          notes: true,
+          createdAt: true,
+          deliveryStatus: true,
           customer: {
             select: {
               id: true,
@@ -561,12 +570,18 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Excluir itens primeiro (devido à restrições de chave estrangeira)
+    // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
+    // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos
+    await prisma.deliveryTracking.deleteMany({
+      where: { preOrderId: id }
+    });
+    
+    // Excluir itens do pré-pedido
     await prisma.preOrderItem.deleteMany({
       where: { preOrderId: id }
     });
     
-    // Excluir pré-pedido
+    // Excluir pré-pedido (o cascade também limparia automaticamente, mas deixamos explícito)
     await prisma.preOrder.delete({
       where: { id }
     });

@@ -33,10 +33,11 @@ function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/customer/pre-orders", icon: Package, label: "Pré-Pedidos" },
   ];
 
-  // Se estiver na página de login, não renderizar navegação
+  // Se estiver na página de login ou tracking, não renderizar navegação
   const isLoginPage = pathname === "/customer/login";
+  const isTrackingPage = pathname?.match(/^\/customer\/pre-orders\/[^\/]+\/tracking$/);
 
-  if (isLoginPage) {
+  if (isLoginPage || isTrackingPage) {
     return <>{children}</>;
   }
 

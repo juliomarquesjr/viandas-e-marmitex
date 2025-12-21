@@ -12,17 +12,19 @@ import {
     Building2,
     Edit3,
     Image as ImageIcon,
+    Loader2,
     Mail,
     MapPin,
     Phone,
     QrCode,
     RefreshCw,
     Save,
+    Search,
     Send,
     Trash2,
     Upload
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function SettingsPage() {
   const { 
@@ -59,6 +61,8 @@ export default function SettingsPage() {
     email_reply_to: '',
     email_enabled: 'false',
     payment_pix_key: '',
+    restaurant_latitude: '',
+    restaurant_longitude: '',
   });
 
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -67,6 +71,13 @@ export default function SettingsPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  
+  // Estados para busca de endereço
+  const [addressSearch, setAddressSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Carregar dados do formulário quando as configurações forem carregadas
   useEffect(() => {
@@ -75,12 +86,77 @@ export default function SettingsPage() {
     }
   }, [configs, getFormData]);
 
+  // Limpar timeout ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Função para lidar com mudanças nos campos
   const handleInputChange = (key: keyof ConfigFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [key]: value
     }));
+  };
+
+  // Função para buscar endereço usando Nominatim
+  const searchAddress = async (query: string) => {
+    if (!query || query.length < 3) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Usar Nominatim (OpenStreetMap) - gratuito, sem API key
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'Viandas-e-Marmitex/1.0' // Nominatim requer User-Agent
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Erro ao buscar endereço');
+      }
+
+      const data = await response.json();
+      setSearchResults(data);
+      setShowResults(true);
+    } catch (error) {
+      console.error('Erro ao buscar endereço:', error);
+      showToast('Erro ao buscar endereço. Tente novamente.', 'error');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Função para selecionar um endereço dos resultados
+  const selectAddress = (result: any) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    
+    setFormData(prev => ({
+      ...prev,
+      restaurant_latitude: lat.toString(),
+      restaurant_longitude: lng.toString()
+    }));
+    
+    // Formatar endereço para exibição
+    const displayName = result.display_name || result.address?.display_name || '';
+    setAddressSearch(displayName);
+    setShowResults(false);
+    setSearchResults([]);
+    
+    showToast('Coordenadas preenchidas automaticamente!', 'success');
   };
 
   // Função para lidar com o upload da logo
@@ -558,6 +634,143 @@ export default function SettingsPage() {
                     placeholder="Apto 45, Bloco B"
                     className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
                   />
+                </div>
+                
+                <div className="sm:col-span-2 space-y-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <h4 className="text-sm font-semibold text-blue-800">
+                      Coordenadas GPS do Restaurante (para Rastreamento)
+                    </h4>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Configure a localização GPS do restaurante para exibir no mapa de rastreamento de entregas.
+                    Pesquise o endereço abaixo e as coordenadas serão preenchidas automaticamente.
+                  </p>
+                  
+                  {/* Campo de busca de endereço */}
+                  <div className="space-y-2 relative">
+                    <Label 
+                      htmlFor="address_search"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Buscar Endereço
+                    </Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="address_search"
+                        value={addressSearch}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setAddressSearch(value);
+                          
+                          // Limpar timeout anterior se existir
+                          if (searchTimeoutRef.current) {
+                            clearTimeout(searchTimeoutRef.current);
+                          }
+                          
+                          // Debounce de 500ms antes de iniciar a pesquisa
+                          if (value.length >= 3) {
+                            searchTimeoutRef.current = setTimeout(() => {
+                              searchAddress(value);
+                            }, 500);
+                          } else {
+                            setSearchResults([]);
+                            setShowResults(false);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (searchResults.length > 0) {
+                            setShowResults(true);
+                          }
+                        }}
+                        placeholder="Ex: Rua Hermes Cortes, 75, Centro, Santa Maria, RS"
+                        className="pl-10 py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
+                      />
+                      {isSearching && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                      )}
+                      
+                      {/* Lista de resultados */}
+                      {showResults && searchResults.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {searchResults.map((result, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => selectAddress(result)}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                            >
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {result.display_name}
+                                  </p>
+                                  {result.address && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {[
+                                        result.address.road,
+                                        result.address.house_number,
+                                        result.address.neighbourhood || result.address.suburb,
+                                        result.address.city || result.address.town,
+                                        result.address.state,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {addressSearch && !isSearching && searchResults.length === 0 && showResults && (
+                      <p className="text-xs text-gray-500">
+                        Nenhum resultado encontrado. Tente uma busca mais específica.
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label 
+                        htmlFor="restaurant_latitude"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Latitude
+                      </Label>
+                      <Input
+                        id="restaurant_latitude"
+                        value={formData.restaurant_latitude || ''}
+                        onChange={(e) => handleInputChange('restaurant_latitude', e.target.value)}
+                        placeholder="-23.5505"
+                        type="number"
+                        step="any"
+                        className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label 
+                        htmlFor="restaurant_longitude"
+                        className="text-sm font-medium text-gray-700"
+                      >
+                        Longitude
+                      </Label>
+                      <Input
+                        id="restaurant_longitude"
+                        value={formData.restaurant_longitude || ''}
+                        onChange={(e) => handleInputChange('restaurant_longitude', e.target.value)}
+                        placeholder="-46.6333"
+                        type="number"
+                        step="any"
+                        className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
