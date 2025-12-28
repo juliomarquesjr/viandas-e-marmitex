@@ -18,11 +18,14 @@ import {
   Settings,
   Trash2,
   X,
-  FileText
+  FileText,
+  CreditCard,
+  Wallet
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ExpenseFormData,
+  ExpensePaymentMethod,
   ExpenseType,
   ExpenseWithRelations,
   SupplierType
@@ -36,6 +39,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
+import { ManageExpensePaymentMethodsDialog } from "./components/ManageExpensePaymentMethodsDialog";
 import { QRScannerModal } from "../../components/QRScannerModal";
 import { InvoiceDataDisplay } from "../../components/InvoiceDataDisplay";
 import { InvoiceData } from "@/lib/nf-scanner/types";
@@ -51,12 +55,12 @@ const formatCurrency = (cents: number) => {
 // Função para formatar data
 const formatDate = (date: Date | string) => {
   const dateObj = new Date(date);
-  
+
   // Extrair apenas a parte da data (ano, mês, dia) considerando UTC
   const year = dateObj.getUTCFullYear();
   const month = dateObj.getUTCMonth();
   const day = dateObj.getUTCDate();
-  
+
   // Criar uma nova data local com os mesmos valores
   const localDate = new Date(year, month, day);
   return localDate.toLocaleDateString("pt-BR");
@@ -83,12 +87,12 @@ function ExpenseActionsMenu({
       const viewportHeight = window.innerHeight;
       const spaceBelow = viewportHeight - buttonRect.bottom;
       const menuHeight = 80;
-      
+
       // Calcular posição: se não há espaço abaixo, abrir para cima
-      const top = spaceBelow < menuHeight 
-        ? buttonRect.top - menuHeight - 8 
+      const top = spaceBelow < menuHeight
+        ? buttonRect.top - menuHeight - 8
         : buttonRect.bottom + 8;
-      
+
       setMenuPosition({
         top,
         left: buttonRect.right - 128, // 128px = largura do menu (w-32)
@@ -102,10 +106,10 @@ function ExpenseActionsMenu({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      
+
       // Verificar se o clique foi fora do botão, do container do menu e do dropdown
       if (
-        menuRef.current && !menuRef.current.contains(target) && 
+        menuRef.current && !menuRef.current.contains(target) &&
         buttonRef.current && !buttonRef.current.contains(target) &&
         dropdownRef.current && !dropdownRef.current.contains(target)
       ) {
@@ -127,7 +131,7 @@ function ExpenseActionsMenu({
       document.removeEventListener("click", handleClickOutside);
       window.removeEventListener("scroll", handleScroll, true);
     }
-    
+
     return () => {
       document.removeEventListener("click", handleClickOutside);
       window.removeEventListener("scroll", handleScroll, true);
@@ -165,9 +169,9 @@ function ExpenseActionsMenu({
           <MoreVertical className="h-5 w-5 text-muted-foreground" />
         </Button>
       </div>
-      
+
       {open && menuPosition && (
-        <div 
+        <div
           ref={dropdownRef}
           className="fixed z-[100] w-32 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in"
           style={{
@@ -203,6 +207,7 @@ function ExpenseFormDialog({
   title,
   expenseTypes,
   supplierTypes,
+  paymentMethods,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -211,10 +216,12 @@ function ExpenseFormDialog({
   title: string;
   expenseTypes: ExpenseType[];
   supplierTypes: SupplierType[];
+  paymentMethods: ExpensePaymentMethod[];
 }) {
   const [formData, setFormData] = useState<ExpenseFormData>({
     typeId: "",
     supplierTypeId: "",
+    paymentMethodId: "",
     amountCents: 0,
     description: "",
     date: new Date().toISOString().split("T")[0],
@@ -245,9 +252,10 @@ function ExpenseFormDialog({
       setFormData({
         typeId: expense.typeId || "",
         supplierTypeId: expense.supplierTypeId || "",
+        paymentMethodId: expense.paymentMethodId || "",
         amountCents: expense.amountCents || 0,
         description: expense.description || "",
-        date: expense.date instanceof Date 
+        date: expense.date instanceof Date
           ? expense.date.toISOString().split("T")[0]
           : new Date(expense.date).toISOString().split("T")[0],
       });
@@ -258,6 +266,7 @@ function ExpenseFormDialog({
       setFormData({
         typeId: "",
         supplierTypeId: "",
+        paymentMethodId: "",
         amountCents: 0,
         description: "",
         date: new Date().toISOString().split("T")[0],
@@ -296,7 +305,7 @@ function ExpenseFormDialog({
     setDisplayPrice(formattedValue);
     const cents = rawValue ? convertToCents(formattedValue) : 0;
     setFormData({ ...formData, amountCents: cents });
-    
+
     // Limpar erro ao digitar
     if (touched.amountCents && errors.amountCents) {
       setErrors({ ...errors, amountCents: undefined });
@@ -349,7 +358,7 @@ function ExpenseFormDialog({
     let isValid = true;
 
     const fields: Array<keyof typeof errors> = ["typeId", "supplierTypeId", "amountCents", "description", "date"];
-    
+
     fields.forEach((field) => {
       const error = validateField(field, formData[field]);
       if (error) {
@@ -372,13 +381,13 @@ function ExpenseFormDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validar todos os campos
     if (!validateForm()) {
       showToast("Por favor, preencha todos os campos obrigatórios", "error");
       return;
     }
-    
+
     setIsSaving(true);
     try {
       await onSave(formData);
@@ -400,7 +409,7 @@ function ExpenseFormDialog({
 
     // Preencher campos automaticamente
     const newFormData = { ...formData };
-    
+
     // Valor total já está em centavos, usar diretamente
     newFormData.amountCents = scannedInvoiceData.totais.valorTotal;
     const formatted = (newFormData.amountCents / 100).toFixed(2);
@@ -414,7 +423,7 @@ function ExpenseFormDialog({
     setFormData(newFormData);
     setIsInvoiceDisplayOpen(false);
     setScannedInvoiceData(null);
-    
+
     showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
   };
 
@@ -477,7 +486,7 @@ function ExpenseFormDialog({
                 </Button>
               </div>
               <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -500,13 +509,12 @@ function ExpenseFormDialog({
                         }
                       }}
                     >
-                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                        touched.typeId && errors.typeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                      }`}>
+                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.typeId && errors.typeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                        }`}>
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
-                      <SelectContent 
-                        className="z-[9999] bg-white border border-gray-200 shadow-lg" 
+                      <SelectContent
+                        className="z-[9999] bg-white border border-gray-200 shadow-lg"
                         position="popper"
                         side="bottom"
                         align="start"
@@ -546,13 +554,12 @@ function ExpenseFormDialog({
                         }
                       }}
                     >
-                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                        touched.supplierTypeId && errors.supplierTypeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                      }`}>
+                      <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.supplierTypeId && errors.supplierTypeId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                        }`}>
                         <SelectValue placeholder="Selecione o fornecedor" />
                       </SelectTrigger>
-                      <SelectContent 
-                        className="z-[9999] bg-white border border-gray-200 shadow-lg" 
+                      <SelectContent
+                        className="z-[9999] bg-white border border-gray-200 shadow-lg"
                         position="popper"
                         side="bottom"
                         align="start"
@@ -582,9 +589,8 @@ function ExpenseFormDialog({
                       value={displayPrice}
                       onChange={handlePriceChange}
                       onBlur={() => handleBlur("amountCents")}
-                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                        touched.amountCents && errors.amountCents ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                      }`}
+                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.amountCents && errors.amountCents ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                        }`}
                       placeholder="R$ 0,00"
                       required
                     />
@@ -611,9 +617,8 @@ function ExpenseFormDialog({
                         }
                       }}
                       onBlur={() => handleBlur("date")}
-                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                        touched.date && errors.date ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                      }`}
+                      className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.date && errors.date ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                        }`}
                       required
                     />
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -621,6 +626,39 @@ function ExpenseFormDialog({
                   {touched.date && errors.date && (
                     <p className="text-sm text-red-500 mt-1">{errors.date}</p>
                   )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  Forma de Pagamento <span className="text-gray-400 font-normal">(Opcional)</span>
+                </label>
+                <div className="relative">
+                  <Select
+                    key={`payment-${expense?.id || 'new'}-${formData.paymentMethodId}`}
+                    value={formData.paymentMethodId || "none"}
+                    onValueChange={(value: string) => {
+                      setFormData({ ...formData, paymentMethodId: value === "none" ? "" : value });
+                    }}
+                  >
+                    <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                      <SelectValue placeholder="Selecione a forma de pagamento" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className="z-[9999] bg-white border border-gray-200 shadow-lg"
+                      position="popper"
+                      side="bottom"
+                      align="start"
+                    >
+                      <SelectItem value="none">Nenhuma selecionada</SelectItem>
+                      {paymentMethods.filter(m => m.active).map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          {method.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 
@@ -640,9 +678,8 @@ function ExpenseFormDialog({
                     }}
                     onBlur={() => handleBlur("description")}
                     placeholder="Descrição da despesa"
-                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                      touched.description && errors.description ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                    }`}
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.description && errors.description ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}
                     required
                   />
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -886,11 +923,10 @@ function ExpenseReportModal({
                         setErrors({ ...errors, startDate: undefined });
                       }
                     }}
-                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                      errors.startDate
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : ""
-                    }`}
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${errors.startDate
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : ""
+                      }`}
                     required
                   />
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -914,11 +950,10 @@ function ExpenseReportModal({
                         setErrors({ ...errors, endDate: undefined });
                       }
                     }}
-                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${
-                      errors.endDate
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                        : ""
-                    }`}
+                    className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${errors.endDate
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : ""
+                      }`}
                     required
                   />
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -961,6 +996,7 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<ExpenseWithRelations[]>([]);
   const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([]);
   const [supplierTypes, setSupplierTypes] = useState<SupplierType[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<ExpensePaymentMethod[]>([]);
   const [mounted, setMounted] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -971,12 +1007,14 @@ export default function ExpensesPage() {
   const [filters, setFilters] = useState({
     typeId: "all",
     supplierTypeId: "all",
+    paymentMethodId: "all",
     startDate: "",
     endDate: "",
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [manageExpenseTypesOpen, setManageExpenseTypesOpen] = useState(false);
   const [manageSupplierTypesOpen, setManageSupplierTypesOpen] = useState(false);
+  const [managePaymentMethodsOpen, setManagePaymentMethodsOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseWithRelations | undefined>();
   const [deletingExpense, setDeletingExpense] = useState<ExpenseWithRelations | undefined>();
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
@@ -994,18 +1032,18 @@ export default function ExpensesPage() {
   // Agrupar despesas por mês/ano para a tabela
   const groupExpensesByMonth = (expensesList: ExpenseWithRelations[]) => {
     const grouped: { [key: string]: ExpenseWithRelations[] } = {};
-    
+
     expensesList.forEach(expense => {
       // Criar data para evitar problemas de timezone
-      const date = expense.date instanceof Date 
-        ? expense.date 
+      const date = expense.date instanceof Date
+        ? expense.date
         : new Date(expense.date);
-      
+
       // Extrair ano e mês considerando UTC para evitar problemas de timezone
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth() + 1;
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-      
+
       if (!grouped[monthKey]) {
         grouped[monthKey] = [];
       }
@@ -1041,7 +1079,7 @@ export default function ExpensesPage() {
   // Evitar hydration mismatch e inicializar datas apenas no cliente
   useEffect(() => {
     setMounted(true);
-    
+
     // Carregar preferência do usuário do localStorage
     const savedViewMode = localStorage.getItem('expenses-view-mode');
     if (savedViewMode && (savedViewMode === 'list' || savedViewMode === 'calendar')) {
@@ -1074,11 +1112,12 @@ export default function ExpensesPage() {
         ...filters,
         typeId: filters.typeId === "all" ? "" : filters.typeId,
         supplierTypeId: filters.supplierTypeId === "all" ? "" : filters.supplierTypeId,
+        paymentMethodId: filters.paymentMethodId === "all" ? "" : filters.paymentMethodId,
       };
-      
+
       let limit = pagination.limit;
       let page = pagination.page;
-      
+
       // Se estiver no modo calendário, carregar todas as despesas do mês atual
       if (viewMode === 'calendar') {
         // Calcular início e fim do mês atual
@@ -1094,7 +1133,7 @@ export default function ExpensesPage() {
         limit = 10000; // Limite muito alto para pegar todos os dados
         page = 1;
       }
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
@@ -1106,7 +1145,7 @@ export default function ExpensesPage() {
       const response = await fetch(`/api/expenses?${params}`);
       if (!response.ok) throw new Error("Failed to fetch expenses");
       const data = await response.json();
-      
+
       if (viewMode === 'list') {
         // No modo lista, armazenar todos os dados e resetar índice do mês
         setAllExpenses(data.expenses);
@@ -1148,6 +1187,11 @@ export default function ExpensesPage() {
         expenseTypesRes.json(),
         supplierTypesRes.json(),
       ]);
+
+      const paymentMethodsRes = await fetch("/api/expense-payment-methods");
+      if (paymentMethodsRes.ok) {
+        setPaymentMethods(await paymentMethodsRes.json());
+      }
 
       setExpenseTypes(expenseTypesData);
       setSupplierTypes(supplierTypesData);
@@ -1251,6 +1295,7 @@ export default function ExpensesPage() {
     setFilters({
       typeId: "all",
       supplierTypeId: "all",
+      paymentMethodId: "all",
       startDate: "",
       endDate: "",
     });
@@ -1264,19 +1309,19 @@ export default function ExpensesPage() {
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     const days = [];
-    
+
     // Adicionar dias vazios do mês anterior
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
+
     // Adicionar dias do mês atual
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    
+
     return days;
   };
 
@@ -1302,9 +1347,9 @@ export default function ExpensesPage() {
   };
 
   const formatMonthYear = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { 
-      month: 'long', 
-      year: 'numeric' 
+    return date.toLocaleDateString('pt-BR', {
+      month: 'long',
+      year: 'numeric'
     });
   };
 
@@ -1365,8 +1410,8 @@ export default function ExpensesPage() {
             </Button>
           </div>
           <div className="relative manage-menu-container">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex items-center gap-2"
               onClick={() => setIsManageMenuOpen(!isManageMenuOpen)}
             >
@@ -1374,7 +1419,7 @@ export default function ExpensesPage() {
               Gerenciar
               <ChevronDown className={`h-4 w-4 transition-transform ${isManageMenuOpen ? 'rotate-180' : ''}`} />
             </Button>
-            
+
             {isManageMenuOpen && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                 <div className="py-1">
@@ -1398,12 +1443,22 @@ export default function ExpensesPage() {
                     <DollarSign className="h-4 w-4" />
                     Gerenciar Fornecedores
                   </button>
+                  <button
+                    onClick={() => {
+                      setManagePaymentMethodsOpen(true);
+                      setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Gerenciar Formas de Pagto
+                  </button>
                 </div>
               </div>
             )}
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="flex items-center gap-2"
             onClick={() => setIsReportModalOpen(true)}
           >
@@ -1419,7 +1474,7 @@ export default function ExpensesPage() {
 
       {/* Filtros */}
       <AnimatedCard className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Select
             value={filters.typeId}
             onValueChange={(value: string) =>
@@ -1429,7 +1484,7 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de despesa" />
             </SelectTrigger>
-            <SelectContent 
+            <SelectContent
               className="z-[9999] bg-white border border-gray-200 shadow-lg"
               position="popper"
               side="bottom"
@@ -1453,7 +1508,7 @@ export default function ExpensesPage() {
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Tipo de fornecedor" />
             </SelectTrigger>
-            <SelectContent 
+            <SelectContent
               className="z-[9999] bg-white border border-gray-200 shadow-lg"
               position="popper"
               side="bottom"
@@ -1463,6 +1518,30 @@ export default function ExpensesPage() {
               {supplierTypes.map((type) => (
                 <SelectItem key={type.id} value={type.id}>
                   {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filters.paymentMethodId}
+            onValueChange={(value: string) =>
+              setFilters({ ...filters, paymentMethodId: value })
+            }
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue placeholder="Forma de Pagamento" />
+            </SelectTrigger>
+            <SelectContent
+              className="z-[9999] bg-white border border-gray-200 shadow-lg"
+              position="popper"
+              side="bottom"
+              align="start"
+            >
+              <SelectItem value="all">Todas as formas</SelectItem>
+              {paymentMethods.map((method) => (
+                <SelectItem key={method.id} value={method.id}>
+                  {method.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1565,14 +1644,12 @@ export default function ExpensesPage() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`min-h-24 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col ${
-                    isToday ? 'bg-blue-50 border-blue-200' : ''
-                  }`}
+                  className={`min-h-24 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col ${isToday ? 'bg-blue-50 border-blue-200' : ''
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-1 flex-shrink-0">
-                    <span className={`text-sm font-medium ${
-                      isToday ? 'text-blue-600' : 'text-gray-900'
-                    }`}>
+                    <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'
+                      }`}>
                       {day.getDate()}
                     </span>
                     {totalAmount > 0 && (
@@ -1581,7 +1658,7 @@ export default function ExpensesPage() {
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 space-y-1 overflow-y-auto max-h-32">
                     {dayExpenses.map((expense) => (
                       <div
@@ -1593,8 +1670,8 @@ export default function ExpensesPage() {
                           handleExpenseClick(expense);
                         }}
                       >
-                        {expense.supplierType.name.length > 15 
-                          ? `${expense.supplierType.name.substring(0, 15)}...` 
+                        {expense.supplierType.name.length > 15
+                          ? `${expense.supplierType.name.substring(0, 15)}...`
                           : expense.supplierType.name}
                       </div>
                     ))}
@@ -1612,12 +1689,12 @@ export default function ExpensesPage() {
           {/* Exibir despesas do mês atual */}
           {monthsGrouped.length > 0 && currentMonthIndex < monthsGrouped.length ? (() => {
             const [monthKey, monthExpenses] = monthsGrouped[currentMonthIndex];
-              const [year, month] = monthKey.split('-');
-              const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { 
-                month: 'long', 
-                year: 'numeric' 
-              });
-              const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amountCents, 0);
+            const [year, month] = monthKey.split('-');
+            const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', {
+              month: 'long',
+              year: 'numeric'
+            });
+            const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amountCents, 0);
 
             return (
               <AnimatedCard key={monthKey} className="mb-6 p-0 overflow-hidden">
@@ -1646,70 +1723,81 @@ export default function ExpensesPage() {
                   </div>
                 </div>
 
-                  {/* Tabela de despesas do mês */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Descrição</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fornecedor</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Valor</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Data</th>
-                          <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Ações</th>
+                {/* Tabela de despesas do mês */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Descrição</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fornecedor</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Pagamento</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Valor</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Data</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {monthExpenses.map((expense) => (
+                        <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                                <Receipt className="h-4 w-4 text-orange-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-900">{expense.description}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge variant="outline" className="text-xs">
+                              {expense.type.name}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge variant="subtle" className="text-xs">
+                              {expense.supplierType.name}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4">
+                            {expense.paymentMethod ? (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
+                                <CreditCard className="h-3 w-3" />
+                                {expense.paymentMethod.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Não informado</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
+                              <DollarSign className="h-4 w-4 text-green-600" />
+                              {formatCurrency(expense.amountCents)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <Calendar className="h-4 w-4" />
+                              {formatDate(expense.date)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <ExpenseActionsMenu
+                              onEdit={() => {
+                                setEditingExpense(expense);
+                                setIsFormOpen(true);
+                              }}
+                              onDelete={() => setDeletingExpense(expense)}
+                            />
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {monthExpenses.map((expense) => (
-                          <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                                  <Receipt className="h-4 w-4 text-orange-600" />
-                                </div>
-                                <div>
-                                  <div className="font-medium text-gray-900">{expense.description}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <Badge variant="outline" className="text-xs">
-                                {expense.type.name}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4">
-                              <Badge variant="subtle" className="text-xs">
-                                {expense.supplierType.name}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-1 text-sm font-medium text-gray-900">
-                                <DollarSign className="h-4 w-4 text-green-600" />
-                                {formatCurrency(expense.amountCents)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <Calendar className="h-4 w-4" />
-                                {formatDate(expense.date)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <ExpenseActionsMenu
-                                onEdit={() => {
-                                  setEditingExpense(expense);
-                                  setIsFormOpen(true);
-                                }}
-                                onDelete={() => setDeletingExpense(expense)}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </AnimatedCard>
-              );
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AnimatedCard>
+            );
           })() : null}
         </>
       )}
@@ -1753,9 +1841,9 @@ export default function ExpensesPage() {
             {currentMonthIndex < monthsGrouped.length && (() => {
               const [monthKey] = monthsGrouped[currentMonthIndex];
               const [year, month] = monthKey.split('-');
-              const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', { 
-                month: 'long', 
-                year: 'numeric' 
+              const monthName = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('pt-BR', {
+                month: 'long',
+                year: 'numeric'
               });
               return (
                 <span className="text-sm text-muted-foreground capitalize">
@@ -1792,6 +1880,7 @@ export default function ExpensesPage() {
         title={editingExpense ? "Editar Despesa" : "Nova Despesa"}
         expenseTypes={expenseTypes}
         supplierTypes={supplierTypes}
+        paymentMethods={paymentMethods}
       />
 
       <ManageExpenseTypesDialog
@@ -1806,6 +1895,12 @@ export default function ExpensesPage() {
         onChanged={() => loadTypes()}
       />
 
+      <ManageExpensePaymentMethodsDialog
+        isOpen={managePaymentMethodsOpen}
+        onClose={() => setManagePaymentMethodsOpen(false)}
+        onChanged={() => loadTypes()}
+      />
+
       {/* Modal de Relatório */}
       <ExpenseReportModal
         isOpen={isReportModalOpen}
@@ -1815,7 +1910,7 @@ export default function ExpensesPage() {
 
       {/* Balão Flutuante de Resumo da Despesa */}
       {isSummaryModalOpen && selectedExpense && (
-        <div 
+        <div
           className="fixed inset-0 z-30 pointer-events-auto"
           onClick={() => setIsSummaryModalOpen(false)}
         >
@@ -1830,7 +1925,7 @@ export default function ExpensesPage() {
             <div className="bg-white/95 backdrop-blur-sm shadow-2xl rounded-2xl border border-gray-200/50 p-6 max-w-sm w-80 relative">
               {/* Seta do balão */}
               <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white/95 rotate-45 border-l border-t border-gray-200/50"></div>
-              
+
               {/* Header compacto */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -1839,8 +1934,8 @@ export default function ExpensesPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 text-sm">
-                      {selectedExpense.description.length > 25 
-                        ? `${selectedExpense.description.substring(0, 25)}...` 
+                      {selectedExpense.description.length > 25
+                        ? `${selectedExpense.description.substring(0, 25)}...`
                         : selectedExpense.description}
                     </h3>
                     <p className="text-xs text-gray-500">
@@ -1866,19 +1961,31 @@ export default function ExpensesPage() {
                     {formatCurrency(selectedExpense.amountCents)}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">Tipo</span>
                   <Badge variant="outline" className="text-xs">
                     {selectedExpense.type.name}
                   </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">Fornecedor</span>
                   <Badge variant="subtle" className="text-xs">
                     {selectedExpense.supplierType.name}
                   </Badge>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Pagamento</span>
+                  {selectedExpense.paymentMethod ? (
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      {selectedExpense.paymentMethod.name}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-gray-400">Não informado</span>
+                  )}
                 </div>
               </div>
 

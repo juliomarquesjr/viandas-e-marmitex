@@ -55,10 +55,20 @@ export interface SupplierType {
   updatedAt: Date;
 }
 
+export interface ExpensePaymentMethod {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Expense {
   id: string;
   typeId: string;
   supplierTypeId: string;
+  paymentMethodId?: string | null;
   amountCents: number;
   description: string;
   date: Date;
@@ -66,19 +76,28 @@ export interface Expense {
   updatedAt: Date;
   type?: ExpenseType;
   supplierType?: SupplierType;
+  paymentMethod?: ExpensePaymentMethod;
 }
 
 export interface ExpenseWithRelations extends Expense {
   type: ExpenseType;
   supplierType: SupplierType;
+  paymentMethod?: ExpensePaymentMethod;
 }
 
 export interface ExpenseFormData {
   typeId: string;
   supplierTypeId: string;
+  paymentMethodId?: string;
   amountCents: number;
   description: string;
   date: string;
+}
+
+export interface ExpensePaymentMethodFormData {
+  name: string;
+  description?: string;
+  active?: boolean;
 }
 
 export interface ExpenseTypeFormData {

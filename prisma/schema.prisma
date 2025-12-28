@@ -262,11 +262,27 @@ model SupplierType {
   @@index([name])
 }
 
+// Modelo de Tipo de Método de Pagamento de Despesa
+model ExpensePaymentMethod {
+  id          String    @id @default(uuid())
+  name        String    @unique // Nome único do método de pagamento
+  description String?   // Descrição opcional
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  expenses    Expense[]
+
+  @@index([name])
+}
+
 // Modelo de Despesa
 model Expense {
   id              String        @id @default(uuid())
   typeId          String        // FK para ExpenseType
   supplierTypeId  String        // FK para SupplierType
+  paymentMethodId String?       // FK para ExpensePaymentMethod (opcional)
   amountCents     Int           @default(0) // Valor em centavos para evitar problemas de arredondamento
   description     String        // Descrição da despesa
   date            DateTime      // Data da despesa
@@ -276,9 +292,11 @@ model Expense {
   // Relacionamentos
   type            ExpenseType   @relation(fields: [typeId], references: [id])
   supplierType    SupplierType  @relation(fields: [supplierTypeId], references: [id])
+  paymentMethod   ExpensePaymentMethod? @relation(fields: [paymentMethodId], references: [id])
 
   @@index([typeId])
   @@index([supplierTypeId])
+  @@index([paymentMethodId])
   @@index([date])
 }
 
