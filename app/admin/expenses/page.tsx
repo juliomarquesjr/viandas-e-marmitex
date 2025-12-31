@@ -234,7 +234,9 @@ function ExpenseFormDialog({
     supplierTypeId?: string;
     amountCents?: string;
     description?: string;
+
     date?: string;
+    paymentMethodId?: string;
   }>({});
   const [touched, setTouched] = useState<{
     typeId?: boolean;
@@ -242,6 +244,7 @@ function ExpenseFormDialog({
     amountCents?: boolean;
     description?: boolean;
     date?: boolean;
+    paymentMethodId?: boolean;
   }>({});
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [isInvoiceDisplayOpen, setIsInvoiceDisplayOpen] = useState(false);
@@ -331,13 +334,16 @@ function ExpenseFormDialog({
         }
         return undefined;
       case "description":
-        if (!value || value.trim() === "") {
-          return "Descrição é obrigatória";
-        }
+        // Descrição agora é opcional
         return undefined;
       case "date":
         if (!value || value === "") {
           return "Data é obrigatória";
+        }
+        return undefined;
+      case "paymentMethodId":
+        if (!value || value === "" || value === "none") {
+          return "Forma de pagamento é obrigatória";
         }
         return undefined;
       default:
@@ -357,7 +363,7 @@ function ExpenseFormDialog({
     const newErrors: typeof errors = {};
     let isValid = true;
 
-    const fields: Array<keyof typeof errors> = ["typeId", "supplierTypeId", "amountCents", "description", "date"];
+    const fields: Array<keyof typeof errors> = ["typeId", "supplierTypeId", "amountCents", "date", "paymentMethodId"];
 
     fields.forEach((field) => {
       const error = validateField(field, formData[field]);
@@ -374,6 +380,7 @@ function ExpenseFormDialog({
       amountCents: true,
       description: true,
       date: true,
+      paymentMethodId: true,
     });
 
     return isValid;
@@ -631,17 +638,26 @@ function ExpenseFormDialog({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Forma de Pagamento <span className="text-gray-400 font-normal">(Opcional)</span>
+                  Forma de Pagamento <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Select
                     key={`payment-${expense?.id || 'new'}-${formData.paymentMethodId}`}
-                    value={formData.paymentMethodId || "none"}
+                    value={formData.paymentMethodId || undefined}
                     onValueChange={(value: string) => {
-                      setFormData({ ...formData, paymentMethodId: value === "none" ? "" : value });
+                      setFormData({ ...formData, paymentMethodId: value });
+                      if (touched.paymentMethodId && errors.paymentMethodId) {
+                        setErrors({ ...errors, paymentMethodId: undefined });
+                      }
+                    }}
+                    onOpenChange={(open) => {
+                      if (!open && touched.paymentMethodId) {
+                        handleBlur("paymentMethodId");
+                      }
                     }}
                   >
-                    <SelectTrigger className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all">
+                    <SelectTrigger className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.paymentMethodId && errors.paymentMethodId ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}>
                       <SelectValue placeholder="Selecione a forma de pagamento" />
                     </SelectTrigger>
                     <SelectContent
@@ -650,7 +666,7 @@ function ExpenseFormDialog({
                       side="bottom"
                       align="start"
                     >
-                      <SelectItem value="none">Nenhuma selecionada</SelectItem>
+                      {/* <SelectItem value="none">Nenhuma selecionada</SelectItem> Removed optional option */}
                       {paymentMethods.filter(m => m.active).map((method) => (
                         <SelectItem key={method.id} value={method.id}>
                           {method.name}
@@ -660,11 +676,14 @@ function ExpenseFormDialog({
                   </Select>
                   <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
+                {touched.paymentMethodId && errors.paymentMethodId && (
+                  <p className="text-sm text-red-500 mt-1">{errors.paymentMethodId}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Descrição <span className="text-red-500">*</span>
+                  Descrição <span className="text-gray-400 font-normal">(Opcional)</span>
                 </label>
                 <div className="relative">
                   <Input
@@ -680,7 +699,6 @@ function ExpenseFormDialog({
                     placeholder="Descrição da despesa"
                     className={`pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all ${touched.description && errors.description ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
                       }`}
-                    required
                   />
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
@@ -689,11 +707,11 @@ function ExpenseFormDialog({
                 )}
               </div>
             </div>
-          </form>
-        </div>
+          </form >
+        </div >
 
         {/* Footer with actions */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+        < div className="border-t border-gray-200 p-6 bg-gray-50/50" >
           <div className="flex justify-end gap-3">
             <Button
               type="button"
@@ -722,33 +740,36 @@ function ExpenseFormDialog({
               )}
             </Button>
           </div>
-        </div>
-      </motion.div>
+        </div >
+      </motion.div >
 
       {/* Modal de Scanner QR Code */}
-      <QRScannerModal
+      < QRScannerModal
         isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
+        onClose={() => setIsQRScannerOpen(false)
+        }
         onQRCodeScanned={handleQRCodeScanned}
       />
 
       {/* Modal de Exibição de Dados da Nota */}
-      {isInvoiceDisplayOpen && scannedInvoiceData && (
-        <InvoiceDataDisplay
-          invoiceData={scannedInvoiceData}
-          onUseForExpense={handleUseInvoiceForExpense}
-          onClose={() => {
-            setIsInvoiceDisplayOpen(false);
-            setScannedInvoiceData(null);
-          }}
-          onScanAgain={() => {
-            setIsInvoiceDisplayOpen(false);
-            setScannedInvoiceData(null);
-            setIsQRScannerOpen(true);
-          }}
-        />
-      )}
-    </div>
+      {
+        isInvoiceDisplayOpen && scannedInvoiceData && (
+          <InvoiceDataDisplay
+            invoiceData={scannedInvoiceData}
+            onUseForExpense={handleUseInvoiceForExpense}
+            onClose={() => {
+              setIsInvoiceDisplayOpen(false);
+              setScannedInvoiceData(null);
+            }}
+            onScanAgain={() => {
+              setIsInvoiceDisplayOpen(false);
+              setScannedInvoiceData(null);
+              setIsQRScannerOpen(true);
+            }}
+          />
+        )
+      }
+    </div >
   );
 }
 

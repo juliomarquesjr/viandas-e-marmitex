@@ -212,12 +212,15 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!body.description || body.description.trim() === '') {
+    if (!body.paymentMethodId) {
       return NextResponse.json(
-        { error: 'Descrição é obrigatória' },
+        { error: 'Forma de pagamento é obrigatória' },
         { status: 400 }
       );
     }
+
+    // Descrição agora é opcional
+    // if (!body.description || body.description.trim() === '') { ... }
 
     if (!body.date) {
       return NextResponse.json(
@@ -265,7 +268,7 @@ export async function POST(request: Request) {
         supplierTypeId: body.supplierTypeId,
         paymentMethodId: body.paymentMethodId || null,
         amountCents: body.amountCents,
-        description: body.description.trim(),
+        description: (body.description || '').trim(),
         date: new Date(body.date + 'T00:00:00.000Z')
       },
       include: {
