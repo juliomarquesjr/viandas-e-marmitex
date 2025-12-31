@@ -57,6 +57,7 @@
     "qrcode": "^1.5.4",
     "qrcode-pix": "^5.0.0",
     "react": "^19.1.2",
+    "react-day-picker": "^9.13.0",
     "react-dom": "^19.1.2",
     "react-image-crop": "^11.0.10",
     "react-leaflet": "^5.0.0",
