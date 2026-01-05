@@ -234,9 +234,8 @@ export async function GET(
         payments: number;
       }>();
 
-      // Adicionar apenas pedidos PENDENTES do período (não todos os pedidos)
-      // Isso evita contar pedidos que já foram pagos/confirmados
-      pendingInPeriod.forEach(order => {
+      // Adicionar todas as compras do período (pendentes e confirmadas)
+      periodOrders.forEach(order => {
         try {
           const orderDate = new Date(order.createdAt);
           const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
@@ -245,7 +244,14 @@ export async function GET(
           }
           const group = monthlyGroups.get(monthKey);
           if (group) {
+            // Soma ao total de compras
             group.purchases += order.totalCents;
+            
+            // Se o pedido já está confirmado (pago), ele também conta como pagamento imediato
+            // para não afetar o saldo devedor acumulado
+            if (order.status === 'confirmed') {
+              group.payments += order.totalCents;
+            }
           }
         } catch (err) {
           console.error('Error processing order date:', err);
