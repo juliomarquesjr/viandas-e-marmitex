@@ -234,8 +234,9 @@ export async function GET(
         payments: number;
       }>();
 
-      // Adicionar compras do período
-      periodOrders.forEach(order => {
+      // Adicionar apenas pedidos PENDENTES do período (não todos os pedidos)
+      // Isso evita contar pedidos que já foram pagos/confirmados
+      pendingInPeriod.forEach(order => {
         try {
           const orderDate = new Date(order.createdAt);
           const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
