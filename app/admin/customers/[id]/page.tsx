@@ -1,26 +1,26 @@
 "use client";
 
 import {
-    ArrowLeft,
-    Banknote,
-    Barcode as BarcodeIcon,
-    Calculator,
-    Clock,
-    CreditCard,
-    Download,
-    FileText,
-    IdCard,
-    MapPin,
-    Package,
-    Phone,
-    Plus,
-    Printer,
-    QrCode,
-    Receipt,
-    Trash2,
-    User,
-    Wallet,
-    X
+  ArrowLeft,
+  Banknote,
+  Barcode as BarcodeIcon,
+  Calculator,
+  Clock,
+  CreditCard,
+  Download,
+  FileText,
+  IdCard,
+  MapPin,
+  Package,
+  Phone,
+  Plus,
+  Printer,
+  QrCode,
+  Receipt,
+  Trash2,
+  User,
+  Wallet,
+  X
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -32,17 +32,17 @@ import { useToast } from "../../../components/Toast";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "../../../components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    DialogTrigger
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
 
@@ -71,15 +71,13 @@ const Switch = ({ checked = false, onCheckedChange, disabled = false, className,
       disabled={disabled}
       onClick={handleClick}
       id={id}
-      className={`peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? "bg-blue-600" : "bg-gray-200"
-      } ${className || ""}`}
+      className={`peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 ${checked ? "bg-blue-600" : "bg-gray-200"
+        } ${className || ""}`}
       {...props}
     >
       <span
-        className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
+        className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${checked ? "translate-x-5" : "translate-x-0"
+          }`}
       />
     </button>
   );
@@ -166,6 +164,7 @@ export default function CustomerDetailPage() {
   const [cashReceived, setCashReceived] = useState("");
   const [change, setChange] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentDate, setPaymentDate] = useState("");
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -177,10 +176,10 @@ export default function CustomerDetailPage() {
   const [orderFilter, setOrderFilter] = useState("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
-  
+
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<{id: string, isFichaPayment: boolean} | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<{ id: string, isFichaPayment: boolean } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [filteredStats, setFilteredStats] = useState({
@@ -429,8 +428,8 @@ export default function CustomerDetailPage() {
     // Find the order to determine if it's a ficha payment
     const order = orders.find(o => o.id === orderId);
     const isFichaPayment = order?.type === "ficha_payment" || order?.paymentMethod === "ficha_payment";
-    
-    setOrderToDelete({id: orderId, isFichaPayment});
+
+    setOrderToDelete({ id: orderId, isFichaPayment });
     setDeleteDialogOpen(true);
   };
 
@@ -440,8 +439,8 @@ export default function CustomerDetailPage() {
     setIsDeleting(true);
     try {
       // Use the appropriate API endpoint based on order type
-      const endpoint = orderToDelete.isFichaPayment 
-        ? `/api/ficha-payments?id=${orderToDelete.id}` 
+      const endpoint = orderToDelete.isFichaPayment
+        ? `/api/ficha-payments?id=${orderToDelete.id}`
         : `/api/orders?id=${orderToDelete.id}`;
 
       const response = await fetch(endpoint, {
@@ -556,6 +555,11 @@ export default function CustomerDetailPage() {
         paymentMethod: selectedPaymentMethod,
       };
 
+      // Adicionar data de pagamento se fornecida
+      if (paymentDate) {
+        paymentData.paymentDate = paymentDate;
+      }
+
       // Adicionar dados específicos para pagamento em dinheiro
       if (selectedPaymentMethod === "cash" && cashReceived) {
         const cashReceivedCents = Math.round(parseFloat(cashReceived) * 100);
@@ -583,6 +587,7 @@ export default function CustomerDetailPage() {
       setSelectedPaymentMethod("");
       setCashReceived("");
       setChange(0);
+      setPaymentDate("");
       loadCustomer();
 
       // Mostrar toast de sucesso
@@ -1089,7 +1094,7 @@ export default function CustomerDetailPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-md max-h-[90vh] overflow-hidden p-0 flex flex-col">
                   <DialogTitle className="sr-only">Relatório de Fechamento</DialogTitle>
-                  
+
                   {/* Header com gradiente */}
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
                     <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
@@ -1113,7 +1118,7 @@ export default function CustomerDetailPage() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   {/* Conteúdo scrollável */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div className="grid gap-4">
@@ -1143,7 +1148,7 @@ export default function CustomerDetailPage() {
                           className="w-full"
                         />
                       </div>
-                      
+
                       {/* Opções de impressão */}
                       <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <h3 className="text-sm font-semibold text-blue-800">Opções de Impressão</h3>
@@ -1189,7 +1194,7 @@ export default function CustomerDetailPage() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <span className="text-sm text-gray-600">Período pré-definido:</span>
                         <Button
@@ -1203,7 +1208,7 @@ export default function CustomerDetailPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Rodapé */}
                   <div className="border-t border-gray-200 p-6 bg-gray-50/50">
                     <div className="space-y-3">
@@ -1270,7 +1275,7 @@ export default function CustomerDetailPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
                   <DialogTitle className="sr-only">Adicionar Pagamento à Ficha</DialogTitle>
-                  
+
                   {/* Loading Overlay */}
                   {isProcessingPayment && (
                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
@@ -1281,7 +1286,7 @@ export default function CustomerDetailPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Header com gradiente */}
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
                     <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
@@ -1304,6 +1309,7 @@ export default function CustomerDetailPage() {
                           setPaymentAmount("");
                           setCashReceived("");
                           setChange(0);
+                          setPaymentDate("");
                         }}
                         disabled={isProcessingPayment}
                         className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105 disabled:opacity-50"
@@ -1315,110 +1321,137 @@ export default function CustomerDetailPage() {
 
                   {/* Conteúdo scrollável */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Valor do Pagamento
-                      </label>
-                      <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                          R$
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={paymentAmount}
-                          disabled={isProcessingPayment}
-                          onChange={(e) => {
-                            if (!isProcessingPayment) {
-                              setPaymentAmount(e.target.value);
-                            }
-                          }}
-                          placeholder="0,00"
-                          className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Formas de pagamento */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">
-                        Formas de Pagamento
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { label: "Dinheiro", value: "cash", icon: Banknote },
-                          { label: "Cartão Débito", value: "debit", icon: CreditCard },
-                          { label: "Cartão Crédito", value: "credit", icon: CreditCard },
-                          { label: "PIX", value: "pix", icon: QrCode },
-                        ].map((method) => (
-                          <Button
-                            key={method.value}
-                            variant={
-                              selectedPaymentMethod === method.value ? "default" : "outline"
-                            }
+                    {/* Valor e Data do Pagamento na mesma linha */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          Valor do Pagamento
+                        </label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                            R$
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={paymentAmount}
                             disabled={isProcessingPayment}
-                            className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                            onClick={() => {
+                            onChange={(e) => {
                               if (!isProcessingPayment) {
-                                setSelectedPaymentMethod(method.value);
+                                setPaymentAmount(e.target.value);
                               }
                             }}
-                          >
-                            <method.icon className="h-6 w-6" />
-                            <span className="text-sm font-medium">{method.label}</span>
-                          </Button>
-                        ))}
+                            placeholder="0,00"
+                            className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          Data do Pagamento
+                        </label>
+                        <div className="relative mt-1">
+                          <Input
+                            type="date"
+                            value={paymentDate}
+                            disabled={isProcessingPayment}
+                            onChange={(e) => {
+                              if (!isProcessingPayment) {
+                                setPaymentDate(e.target.value);
+                              }
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            className="text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Detalhes do pagamento */}
-                    <div className="transition-all duration-300 ease-in-out">
-                      {selectedPaymentMethod ? (
-                        <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="mb-3 p-3 bg-background rounded-full">
-                            {(() => {
-                              const method = [
-                                { label: "Dinheiro", value: "cash", icon: Banknote },
-                                { label: "Cartão Débito", value: "debit", icon: CreditCard },
-                                { label: "Cartão Crédito", value: "credit", icon: CreditCard },
-                                { label: "PIX", value: "pix", icon: QrCode },
-                              ].find((m) => m.value === selectedPaymentMethod);
+                    <p className="text-xs text-gray-500">
+                      Deixe a data em branco para usar a data atual
+                    </p>
 
-                              return method ? (
-                                <method.icon className="h-8 w-8 text-primary" />
-                              ) : null;
-                            })()}
-                          </div>
-                          <h3 className="text-lg font-semibold mb-2">
-                            Pagamento com {
-                              selectedPaymentMethod === "cash" ? "Dinheiro" :
-                                selectedPaymentMethod === "debit" ? "Cartão Débito" :
-                                  selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"
-                            }
-                          </h3>
-                          <p className="text-muted-foreground">
-                            O valor do pagamento é{" "}
-                            <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
-                            . Confirme os dados e clique em "Registrar Pagamento" para concluir.
-                          </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Formas de pagamento */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">
+                          Formas de Pagamento
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { label: "Dinheiro", value: "cash", icon: Banknote },
+                            { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                            { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                            { label: "PIX", value: "pix", icon: QrCode },
+                          ].map((method) => (
+                            <Button
+                              key={method.value}
+                              variant={
+                                selectedPaymentMethod === method.value ? "default" : "outline"
+                              }
+                              disabled={isProcessingPayment}
+                              className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                              onClick={() => {
+                                if (!isProcessingPayment) {
+                                  setSelectedPaymentMethod(method.value);
+                                }
+                              }}
+                            >
+                              <method.icon className="h-6 w-6" />
+                              <span className="text-sm font-medium">{method.label}</span>
+                            </Button>
+                          ))}
                         </div>
-                      ) : (
-                        <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                          <div className="space-y-3">
-                            <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
-                            <h3 className="text-lg font-medium">
-                              Selecione uma forma de pagamento
+                      </div>
+
+                      {/* Detalhes do pagamento */}
+                      <div className="transition-all duration-300 ease-in-out">
+                        {selectedPaymentMethod ? (
+                          <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="mb-3 p-3 bg-background rounded-full">
+                              {(() => {
+                                const method = [
+                                  { label: "Dinheiro", value: "cash", icon: Banknote },
+                                  { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                                  { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                                  { label: "PIX", value: "pix", icon: QrCode },
+                                ].find((m) => m.value === selectedPaymentMethod);
+
+                                return method ? (
+                                  <method.icon className="h-8 w-8 text-primary" />
+                                ) : null;
+                              })()}
+                            </div>
+                            <h3 className="text-lg font-semibold mb-2">
+                              Pagamento com {
+                                selectedPaymentMethod === "cash" ? "Dinheiro" :
+                                  selectedPaymentMethod === "debit" ? "Cartão Débito" :
+                                    selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"
+                              }
                             </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Escolha uma das opções ao lado para prosseguir com o
-                              pagamento.
+                            <p className="text-muted-foreground">
+                              O valor do pagamento é{" "}
+                              <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
+                              . Confirme os dados e clique em "Registrar Pagamento" para concluir.
                             </p>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        ) : (
+                          <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-3">
+                              <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
+                              <h3 className="text-lg font-medium">
+                                Selecione uma forma de pagamento
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Escolha uma das opções ao lado para prosseguir com o
+                                pagamento.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1435,6 +1468,7 @@ export default function CustomerDetailPage() {
                             setPaymentAmount("");
                             setCashReceived("");
                             setChange(0);
+                            setPaymentDate("");
                           }
                         }}
                         className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1797,7 +1831,7 @@ export default function CustomerDetailPage() {
         customerId={customer.id}
         customerName={customer.name}
       />
-      
+
       {/* Modal de Confirmação de Exclusão */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}

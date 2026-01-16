@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    
+
     // Validação básica
     if (!body.customerId || !body.amountCents || body.amountCents <= 0) {
       return NextResponse.json(
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const customer = await prisma.customer.findUnique({
       where: { id: body.customerId }
     });
-    
+
     if (!customer) {
       return NextResponse.json(
         { error: 'Customer not found' },
@@ -58,6 +58,12 @@ export async function POST(request: Request) {
         create: []
       }
     };
+
+    // Definir createdAt com base na data de pagamento fornecida, ou usar a data atual
+    if (body.paymentDate) {
+      // Converter a string de data para DateTime e definir como createdAt
+      paymentData.createdAt = new Date(body.paymentDate);
+    }
 
     // Adicionar dados específicos do método de pagamento
     if (body.paymentMethod === 'cash' && body.cashReceivedCents !== undefined) {
@@ -94,7 +100,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
-    
+
     if (!customerId) {
       return NextResponse.json(
         { error: 'Customer ID is required' },
@@ -185,7 +191,7 @@ export async function DELETE(request: Request) {
 
     // Verificar se o pagamento existe e é realmente um pagamento de ficha
     const payment = await prisma.order.findUnique({
-      where: { 
+      where: {
         id,
         paymentMethod: 'ficha_payment'
       }
@@ -200,7 +206,7 @@ export async function DELETE(request: Request) {
 
     // Excluir pagamento de ficha
     await prisma.order.delete({
-      where: { 
+      where: {
         id,
         paymentMethod: 'ficha_payment' // Ensure it's actually a ficha payment
       }
