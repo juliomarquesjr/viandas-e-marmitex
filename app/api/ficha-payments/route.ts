@@ -61,8 +61,10 @@ export async function POST(request: Request) {
 
     // Definir createdAt com base na data de pagamento fornecida, ou usar a data atual
     if (body.paymentDate) {
-      // Converter a string de data para DateTime e definir como createdAt
-      paymentData.createdAt = new Date(body.paymentDate);
+      // Converter a string de data (YYYY-MM-DD) para Date, ajustando para timezone Brasil (UTC-3)
+      // Para evitar problemas de fuso horário, criamos a data com hora meio-dia (12:00) no horário UTC
+      const [year, month, day] = body.paymentDate.split('-').map(Number);
+      paymentData.createdAt = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     }
 
     // Adicionar dados específicos do método de pagamento
