@@ -17,6 +17,7 @@ import {
   Receipt,
   Settings,
   Trash2,
+  Truck,
   X,
   FileText,
   CreditCard,
@@ -40,6 +41,7 @@ import { Input } from "../../components/ui/input";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
 import { ManageExpensePaymentMethodsDialog } from "./components/ManageExpensePaymentMethodsDialog";
+import { TeleDeliverySummaryModal } from "./components/TeleDeliverySummaryModal";
 import { QRScannerModal } from "../../components/QRScannerModal";
 import { InvoiceDataDisplay } from "../../components/InvoiceDataDisplay";
 import { InvoiceData } from "@/lib/nf-scanner/types";
@@ -1036,6 +1038,7 @@ export default function ExpensesPage() {
   const [manageExpenseTypesOpen, setManageExpenseTypesOpen] = useState(false);
   const [manageSupplierTypesOpen, setManageSupplierTypesOpen] = useState(false);
   const [managePaymentMethodsOpen, setManagePaymentMethodsOpen] = useState(false);
+  const [teleDeliverySummaryOpen, setTeleDeliverySummaryOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseWithRelations | undefined>();
   const [deletingExpense, setDeletingExpense] = useState<ExpenseWithRelations | undefined>();
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
@@ -1473,6 +1476,16 @@ export default function ExpensesPage() {
                   >
                     <Wallet className="h-4 w-4" />
                     Gerenciar Formas de Pagto
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTeleDeliverySummaryOpen(true);
+                      setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <Truck className="h-4 w-4" />
+                    Resumo de Tele Entrega
                   </button>
                 </div>
               </div>
@@ -1920,6 +1933,11 @@ export default function ExpensesPage() {
         isOpen={managePaymentMethodsOpen}
         onClose={() => setManagePaymentMethodsOpen(false)}
         onChanged={() => loadTypes()}
+      />
+
+      <TeleDeliverySummaryModal
+        open={teleDeliverySummaryOpen}
+        onOpenChange={setTeleDeliverySummaryOpen}
       />
 
       {/* Modal de Relatório */}
