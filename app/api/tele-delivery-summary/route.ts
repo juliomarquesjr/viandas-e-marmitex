@@ -30,10 +30,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validar datas
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Incluir todo o dia final
+    // Validar e parsear datas como locais (evita off-by-one por UTC)
+    const parseLocalDate = (dateStr: string, endOfDay: boolean): Date => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (endOfDay) {
+        return new Date(y, m - 1, d, 23, 59, 59, 999);
+      }
+      return new Date(y, m - 1, d, 0, 0, 0, 0);
+    };
+    const start = parseLocalDate(startDate, false);
+    const end = parseLocalDate(endDate, true);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return NextResponse.json(
@@ -74,20 +80,24 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Formatar data em YYYY-MM-DD no fuso local (evita deslocamento ao agrupar)
+    const toLocalDateKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     // Processar dados
     const sales: TeleDeliverySale[] = orders.flatMap((order: any) =>
       order.items.map((item: any) => ({
         id: order.id,
-        date: order.createdAt.toISOString(),
+        date: toLocalDateKey(order.createdAt),
         quantity: item.quantity,
         priceCents: item.priceCents,
         totalCents: item.quantity * item.priceCents,
       }))
     );
 
-    // Agrupar por dia
+    // Agrupar por dia (date já é YYYY-MM-DD local)
     const salesByDay: TeleDeliveryByDay[] = sales.reduce((acc: TeleDeliveryByDay[], sale: TeleDeliverySale) => {
-      const dateKey = sale.date.split('T')[0]; // Pegar apenas a data (YYYY-MM-DD)
+      const dateKey = sale.date;
       const existingDay = acc.find(day => day.date === dateKey);
       
       if (existingDay) {
@@ -122,8 +132,8 @@ export async function GET(request: NextRequest) {
       },
       salesByDay,
       period: {
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
+        startDate,
+        endDate,
       },
     });
   } catch (error) {

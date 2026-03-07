@@ -131,11 +131,20 @@ function TeleDeliveryThermalContent() {
   };
 
   const formatDate = (dateString: string) => {
+    // YYYY-MM-DD deve ser interpretado como data local (evita 1 dia a menos por UTC)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [y, m, d] = dateString.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -195,7 +204,7 @@ function TeleDeliveryThermalContent() {
           RESUMO:
         </div>
         <div className="thermal-row">
-          <span>Total de Vendas:</span>
+          <span>Total de Entregas:</span>
           <span className="thermal-value">
             {data.summary.totalSales}
           </span>
@@ -204,18 +213,6 @@ function TeleDeliveryThermalContent() {
           <span>Total de Dias:</span>
           <span className="thermal-value">
             {data.summary.totalDays}
-          </span>
-        </div>
-        <div className="thermal-row">
-          <span>Valor Total:</span>
-          <span className="thermal-value">
-            {formatCurrency(data.summary.totalAmountCents)}
-          </span>
-        </div>
-        <div className="thermal-row">
-          <span>Valor Médio:</span>
-          <span className="thermal-value">
-            {formatCurrency(data.summary.averageAmountCents)}
           </span>
         </div>
       </div>
@@ -254,16 +251,18 @@ function TeleDeliveryThermalContent() {
             TOTAIS:
           </div>
           <div className="thermal-row">
-            <span>Total de Vendas:</span>
+            <span>Total de Entregas:</span>
             <span className="thermal-value">
               {data.summary.totalSales}
             </span>
           </div>
-          <div className="thermal-row thermal-total">
-            <span>Valor Total:</span>
-            <span className="thermal-value">
-              {formatCurrency(data.summary.totalAmountCents)}
-            </span>
+          <div className="thermal-total-box">
+            <div className="thermal-row thermal-total">
+              <span>VALOR TOTAL:</span>
+              <span className="thermal-value">
+                {formatCurrency(data.summary.totalAmountCents)}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -371,10 +370,21 @@ function TeleDeliveryThermalContent() {
           font-size: 12px;
         }
 
+        .thermal-total-box {
+          border: 2px solid #000;
+          padding: 4px;
+          margin-top: 4px;
+          margin-bottom: 4px;
+        }
+
+        .thermal-total-box .thermal-row {
+          margin-bottom: 0;
+        }
+
         .thermal-total {
           font-size: 16px;
           font-weight: 700;
-          margin-top: 4px;
+          margin: 0;
         }
 
         .thermal-value {

@@ -102,11 +102,19 @@ function TeleDeliveryA4Content() {
   };
 
   const formatDate = (dateString: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [y, m, d] = dateString.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -158,9 +166,9 @@ function TeleDeliveryA4Content() {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Resumo Geral
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Total de Vendas</p>
+            <p className="text-sm text-gray-600">Total de Entregas</p>
             <p className="text-xl font-bold text-blue-600">
               {data.summary.totalSales}
             </p>
@@ -175,12 +183,6 @@ function TeleDeliveryA4Content() {
             <p className="text-sm text-gray-600">Valor Total</p>
             <p className="text-xl font-bold text-green-600">
               {formatCurrency(data.summary.totalAmountCents)}
-            </p>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600">Valor Médio</p>
-            <p className="text-xl font-bold text-orange-600">
-              {formatCurrency(data.summary.averageAmountCents)}
             </p>
           </div>
         </div>
@@ -222,7 +224,7 @@ function TeleDeliveryA4Content() {
                     TOTAL
                   </td>
                   <td className="py-3 text-right font-semibold text-gray-800">
-                    {data.summary.totalSales}
+                    {data.summary.totalDays}
                   </td>
                   <td className="py-3 text-right font-bold text-gray-900 text-lg">
                     {formatCurrency(data.summary.totalAmountCents)}
