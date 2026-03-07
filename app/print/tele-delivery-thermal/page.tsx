@@ -267,20 +267,8 @@ function TeleDeliveryThermalContent() {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="thermal-footer">
-        <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>Gerado em:</div>
-        <div style={{fontSize: '11px', color: '#000'}}>
-          {new Date().toLocaleString('pt-BR')}
-        </div>
-      </div>
-
-      {/* Thermal Footer Component */}
-      {contactInfo && (
-        <ThermalFooter 
-          contactInfo={contactInfo}
-        />
-      )}
+      {/* Contact Footer (igual às demais impressões térmicas) */}
+      <ThermalFooter contactInfo={contactInfo || undefined} />
 
       {/* Print button for screen view */}
       <div className="no-print thermal-print-btn">
@@ -293,10 +281,13 @@ function TeleDeliveryThermalContent() {
       </div>
 
       <style jsx global>{`
-        /* Estilos base para impressão térmica */
+        /* Estilos base para impressão térmica (mesmo padrão receipt/daily-sales: 280px tela, 58mm impressão) */
         .thermal-report {
           font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
-          max-width: 58mm;
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 1.3;
+          max-width: 280px;
           margin: 0 auto;
           padding: 8px;
           background: white;
@@ -331,7 +322,7 @@ function TeleDeliveryThermalContent() {
 
         .thermal-title {
           font-size: 16px;
-          font-weight: 700;
+          font-weight: 600;
           margin-bottom: 4px;
         }
 
@@ -359,6 +350,7 @@ function TeleDeliveryThermalContent() {
 
         .thermal-text {
           font-size: 12px;
+          font-weight: 500;
           margin-bottom: 2px;
         }
 
@@ -367,7 +359,8 @@ function TeleDeliveryThermalContent() {
           display: flex;
           justify-content: space-between;
           margin-bottom: 2px;
-          font-size: 12px;
+          font-size: 14px;
+          font-weight: 500;
         }
 
         .thermal-total-box {
@@ -383,7 +376,7 @@ function TeleDeliveryThermalContent() {
 
         .thermal-total {
           font-size: 16px;
-          font-weight: 700;
+          font-weight: 500;
           margin: 0;
         }
 
@@ -394,6 +387,8 @@ function TeleDeliveryThermalContent() {
         /* Transações (relatórios) */
         .thermal-transaction {
           margin-bottom: 6px;
+          font-size: 12px;
+          font-weight: 500;
         }
 
         .thermal-transaction-type {
@@ -420,31 +415,40 @@ function TeleDeliveryThermalContent() {
         /* Rodapé */
         .thermal-footer {
           text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #000;
           margin-top: 8px;
-          padding-top: 4px;
+          padding-top: 6px;
+          border-top: 3px solid #000;
         }
 
-        /* Seção de Contato */
+        /* Seção de Contato (padrão receipt-thermal / daily-sales-thermal) */
         .thermal-contact-section {
           margin: 8px 0;
+          text-align: left;
         }
 
         .thermal-contact-title {
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 500;
           margin-bottom: 4px;
+          color: #000 !important;
         }
 
         .thermal-contact-info {
           font-size: 12px;
-          margin-bottom: 2px;
+          font-weight: 500;
+          margin-bottom: 10px;
+          color: #000 !important;
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
 
         .thermal-icon {
           width: 14px;
           height: 14px;
-          vertical-align: middle;
-          margin-right: 4px;
           filter: brightness(0) contrast(100%);
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
@@ -452,7 +456,9 @@ function TeleDeliveryThermalContent() {
 
         .thermal-separator {
           margin: 8px 0;
-          border-top: 1px solid #000;
+          font-weight: 500;
+          font-size: 12px;
+          color: #000;
         }
 
         /* Botões (apenas para tela) */
@@ -477,7 +483,7 @@ function TeleDeliveryThermalContent() {
           background-color: #1d4ed8;
         }
 
-        /* Estilos específicos para impressão */
+        /* Estilos específicos para impressão (igual às demais térmicas: 58mm) */
         @media print {
           body {
             margin: 0;
@@ -496,11 +502,19 @@ function TeleDeliveryThermalContent() {
 
           .thermal-report {
             max-width: none;
+            width: 58mm;
+            margin: 0;
+            padding: 2mm;
             box-shadow: none;
           }
 
           .thermal-report * {
             color: #000 !important;
+          }
+
+          @page {
+            size: 58mm auto;
+            margin: 0;
           }
         }
       `}</style>
