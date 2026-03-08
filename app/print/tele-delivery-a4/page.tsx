@@ -36,6 +36,7 @@ function TeleDeliveryA4Content() {
   const searchParams = useSearchParams();
   const startDateParam = searchParams.get('startDate');
   const endDateParam = searchParams.get('endDate');
+  const productIdParam = searchParams.get('productId');
 
   const [data, setData] = useState<TeleDeliveryData | null>(null);
   const [systemTitle, setSystemTitle] = useState<string>('Viandas e Marmitex');
@@ -54,7 +55,7 @@ function TeleDeliveryA4Content() {
         setLoading(true);
         
         const [teleDeliveryResponse, configResponse] = await Promise.all([
-          fetch(`/api/tele-delivery-summary?startDate=${startDateParam}&endDate=${endDateParam}`),
+          fetch(`/api/tele-delivery-summary?startDate=${startDateParam}&endDate=${endDateParam}&productId=${productIdParam}`),
           fetch('/api/config')
         ]);
 
@@ -83,7 +84,7 @@ function TeleDeliveryA4Content() {
     };
 
     loadData();
-  }, [startDateParam, endDateParam]);
+  }, [startDateParam, endDateParam, productIdParam]);
 
   // Auto print when page loads
   useEffect(() => {

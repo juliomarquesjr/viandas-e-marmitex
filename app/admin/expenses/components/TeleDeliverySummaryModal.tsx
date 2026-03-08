@@ -8,8 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
-import { Calendar, FileText, Printer, Truck, X } from "lucide-react";
-import { useState } from "react";
+import { Calendar, FileText, Printer, Truck, X, Package } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 
 interface TeleDeliverySummaryModalProps {
   open: boolean;
@@ -29,6 +30,34 @@ export function TeleDeliverySummaryModal({
     new Date().toISOString().split("T")[0]
   );
   const [dateError, setDateError] = useState<string>("");
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Carregar produtos que contenham "tele" no nome ao abrir o modal
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!open) return;
+      
+      setLoadingProducts(true);
+      try {
+        const response = await fetch('/api/products?q=tele');
+        const data = await response.json();
+        setProducts(data.data || []);
+        
+        // Selecionar o primeiro produto por padrão
+        if (data.data && data.data.length > 0) {
+          setSelectedProductId(data.data[0].id);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    
+    loadProducts();
+  }, [open]);
 
   const handleCurrentMonth = () => {
     const now = new Date();
@@ -69,13 +98,13 @@ export function TeleDeliverySummaryModal({
   };
 
   const handlePrintThermal = () => {
-    const url = `/print/tele-delivery-thermal?startDate=${startDate}&endDate=${endDate}`;
+    const url = `/print/tele-delivery-thermal?startDate=${startDate}&endDate=${endDate}&productId=${selectedProductId}`;
     window.open(url, "_blank");
     onOpenChange(false);
   };
 
   const handlePrintA4 = () => {
-    const url = `/print/tele-delivery-a4?startDate=${startDate}&endDate=${endDate}`;
+    const url = `/print/tele-delivery-a4?startDate=${startDate}&endDate=${endDate}&productId=${selectedProductId}`;
     window.open(url, "_blank");
     onOpenChange(false);
   };
@@ -206,6 +235,36 @@ export function TeleDeliverySummaryModal({
             )}
           </div>
 
+          {/* Seleção de Produto */}
+          <div className="space-y-2.5">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <Package className="h-4 w-4 text-orange-600" />
+              Produto
+            </label>
+            <Select
+              value={selectedProductId}
+              onValueChange={setSelectedProductId}
+              disabled={loadingProducts || products.length === 0}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione um produto" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {loadingProducts && (
+              <div className="text-xs text-gray-500">Carregando produtos...</div>
+            )}
+            {products.length === 0 && !loadingProducts && (
+              <div className="text-xs text-red-600">Nenhum produto encontrado com "tele" no nome</div>
+            )}
+          </div>
+
           {/* Opções de Impressão */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700 block">
@@ -214,7 +273,7 @@ export function TeleDeliverySummaryModal({
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handlePrintThermal}
-                disabled={!startDate || !endDate || !!dateError}
+                disabled={!startDate || !endDate || !!dateError || !selectedProductId}
                 className="group relative p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex flex-col items-start gap-2">
@@ -232,7 +291,7 @@ export function TeleDeliverySummaryModal({
 
               <button
                 onClick={handlePrintA4}
-                disabled={!startDate || !endDate || !!dateError}
+                disabled={!startDate || !endDate || !!dateError || !selectedProductId}
                 className="group relative p-4 border-2 border-gray-200 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all duration-200 text-left focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex flex-col items-start gap-2">

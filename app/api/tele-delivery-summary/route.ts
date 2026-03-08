@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-const TELE_DELIVERY_PRODUCT_ID = '3d0379a9-ad65-454b-8069-38f326462218';
-
 interface TeleDeliverySale {
   id: string;
   date: string;
@@ -22,6 +20,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const productId = searchParams.get('productId') || '3d0379a9-ad65-454b-8069-38f326462218'; // Valor padrão
 
     if (!startDate || !endDate) {
       return NextResponse.json(
@@ -64,14 +63,14 @@ export async function GET(request: NextRequest) {
         },
         items: {
           some: {
-            productId: TELE_DELIVERY_PRODUCT_ID,
+            productId: productId,
           },
         },
       },
       include: {
         items: {
           where: {
-            productId: TELE_DELIVERY_PRODUCT_ID,
+            productId: productId,
           },
         },
       },

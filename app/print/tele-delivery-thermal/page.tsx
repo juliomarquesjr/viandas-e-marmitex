@@ -37,6 +37,7 @@ function TeleDeliveryThermalContent() {
   const searchParams = useSearchParams();
   const startDateParam = searchParams.get('startDate');
   const endDateParam = searchParams.get('endDate');
+  const productIdParam = searchParams.get('productId');
 
   const [data, setData] = useState<TeleDeliveryData | null>(null);
   const [contactInfo, setContactInfo] = useState<{
@@ -59,7 +60,7 @@ function TeleDeliveryThermalContent() {
         setLoading(true);
         
         const [teleDeliveryResponse, configResponse] = await Promise.all([
-          fetch(`/api/tele-delivery-summary?startDate=${startDateParam}&endDate=${endDateParam}`),
+          fetch(`/api/tele-delivery-summary?startDate=${startDateParam}&endDate=${endDateParam}&productId=${productIdParam}`),
           fetch('/api/config')
         ]);
 
@@ -112,7 +113,7 @@ function TeleDeliveryThermalContent() {
     };
 
     loadData();
-  }, [startDateParam, endDateParam]);
+  }, [startDateParam, endDateParam, productIdParam]);
 
   // Auto print when page loads
   useEffect(() => {
