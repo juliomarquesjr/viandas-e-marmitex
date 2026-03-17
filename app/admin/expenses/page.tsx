@@ -9,13 +9,12 @@ import {
   FileText,
   Grid3X3,
   List,
-  Loader2,
   Plus,
   Receipt,
   Settings,
   Wallet,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useExpenses } from "./hooks/useExpenses";
 import { ExpenseCalendarView } from "./components/ExpenseCalendarView";
 import { ExpenseFilters } from "./components/ExpenseFilters";
@@ -27,6 +26,10 @@ import { ExpenseSummaryModal } from "./components/ExpenseSummaryModal";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageExpensePaymentMethodsDialog } from "./components/ManageExpensePaymentMethodsDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
+import {
+  ExpenseListSkeleton,
+  ExpenseCalendarSkeleton,
+} from "./components/ExpenseSkeletonLoader";
 
 export default function ExpensesPage() {
   const ex = useExpenses();
@@ -34,10 +37,18 @@ export default function ExpensesPage() {
 
   if (!ex.mounted || (ex.loading && ex.expenses.length === 0)) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Carregando...</span>
+      <div className="space-y-6">
+        <PageHeader
+          title="Gerenciamento de Despesas"
+          description="Gerencie despesas, tipos e fornecedores"
+          icon={Receipt}
+        />
+        <div className="p-6">
+          {ex.viewMode === "calendar" ? (
+            <ExpenseCalendarSkeleton />
+          ) : (
+            <ExpenseListSkeleton />
+          )}
         </div>
       </div>
     );
@@ -45,33 +56,37 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho padrão do sistema */}
+      {/* Cabeçalho */}
       <PageHeader
         title="Gerenciamento de Despesas"
         description="Gerencie despesas, tipos e fornecedores"
         icon={Receipt}
         actions={
           <div className="flex items-center gap-2">
-            {/* Toggle lista / calendário */}
-            <div className="flex items-center gap-1 border border-slate-200 rounded-lg p-1">
-              <Button
-                variant={ex.viewMode === "list" ? "default" : "ghost"}
-                size="sm"
+            {/* Toggle lista / calendário — pill style */}
+            <div className="flex items-center bg-slate-100 rounded-full p-1 gap-0.5">
+              <button
                 onClick={() => ex.handleViewModeChange("list")}
-                className="h-8 px-3"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+                  ex.viewMode === "list"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
               >
-                <List className="h-4 w-4 mr-1" />
+                <List className="h-3.5 w-3.5" />
                 Tabela
-              </Button>
-              <Button
-                variant={ex.viewMode === "calendar" ? "default" : "ghost"}
-                size="sm"
+              </button>
+              <button
                 onClick={() => ex.handleViewModeChange("calendar")}
-                className="h-8 px-3"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+                  ex.viewMode === "calendar"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
               >
-                <Grid3X3 className="h-4 w-4 mr-1" />
+                <Grid3X3 className="h-3.5 w-3.5" />
                 Calendário
-              </Button>
+              </button>
             </div>
 
             {/* Gerenciar dropdown */}
@@ -84,27 +99,40 @@ export default function ExpensesPage() {
               >
                 <Settings className="h-4 w-4" />
                 Gerenciar
-                <ChevronDown className={`h-4 w-4 transition-transform ${ex.isManageMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-150 ${
+                    ex.isManageMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
               </Button>
               {ex.isManageMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
                   <button
-                    onClick={() => { ex.setManageExpenseTypesOpen(true); ex.setIsManageMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      ex.setManageExpenseTypesOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     <Receipt className="h-4 w-4 text-slate-400" />
                     Tipos de Despesa
                   </button>
                   <button
-                    onClick={() => { ex.setManageSupplierTypesOpen(true); ex.setIsManageMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      ex.setManageSupplierTypesOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     <DollarSign className="h-4 w-4 text-slate-400" />
                     Fornecedores
                   </button>
                   <button
-                    onClick={() => { ex.setManagePaymentMethodsOpen(true); ex.setIsManageMenuOpen(false); }}
-                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      ex.setManagePaymentMethodsOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     <Wallet className="h-4 w-4 text-slate-400" />
                     Formas de Pagamento
@@ -168,7 +196,10 @@ export default function ExpensesPage() {
             monthsGrouped={ex.monthsGrouped}
             currentMonthIndex={ex.currentMonthIndex}
             onMonthChange={ex.setCurrentMonthIndex}
-            onEdit={(expense) => { ex.setEditingExpense(expense); ex.setIsFormOpen(true); }}
+            onEdit={(expense) => {
+              ex.setEditingExpense(expense);
+              ex.setIsFormOpen(true);
+            }}
             onDelete={ex.setDeletingExpense}
             onNewExpense={() => ex.setIsFormOpen(true)}
           />
@@ -178,7 +209,10 @@ export default function ExpensesPage() {
       {/* Dialogs */}
       <ExpenseFormDialog
         open={ex.isFormOpen}
-        onClose={() => { ex.setIsFormOpen(false); ex.setEditingExpense(undefined); }}
+        onClose={() => {
+          ex.setIsFormOpen(false);
+          ex.setEditingExpense(undefined);
+        }}
         onSave={ex.handleSaveExpense}
         expense={ex.editingExpense}
         expenseTypes={ex.expenseTypes}

@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/app/components/ui/card";
+import { CardHighlighted } from "@/app/components/ui/card";
 import {
   ExpensePaymentMethod,
   ExpenseType,
@@ -25,49 +25,66 @@ export function ExpenseStatsCards({
     {
       label: "Total de despesas",
       value: expenses.length.toString(),
+      sublabel: "registradas no período",
       icon: Receipt,
-      iconBg: "bg-blue-50",
+      highlightColor: "info" as const,
+      iconBg: "bg-gradient-to-br from-blue-50 to-blue-100",
       iconColor: "text-blue-600",
     },
     {
       label: "Valor total",
       value: formatCurrency(totalAmount),
+      sublabel: "soma do período filtrado",
       icon: DollarSign,
-      iconBg: "bg-emerald-50",
+      highlightColor: "success" as const,
+      iconBg: "bg-gradient-to-br from-emerald-50 to-emerald-100",
       iconColor: "text-emerald-600",
     },
     {
       label: "Tipos de despesa",
       value: expenseTypes.length.toString(),
+      sublabel: "categorias cadastradas",
       icon: Tag,
-      iconBg: "bg-orange-50",
+      highlightColor: "warning" as const,
+      iconBg: "bg-gradient-to-br from-orange-50 to-orange-100",
       iconColor: "text-orange-600",
     },
     {
       label: "Formas de pagamento",
       value: activePaymentMethods.toString(),
+      sublabel: "métodos ativos",
       icon: CreditCard,
-      iconBg: "bg-purple-50",
-      iconColor: "text-purple-600",
+      highlightColor: "primary" as const,
+      iconBg: "bg-gradient-to-br from-violet-50 to-violet-100",
+      iconColor: "text-violet-600",
     },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat) => (
-        <Card key={stat.label}>
-          <CardContent className="p-4">
+        <CardHighlighted key={stat.label} highlightColor={stat.highlightColor}>
+          <div className="p-5">
             <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-xs text-slate-500 truncate">{stat.label}</p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5 truncate">{stat.value}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider truncate">
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1.5 truncate">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-slate-400 mt-1 truncate">
+                  {stat.sublabel}
+                </p>
               </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.iconBg} flex-shrink-0 ml-3`}>
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.iconBg} flex-shrink-0 ml-4`}
+              >
                 <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardHighlighted>
       ))}
     </div>
   );

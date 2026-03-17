@@ -55,84 +55,104 @@ export function ExpenseFilters({
 
   return (
     <Card>
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <Select
-            value={filters.typeId}
-            onValueChange={(v) => setFilters({ ...filters, typeId: v })}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Tipo de despesa" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              {expenseTypes.map((t) => (
-                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Tipo de despesa</label>
+            <Select
+              value={filters.typeId}
+              onValueChange={(v) => setFilters({ ...filters, typeId: v })}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Todos os tipos" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                {expenseTypes.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select
-            value={filters.supplierTypeId}
-            onValueChange={(v) => setFilters({ ...filters, supplierTypeId: v })}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Tipo de fornecedor" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-              <SelectItem value="all">Todos os fornecedores</SelectItem>
-              {supplierTypes.map((t) => (
-                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Fornecedor</label>
+            <Select
+              value={filters.supplierTypeId}
+              onValueChange={(v) => setFilters({ ...filters, supplierTypeId: v })}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Todos os fornecedores" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                <SelectItem value="all">Todos os fornecedores</SelectItem>
+                {supplierTypes.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select
-            value={filters.paymentMethodId}
-            onValueChange={(v) => setFilters({ ...filters, paymentMethodId: v })}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Forma de pagamento" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-              <SelectItem value="all">Todas as formas</SelectItem>
-              {paymentMethods.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Forma de pagamento</label>
+            <Select
+              value={filters.paymentMethodId}
+              onValueChange={(v) => setFilters({ ...filters, paymentMethodId: v })}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Todas as formas" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                <SelectItem value="all">Todas as formas</SelectItem>
+                {paymentMethods.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-            className="h-10"
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Data inicial</label>
+            <Input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              className="h-10"
+            />
+          </div>
 
-          <Input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-            className="h-10"
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Data final</label>
+            <Input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              className="h-10"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div className="flex items-center gap-2">
-            <Button onClick={onApply} size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Aplicar
+            <Button onClick={onApply} size="sm" className="gap-2">
+              <Filter className="h-3.5 w-3.5" />
+              Aplicar filtros
             </Button>
             {hasActiveFilters && (
-              <Button onClick={onClear} variant="outline" size="sm">
-                <X className="h-4 w-4 mr-1.5" />
+              <Button onClick={onClear} variant="ghost" size="sm" className="gap-1.5 text-slate-500 hover:text-slate-900">
+                <X className="h-3.5 w-3.5" />
                 Limpar
               </Button>
             )}
           </div>
-          <p className="text-sm text-slate-500">
-            {totalCount} despesa{totalCount !== 1 ? "s" : ""} encontrada{totalCount !== 1 ? "s" : ""}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center text-xs font-semibold bg-slate-100 text-slate-600 rounded-full px-2.5 py-1 tabular-nums">
+              {totalCount}
+            </span>
+            <span className="text-sm text-slate-400">
+              despesa{totalCount !== 1 ? "s" : ""} encontrada{totalCount !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
