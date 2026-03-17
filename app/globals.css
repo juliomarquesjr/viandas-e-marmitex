@@ -65,6 +65,15 @@
 
   /* Header */
   --header-height: 64px;
+
+  /* Modal header */
+  --modal-header-bg: #e8efff;
+  --modal-header-text: #1e293b;
+  --modal-header-description: #64748b;
+  --modal-header-icon-bg: rgba(37, 99, 235, 0.10);
+  --modal-header-icon-ring: rgba(37, 99, 235, 0.18);
+  --modal-header-close: #94a3b8;
+  --modal-header-close-hover: rgba(37, 99, 235, 0.08);
 }
 
 @theme inline {
@@ -81,6 +90,9 @@
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-modal-header-bg: var(--modal-header-bg);
+  --color-modal-header-text: var(--modal-header-text);
+  --color-modal-header-description: var(--modal-header-description);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -107,6 +119,15 @@
   --border-dark: #475569; /* slate-600 */
   --input: #334155;
   --ring: #3b82f6;
+
+  /* Modal header */
+  --modal-header-bg: #1e2d4a;
+  --modal-header-text: #f1f5f9;
+  --modal-header-description: rgba(241, 245, 249, 0.60);
+  --modal-header-icon-bg: rgba(255, 255, 255, 0.10);
+  --modal-header-icon-ring: rgba(255, 255, 255, 0.15);
+  --modal-header-close: rgba(241, 245, 249, 0.55);
+  --modal-header-close-hover: rgba(255, 255, 255, 0.10);
 }
 
 body {

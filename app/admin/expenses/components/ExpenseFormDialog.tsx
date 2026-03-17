@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
@@ -35,6 +36,8 @@ import {
   Loader2,
   QrCode,
   Receipt,
+  Tag,
+  Truck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { convertToCents, formatCurrencyInput } from "../utils";
@@ -60,6 +63,17 @@ const emptyForm: ExpenseFormData = {
   description: "",
   date: new Date().toISOString().split("T")[0],
 };
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
 
 export function ExpenseFormDialog({
   open,
@@ -105,11 +119,11 @@ export function ExpenseFormDialog({
 
   const validateField = (field: keyof FormErrors, value: any): string | undefined => {
     switch (field) {
-      case "typeId": return !value ? "Tipo de despesa é obrigatório" : undefined;
-      case "supplierTypeId": return !value ? "Tipo de fornecedor é obrigatório" : undefined;
-      case "amountCents": return (!value || value <= 0) ? "Valor deve ser maior que zero" : undefined;
-      case "date": return !value ? "Data é obrigatória" : undefined;
-      case "paymentMethodId": return (!value || value === "none") ? "Forma de pagamento é obrigatória" : undefined;
+      case "typeId": return !value ? "Obrigatório" : undefined;
+      case "supplierTypeId": return !value ? "Obrigatório" : undefined;
+      case "amountCents": return (!value || value <= 0) ? "Informe um valor maior que zero" : undefined;
+      case "date": return !value ? "Obrigatório" : undefined;
+      case "paymentMethodId": return (!value || value === "none") ? "Obrigatório" : undefined;
       default: return undefined;
     }
   };
@@ -170,121 +184,73 @@ export function ExpenseFormDialog({
     showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
   };
 
-  const fieldClass = (field: keyof FormErrors) =>
+  const err = (field: keyof FormErrors) =>
     touched[field] && errors[field] ? "border-red-400 focus:ring-red-400/20" : "";
 
   return (
     <>
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50">
-                <Receipt className="h-4 w-4 text-orange-600" />
+            <DialogTitle>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+                style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+              >
+                <Receipt className="h-5 w-5 text-primary" />
               </div>
               {expense ? "Editar Despesa" : "Nova Despesa"}
             </DialogTitle>
             <DialogDescription>
               {expense
-                ? "Atualize as informações da despesa"
+                ? "Atualize as informações da despesa abaixo"
                 : "Preencha os dados para registrar uma nova despesa"}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-5 pt-2">
-            {/* Section header with QR scanner */}
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                <Receipt className="h-4 w-4 text-orange-500" />
-                Informações da Despesa
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsQRScannerOpen(true)}
-                className="text-xs h-7 px-2 gap-1.5 border-slate-200 text-slate-600 hover:bg-slate-50"
-              >
-                <QrCode className="h-3 w-3" />
-                Escanear Nota
-              </Button>
-            </div>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Tipo de Despesa */}
+              {/* ── Valor & Data ── */}
+              <SectionDivider label="Valor & Data" />
+
+              {/* Campo Valor — destaque visual */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">
-                  Tipo de Despesa <span className="text-red-500">*</span>
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Valor <span className="text-red-400">*</span>
                 </Label>
-                <div className="relative">
-                  <Select
-                    key={`type-${expense?.id || "new"}-${formData.typeId}`}
-                    value={formData.typeId || undefined}
-                    onValueChange={(v) => {
-                      setFormData((f) => ({ ...f, typeId: v }));
-                      if (touched.typeId) setErrors((e) => ({ ...e, typeId: undefined }));
+                <div className={`flex items-center border rounded-xl overflow-hidden transition-all ${
+                  touched.amountCents && errors.amountCents
+                    ? "border-red-400 ring-2 ring-red-400/15"
+                    : "border-slate-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
+                }`}>
+                  <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-50 border-r border-slate-200 flex-shrink-0">
+                    <DollarSign className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-500">R$</span>
+                  </div>
+                  <input
+                    value={displayPrice.replace(/^R\$\s?/, "")}
+                    onChange={(e) => {
+                      const raw = "R$ " + e.target.value;
+                      const formatted = e.target.value ? formatCurrencyInput(raw) : "";
+                      setDisplayPrice(formatted);
+                      setFormData((f) => ({ ...f, amountCents: formatted ? convertToCents(formatted) : 0 }));
+                      if (touched.amountCents) setErrors((er) => ({ ...er, amountCents: undefined }));
                     }}
-                  >
-                    <SelectTrigger className={`pl-9 ${fieldClass("typeId")}`}>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-                      {expenseTypes.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
-                {touched.typeId && errors.typeId && (
-                  <p className="text-xs text-red-500">{errors.typeId}</p>
-                )}
-              </div>
-
-              {/* Tipo de Fornecedor */}
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">
-                  Tipo de Fornecedor <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Select
-                    key={`supplier-${expense?.id || "new"}-${formData.supplierTypeId}`}
-                    value={formData.supplierTypeId || undefined}
-                    onValueChange={(v) => {
-                      setFormData((f) => ({ ...f, supplierTypeId: v }));
-                      if (touched.supplierTypeId) setErrors((e) => ({ ...e, supplierTypeId: undefined }));
-                    }}
-                  >
-                    <SelectTrigger className={`pl-9 ${fieldClass("supplierTypeId")}`}>
-                      <SelectValue placeholder="Selecione o fornecedor" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-                      {supplierTypes.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                </div>
-                {touched.supplierTypeId && errors.supplierTypeId && (
-                  <p className="text-xs text-red-500">{errors.supplierTypeId}</p>
-                )}
-              </div>
-
-              {/* Valor */}
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">
-                  Valor <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    value={displayPrice}
-                    onChange={handlePriceChange}
                     onBlur={() => handleBlur("amountCents")}
-                    className={`pl-9 ${fieldClass("amountCents")}`}
-                    placeholder="R$ 0,00"
+                    className="flex-1 px-3 py-3 text-xl font-bold text-slate-900 bg-white outline-none placeholder:text-slate-300 placeholder:font-normal placeholder:text-base"
+                    placeholder="0,00"
                   />
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsQRScannerOpen(true)}
+                    className="mx-2 text-xs h-7 px-2 gap-1.5 text-slate-400 hover:text-primary flex-shrink-0"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Nota fiscal</span>
+                  </Button>
                 </div>
                 {touched.amountCents && errors.amountCents && (
                   <p className="text-xs text-red-500">{errors.amountCents}</p>
@@ -293,8 +259,8 @@ export function ExpenseFormDialog({
 
               {/* Data */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">
-                  Data <span className="text-red-500">*</span>
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Data <span className="text-red-400">*</span>
                 </Label>
                 <div className="relative">
                   <Input
@@ -305,7 +271,7 @@ export function ExpenseFormDialog({
                       if (touched.date) setErrors((er) => ({ ...er, date: undefined }));
                     }}
                     onBlur={() => handleBlur("date")}
-                    className={`pl-9 ${fieldClass("date")}`}
+                    className={`pl-9 ${err("date")}`}
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
@@ -313,69 +279,141 @@ export function ExpenseFormDialog({
                   <p className="text-xs text-red-500">{errors.date}</p>
                 )}
               </div>
-            </div>
 
-            {/* Forma de Pagamento */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">
-                Forma de Pagamento <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Select
-                  key={`payment-${expense?.id || "new"}-${formData.paymentMethodId}`}
-                  value={formData.paymentMethodId || undefined}
-                  onValueChange={(v) => {
-                    setFormData((f) => ({ ...f, paymentMethodId: v }));
-                    if (touched.paymentMethodId) setErrors((e) => ({ ...e, paymentMethodId: undefined }));
-                  }}
-                >
-                  <SelectTrigger className={`pl-9 ${fieldClass("paymentMethodId")}`}>
-                    <SelectValue placeholder="Selecione a forma de pagamento" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
-                    {paymentMethods.filter((m) => m.active).map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              {/* ── Classificação ── */}
+              <SectionDivider label="Classificação" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Tipo de Despesa */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Tipo <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Select
+                      key={`type-${expense?.id || "new"}-${formData.typeId}`}
+                      value={formData.typeId || undefined}
+                      onValueChange={(v) => {
+                        setFormData((f) => ({ ...f, typeId: v }));
+                        if (touched.typeId) setErrors((e) => ({ ...e, typeId: undefined }));
+                      }}
+                    >
+                      <SelectTrigger className={`pl-9 ${err("typeId")}`}>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                        {expenseTypes.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                  {touched.typeId && errors.typeId && (
+                    <p className="text-xs text-red-500">{errors.typeId}</p>
+                  )}
+                </div>
+
+                {/* Fornecedor */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Fornecedor <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Select
+                      key={`supplier-${expense?.id || "new"}-${formData.supplierTypeId}`}
+                      value={formData.supplierTypeId || undefined}
+                      onValueChange={(v) => {
+                        setFormData((f) => ({ ...f, supplierTypeId: v }));
+                        if (touched.supplierTypeId) setErrors((e) => ({ ...e, supplierTypeId: undefined }));
+                      }}
+                    >
+                      <SelectTrigger className={`pl-9 ${err("supplierTypeId")}`}>
+                        <SelectValue placeholder="Selecione o fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                        {supplierTypes.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                  {touched.supplierTypeId && errors.supplierTypeId && (
+                    <p className="text-xs text-red-500">{errors.supplierTypeId}</p>
+                  )}
+                </div>
               </div>
-              {touched.paymentMethodId && errors.paymentMethodId && (
-                <p className="text-xs text-red-500">{errors.paymentMethodId}</p>
-              )}
-            </div>
 
-            {/* Descrição */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">
-                Descrição <span className="text-xs font-normal text-slate-400">(Opcional)</span>
-              </Label>
-              <Input
-                value={formData.description}
-                onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Descrição da despesa"
-              />
-            </div>
+              {/* ── Pagamento & Observações ── */}
+              <SectionDivider label="Pagamento & Observações" />
 
-            {/* Footer */}
-            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {expense ? "Atualizando..." : "Cadastrando..."}
-                  </>
-                ) : (
-                  <>
-                    <Receipt className="h-4 w-4 mr-2" />
-                    {expense ? "Atualizar Despesa" : "Cadastrar Despesa"}
-                  </>
+              {/* Forma de Pagamento */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Forma de Pagamento <span className="text-red-400">*</span>
+                </Label>
+                <div className="relative">
+                  <Select
+                    key={`payment-${expense?.id || "new"}-${formData.paymentMethodId}`}
+                    value={formData.paymentMethodId || undefined}
+                    onValueChange={(v) => {
+                      setFormData((f) => ({ ...f, paymentMethodId: v }));
+                      if (touched.paymentMethodId) setErrors((e) => ({ ...e, paymentMethodId: undefined }));
+                    }}
+                  >
+                    <SelectTrigger className={`pl-9 ${err("paymentMethodId")}`}>
+                      <SelectValue placeholder="Selecione a forma de pagamento" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                      {paymentMethods.filter((m) => m.active).map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+                {touched.paymentMethodId && errors.paymentMethodId && (
+                  <p className="text-xs text-red-500">{errors.paymentMethodId}</p>
                 )}
-              </Button>
+              </div>
+
+              {/* Descrição */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Descrição <span className="text-slate-300 font-normal normal-case tracking-normal">— opcional</span>
+                </Label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Adicione uma observação sobre essa despesa"
+                />
+              </div>
             </div>
+
+            <DialogFooter>
+              <p className="text-xs text-slate-400">
+                <span className="text-red-400">*</span> campos obrigatórios
+              </p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {expense ? "Atualizando..." : "Cadastrando..."}
+                    </>
+                  ) : (
+                    <>
+                      <Receipt className="h-4 w-4 mr-2" />
+                      {expense ? "Atualizar" : "Cadastrar Despesa"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

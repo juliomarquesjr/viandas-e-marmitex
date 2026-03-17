@@ -25,6 +25,8 @@ import {
   XCircle,
   Tag,
 } from "lucide-react";
+import { ProductStatsCards } from "./components/ProductStatsCards";
+import { ProductPageSkeleton } from "./components/ProductSkeletonLoader";
 
 // =============================================================================
 // TIPOS
@@ -448,9 +450,8 @@ export default function AdminProductsPage() {
     {
       key: "price",
       header: "Preço",
-      align: "right",
       render: (_, product) => (
-        <div className="text-right">
+        <div className="text-left">
           <p className="font-medium text-slate-900">
             {formatPrice(product.priceCents)}
           </p>
@@ -465,7 +466,6 @@ export default function AdminProductsPage() {
     {
       key: "stock",
       header: "Estoque",
-      align: "center",
       render: (_, product) => {
         if (!product.stockEnabled) {
           return <span className="text-slate-400 text-sm">N/A</span>;
@@ -483,7 +483,6 @@ export default function AdminProductsPage() {
     {
       key: "type",
       header: "Tipo",
-      align: "center",
       render: (_, product) => (
         <Badge variant={product.productType === "sellable" ? "primary" : "default"} size="sm">
           {product.productType === "sellable" ? "Venda" : "Adicional"}
@@ -493,7 +492,6 @@ export default function AdminProductsPage() {
     {
       key: "active",
       header: "Status",
-      align: "center",
       render: (_, product) => (
         <StatusBadge status={product.active ? "active" : "inactive"} size="sm" />
       ),
@@ -517,14 +515,6 @@ export default function AdminProductsPage() {
     });
   }, [products, searchTerm, statusFilter, typeFilter]);
 
-  // Estatísticas
-  const stats = {
-    total: products.length,
-    active: products.filter((p) => p.active).length,
-    inactive: products.filter((p) => !p.active).length,
-    lowStock: products.filter((p) => p.stockEnabled && (p.stock ?? 0) < 10).length,
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -533,157 +523,105 @@ export default function AdminProductsPage() {
         description="Gerencie os produtos do estabelecimento"
         icon={Package}
         actions={
-          <Button onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-1.5" />
             Novo Produto
           </Button>
         }
       />
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Total</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Package className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Ativos</p>
-                <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Inativos</p>
-                <p className="text-2xl font-bold text-amber-600">{stats.inactive}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <XCircle className="h-5 w-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Estoque Baixo</p>
-                <p className="text-2xl font-bold text-red-600">{stats.lowStock}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-                <Package className="h-5 w-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Busca */}
-            <div className="flex-1 max-w-md">
-              <Input
-                placeholder="Buscar por nome ou código..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                leftIcon={<Search className="h-4 w-4" />}
-              />
-            </div>
-
-            {/* Filtro de Status */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="active">Ativos</option>
-              <option value="inactive">Inativos</option>
-            </select>
-
-            {/* Filtro de Tipo */}
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">Todos os Tipos</option>
-              <option value="sellable">Venda</option>
-              <option value="addon">Adicional</option>
-            </select>
-
-            {/* Limpar Filtros */}
-            {(searchInput || statusFilter !== "all" || typeFilter !== "all") && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchInput("");
-                  setStatusFilter("all");
-                  setTypeFilter("all");
-                }}
-              >
-                Limpar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabela */}
-      {loading ? (
-        <SkeletonTable rows={10} columns={6} hasActions />
-      ) : error ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={loadData}>Tentar novamente</Button>
-          </CardContent>
-        </Card>
+      {loading && products.length === 0 ? (
+        <ProductPageSkeleton />
       ) : (
-        <DataTable
-          data={filteredProducts}
-          columns={columns}
-          rowKey="id"
-          emptyMessage="Nenhum produto encontrado"
-          rowActions={(product) => (
-            <ProductActionsMenu
-              product={product}
-              onEdit={() => openForm(product)}
-              onDelete={() => setDeleteConfirm(product.id)}
-              onDownloadBarcode={() => downloadBarcode(product)}
+        <>
+          {/* Estatísticas */}
+          <ProductStatsCards products={products} />
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Busca */}
+                <div className="flex-1 max-w-md">
+                  <Input
+                    placeholder="Buscar por nome ou código..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    leftIcon={<Search className="h-4 w-4" />}
+                  />
+                </div>
+
+                {/* Filtro de Status */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="active">Ativos</option>
+                  <option value="inactive">Inativos</option>
+                </select>
+
+                {/* Filtro de Tipo */}
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as any)}
+                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="all">Todos os Tipos</option>
+                  <option value="sellable">Venda</option>
+                  <option value="addon">Adicional</option>
+                </select>
+
+                {/* Limpar Filtros */}
+                {(searchInput || statusFilter !== "all" || typeFilter !== "all") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchInput("");
+                      setStatusFilter("all");
+                      setTypeFilter("all");
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabela */}
+          {error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={loadData}>Tentar novamente</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              data={filteredProducts}
+              columns={columns}
+              rowKey="id"
+              emptyMessage="Nenhum produto encontrado"
+              rowActions={(product) => (
+                <ProductActionsMenu
+                  product={product}
+                  onEdit={() => openForm(product)}
+                  onDelete={() => setDeleteConfirm(product.id)}
+                  onDownloadBarcode={() => downloadBarcode(product)}
+                />
+              )}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: filteredProducts.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: setItemsPerPage,
+              }}
             />
           )}
-          pagination={{
-            page: currentPage,
-            pageSize: itemsPerPage,
-            total: filteredProducts.length,
-            onPageChange: setCurrentPage,
-            onPageSizeChange: setItemsPerPage,
-          }}
-        />
+        </>
       )}
 
       {/* Dialog de Formulário */}

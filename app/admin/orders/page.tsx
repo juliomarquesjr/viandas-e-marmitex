@@ -41,6 +41,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { OrderStatsCards } from "./components/OrderStatsCards";
 
 type Order = {
   id: string;
@@ -502,15 +503,6 @@ export default function AdminOrdersPage() {
     });
   };
 
-  // Calculate stats
-  const totalSalesValue = allOrders.reduce((sum, order) => sum + order.totalCents, 0);
-  const avulsasOrders = allOrders.filter((order) => order.customer === null);
-  const avulsasValue = avulsasOrders.reduce((sum, order) => sum + order.totalCents, 0);
-  const fichaOrders = allOrders.filter((order) => order.paymentMethod === "invoice");
-  const fichaValue = fichaOrders.reduce((sum, order) => sum + order.totalCents, 0);
-  const otherOrders = allOrders.filter((order) => order.customer !== null && order.paymentMethod !== "invoice");
-  const otherValue = otherOrders.reduce((sum, order) => sum + order.totalCents, 0);
-
   // Table columns
   const columns: Column<Order>[] = [
     {
@@ -680,63 +672,7 @@ export default function AdminOrdersPage() {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Total de Vendas</p>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalSalesValue)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Vendas Avulsas</p>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(avulsasValue)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center">
-                <User className="h-5 w-5 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Vendas com Ficha</p>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(fichaValue)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-                <IdCard className="h-5 w-5 text-indigo-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Outras Vendas</p>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(otherValue)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <OrderStatsCards orders={allOrders} />
 
       {/* Analysis Card */}
       <Card variant="elevated">

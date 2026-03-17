@@ -28,6 +28,7 @@ import {
   Camera,
   ScanFace,
 } from "lucide-react";
+import { UserStatsCards } from "./components/UserStatsCards";
 
 // =============================================================================
 // TIPOS
@@ -409,15 +410,6 @@ export default function AdminUsersPage() {
     },
   ];
 
-  // Estatísticas
-  const stats = {
-    total: users.length,
-    active: users.filter((u) => u.status === "active").length,
-    inactive: users.filter((u) => u.status === "inactive").length,
-    admins: users.filter((u) => u.role === "admin").length,
-    withFacial: users.filter((u) => u.facialImageUrl).length,
-  };
-
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <div className="space-y-6">
@@ -435,71 +427,7 @@ export default function AdminUsersPage() {
         />
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Total de Usuários</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-                </div>
-                <Users className="h-10 w-10 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Usuários Ativos</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.active}</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <div className="h-5 w-5 rounded-full bg-emerald-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Usuários Inativos</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.inactive}</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <div className="h-5 w-5 rounded-full bg-red-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Administradores</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.admins}</p>
-                </div>
-                <Shield className="h-10 w-10 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">Com Reconhecimento Facial</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.withFacial}</p>
-                </div>
-                <ScanFace className="h-10 w-10 text-indigo-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <UserStatsCards users={users} />
 
         {/* Barra de Filtros */}
         <Card>

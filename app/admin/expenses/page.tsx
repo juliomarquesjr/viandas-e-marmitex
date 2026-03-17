@@ -43,7 +43,7 @@ export default function ExpensesPage() {
           description="Gerencie despesas, tipos e fornecedores"
           icon={Receipt}
         />
-        <div className="p-6">
+        <div className="space-y-6">
           {ex.viewMode === "calendar" ? (
             <ExpenseCalendarSkeleton />
           ) : (
@@ -159,7 +159,7 @@ export default function ExpensesPage() {
         }
       />
 
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {/* Stats */}
         <ExpenseStatsCards
           expenses={ex.expenses}

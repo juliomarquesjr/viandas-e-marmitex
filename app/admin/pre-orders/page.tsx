@@ -34,6 +34,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
+import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
 
 // =============================================================================
 // TIPOS
@@ -445,11 +447,6 @@ export default function AdminPreOrdersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate stats
-  const totalValue = filteredPreOrders.reduce((sum, preOrder) => sum + preOrder.totalCents, 0);
-  const itemsWithDiscount = filteredPreOrders.filter((preOrder) => preOrder.discountCents > 0).length;
-  const totalDiscount = filteredPreOrders.reduce((sum, preOrder) => sum + preOrder.discountCents, 0);
-
   // Table columns
   const columns: Column<PreOrder>[] = [
     {
@@ -601,180 +598,128 @@ export default function AdminPreOrdersPage() {
         description="Acompanhe todos os pré-pedidos cadastrados"
         icon={ShoppingCart}
         actions={
-          <Button onClick={openNewPreOrderDialog}>
+          <Button size="sm" onClick={openNewPreOrderDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Pré-Pedido
           </Button>
         }
       />
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Total</p>
-                <p className="text-2xl font-bold text-slate-900">{filteredPreOrders.length}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <ShoppingCart className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Valor Total</p>
-                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalValue)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Com Desconto</p>
-                <p className="text-2xl font-bold text-amber-600">{itemsWithDiscount}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Tag className="h-5 w-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Total Desconto</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalDiscount)}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-                <Ticket className="h-5 w-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Busca */}
-            <div className="flex-1 max-w-md">
-              <Input
-                placeholder="Buscar por cliente, telefone ou produto..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                leftIcon={<Search className="h-4 w-4" />}
-              />
-            </div>
-
-            {/* Filtro de Status */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="pending">Pendente</option>
-              <option value="in_progress">Em Progresso</option>
-              <option value="delivered">Entregue</option>
-              <option value="cancelled">Cancelado</option>
-            </select>
-
-            {/* Limpar Filtros */}
-            {(searchInput || statusFilter !== "all") && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchInput("");
-                  setStatusFilter("all");
-                }}
-              >
-                Limpar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Product Summary */}
-      {filteredPreOrders.length > 0 && (
-        <Card variant="outline">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-900">
-              Resumo de Produtos
-            </CardTitle>
-            <CardDescription>
-              Quantidade total de cada produto em todos os pré-pedidos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {calculateProductSummary().map((product) => (
-                <div
-                  key={product.productId}
-                  className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-all hover:border-blue-200"
-                >
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                    <Package className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {product.productName}
-                    </h3>
-                    <div className="mt-0.5 flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-blue-600">
-                        {product.totalQuantity}
-                      </span>
-                      <span className="text-xs text-gray-500">unid.</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Pre-Orders Table */}
-      {loading ? (
-        <SkeletonTable rows={5} columns={6} hasActions />
-      ) : error ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={loadPreOrders}>Tentar novamente</Button>
-          </CardContent>
-        </Card>
+      {loading && preOrders.length === 0 ? (
+        <PreOrdersPageSkeleton />
       ) : (
-        <DataTable
-          data={filteredPreOrders}
-          columns={columns}
-          rowKey="id"
-          emptyMessage="Nenhum pré-pedido encontrado"
-          rowActions={(preOrder) => (
-            <PreOrderActionsMenu
-              onEdit={() => openEditPreOrderDialog(preOrder.id)}
-              onDelete={() => openDeleteDialog(preOrder.id)}
-              onPrint={() => printThermalReceipt(preOrder.id)}
-              onConvert={() => convertToOrder(preOrder)}
-              onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+        <>
+          {/* Estatísticas */}
+          <PreOrderStatsCards preOrders={filteredPreOrders} />
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Busca */}
+                <div className="flex-1 max-w-md">
+                  <Input
+                    placeholder="Buscar por cliente, telefone ou produto..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    leftIcon={<Search className="h-4 w-4" />}
+                  />
+                </div>
+
+                {/* Filtro de Status */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="pending">Pendente</option>
+                  <option value="in_progress">Em Progresso</option>
+                  <option value="delivered">Entregue</option>
+                  <option value="cancelled">Cancelado</option>
+                </select>
+
+                {/* Limpar Filtros */}
+                {(searchInput || statusFilter !== "all") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchInput("");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Product Summary */}
+          {filteredPreOrders.length > 0 && (
+            <Card variant="outline">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  Resumo de Produtos
+                </CardTitle>
+                <CardDescription>
+                  Quantidade total de cada produto em todos os pré-pedidos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {calculateProductSummary().map((product) => (
+                    <div
+                      key={product.productId}
+                      className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-all hover:border-blue-200"
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                        <Package className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
+                          {product.productName}
+                        </h3>
+                        <div className="mt-0.5 flex items-baseline gap-1">
+                          <span className="text-lg font-bold text-blue-600">
+                            {product.totalQuantity}
+                          </span>
+                          <span className="text-xs text-gray-500">unid.</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pre-Orders Table */}
+          {error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={loadPreOrders}>Tentar novamente</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              data={filteredPreOrders}
+              columns={columns}
+              rowKey="id"
+              emptyMessage="Nenhum pré-pedido encontrado"
+              rowActions={(preOrder) => (
+                <PreOrderActionsMenu
+                  onEdit={() => openEditPreOrderDialog(preOrder.id)}
+                  onDelete={() => openDeleteDialog(preOrder.id)}
+                  onPrint={() => printThermalReceipt(preOrder.id)}
+                  onConvert={() => convertToOrder(preOrder)}
+                  onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+                />
+              )}
             />
           )}
-        />
+        </>
       )}
 
       {/* Modals */}

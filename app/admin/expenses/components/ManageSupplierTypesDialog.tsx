@@ -1,11 +1,19 @@
 "use client";
 
 import { useToast } from "@/app/components/Toast";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
 import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
 import { SupplierType } from "@/lib/types";
-import { Check, FileText, Truck, X } from "lucide-react";
+import { Check, FileText, Pencil, Plus, Trash2, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -29,9 +37,9 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
     try {
       setLoading(true);
       const res = await fetch("/api/supplier-types");
-      if (!res.ok) throw new Error("Falha ao carregar tipos");
+      if (!res.ok) throw new Error();
       setItems(await res.json());
-    } catch (e) {
+    } catch {
       showToast("Erro ao carregar tipos de fornecedor", "error");
     } finally {
       setLoading(false);
@@ -70,7 +78,7 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
         body: JSON.stringify({ name, description, active }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Falha ao salvar tipo");
+      if (!res.ok) throw new Error(data?.error || "Falha ao salvar");
       showToast(editing ? "Tipo atualizado" : "Tipo criado", "success");
       setFormOpen(false);
       await load();
@@ -86,7 +94,7 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
     try {
       const res = await fetch(`/api/supplier-types/${it.id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Falha ao remover tipo");
+      if (!res.ok) throw new Error(data?.error || "Falha ao remover");
       showToast("Tipo removido", "success");
       await load();
       onChanged();
@@ -95,171 +103,219 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="w-full max-w-3xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col">
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 sticky top-0 z-20 relative p-6">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-          <div className="relative flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Truck className="h-5 w-5 text-orange-600" />
-                Gerenciar Tipos de Fornecedor
-              </h2>
-              <p className="text-gray-600 mt-1 text-sm">Crie, edite e remova tipos utilizados nas despesas</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105">
-              <X className="h-6 w-6" />
+    <>
+      {/* ── Modal principal — lista ── */}
+      <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+                style={{
+                  background: "var(--modal-header-icon-bg)",
+                  outline: "1px solid var(--modal-header-icon-ring)",
+                }}
+              >
+                <Truck className="h-5 w-5 text-primary" />
+              </div>
+              Tipos de Fornecedor
+            </DialogTitle>
+            <DialogDescription>
+              Gerencie os fornecedores utilizados nas despesas
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* ── Barra superior: contagem + botão ── */}
+          <div className="flex items-center justify-between px-6 pt-5 pb-2">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              {loading ? "Carregando..." : `${items.length} tipo${items.length !== 1 ? "s" : ""} cadastrado${items.length !== 1 ? "s" : ""}`}
+            </p>
+            <Button size="sm" onClick={openCreate} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Novo Tipo
             </Button>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">{items.length} tipo(s) cadastrado(s)</div>
-            <Button size="sm" onClick={openCreate} className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm">Novo Tipo</Button>
-          </div>
-          <div className="grid gap-2">
+          {/* ── Lista ── */}
+          <div className="flex-1 overflow-y-auto px-6 pb-5">
             {loading ? (
-              <div className="space-y-2">
+              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="rounded-xl border border-gray-200 p-4 bg-white animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="h-4 w-40 bg-gray-200 rounded mb-2" />
-                        <div className="h-3 w-64 bg-gray-100 rounded" />
+                  <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                    <div className="h-8 w-8 rounded-lg bg-slate-200 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="h-3.5 w-36 bg-slate-200 rounded mb-1.5" />
+                      <div className="h-3 w-52 bg-slate-100 rounded" />
+                    </div>
+                    <div className="h-5 w-12 bg-slate-100 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 rounded-xl">
+                <Truck className="h-8 w-8 text-slate-300 mb-2" />
+                <p className="text-sm text-slate-400">Nenhum tipo de fornecedor cadastrado</p>
+                <button
+                  onClick={openCreate}
+                  className="mt-3 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  Criar o primeiro
+                </button>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                {items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-slate-50/70 transition-colors group"
+                  >
+                    {/* Ícone */}
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Truck className="h-3.5 w-3.5 text-primary" />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900 truncate">{it.name}</span>
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                            it.active
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          {it.active ? "Ativo" : "Inativo"}
+                        </span>
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <div className="h-9 w-20 bg-gray-100 rounded" />
-                        <div className="h-9 w-20 bg-gray-100 rounded" />
-                      </div>
+                      {it.description && (
+                        <p className="text-xs text-slate-400 truncate mt-0.5">{it.description}</p>
+                      )}
+                    </div>
+
+                    {/* Ações (visíveis no hover) */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEdit(it)}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => removeItem(it)}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Remover"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : items.map(it => (
-              <div key={it.id} className="rounded-xl border border-gray-200 p-4 bg-white">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Truck className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{it.name}</span>
-                        <Badge variant={it.active ? "default" : "outline"}>{it.active ? "Ativo" : "Inativo"}</Badge>
-                      </div>
-                      {it.description && <div className="text-sm text-gray-600 mt-1">{it.description}</div>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEdit(it)} className="rounded-xl border-orange-200 hover:bg-orange-50 text-orange-700">Editar</Button>
-                    <Button variant="outline" size="sm" onClick={() => removeItem(it)} className="rounded-xl border-red-200 hover:bg-red-50 text-red-600">Remover</Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {(!loading && items.length === 0) && (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">Nenhum tipo cadastrado</p>
-              </div>
             )}
           </div>
-        </div>
 
-        <div className="sticky bottom-0 z-20 bg-gray-50/50 border-t border-gray-200 px-6 py-4 flex justify-end">
-          <Button variant="outline" onClick={onClose} className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all">Fechar</Button>
-        </div>
-      </div>
+          <DialogFooter>
+            <div />
+            <Button variant="outline" onClick={onClose}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {formOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col">
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 sticky top-0 z-20 relative p-6">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-              <div className="relative flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-orange-600" />
-                  {editing ? "Editar" : "Novo"} Tipo de Fornecedor
-                </h3>
-                <Button variant="ghost" size="icon" onClick={() => setFormOpen(false)} className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105">
-                  <X className="h-6 w-6" />
-                </Button>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Nome <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Input 
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    placeholder="Nome do tipo de fornecedor"
-                    required 
-                  />
-                  <Truck className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Descrição</label>
-                <div className="relative">
-                  <Input 
-                    value={description} 
-                    onChange={e => setDescription(e.target.value)}
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    placeholder="Descrição opcional"
-                  />
-                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-              <div className="pt-2">
-                <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Check className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Status</h4>
-                      <p className="text-sm text-gray-600">Ative ou desative este tipo</p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setActive(!active)}
-                    className={`relative h-6 w-11 rounded-full border-2 transition-colors ${
-                      active 
-                        ? 'border-orange-500 bg-orange-500' 
-                        : 'border-gray-300 bg-white'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                      active ? 'translate-x-5' : 'translate-x-0.5'
-                    }`}></span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50/50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setFormOpen(false)} 
-                disabled={saving}
-                className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
+      {/* ── Modal de formulário — criar / editar ── */}
+      <Dialog open={formOpen} onOpenChange={(v) => !v && setFormOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+                style={{
+                  background: "var(--modal-header-icon-bg)",
+                  outline: "1px solid var(--modal-header-icon-ring)",
+                }}
               >
+                <Truck className="h-5 w-5 text-primary" />
+              </div>
+              {editing ? "Editar" : "Novo"} Tipo de Fornecedor
+            </DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Atualize os dados do tipo de fornecedor"
+                : "Preencha os dados para criar um novo tipo de fornecedor"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 py-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Nome <span className="text-red-400">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="pl-9"
+                  placeholder="Ex: Açougue"
+                />
+                <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Descrição
+              </Label>
+              <div className="relative">
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="pl-9"
+                  placeholder="Descrição opcional"
+                />
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
+            </div>
+
+            {/* Toggle de status */}
+            <div className="flex items-center justify-between py-3 border-t border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Status ativo</p>
+                  <p className="text-xs text-slate-400">Disponível para uso nos registros</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActive(!active)}
+                className={`relative flex-shrink-0 h-6 w-11 rounded-full border-2 p-0 cursor-pointer focus:outline-none transition-colors duration-200 ${
+                  active ? "border-primary bg-primary" : "border-slate-300 bg-white"
+                }`}
+              >
+                <span
+                  className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    active ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <p className="text-xs text-slate-400">
+              <span className="text-red-400">*</span> campos obrigatórios
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>
                 Cancelar
               </Button>
-              <Button 
-                onClick={save} 
-                disabled={saving}
-                className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-              >
+              <Button onClick={save} disabled={saving}>
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
@@ -270,11 +326,9 @@ export function ManageSupplierTypesDialog({ isOpen, onClose, onChanged }: Props)
                 )}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
-
-

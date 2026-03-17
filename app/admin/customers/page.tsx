@@ -26,6 +26,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { CustomerStatsCards } from "./components/CustomerStatsCards";
+import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 
 // =============================================================================
 // TIPOS
@@ -478,14 +480,6 @@ export default function AdminCustomersPage() {
     },
   ];
 
-  // Estatísticas
-  const stats = {
-    total: customers.length,
-    active: customers.filter((c) => c.active).length,
-    inactive: customers.filter((c) => !c.active).length,
-    withEmail: customers.filter((c) => c.email).length,
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -501,138 +495,86 @@ export default function AdminCustomersPage() {
         }
       />
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Total</p>
-                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Ativos</p>
-                <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Inativos</p>
-                <p className="text-2xl font-bold text-amber-600">{stats.inactive}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <XCircle className="h-5 w-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500">Com Email</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.withEmail}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center">
-                <Mail className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Busca */}
-            <div className="flex-1 max-w-md">
-              <Input
-                placeholder="Buscar por nome, telefone ou email..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                leftIcon={<Search className="h-4 w-4" />}
-              />
-            </div>
-
-            {/* Filtro de Status */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="active">Ativos</option>
-              <option value="inactive">Inativos</option>
-            </select>
-
-            {/* Limpar Filtros */}
-            {(searchInput || statusFilter !== "all") && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchInput("");
-                  setStatusFilter("all");
-                }}
-              >
-                Limpar
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabela */}
-      {loading ? (
-        <SkeletonTable rows={10} columns={4} hasActions />
-      ) : error ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={loadCustomers}>Tentar novamente</Button>
-          </CardContent>
-        </Card>
+      {loading && customers.length === 0 ? (
+        <CustomerPageSkeleton />
       ) : (
-        <DataTable
-          data={customers}
-          columns={columns}
-          rowKey="id"
-          emptyMessage="Nenhum cliente encontrado"
-          rowActions={(customer) => (
-            <CustomerActionsMenu
-              customer={customer}
-              onEdit={() => openForm(customer)}
-              onDelete={() => setDeleteConfirm(customer.id)}
-              onDownloadBarcode={() => downloadBarcode(customer)}
+        <>
+          {/* Estatísticas */}
+          <CustomerStatsCards customers={customers} />
+
+          {/* Filtros */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Busca */}
+                <div className="flex-1 max-w-md">
+                  <Input
+                    placeholder="Buscar por nome, telefone ou email..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    leftIcon={<Search className="h-4 w-4" />}
+                  />
+                </div>
+
+                {/* Filtro de Status */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="active">Ativos</option>
+                  <option value="inactive">Inativos</option>
+                </select>
+
+                {/* Limpar Filtros */}
+                {(searchInput || statusFilter !== "all") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchInput("");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabela */}
+          {error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={loadCustomers}>Tentar novamente</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <DataTable
+              data={customers}
+              columns={columns}
+              rowKey="id"
+              emptyMessage="Nenhum cliente encontrado"
+              rowActions={(customer) => (
+                <CustomerActionsMenu
+                  customer={customer}
+                  onEdit={() => openForm(customer)}
+                  onDelete={() => setDeleteConfirm(customer.id)}
+                  onDownloadBarcode={() => downloadBarcode(customer)}
+                />
+              )}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: customers.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: setItemsPerPage,
+              }}
             />
           )}
-          pagination={{
-            page: currentPage,
-            pageSize: itemsPerPage,
-            total: customers.length,
-            onPageChange: setCurrentPage,
-            onPageSizeChange: setItemsPerPage,
-          }}
-        />
+        </>
       )}
 
       {/* Dialog de Formulário */}
