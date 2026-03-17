@@ -1,198 +1,43 @@
 "use client";
 
-import { AnimatedCard } from "@/app/components/ui/animated-card";
 import { Button } from "@/app/components/ui/button";
-import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from "@/app/components/ui/card";
-import { motion } from "framer-motion";
-import {
-    MoreHorizontal,
-    Package,
-    Printer,
-    Receipt,
-    ShoppingCart,
-    Tag,
-    Ticket,
-    Trash2,
-    User,
-    Users,
-    X,
-    MapPin
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-// Importar o componente de modal
+import { Input } from "@/app/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
+import { Badge } from "@/app/components/ui/badge";
+import { PageHeader } from "@/app/admin/components/layout/PageHeader";
+import { DataTable, Column } from "@/app/admin/components/data-display/DataTable";
+import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
+import { SkeletonTable } from "@/app/admin/components/data-display/LoadingSkeleton";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
 import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { useToast } from "@/app/components/Toast";
+import {
+  MoreVertical,
+  Package,
+  Printer,
+  Receipt,
+  ShoppingCart,
+  Tag,
+  Ticket,
+  Trash2,
+  User,
+  Users,
+  X,
+  MapPin,
+  Plus,
+  TrendingUp,
+  Search,
+  CheckCircle,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
-// Menu de opções por pré-pedido
-function PreOrderActionsMenu({
-  onEdit,
-  onDelete,
-  onPrint,
-  onConvert,
-  onTrack,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  onPrint: () => void;
-  onConvert: () => void;
-  onTrack: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ 
-    position: 'fixed',
-    zIndex: 50,
-    display: 'none'
-  });
-
-  // Fecha o menu ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setMenuStyle(prev => ({ ...prev, display: 'none' }));
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  // Calcular posição do menu quando abrir
-  useEffect(() => {
-    if (open && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const menuHeight = 200; // Altura aproximada do menu
-      
-      let top, bottom;
-      
-      // Verificar se o menu cabe abaixo do botão
-      if (rect.bottom + menuHeight <= window.innerHeight) {
-        // Abrir para baixo
-        top = `${rect.bottom + 4}px`;
-        bottom = 'auto';
-      } else {
-        // Abrir para cima
-        top = 'auto';
-        bottom = `${window.innerHeight - rect.top + 4}px`;
-      }
-      
-      setMenuStyle({
-        position: 'fixed',
-        top,
-        bottom,
-        right: `${window.innerWidth - rect.right}px`,
-        zIndex: 1000,
-        display: 'block'
-      });
-    } else {
-      setMenuStyle(prev => ({ ...prev, display: 'none' }));
-    }
-  }, [open]);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-        aria-label="Ações do pré-pedido"
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-      </Button>
-      <div 
-        role="menu"
-        className="w-48 bg-background border border-border rounded-lg shadow-xl py-2 animate-fade-in min-w-max"
-        style={menuStyle}
-      >
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onEdit();
-          }}
-        >
-          <Package className="h-4 w-4 mr-2 text-blue-500" />
-          Editar
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onPrint();
-          }}
-        >
-          <Printer className="h-4 w-4 mr-2 text-blue-500" />
-          Imprimir recibo
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onConvert();
-          }}
-        >
-          <Receipt className="h-4 w-4 mr-2 text-blue-500" />
-          Converter em venda
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onTrack();
-          }}
-        >
-          <MapPin className="h-4 w-4 mr-2 text-green-500" />
-          Rastrear Entrega
-        </button>
-        
-        <div className="border-t border-border my-1"></div>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onDelete();
-          }}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Excluir
-        </button>
-      </div>
-    </div>
-  );
-}
+// =============================================================================
+// TIPOS
+// =============================================================================
 
 type PreOrder = {
   id: string;
@@ -220,61 +65,146 @@ type PreOrder = {
   }[];
 };
 
-// Add this type for product summary
 type ProductSummary = {
   productId: string;
   productName: string;
   totalQuantity: number;
 };
 
-// Adicionar este tipo
-type PaymentMethodType = {
-  value: string;
-  label: string;
-};
+// =============================================================================
+// MENU DE AÇÕES
+// =============================================================================
+
+function PreOrderActionsMenu({
+  onEdit,
+  onDelete,
+  onPrint,
+  onConvert,
+  onTrack,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  onPrint: () => void;
+  onConvert: () => void;
+  onTrack: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => setOpen(!open)}
+        aria-label="Ações"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-48 bg-white rounded-lg border border-slate-200 shadow-lg py-1">
+          <button
+            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            <Package className="h-4 w-4 mr-2 text-slate-400" />
+            Editar
+          </button>
+
+          <button
+            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              setOpen(false);
+              onPrint();
+            }}
+          >
+            <Printer className="h-4 w-4 mr-2 text-slate-400" />
+            Imprimir recibo
+          </button>
+
+          <button
+            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              setOpen(false);
+              onConvert();
+            }}
+          >
+            <Receipt className="h-4 w-4 mr-2 text-slate-400" />
+            Converter em venda
+          </button>
+
+          <button
+            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              setOpen(false);
+              onTrack();
+            }}
+          >
+            <MapPin className="h-4 w-4 mr-2 text-slate-400" />
+            Rastrear Entrega
+          </button>
+
+          <button
+            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
 
 export default function AdminPreOrdersPage() {
   const { showToast } = useToast();
+  const router = useRouter();
   const [preOrders, setPreOrders] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState(false);
+
+  // Estados de busca e filtros
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "in_progress" | "delivered" | "cancelled">("all");
   const [filters, setFilters] = useState({
     searchTerm: "",
     dateRange: { start: "", end: "" }
   });
-  
-  // Estados para o modal
+
   const [isPreOrderDialogOpen, setIsPreOrderDialogOpen] = useState(false);
   const [editingPreOrderId, setEditingPreOrderId] = useState<string | null>(null);
-  
-  // States for the payment modal
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedPreOrder, setSelectedPreOrder] = useState<PreOrder | null>(null);
-  
-  // State for dropdown menu
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  
-  // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [preOrderToDelete, setPreOrderToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenDropdownId(null);
-    };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, []);
-
-  // Hook para ler parâmetros da URL
-  const router = useRouter();
-  
   const loadPreOrders = async () => {
     try {
       setLoading(true);
@@ -299,31 +229,27 @@ export default function AdminPreOrdersPage() {
       setLoading(false);
     }
   };
-  
-  // Remove or comment out this effect to prevent automatic loading based on filters
-  /*
-  useEffect(() => {
-    loadPreOrders();
-  }, [filters.dateRange]);
-  */
-  
-  // Add this effect to load all pre-orders when the component mounts
+
   useEffect(() => {
     loadPreOrders();
   }, []);
-  
-  // useEffect para verificar parâmetros da URL
+
+  // Debounce da busca
   useEffect(() => {
-    // Verificar se há parâmetro para abrir o modal automaticamente
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const openModal = params.get('openModal');
     if (openModal === 'true') {
-      // Remover o parâmetro da URL para evitar reabertura
       const url = new URL(window.location.href);
       url.searchParams.delete('openModal');
       window.history.replaceState({}, '', url.toString());
-      
-      // Abrir o modal após um pequeno delay para garantir que o componente foi montado
+
       setTimeout(() => {
         setEditingPreOrderId(null);
         setIsPreOrderDialogOpen(true);
@@ -333,8 +259,6 @@ export default function AdminPreOrdersPage() {
 
   const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
     setFilters(newFilters);
-    // Remove automatic reload when filters change
-    // loadPreOrders();
   };
 
   const formatCurrency = (cents: number | null) => {
@@ -345,11 +269,10 @@ export default function AdminPreOrdersPage() {
     }).format(cents / 100);
   };
 
-  // Add this function to calculate product summary
   const calculateProductSummary = (): ProductSummary[] => {
     const productMap: { [key: string]: ProductSummary } = {};
 
-    preOrders.forEach(preOrder => {
+    filteredPreOrders.forEach(preOrder => {
       preOrder.items.forEach(item => {
         const productId = item.product.id;
         if (productMap[productId]) {
@@ -364,7 +287,6 @@ export default function AdminPreOrdersPage() {
       });
     });
 
-    // Convert to array and sort by quantity (descending)
     return Object.values(productMap).sort((a, b) => b.totalQuantity - a.totalQuantity);
   };
 
@@ -386,7 +308,6 @@ export default function AdminPreOrdersPage() {
         throw new Error("Failed to delete pre-order");
       }
 
-      // Remover o pré-pedido da lista
       setPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
       setDeleteDialogOpen(false);
       setPreOrderToDelete(null);
@@ -399,27 +320,22 @@ export default function AdminPreOrdersPage() {
     }
   };
 
-  // Função para imprimir recibo térmico
   const printThermalReceipt = (preOrderId: string) => {
     const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}`;
     window.open(receiptUrl, '_blank');
   };
 
-  // Função para converter pré-pedido em venda
   const convertToOrder = async (preOrder: PreOrder) => {
-    // Open the payment dialog instead of using prompt
     setSelectedPreOrder(preOrder);
     setIsPaymentDialogOpen(true);
   };
 
-  // Função para confirmar a conversão com forma de pagamento
   const handleConfirmConversion = async (paymentMethod: string, discountCents: number, cashReceived?: number, change?: number) => {
     if (!selectedPreOrder) return;
-    
+
     setIsConverting(true);
-    
+
     try {
-      // Map payment method labels to API values
       const paymentMethodMap: { [key: string]: string } = {
         "cash": "cash",
         "debit": "debit",
@@ -427,12 +343,10 @@ export default function AdminPreOrdersPage() {
         "pix": "pix",
         "ficha_payment": "invoice"
       };
-      
+
       const apiPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod;
-      
-      // If there's a discount change, we need to update the pre-order first
+
       if (discountCents !== selectedPreOrder.discountCents) {
-        // Update the pre-order with the new discount
         const updateResponse = await fetch(`/api/pre-orders`, {
           method: 'PUT',
           headers: {
@@ -457,20 +371,17 @@ export default function AdminPreOrdersPage() {
           throw new Error('Failed to update pre-order discount');
         }
       }
-      
-      // Prepare data for conversion
+
       const conversionData: any = {
         preOrderId: selectedPreOrder.id,
         paymentMethod: apiPaymentMethod
       };
-      
-      // Add cash payment details if applicable
+
       if (apiPaymentMethod === "cash" && cashReceived !== undefined && change !== undefined) {
         conversionData.cashReceived = cashReceived;
         conversionData.change = change;
       }
-      
-      // Convert pre-order to order
+
       const response = await fetch('/api/pre-orders?convert=true', {
         method: 'POST',
         headers: {
@@ -483,13 +394,9 @@ export default function AdminPreOrdersPage() {
         throw new Error('Failed to convert pre-order to order');
       }
 
-      // Close the payment dialog
       setIsPaymentDialogOpen(false);
       setSelectedPreOrder(null);
-      
-      // Recarregar a lista de pré-pedidos
       loadPreOrders();
-      
       showToast('Pré-pedido convertido em venda com sucesso!', 'success');
     } catch (error) {
       console.error("Error converting pre-order to order:", error);
@@ -509,7 +416,6 @@ export default function AdminPreOrdersPage() {
     });
   };
 
-  // Funções para abrir o modal
   const openNewPreOrderDialog = () => {
     setEditingPreOrderId(null);
     setIsPreOrderDialogOpen(true);
@@ -520,366 +426,365 @@ export default function AdminPreOrdersPage() {
     setIsPreOrderDialogOpen(true);
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Gerenciamento de Pré-Pedidos
-          </h1>
-          <p className="text-muted-foreground">Acompanhe todos os pré-pedidos cadastrados</p>
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  // Filtrar pré-pedidos
+  const filteredPreOrders = preOrders.filter((preOrder) => {
+    const matchesSearch =
+      !searchTerm ||
+      preOrder.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      preOrder.customer?.phone.includes(searchTerm) ||
+      preOrder.items.some(item => item.product.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus =
+      statusFilter === "all" ||
+      preOrder.deliveryStatus === statusFilter ||
+      (!preOrder.deliveryStatus && statusFilter === "pending");
+    return matchesSearch && matchesStatus;
+  });
+
+  // Calculate stats
+  const totalValue = filteredPreOrders.reduce((sum, preOrder) => sum + preOrder.totalCents, 0);
+  const itemsWithDiscount = filteredPreOrders.filter((preOrder) => preOrder.discountCents > 0).length;
+  const totalDiscount = filteredPreOrders.reduce((sum, preOrder) => sum + preOrder.discountCents, 0);
+
+  // Table columns
+  const columns: Column<PreOrder>[] = [
+    {
+      key: "customer",
+      header: "Cliente",
+      sortable: true,
+      render: (_value, preOrder) => (
+        preOrder.customer ? (
+          <Link
+            href={`/admin/customers/${preOrder.customer.id}`}
+            className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors max-w-xs"
+          >
+            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors truncate">
+                {preOrder.customer.name}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {preOrder.customer.phone}
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 text-gray-500 text-sm max-w-xs p-2">
+            <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Users className="h-4 w-4 text-gray-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-gray-500 truncate">
+                Venda avulsa
+              </div>
+            </div>
+          </div>
+        )
+      ),
+    },
+    {
+      key: "items",
+      header: "Itens",
+      render: (_value, preOrder) => (
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+            <Package className="h-4 w-4 text-orange-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-gray-900">
+              {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {preOrder.items.slice(0, 2).map((item, idx) => (
+                <Badge
+                  key={idx}
+                  variant="outline"
+                  className="text-xs"
+                >
+                  {item.quantity}x {truncateText(item.product.name, 15)}
+                </Badge>
+              ))}
+              {preOrder.items.length > 2 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{preOrder.items.length - 2} mais
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" onClick={openNewPreOrderDialog}>
-          Novo Pré-Pedido
-        </Button>
-      </div>
+      ),
+    },
+    {
+      key: "totalCents",
+      header: "Valor",
+      sortable: true,
+      render: (_value, preOrder) => (
+        <div className="flex flex-col items-start">
+          <div className="font-bold text-gray-900">
+            {formatCurrency(preOrder.totalCents)}
+          </div>
+          {preOrder.discountCents > 0 && (
+            <div className="text-xs text-red-600 font-medium mt-1">
+              Desconto: -{formatCurrency(preOrder.discountCents)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "notes",
+      header: "Descrição",
+      render: (_value, preOrder) => (
+        <div className="flex items-start gap-2">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+          </div>
+          <div className="text-sm text-gray-900 max-w-xs truncate">
+            {preOrder.notes || "-"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Data",
+      sortable: true,
+      render: (_value, preOrder) => (
+        <div className="flex flex-col">
+          <div className="text-sm font-medium text-gray-900">
+            {formatDate(preOrder.createdAt)}
+          </div>
+          <div className="text-xs text-gray-500">
+            {new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' })}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "deliveryStatus",
+      header: "Status",
+      render: (_value, preOrder) => (
+        <div className="flex flex-col gap-2">
+          {preOrder.deliveryStatus ? (
+            <DeliveryStatusBadge
+              status={preOrder.deliveryStatus as any}
+            />
+          ) : (
+            <span className="text-xs text-gray-500">-</span>
+          )}
+          {preOrder.deliveryStatus &&
+            preOrder.deliveryStatus !== "pending" &&
+            preOrder.deliveryStatus !== "cancelled" && (
+            <Link href={`/admin/pre-orders/${preOrder.id}/tracking`}>
+              <Button variant="ghost" size="sm" className="h-7 text-xs">
+                <MapPin className="h-3 w-3 mr-1" />
+                Rastrear
+              </Button>
+            </Link>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title="Pré-Pedidos"
+        description="Acompanhe todos os pré-pedidos cadastrados"
+        icon={ShoppingCart}
+        actions={
+          <Button onClick={openNewPreOrderDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Pré-Pedido
+          </Button>
+        }
+      />
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AnimatedCard delay={0.1}>
-          <CardContent className="p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">
-                  Total de Pré-Pedidos
-                </p>
-                <p className="text-3xl font-bold text-blue-900">
-                  {preOrders.length}
-                </p>
+                <p className="text-sm text-slate-500">Total</p>
+                <p className="text-2xl font-bold text-slate-900">{filteredPreOrders.length}</p>
               </div>
-              <ShoppingCart className="h-12 w-12 text-blue-600" />
+              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
+              </div>
             </div>
           </CardContent>
-        </AnimatedCard>
+        </Card>
 
-        <AnimatedCard delay={0.2}>
-          <CardContent className="p-6">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">
-                  Valor Total
-                </p>
-                <p className="text-3xl font-bold text-green-900">
-                  {formatCurrency(
-                    preOrders.reduce((sum, preOrder) => sum + preOrder.totalCents, 0)
-                  )}
-                </p>
+                <p className="text-sm text-slate-500">Valor Total</p>
+                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalValue)}</p>
               </div>
-              <Receipt className="h-12 w-12 text-green-600" />
+              <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <Receipt className="h-5 w-5 text-emerald-600" />
+              </div>
             </div>
           </CardContent>
-        </AnimatedCard>
+        </Card>
 
-        <AnimatedCard delay={0.3}>
-          <CardContent className="p-6">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-600">
-                  Itens com Desconto
-                </p>
-                <p className="text-3xl font-bold text-amber-900">
-                  {preOrders.filter((preOrder) => preOrder.discountCents > 0).length}
-                </p>
+                <p className="text-sm text-slate-500">Com Desconto</p>
+                <p className="text-2xl font-bold text-amber-600">{itemsWithDiscount}</p>
               </div>
-              <Tag className="h-12 w-12 text-amber-600" />
+              <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <Tag className="h-5 w-5 text-amber-600" />
+              </div>
             </div>
           </CardContent>
-        </AnimatedCard>
+        </Card>
 
-        <AnimatedCard delay={0.4}>
-          <CardContent className="p-6">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600">
-                  Total de Desconto
-                </p>
-                <p className="text-3xl font-bold text-red-900">
-                  {formatCurrency(
-                    preOrders.reduce((sum, preOrder) => sum + preOrder.discountCents, 0)
-                  )}
-                </p>
+                <p className="text-sm text-slate-500">Total Desconto</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalDiscount)}</p>
               </div>
-              <Ticket className="h-12 w-12 text-red-600" />
+              <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                <Ticket className="h-5 w-5 text-red-600" />
+              </div>
             </div>
           </CardContent>
-        </AnimatedCard>
+        </Card>
       </div>
 
-      {/* Resumo de Produtos */}
-      <AnimatedCard>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-foreground">
-            Resumo de Produtos nos Pré-Pedidos
-          </CardTitle>
-          <CardDescription>
-            Quantidade total de cada produto em todos os pré-pedidos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {preOrders.length === 0 ? (
-            <div className="text-center py-6">
-              <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum produto encontrado nos pré-pedidos</p>
+      {/* Filtros */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Busca */}
+            <div className="flex-1 max-w-md">
+              <Input
+                placeholder="Buscar por cliente, telefone ou produto..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                leftIcon={<Search className="h-4 w-4" />}
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {calculateProductSummary().map((product, index) => (
-                <div 
+
+            {/* Filtro de Status */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="pending">Pendente</option>
+              <option value="in_progress">Em Progresso</option>
+              <option value="delivered">Entregue</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+
+            {/* Limpar Filtros */}
+            {(searchInput || statusFilter !== "all") && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchInput("");
+                  setStatusFilter("all");
+                }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Product Summary */}
+      {filteredPreOrders.length > 0 && (
+        <Card variant="outline">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Resumo de Produtos
+            </CardTitle>
+            <CardDescription>
+              Quantidade total de cada produto em todos os pré-pedidos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {calculateProductSummary().map((product) => (
+                <div
                   key={product.productId}
-                  className="flex items-center p-4 bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
+                  className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-all hover:border-blue-200"
                 >
-                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mr-4">
-                    <Package className="h-6 w-6 text-blue-600" />
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                    <Package className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 truncate">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">
                       {product.productName}
                     </h3>
-                    <div className="mt-1 flex items-center">
+                    <div className="mt-0.5 flex items-baseline gap-1">
                       <span className="text-lg font-bold text-blue-600">
                         {product.totalQuantity}
                       </span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        unidades
-                      </span>
+                      <span className="text-xs text-gray-500">unid.</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pre-Orders Table */}
+      {loading ? (
+        <SkeletonTable rows={5} columns={6} hasActions />
+      ) : error ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={loadPreOrders}>Tentar novamente</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable
+          data={filteredPreOrders}
+          columns={columns}
+          rowKey="id"
+          emptyMessage="Nenhum pré-pedido encontrado"
+          rowActions={(preOrder) => (
+            <PreOrderActionsMenu
+              onEdit={() => openEditPreOrderDialog(preOrder.id)}
+              onDelete={() => openDeleteDialog(preOrder.id)}
+              onPrint={() => printThermalReceipt(preOrder.id)}
+              onConvert={() => convertToOrder(preOrder)}
+              onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+            />
           )}
-        </CardContent>
-      </AnimatedCard>
+        />
+      )}
 
-      {/* Tabela de Pré-Pedidos */}
-      <AnimatedCard>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-foreground">
-            Lista de Pré-Pedidos
-          </CardTitle>
-          <CardDescription>
-            {preOrders.length} pré-pedido{preOrders.length !== 1 ? "s" : ""} encontrado
-            {preOrders.length !== 1 ? "s" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-muted-foreground">Carregando pré-pedidos...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <X className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                Erro ao carregar pré-pedidos
-              </h3>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button
-                onClick={loadPreOrders}
-                className="bg-primary hover:bg-primary/90"
-              >
-                Tentar novamente
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 rounded-t-lg">
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Cliente
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Itens
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Valor
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Descrição
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Data
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Status Entrega
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm w-8">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preOrders.map((preOrder, index) => {
-                    return (
-                      <motion.tr
-                        key={preOrder.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b border-border hover:bg-accent/50 transition-all duration-200"
-                      >
-                        <td className="py-4 px-6">
-                          {preOrder.customer ? (
-                            <Link 
-                              href={`/admin/customers/${preOrder.customer.id}`}
-                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors max-w-xs"
-                            >
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <User className="h-5 w-5 text-primary" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors truncate">
-                                  {preOrder.customer.name}
-                                </div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {preOrder.customer.phone}
-                                </div>
-                              </div>
-                            </Link>
-                          ) : (
-                            <div className="flex items-center gap-3 text-muted-foreground text-sm max-w-xs">
-                              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                <Users className="h-5 w-5 text-gray-400" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium text-gray-500 truncate">
-                                  Venda avulsa
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                              <Package className="h-4 w-4 text-orange-600" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-foreground">
-                                {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
-                              </div>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {preOrder.items.slice(0, 2).map((item, idx) => (
-                                  <span 
-                                    key={idx}
-                                    className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 border border-orange-200"
-                                  >
-                                    {item.quantity}x {truncateText(item.product.name, 15)}
-                                  </span>
-                                ))}
-                                {preOrder.items.length > 2 && (
-                                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
-                                    +{preOrder.items.length - 2} mais
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col items-start">
-                            <div className="font-bold text-foreground text-lg">
-                              {formatCurrency(preOrder.totalCents)}
-                            </div>
-                            {preOrder.discountCents > 0 && (
-                              <div className="text-xs text-red-600 font-medium mt-1">
-                                Desconto: -{formatCurrency(preOrder.discountCents)}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="flex items-start gap-2">
-                            <div className="flex-shrink-0 mt-0.5">
-                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                            </div>
-                            <div className="text-sm text-foreground max-w-xs truncate">
-                              {preOrder.notes || "-"}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col">
-                            <div className="text-sm font-medium text-foreground">
-                              {formatDate(preOrder.createdAt)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col gap-2">
-                            {preOrder.deliveryStatus ? (
-                              <DeliveryStatusBadge 
-                                status={preOrder.deliveryStatus as any}
-                              />
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                            {preOrder.deliveryStatus && 
-                             preOrder.deliveryStatus !== "pending" && 
-                             preOrder.deliveryStatus !== "cancelled" && (
-                              <Link href={`/admin/pre-orders/${preOrder.id}/tracking`}>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  Rastrear
-                                </Button>
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 w-8">
-                          <PreOrderActionsMenu
-                            onEdit={() => openEditPreOrderDialog(preOrder.id)}
-                            onDelete={() => openDeleteDialog(preOrder.id)}
-                            onPrint={() => printThermalReceipt(preOrder.id)}
-                            onConvert={() => convertToOrder(preOrder)}
-                            onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
-                          />
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {preOrders.length === 0 && (
-                <div className="text-center py-12">
-                  <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    Nenhum pré-pedido encontrado
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {filters.dateRange.start || filters.dateRange.end
-                      ? "Tente ajustar os filtros de busca"
-                      : "Ainda não há pré-pedidos registrados"}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </AnimatedCard>
-      
-      {/* Modal de Pré-Pedido */}
-      <PreOrderFormDialog 
-        open={isPreOrderDialogOpen} 
+      {/* Modals */}
+      <PreOrderFormDialog
+        open={isPreOrderDialogOpen}
         onOpenChange={setIsPreOrderDialogOpen}
         preOrderId={editingPreOrderId || undefined}
         onPreOrderSaved={loadPreOrders}
       />
-      
-      {/* Modal de Pagamento */}
+
       {selectedPreOrder && (
         <PreOrderPaymentDialog
           open={isPaymentDialogOpen}
@@ -889,8 +794,7 @@ export default function AdminPreOrdersPage() {
           isConverting={isConverting}
         />
       )}
-      
-      {/* Modal de Confirmação de Exclusão */}
+
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -904,9 +808,3 @@ export default function AdminPreOrdersPage() {
     </div>
   );
 }
-
-// Add this function to truncate text with ellipsis
-const truncateText = (text: string, maxLength: number) => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};

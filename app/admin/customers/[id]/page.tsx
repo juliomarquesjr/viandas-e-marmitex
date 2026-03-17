@@ -5,6 +5,7 @@ import {
   Banknote,
   Barcode as BarcodeIcon,
   Calculator,
+  Calendar,
   Clock,
   CreditCard,
   Download,
@@ -20,10 +21,27 @@ import {
   Trash2,
   User,
   Wallet,
-  X
+  X,
+  Search,
+  Filter,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  MoreVertical,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Info,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { BudgetModal } from "../../../components/BudgetModal";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
@@ -45,6 +63,10 @@ import {
   DialogTrigger
 } from "../../../components/ui/dialog";
 import { Input } from "../../../components/ui/input";
+import { PageHeader } from "../../components/layout/PageHeader";
+import { EmptyState } from "../../components/data-display/EmptyState";
+import { DataTable } from "../../components/data-display/DataTable";
+import { cn } from "@/lib/utils";
 
 // Componente Switch inline
 interface SwitchProps {
@@ -778,1061 +800,799 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Informações do Cliente - Redesigned */}
-      <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 backdrop-blur-sm border border-white/40 shadow-xl rounded-2xl overflow-hidden">
-        {/* Header com gradiente */}
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 border-b border-white/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => router.back()}
-                className="h-10 w-10 rounded-full"
+    <div className="space-y-6">
+      {/* PageHeader com Breadcrumb */}
+      <PageHeader
+        title={customer.name}
+        description="Detalhes do cliente e histórico de compras"
+        icon={User}
+        breadcrumb={[
+          { label: "Clientes", href: "/admin/customers" },
+          { label: customer.name }
+        ]}
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        }
+      />
+
+
+      {/* ── Perfil do cliente ─────────────────────────────────────── */}
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <CardContent className="p-0">
+          {/* Faixa de avatar + nome */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 px-6 py-5 border-b border-slate-100">
+            <div className="relative shrink-0">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow">
+                <User className="h-7 w-7 text-white" />
+              </div>
+              <span
+                className={cn(
+                  "absolute -bottom-1 -right-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ring-2 ring-white",
+                  customer.active
+                    ? "bg-emerald-500 text-white"
+                    : "bg-slate-400 text-white"
+                )}
               >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="relative">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <User className="h-7 w-7 text-white" />
-                </div>
-                <div className="absolute -bottom-1 -right-1">
-                  <Badge
-                    variant={customer.active ? "default" : "outline"}
-                    className={`text-xs px-2 py-0.5 rounded-full shadow-sm ${customer.active
-                      ? "bg-green-500 text-white border-green-600"
-                      : "bg-gray-100 text-gray-600 border-gray-300"
-                      }`}
-                  >
-                    {customer.active ? "Ativo" : "Inativo"}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  {customer.name}
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Cliente desde {formatDate(customer.createdAt).split(' ')[0]}
-                </p>
-              </div>
+                {customer.active ? "Ativo" : "Inativo"}
+              </span>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-bold text-slate-900 truncate">{customer.name}</h2>
+              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Cliente desde {new Date(customer.createdAt).toLocaleDateString("pt-BR")}
+              </p>
+            </div>
+
+            {/* Mini-ações rápidas no cabeçalho */}
+            <div className="flex items-center gap-2 shrink-0">
+              {customer.barcode && (
+                <Button variant="outline" size="sm" onClick={downloadBarcode} className="gap-1.5 text-xs">
+                  <Download className="h-3.5 w-3.5" />
+                  Código de Barras
+                </Button>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Conteúdo Principal */}
-        <div className="p-4">
-          {/* Informações Compactas em Linha */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Grid de informações */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
             {/* Contato */}
-            <div className="p-3 bg-white/70 rounded-xl border border-white/50">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-6 w-6 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Phone className="h-3 w-3 text-green-600" />
-                </div>
-                <h4 className="text-sm font-semibold text-gray-900">Contato</h4>
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Telefone</p>
-                  <p className="text-sm font-semibold text-gray-900">{customer.phone}</p>
-                </div>
-                {customer.email && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Email</p>
-                    <p className="text-sm font-semibold text-gray-900 truncate" title={customer.email}>{customer.email}</p>
-                  </div>
-                )}
-                {customer.doc && (
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Documento</p>
-                    <p className="text-sm font-semibold text-gray-900">{customer.doc}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Código de Barras */}
-            <div className="p-3 bg-white/70 rounded-xl border border-white/50">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-6 w-6 rounded-lg bg-orange-100 flex items-center justify-center">
-                  <BarcodeIcon className="h-3 w-3 text-orange-600" />
-                </div>
-                <h4 className="text-sm font-semibold text-gray-900">Identificação</h4>
-              </div>
-              {customer.barcode ? (
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Código de Barras</p>
-                    <p className="text-sm font-semibold text-gray-900 font-mono">{customer.barcode}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadBarcode}
-                    className="h-7 px-2 text-xs rounded-lg hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 transition-all duration-200 w-full"
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    Download
-                  </Button>
-                </div>
+            <div className="px-6 py-4 space-y-2">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Phone className="h-3 w-3" /> Contato
+              </p>
+              <p className="text-sm font-medium text-slate-900">{customer.phone}</p>
+              {customer.email ? (
+                <p className="text-xs text-slate-500 truncate" title={customer.email}>{customer.email}</p>
               ) : (
-                <div className="flex items-center justify-center py-4">
-                  <p className="text-xs text-gray-500">Sem código cadastrado</p>
-                </div>
+                <p className="text-xs text-slate-400 italic">Sem email</p>
+              )}
+              {customer.doc && (
+                <p className="text-xs text-slate-500">Doc: {customer.doc}</p>
               )}
             </div>
 
             {/* Endereço */}
-            <div className="p-3 bg-white/70 rounded-xl border border-white/50 md:col-span-2 lg:col-span-1">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-6 w-6 rounded-lg bg-red-100 flex items-center justify-center">
-                  <MapPin className="h-3 w-3 text-red-600" />
-                </div>
-                <h4 className="text-sm font-semibold text-gray-900">Endereço</h4>
-              </div>
-              {customer.address ? (
-                <div>
-                  <div className="text-xs text-gray-700 leading-relaxed space-y-1">
-                    <p className="font-medium">
-                      {customer.address.street}, {customer.address.number}
-                      {customer.address.complement && ` - ${customer.address.complement}`}
+            <div className="px-6 py-4 space-y-2">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="h-3 w-3" /> Endereço
+              </p>
+              {customer.address?.street ? (
+                <div className="text-sm text-slate-700 space-y-0.5">
+                  <p className="font-medium">
+                    {customer.address.street}
+                    {customer.address.number ? `, ${customer.address.number}` : ""}
+                    {customer.address.complement ? ` - ${customer.address.complement}` : ""}
+                  </p>
+                  {(customer.address.neighborhood || customer.address.city) && (
+                    <p className="text-slate-500 text-xs">
+                      {[customer.address.neighborhood, customer.address.city, customer.address.state].filter(Boolean).join(", ")}
                     </p>
-                    <p>
-                      {customer.address.neighborhood}, {customer.address.city} - {customer.address.state}
-                    </p>
-                    <p className="text-gray-600">CEP: {customer.address.zip}</p>
-                  </div>
+                  )}
+                  {customer.address.zip && (
+                    <p className="text-slate-400 text-xs">CEP: {customer.address.zip}</p>
+                  )}
                 </div>
               ) : (
-                <div className="flex items-center justify-center py-4">
-                  <p className="text-xs text-gray-500">Sem endereço cadastrado</p>
-                </div>
+                <p className="text-xs text-slate-400 italic">Sem endereço cadastrado</p>
+              )}
+            </div>
+
+            {/* Identificação */}
+            <div className="px-6 py-4 space-y-2">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <BarcodeIcon className="h-3 w-3" /> Identificação
+              </p>
+              {customer.barcode ? (
+                <p className="text-sm font-mono text-slate-800 bg-slate-50 rounded px-2 py-1 border border-slate-200 inline-block">
+                  {customer.barcode}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400 italic">Sem código de barras</p>
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Métricas + Ações ──────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Métricas */}
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Compras Pendentes */}
+          <Card className="border-amber-200 bg-amber-50/60">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Compras Pendentes</p>
+                <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+              </div>
+              {orderFilter !== "all" && (
+                <p className="text-[10px] text-amber-600/80 font-medium mb-1">
+                  {orderFilter === "current-month" ? "Mês Atual" : orderFilter === "previous-month" ? "Mês Anterior" : "Período Filtrado"}
+                </p>
+              )}
+              <p className="text-2xl font-bold text-amber-900">{formatCurrency(filteredStats.pendingAmount)}</p>
+            </CardContent>
+          </Card>
+
+          {/* Total de Pedidos */}
+          <Card className="border-purple-200 bg-purple-50/60">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Total de Pedidos</p>
+                <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <Receipt className="h-4 w-4 text-purple-600" />
+                </div>
+              </div>
+              {orderFilter !== "all" && (
+                <p className="text-[10px] text-purple-600/80 font-medium mb-1">
+                  {orderFilter === "current-month" ? "Mês Atual" : orderFilter === "previous-month" ? "Mês Anterior" : "Período Filtrado"}
+                </p>
+              )}
+              <p className="text-2xl font-bold text-purple-900">{filteredStats.totalOrders}</p>
+            </CardContent>
+          </Card>
+
+          {/* Saldo */}
+          <Card className={cn(
+            "border",
+            stats.balanceAmount > 0
+              ? "border-red-200 bg-red-50/60"
+              : "border-emerald-200 bg-emerald-50/60"
+          )}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className={cn(
+                  "text-xs font-semibold uppercase tracking-wide",
+                  stats.balanceAmount > 0 ? "text-red-700" : "text-emerald-700"
+                )}>
+                  {stats.balanceAmount > 0 ? "Saldo Devedor" : "Crédito"}
+                </p>
+                <div className={cn(
+                  "h-8 w-8 rounded-lg flex items-center justify-center",
+                  stats.balanceAmount > 0 ? "bg-red-100" : "bg-emerald-100"
+                )}>
+                  <Wallet className={cn("h-4 w-4", stats.balanceAmount > 0 ? "text-red-600" : "text-emerald-600")} />
+                </div>
+              </div>
+              <p className="text-[10px] font-medium mb-1 text-slate-500">Histórico completo</p>
+              <p className={cn(
+                "text-2xl font-bold",
+                stats.balanceAmount > 0 ? "text-red-900" : "text-emerald-900"
+              )}>
+                {formatCurrency(Math.abs(stats.balanceAmount))}
+              </p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Seção de Estatísticas e Ações */}
-      <div className="bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 backdrop-blur-sm border border-white/40 shadow-xl rounded-2xl overflow-hidden">
-        {/* Header da Seção */}
-        <div className="bg-gradient-to-r from-slate-100/80 via-slate-50/60 to-transparent p-4 border-b border-white/30">
-          <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            Resumo e Ações
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">Estatísticas financeiras e opções disponíveis</p>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Cards de Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Compras Pendentes */}
-            <div className="group relative bg-gradient-to-br from-amber-50/80 to-amber-100/60 backdrop-blur-sm border border-amber-200/50 rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 to-amber-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative space-y-2">
-                {/* Primeira linha - Título com ícone */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                      <Clock className="h-2.5 w-2.5 text-amber-600" />
-                    </div>
-                    <p className="text-xs font-semibold text-amber-700">
-                      Compras Realizadas
-                    </p>
-                  </div>
-                  <div className="h-6 w-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                    <Clock className="h-3 w-3 text-amber-600" />
-                  </div>
-                </div>
-                {/* Segunda linha - Filtro e valor */}
-                <div className="space-y-1">
-                  {orderFilter !== 'all' && (
-                    <p className="text-xs text-amber-600/80">
-                      {orderFilter === 'current-month' ? 'Mês Atual' :
-                        orderFilter === 'previous-month' ? 'Mês Anterior' : 'Período Filtrado'}
-                    </p>
-                  )}
-                  <p className="text-lg font-bold text-amber-900">
-                    {formatCurrency(filteredStats.pendingAmount)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total de Pedidos */}
-            <div className="group relative bg-gradient-to-br from-purple-50/80 to-purple-100/60 backdrop-blur-sm border border-purple-200/50 rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 to-purple-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative space-y-2">
-                {/* Primeira linha - Título com ícone */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-5 w-5 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                      <Receipt className="h-2.5 w-2.5 text-purple-600" />
-                    </div>
-                    <p className="text-xs font-semibold text-purple-700">
-                      Total de Pedidos
-                    </p>
-                  </div>
-                  <div className="h-6 w-6 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                    <Receipt className="h-3 w-3 text-purple-600" />
-                  </div>
-                </div>
-                {/* Segunda linha - Filtro e valor */}
-                <div className="space-y-1">
-                  {orderFilter !== 'all' && (
-                    <p className="text-xs text-purple-600/80">
-                      {orderFilter === 'current-month' ? 'Mês Atual' :
-                        orderFilter === 'previous-month' ? 'Mês Anterior' : 'Período Filtrado'}
-                    </p>
-                  )}
-                  <p className="text-lg font-bold text-purple-900">
-                    {filteredStats.totalOrders}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Saldo Devedor/Crédito */}
-            <div className={`group relative backdrop-blur-sm border rounded-xl p-3 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] ${stats.balanceAmount > 0
-              ? 'bg-gradient-to-br from-red-50/80 to-red-100/60 border-red-200/50'
-              : 'bg-gradient-to-br from-green-50/80 to-green-100/60 border-green-200/50'
-              }`}>
-              <div className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${stats.balanceAmount > 0
-                ? 'bg-gradient-to-br from-red-400/5 to-red-600/5'
-                : 'bg-gradient-to-br from-green-400/5 to-green-600/5'
-                }`} />
-              <div className="relative space-y-2">
-                {/* Primeira linha - Título com ícone */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`h-5 w-5 rounded-lg flex items-center justify-center ${stats.balanceAmount > 0
-                      ? 'bg-red-500/20'
-                      : 'bg-green-500/20'
-                      }`}>
-                      <Wallet className={`h-2.5 w-2.5 ${stats.balanceAmount > 0 ? 'text-red-600' : 'text-green-600'
-                        }`} />
-                    </div>
-                    <p className={`text-xs font-semibold ${stats.balanceAmount > 0 ? 'text-red-700' : 'text-green-700'
-                      }`}>
-                      {stats.balanceAmount > 0 ? 'Saldo Devedor' : 'Crédito Disponível'}
-                    </p>
-                  </div>
-                  <div className={`h-6 w-6 rounded-lg flex items-center justify-center ${stats.balanceAmount > 0
-                    ? 'bg-red-500/10'
-                    : 'bg-green-500/10'
-                    }`}>
-                    <Wallet className={`h-3 w-3 ${stats.balanceAmount > 0 ? 'text-red-600' : 'text-green-600'
-                      }`} />
-                  </div>
-                </div>
-                {/* Segunda linha - Filtro e valor */}
-                <div className="space-y-1">
-                  <p className={`text-xs ${stats.balanceAmount > 0 ? 'text-red-600/80' : 'text-green-600/80'
-                    }`}>
-                    Histórico Completo
-                  </p>
-                  <p className={`text-lg font-bold ${stats.balanceAmount > 0 ? 'text-red-900' : 'text-green-900'
-                    }`}>
-                    {formatCurrency(Math.abs(stats.balanceAmount))}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Botões de Ação */}
-          <div className="border-t border-white/30 pt-6">
-            <div className="flex flex-wrap justify-end gap-3">
-              {/* Botão de Orçamento */}
-              <button
-                onClick={() => setIsBudgetModalOpen(true)}
-                className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-purple-200 hover:border-purple-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-md bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                    <Calculator className="h-3 w-3 text-purple-600" />
+        {/* Ações */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-3 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold text-slate-700">Ações Rápidas</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-2">
+            {/* Adicionar Pagamento */}
+            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full justify-start gap-3 h-10" size="sm">
+                  <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center shrink-0">
+                    <Plus className="h-3.5 w-3.5" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-semibold text-purple-700 group-hover:text-purple-800">Gerar Orçamento</p>
-                    <p className="text-xs text-purple-600/80 group-hover:text-purple-700">Criar orçamento</p>
+                    <p className="text-xs font-semibold leading-tight">Adicionar Pagamento</p>
+                  </div>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                <DialogTitle className="sr-only">Adicionar Pagamento à Ficha</DialogTitle>
+
+                {/* Loading Overlay */}
+                {isProcessingPayment && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
+                    <div className="text-center">
+                      <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
+                      <p className="mt-4 text-lg font-semibold text-orange-600">Processando pagamento...</p>
+                      <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
+                  <div className="relative p-6 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-orange-600" />
+                        Adicionar Pagamento à Ficha
+                      </h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Registre um pagamento para reduzir o saldo devedor do cliente
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setIsPaymentDialogOpen(false);
+                        setSelectedPaymentMethod("");
+                        setPaymentAmount("");
+                        setCashReceived("");
+                        setChange(0);
+                        setPaymentDate("");
+                      }}
+                      disabled={isProcessingPayment}
+                      className="h-10 w-10 rounded-full bg-white/60 hover:bg-white border border-gray-200 disabled:opacity-50"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
-              </button>
 
-              {/* Botão de Preset */}
-              <button
-                onClick={() => setIsPresetModalOpen(true)}
-                className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-green-200 hover:border-green-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-md bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                    <Package className="h-3 w-3 text-green-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-semibold text-green-700 group-hover:text-green-800">Presets de Produtos</p>
-                    <p className="text-xs text-green-600/80 group-hover:text-green-700">Configurar favoritos</p>
-                  </div>
-                </div>
-              </button>
-
-              {/* Botão de Relatório */}
-              <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-                <DialogTrigger asChild>
-                  <button className="group relative px-4 py-2.5 bg-white hover:bg-gray-50 border-2 border-blue-200 hover:border-blue-300 rounded-lg transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <div className="h-5 w-5 rounded-md bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                        <FileText className="h-3 w-3 text-blue-600" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-blue-700 group-hover:text-blue-800">Relatório de Fechamento</p>
-                        <p className="text-xs text-blue-600/80 group-hover:text-blue-700">Gerar relatório</p>
-                      </div>
-                    </div>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[90vh] overflow-hidden p-0 flex flex-col">
-                  <DialogTitle className="sr-only">Relatório de Fechamento</DialogTitle>
-
-                  {/* Header com gradiente */}
-                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-                    <div className="relative p-6 flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                          <Printer className="h-5 w-5 text-orange-600" />
-                          Relatório de Fechamento
-                        </h2>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Gere um relatório imprimível com o consumo e saldo do cliente por período
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setIsReportDialogOpen(false)}
-                        className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
-                      >
-                        <X className="h-6 w-6" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Conteúdo scrollável */}
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <label htmlFor="startDate" className="text-sm font-medium">
-                          Data Inicial
-                        </label>
+                {/* Conteúdo */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Valor do Pagamento</label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R$</span>
                         <Input
-                          id="startDate"
-                          type="date"
-                          value={reportStartDate}
-                          onChange={(e) => setReportStartDate(e.target.value)}
-                          max={reportEndDate || undefined}
-                          className="w-full"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentAmount}
+                          disabled={isProcessingPayment}
+                          onChange={(e) => { if (!isProcessingPayment) setPaymentAmount(e.target.value); }}
+                          placeholder="0,00"
+                          className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label htmlFor="endDate" className="text-sm font-medium">
-                          Data Final
-                        </label>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Data do Pagamento</label>
+                      <div className="relative mt-1">
                         <Input
-                          id="endDate"
                           type="date"
-                          value={reportEndDate}
-                          onChange={(e) => setReportEndDate(e.target.value)}
-                          min={reportStartDate || undefined}
-                          className="w-full"
+                          value={paymentDate}
+                          disabled={isProcessingPayment}
+                          onChange={(e) => { if (!isProcessingPayment) setPaymentDate(e.target.value); }}
+                          max={new Date().toISOString().split("T")[0]}
+                          className="text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                      </div>
-
-                      {/* Opções de impressão */}
-                      <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h3 className="text-sm font-semibold text-blue-800">Opções de Impressão</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <label htmlFor="showDebtBalance" className="text-sm font-medium text-gray-700">
-                                Mostrar Saldo Devedor
-                              </label>
-                              <p className="text-xs text-gray-500">Exibe o saldo devedor total do cliente</p>
-                            </div>
-                            <Switch
-                              id="showDebtBalance"
-                              checked={showDebtBalance}
-                              onCheckedChange={setShowDebtBalance}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <label htmlFor="showPeriodBalance" className="text-sm font-medium text-gray-700">
-                                Mostrar Saldo do Período
-                              </label>
-                              <p className="text-xs text-gray-500">Exibe o saldo pendente no período selecionado</p>
-                            </div>
-                            <Switch
-                              id="showPeriodBalance"
-                              checked={showPeriodBalance}
-                              onCheckedChange={setShowPeriodBalance}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <label htmlFor="showPaymentsTotal" className="text-sm font-medium text-gray-700">
-                                Mostrar Total de Pagamentos
-                              </label>
-                              <p className="text-xs text-gray-500">Exibe o total de pagamentos realizados no período</p>
-                            </div>
-                            <Switch
-                              id="showPaymentsTotal"
-                              checked={showPaymentsTotal}
-                              onCheckedChange={setShowPaymentsTotal}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-600">Período pré-definido:</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDefaultDates()}
-                          className="text-xs"
-                        >
-                          Últimos 30 dias
-                        </Button>
                       </div>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500">Deixe a data em branco para usar a data atual</p>
 
-                  {/* Rodapé */}
-                  <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-                    <div className="space-y-3">
-                      {/* Botões de ação */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Formas de Pagamento</h3>
                       <div className="grid grid-cols-2 gap-3">
-                        <Button
-                          onClick={generateThermalReport}
-                          disabled={!reportStartDate || !reportEndDate}
-                          variant="outline"
-                          className="py-3 rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 transition-all disabled:opacity-50"
-                        >
-                          <Printer className="h-4 w-4 mr-2" />
-                          Térmica
-                        </Button>
-                        <Button
-                          onClick={generateReport}
-                          disabled={!reportStartDate || !reportEndDate}
-                          className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 transition-all disabled:opacity-50"
-                        >
-                          <Printer className="h-4 w-4 mr-2" />
-                          Completo
-                        </Button>
+                        {[
+                          { label: "Dinheiro", value: "cash", icon: Banknote },
+                          { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                          { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                          { label: "PIX", value: "pix", icon: QrCode },
+                        ].map((method) => {
+                          const Icon = method.icon;
+                          return (
+                            <Button
+                              key={method.value}
+                              variant={selectedPaymentMethod === method.value ? "default" : "outline"}
+                              disabled={isProcessingPayment}
+                              className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                              onClick={() => { if (!isProcessingPayment) setSelectedPaymentMethod(method.value); }}
+                            >
+                              <Icon className="h-6 w-6" />
+                              <span className="text-sm font-medium">{method.label}</span>
+                            </Button>
+                          );
+                        })}
                       </div>
+                    </div>
 
-                      {/* Envio por Email */}
-                      {customer?.email ? (
-                        <PDFGeneratorComponent
-                          customerId={customer.id}
-                          startDate={reportStartDate || ''}
-                          endDate={reportEndDate || ''}
-                          customerName={customer.name}
-                          showSendButton={true}
-                          onSendEmail={() => {
-                            showToast("Relatório com PDF enviado por email!", "success");
-                            setIsReportDialogOpen(false);
-                          }}
-                        />
+                    <div className="transition-all duration-300 ease-in-out">
+                      {selectedPaymentMethod ? (
+                        <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                          <div className="mb-3 p-3 bg-background rounded-full">
+                            {(() => {
+                              const method = [
+                                { label: "Dinheiro", value: "cash", icon: Banknote },
+                                { label: "Cartão Débito", value: "debit", icon: CreditCard },
+                                { label: "Cartão Crédito", value: "credit", icon: CreditCard },
+                                { label: "PIX", value: "pix", icon: QrCode },
+                              ].find((m) => m.value === selectedPaymentMethod);
+                              const Icon = method?.icon;
+                              return Icon ? <Icon className="h-8 w-8 text-primary" /> : null;
+                            })()}
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2">
+                            Pagamento com {selectedPaymentMethod === "cash" ? "Dinheiro" : selectedPaymentMethod === "debit" ? "Cartão Débito" : selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"}
+                          </h3>
+                          <p className="text-muted-foreground">
+                            O valor do pagamento é{" "}
+                            <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>.
+                            Confirme os dados e clique em &quot;Registrar Pagamento&quot; para concluir.
+                          </p>
+                        </div>
                       ) : (
-                        <div className="w-full py-3 flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200">
-                          <span className="text-sm text-gray-500 font-medium">
-                            📧 Cliente sem email cadastrado
-                          </span>
+                        <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                          <div className="space-y-3">
+                            <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
+                            <h3 className="text-lg font-medium">Selecione uma forma de pagamento</h3>
+                            <p className="text-sm text-muted-foreground">Escolha uma das opções ao lado para prosseguir com o pagamento.</p>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
+                </div>
 
-              {/* Botão de Pagamento - Principal */}
-              <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogTrigger asChild>
-                  <button className="group relative px-5 py-2.5 bg-primary hover:bg-primary/90 border-2 border-primary/20 hover:border-primary/40 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <div className="h-5 w-5 rounded-md bg-white/20 flex items-center justify-center">
-                        <Plus className="h-3 w-3 text-white" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-white">Adicionar Pagamento</p>
-                        <p className="text-xs text-white/90">Registrar na ficha</p>
-                      </div>
-                    </div>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
-                  <DialogTitle className="sr-only">Adicionar Pagamento à Ficha</DialogTitle>
-
-                  {/* Loading Overlay */}
-                  {isProcessingPayment && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
-                      <div className="text-center">
-                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent"></div>
-                        <p className="mt-4 text-lg font-semibold text-orange-600">Processando pagamento...</p>
-                        <p className="text-sm text-gray-600 mt-1">Por favor, aguarde</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Header com gradiente */}
-                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-                    <div className="relative p-6 flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                          <Wallet className="h-5 w-5 text-orange-600" />
-                          Adicionar Pagamento à Ficha
-                        </h2>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Registre um pagamento para reduzir o saldo devedor do cliente
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
+                {/* Rodapé */}
+                <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      disabled={isProcessingPayment}
+                      onClick={() => {
+                        if (!isProcessingPayment) {
                           setIsPaymentDialogOpen(false);
                           setSelectedPaymentMethod("");
                           setPaymentAmount("");
                           setCashReceived("");
                           setChange(0);
                           setPaymentDate("");
-                        }}
-                        disabled={isProcessingPayment}
-                        className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105 disabled:opacity-50"
-                      >
-                        <X className="h-6 w-6" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Conteúdo scrollável */}
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {/* Valor e Data do Pagamento na mesma linha */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">
-                          Valor do Pagamento
-                        </label>
-                        <div className="relative mt-1">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                            R$
-                          </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={paymentAmount}
-                            disabled={isProcessingPayment}
-                            onChange={(e) => {
-                              if (!isProcessingPayment) {
-                                setPaymentAmount(e.target.value);
-                              }
-                            }}
-                            placeholder="0,00"
-                            className="pl-10 text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">
-                          Data do Pagamento
-                        </label>
-                        <div className="relative mt-1">
-                          <Input
-                            type="date"
-                            value={paymentDate}
-                            disabled={isProcessingPayment}
-                            onChange={(e) => {
-                              if (!isProcessingPayment) {
-                                setPaymentDate(e.target.value);
-                              }
-                            }}
-                            max={new Date().toISOString().split('T')[0]}
-                            className="text-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-500">
-                      Deixe a data em branco para usar a data atual
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Formas de pagamento */}
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4">
-                          Formas de Pagamento
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { label: "Dinheiro", value: "cash", icon: Banknote },
-                            { label: "Cartão Débito", value: "debit", icon: CreditCard },
-                            { label: "Cartão Crédito", value: "credit", icon: CreditCard },
-                            { label: "PIX", value: "pix", icon: QrCode },
-                          ].map((method) => (
-                            <Button
-                              key={method.value}
-                              variant={
-                                selectedPaymentMethod === method.value ? "default" : "outline"
-                              }
-                              disabled={isProcessingPayment}
-                              className="h-20 flex flex-col items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                              onClick={() => {
-                                if (!isProcessingPayment) {
-                                  setSelectedPaymentMethod(method.value);
-                                }
-                              }}
-                            >
-                              <method.icon className="h-6 w-6" />
-                              <span className="text-sm font-medium">{method.label}</span>
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Detalhes do pagamento */}
-                      <div className="transition-all duration-300 ease-in-out">
-                        {selectedPaymentMethod ? (
-                          <div className="bg-muted rounded-xl p-5 h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="mb-3 p-3 bg-background rounded-full">
-                              {(() => {
-                                const method = [
-                                  { label: "Dinheiro", value: "cash", icon: Banknote },
-                                  { label: "Cartão Débito", value: "debit", icon: CreditCard },
-                                  { label: "Cartão Crédito", value: "credit", icon: CreditCard },
-                                  { label: "PIX", value: "pix", icon: QrCode },
-                                ].find((m) => m.value === selectedPaymentMethod);
-
-                                return method ? (
-                                  <method.icon className="h-8 w-8 text-primary" />
-                                ) : null;
-                              })()}
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">
-                              Pagamento com {
-                                selectedPaymentMethod === "cash" ? "Dinheiro" :
-                                  selectedPaymentMethod === "debit" ? "Cartão Débito" :
-                                    selectedPaymentMethod === "credit" ? "Cartão Crédito" : "PIX"
-                              }
-                            </h3>
-                            <p className="text-muted-foreground">
-                              O valor do pagamento é{" "}
-                              <span className="font-bold">R$ {parseFloat(paymentAmount || "0").toFixed(2)}</span>
-                              . Confirme os dados e clique em "Registrar Pagamento" para concluir.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="bg-muted rounded-xl p-5 h-full flex items-center justify-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="space-y-3">
-                              <Wallet className="h-10 w-10 text-muted-foreground mx-auto" />
-                              <h3 className="text-lg font-medium">
-                                Selecione uma forma de pagamento
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                Escolha uma das opções ao lado para prosseguir com o
-                                pagamento.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rodapé */}
-                  <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        variant="outline"
-                        disabled={isProcessingPayment}
-                        onClick={() => {
-                          if (!isProcessingPayment) {
-                            setIsPaymentDialogOpen(false);
-                            setSelectedPaymentMethod("");
-                            setPaymentAmount("");
-                            setCashReceived("");
-                            setChange(0);
-                            setPaymentDate("");
-                          }
-                        }}
-                        className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        onClick={handleFichaPayment}
-                        disabled={
-                          isProcessingPayment ||
-                          !paymentAmount ||
-                          (parseFloat(paymentAmount) <= 0) ||
-                          !selectedPaymentMethod
                         }
-                        className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isProcessingPayment ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
-                            Processando...
-                          </span>
-                        ) : (
-                          "Registrar Pagamento"
-                        )}
-                      </Button>
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleFichaPayment}
+                      disabled={isProcessingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0 || !selectedPaymentMethod}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      {isProcessingPayment ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                          Processando...
+                        </span>
+                      ) : (
+                        "Registrar Pagamento"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Gerar Orçamento */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-3 h-10 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300"
+              onClick={() => setIsBudgetModalOpen(true)}
+            >
+              <div className="h-6 w-6 rounded-md bg-purple-100 flex items-center justify-center shrink-0">
+                <Calculator className="h-3.5 w-3.5 text-purple-600" />
+              </div>
+              <p className="text-xs font-semibold leading-tight">Gerar Orçamento</p>
+            </Button>
+
+            {/* Presets de Produtos */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-3 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
+              onClick={() => setIsPresetModalOpen(true)}
+            >
+              <div className="h-6 w-6 rounded-md bg-emerald-100 flex items-center justify-center shrink-0">
+                <Package className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+              <p className="text-xs font-semibold leading-tight">Presets de Produtos</p>
+            </Button>
+
+            {/* Relatório de Fechamento */}
+            <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-3 h-10 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                >
+                  <div className="h-6 w-6 rounded-md bg-blue-100 flex items-center justify-center shrink-0">
+                    <FileText className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <p className="text-xs font-semibold leading-tight">Relatório de Fechamento</p>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md max-h-[90vh] overflow-hidden p-0 flex flex-col">
+                <DialogTitle className="sr-only">Relatório de Fechamento</DialogTitle>
+
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
+                  <div className="p-6 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <Printer className="h-5 w-5 text-orange-600" />
+                        Relatório de Fechamento
+                      </h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Gere um relatório imprimível com o consumo e saldo do cliente por período
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsReportDialogOpen(false)}
+                      className="h-10 w-10 rounded-full bg-white/60 hover:bg-white border border-gray-200"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="startDate" className="text-sm font-medium">Data Inicial</label>
+                      <Input id="startDate" type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} max={reportEndDate || undefined} className="w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="endDate" className="text-sm font-medium">Data Final</label>
+                      <Input id="endDate" type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} min={reportStartDate || undefined} className="w-full" />
+                    </div>
+
+                    <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h3 className="text-sm font-semibold text-blue-800">Opções de Impressão</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <label htmlFor="showDebtBalance" className="text-sm font-medium text-gray-700">Mostrar Saldo Devedor</label>
+                            <p className="text-xs text-gray-500">Exibe o saldo devedor total do cliente</p>
+                          </div>
+                          <Switch id="showDebtBalance" checked={showDebtBalance} onCheckedChange={setShowDebtBalance} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <label htmlFor="showPeriodBalance" className="text-sm font-medium text-gray-700">Mostrar Saldo do Período</label>
+                            <p className="text-xs text-gray-500">Exibe o saldo pendente no período selecionado</p>
+                          </div>
+                          <Switch id="showPeriodBalance" checked={showPeriodBalance} onCheckedChange={setShowPeriodBalance} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <label htmlFor="showPaymentsTotal" className="text-sm font-medium text-gray-700">Mostrar Total de Pagamentos</label>
+                            <p className="text-xs text-gray-500">Exibe o total de pagamentos realizados no período</p>
+                          </div>
+                          <Switch id="showPaymentsTotal" checked={showPaymentsTotal} onCheckedChange={setShowPaymentsTotal} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-600">Período pré-definido:</span>
+                      <Button variant="outline" size="sm" onClick={() => setDefaultDates()} className="text-xs">Últimos 30 dias</Button>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </div>
+                </div>
+
+                <div className="border-t border-gray-200 p-6 bg-gray-50/50">
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button onClick={generateThermalReport} disabled={!reportStartDate || !reportEndDate} variant="outline" className="rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 disabled:opacity-50">
+                        <Printer className="h-4 w-4 mr-2" />Térmica
+                      </Button>
+                      <Button onClick={generateReport} disabled={!reportStartDate || !reportEndDate} className="rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                        <Printer className="h-4 w-4 mr-2" />Completo
+                      </Button>
+                    </div>
+                    {customer?.email ? (
+                      <PDFGeneratorComponent
+                        customerId={customer.id}
+                        startDate={reportStartDate || ""}
+                        endDate={reportEndDate || ""}
+                        customerName={customer.name}
+                        showSendButton={true}
+                        onSendEmail={() => {
+                          showToast("Relatório com PDF enviado por email!", "success");
+                          setIsReportDialogOpen(false);
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full py-3 flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200">
+                        <span className="text-sm text-gray-500 font-medium">📧 Cliente sem email cadastrado</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Histórico de Compras */}
-      <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-lg">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* ── Histórico de Compras ──────────────────────────────────── */}
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-900">
+              <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-slate-500" />
                 Histórico de Compras
               </CardTitle>
-              <CardDescription>
-                Exibindo {paginatedOrders.length} de {filteredOrders.length} compra{filteredOrders.length !== 1 ? "s" : ""}
-                {filteredOrders.length !== orders.filter(order => !(order.type === "ficha_payment" || order.paymentMethod === "ficha_payment")).length &&
-                  ` (${orders.filter(order => !(order.type === "ficha_payment" || order.paymentMethod === "ficha_payment")).length} total)`
+              <CardDescription className="mt-0.5">
+                Exibindo {paginatedOrders.length} de {filteredOrders.length} registro{filteredOrders.length !== 1 ? "s" : ""}
+                {filteredOrders.length !== orders.filter(o => !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")).length &&
+                  ` (${orders.filter(o => !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")).length} total)`
                 }
                 {orderFilter !== "all" && (
-                  <span className="text-blue-600 ml-2">
-                    • Filtro ativo: {orderFilter === "current-month" ? "Mês Atual" :
-                      orderFilter === "previous-month" ? "Mês Anterior" : "Personalizado"}
+                  <span className="text-primary ml-2">
+                    • {orderFilter === "current-month" ? "Mês Atual" : orderFilter === "previous-month" ? "Mês Anterior" : "Personalizado"}
                   </span>
                 )}
               </CardDescription>
             </div>
 
             {/* Filtros */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Filtrar por:</label>
-                <select
-                  value={orderFilter}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                >
-                  <option value="all">Todos os Pedidos</option>
-                  <option value="current-month">Mês Atual</option>
-                  <option value="previous-month">Mês Anterior</option>
-                  <option value="custom">Filtro Personalizado</option>
-                </select>
-              </div>
-
-              {orderFilter !== "all" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFilterChange("all")}
-                  className="text-xs h-8 px-3"
-                >
-                  Limpar Filtros
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={orderFilter}
+                onChange={(e) => handleFilterChange(e.target.value)}
+                className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="all">Todos os Pedidos</option>
+                <option value="current-month">Mês Atual</option>
+                <option value="previous-month">Mês Anterior</option>
+                <option value="custom">Personalizado</option>
+              </select>
 
               {orderFilter === "custom" && (
-                <div className="flex items-center gap-2">
+                <>
                   <Input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="text-sm w-36"
-                    placeholder="Data inicial"
+                    className="w-36 text-sm"
                   />
-                  <span className="text-gray-500 text-sm">até</span>
+                  <span className="text-slate-400 text-sm">até</span>
                   <Input
                     type="date"
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="text-sm w-36"
-                    placeholder="Data final"
+                    className="w-36 text-sm"
                   />
-                </div>
+                </>
+              )}
+
+              {orderFilter !== "all" && (
+                <Button variant="outline" size="sm" onClick={() => handleFilterChange("all")} className="text-xs">
+                  Limpar
+                </Button>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="p-0">
           {filteredOrders.length > 0 ? (
-            <div className="space-y-4">
+            <>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Pedido
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Itens
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Valor
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Pagamento
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Data
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">
-                        Ações
-                      </th>
+                    <tr className="border-y border-slate-100 bg-slate-50/60">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Pedido</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Itens</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Valor</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Pagamento</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Data</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide w-16"></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {paginatedOrders.map((order) => (
-                      <tr
-                        key={order.id}
-                        className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${order.type === "ficha_payment" || order.paymentMethod === "ficha_payment"
-                          ? "bg-green-50/80 hover:bg-green-100/80"
-                          : ""
-                          }`}
-                      >
-                        <td className="py-4 px-4">
-                          <div className="font-mono text-sm text-gray-600">
-                            #{order.id.slice(0, 8)}
-                          </div>
-                        </td>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedOrders.map((order) => {
+                      const isFichaPayment = order.type === "ficha_payment" || order.paymentMethod === "ficha_payment";
+                      return (
+                        <tr
+                          key={order.id}
+                          className={cn(
+                            "hover:bg-slate-50/70 transition-colors",
+                            isFichaPayment ? "bg-emerald-50/40" : ""
+                          )}
+                        >
+                          {/* Pedido */}
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                              #{order.id.slice(0, 8)}
+                            </span>
+                          </td>
 
-                        <td className="py-4 px-4">
-                          {/* Debug information - remove this in production */}
-                          {/* <div className="text-xs text-gray-500">
-                          Type: {order.type || 'N/A'}, PaymentMethod: {order.paymentMethod || 'N/A'}
-                        </div> */}
-                          {order.type === "ficha_payment" || order.paymentMethod === "ficha_payment" ? (
-                            <div className="flex items-center gap-2">
-                              {(() => {
-                                const Icon = getPaymentMethodIcon(
-                                  order.paymentMethod
-                                );
-                                return Icon ? (
-                                  <div className="flex items-center justify-center h-6 w-6 rounded-md bg-green-100">
-                                    <Icon className="h-4 w-4 text-green-700" />
-                                  </div>
-                                ) : null;
-                              })()}
-                              <span className="text-sm text-gray-700">
-                                Entrada de Valores
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700">
-                                {order.items.length} item
-                                {order.items.length !== 1 ? "s" : ""}
+                          {/* Itens */}
+                          <td className="py-3.5 px-4 max-w-[260px]">
+                            {isFichaPayment ? (
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                                  <Wallet className="h-3 w-3" />Entrada de Valores
+                                </span>
                               </div>
-                              <div className="text-xs text-gray-500 space-y-1 max-w-xs">
-                                {order.items.map((item, idx) => (
-                                  <div key={idx} className="truncate">
-                                    {item.weightKg && Number(item.weightKg) > 0 ? (
-                                      <>
-                                        {Number(item.weightKg).toFixed(3)} kg × {item.product.name}
-                                        {item.product.pricePerKgCents && (
-                                          <span className="text-gray-400"> (R$ {(item.product.pricePerKgCents / 100).toFixed(2)}/kg)</span>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <>
-                                        {item.quantity}x {item.product.name}
-                                        {item.priceCents > 0 && (
-                                          <span className="text-gray-400"> (R$ {(item.priceCents / 100).toFixed(2)})</span>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <div className="font-medium text-gray-900">
-                            {formatCurrency(order.totalCents)}
-                          </div>
-                          {order.discountCents > 0 && (
-                            <div className="text-xs text-red-600 font-medium">
-                              Desconto: -{formatCurrency(order.discountCents)}
-                            </div>
-                          )}
-                          {order.subtotalCents > 0 && order.discountCents > 0 && (
-                            <div className="text-xs text-gray-500">
-                              Subtotal: {formatCurrency(order.subtotalCents)}
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-center">
-                            {(() => {
-                              const Icon = getPaymentMethodIcon(
-                                order.paymentMethod
-                              );
-                              return Icon ? (
-                                <Icon className="h-5 w-5 text-gray-700" />
-                              ) : (
-                                <div className="text-sm text-gray-700">
-                                  {getPaymentMethodLabel(order.paymentMethod)}
+                            ) : (
+                              <div>
+                                <p className="text-slate-700 font-medium text-xs mb-0.5">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                                <div className="space-y-0.5">
+                                  {order.items.map((item, idx) => (
+                                    <p key={idx} className="text-xs text-slate-400 truncate">
+                                      {item.weightKg && Number(item.weightKg) > 0
+                                        ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                                        : `${item.quantity}× ${item.product.name}`}
+                                    </p>
+                                  ))}
                                 </div>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Valor */}
+                          <td className="py-3.5 px-4">
+                            <p className="font-semibold text-slate-900">{formatCurrency(order.totalCents)}</p>
+                            {order.discountCents > 0 && (
+                              <p className="text-xs text-red-500">-{formatCurrency(order.discountCents)}</p>
+                            )}
+                          </td>
+
+                          {/* Pagamento */}
+                          <td className="py-3.5 px-4 text-center">
+                            {(() => {
+                              const Icon = getPaymentMethodIcon(order.paymentMethod);
+                              const label = getPaymentMethodLabel(order.paymentMethod);
+                              return Icon ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <Icon className="h-4 w-4 text-slate-500" />
+                                  <span className="text-[10px] text-slate-400">{label}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-500">{label}</span>
                               );
                             })()}
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="py-4 px-4">
-                          <Badge
-                            className={`${getStatusInfo(order.status).color
-                              } border px-2 py-1 rounded-full text-xs font-medium`}
-                          >
-                            {getStatusInfo(order.status).label}
-                          </Badge>
-                        </td>
+                          {/* Status */}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                              getStatusInfo(order.status).color
+                            )}>
+                              {getStatusInfo(order.status).label}
+                            </span>
+                          </td>
 
-                        <td className="py-4 px-4">
-                          <div className="text-sm text-gray-700">
-                            {formatDate(order.createdAt)}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDeleteDialog(order.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Excluir venda"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          {/* Data */}
+                          <td className="py-3.5 px-4">
+                            <p className="text-xs text-slate-600 whitespace-nowrap">{formatDate(order.createdAt)}</p>
+                          </td>
+
+                          {/* Ações */}
+                          <td className="py-3.5 px-4 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openDeleteDialog(order.id)}
+                              className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {/* Controles de Paginação */}
+              {/* Paginação */}
               {filteredOrders.length > itemsPerPage && (
-                <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span>
-                      Página {currentPage} de {Math.ceil(filteredOrders.length / itemsPerPage)}
-                    </span>
-                    <span className="text-gray-400">•</span>
-                    <span>
-                      {filteredOrders.length} item{filteredOrders.length !== 1 ? "s" : ""} total
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="h-8 px-3"
-                    >
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+                  <p className="text-xs text-slate-500">
+                    Página {currentPage} de {Math.ceil(filteredOrders.length / itemsPerPage)} · {filteredOrders.length} registros
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="h-7 px-2.5 text-xs">
                       Anterior
                     </Button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(filteredOrders.length / itemsPerPage) }, (_, i) => i + 1)
-                        .filter(page => {
-                          // Mostrar apenas algumas páginas ao redor da atual
-                          const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-                          if (totalPages <= 7) return true;
-                          if (page === 1 || page === totalPages) return true;
-                          if (page >= currentPage - 1 && page <= currentPage + 1) return true;
-                          return false;
-                        })
-                        .map((page, index, array) => (
-                          <div key={page} className="flex items-center">
-                            {index > 0 && array[index - 1] !== page - 1 && (
-                              <span className="px-2 text-gray-400">...</span>
-                            )}
-                            <Button
-                              variant={currentPage === page ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setCurrentPage(page)}
-                              className="h-8 w-8 p-0"
-                            >
-                              {page}
-                            </Button>
-                          </div>
-                        ))}
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredOrders.length / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(filteredOrders.length / itemsPerPage)}
-                      className="h-8 px-3"
-                    >
+                    {Array.from({ length: Math.ceil(filteredOrders.length / itemsPerPage) }, (_, i) => i + 1)
+                      .filter(page => {
+                        const total = Math.ceil(filteredOrders.length / itemsPerPage);
+                        if (total <= 7) return true;
+                        if (page === 1 || page === total) return true;
+                        if (page >= currentPage - 1 && page <= currentPage + 1) return true;
+                        return false;
+                      })
+                      .map((page, index, arr) => (
+                        <div key={page} className="flex items-center">
+                          {index > 0 && arr[index - 1] !== page - 1 && <span className="px-1 text-slate-400 text-xs">…</span>}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="h-7 w-7 p-0 text-xs"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      ))}
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredOrders.length / itemsPerPage), prev + 1))} disabled={currentPage === Math.ceil(filteredOrders.length / itemsPerPage)} className="h-7 px-2.5 text-xs">
                       Próxima
                     </Button>
                   </div>
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-16">
+              <Package className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">
                 {orders.length === 0 ? "Nenhuma compra registrada" : "Nenhuma compra encontrada"}
               </h3>
-              <p className="text-gray-600">
+              <p className="text-xs text-slate-500">
                 {orders.length === 0
                   ? "Este cliente ainda não realizou nenhuma compra."
-                  : "Nenhuma compra encontrada para o período selecionado."
-                }
+                  : "Nenhuma compra encontrada para o período selecionado."}
               </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Modal de Orçamento */}
-      <BudgetModal
-        isOpen={isBudgetModalOpen}
-        onClose={() => setIsBudgetModalOpen(false)}
-        customerId={customer.id}
-        customerName={customer.name}
-      />
+      {/* Modais */}
+      {customer && (
+        <BudgetModal
+          isOpen={isBudgetModalOpen}
+          onClose={() => setIsBudgetModalOpen(false)}
+          customerId={customer.id}
+          customerName={customer.name}
+        />
+      )}
 
-      {/* Modal de Presets de Produtos */}
-      <CustomerPresetModal
-        isOpen={isPresetModalOpen}
-        onClose={() => setIsPresetModalOpen(false)}
-        customerId={customer.id}
-        customerName={customer.name}
-      />
+      {customer && (
+        <CustomerPresetModal
+          isOpen={isPresetModalOpen}
+          onClose={() => setIsPresetModalOpen(false)}
+          customerId={customer.id}
+          customerName={customer.name}
+        />
+      )}
 
-      {/* Modal de Confirmação de Exclusão */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
