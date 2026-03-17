@@ -1777,7 +1777,7 @@ export default function ExpensesPage() {
                             </Badge>
                           </td>
                           <td className="px-6 py-4">
-                            <Badge variant="subtle" className="text-xs">
+                            <Badge className="text-xs bg-slate-100 text-slate-800 hover:bg-slate-200">
                               {expense.supplierType.name}
                             </Badge>
                           </td>
@@ -1992,7 +1992,7 @@ export default function ExpensesPage() {
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">Fornecedor</span>
-                  <Badge variant="subtle" className="text-xs">
+                  <Badge className="text-xs bg-slate-100 text-slate-800 hover:bg-slate-200">
                     {selectedExpense.supplierType.name}
                   </Badge>
                 </div>

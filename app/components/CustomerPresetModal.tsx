@@ -361,7 +361,7 @@ export function CustomerPresetModal({
                             </div>
                           ) : (
                             <div className="flex items-center gap-1">
-                              <Badge variant="subtle" className="text-xs h-5 px-1">
+                              <Badge className="text-xs h-5 px-1 bg-slate-100 text-slate-800 hover:bg-slate-200">
                                 {preset.quantity}
                               </Badge>
                               <Button

@@ -1150,7 +1150,7 @@ export default function PDVPage() {
               <ShoppingCart className="h-4 w-4 text-primary" />
               <span>Carrinho</span>
             </div>
-            <Badge variant="subtle">Itens: {cart.length}</Badge>
+            <Badge className="bg-slate-100 text-slate-800 hover:bg-slate-200">Itens: {cart.length}</Badge>
           </div>
 
           <CustomerSelector
