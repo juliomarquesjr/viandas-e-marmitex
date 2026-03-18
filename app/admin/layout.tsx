@@ -66,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </header>
 
             {/* Page Content */}
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 overflow-auto" style={{ scrollbarGutter: 'stable' }}>
               <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">
                 {children}
               </div>

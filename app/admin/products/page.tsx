@@ -515,6 +515,17 @@ export default function AdminProductsPage() {
     });
   }, [products, searchTerm, statusFilter, typeFilter]);
 
+  const totalFilteredPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / itemsPerPage) || 1
+  );
+
+  React.useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
+    }
+  }, [currentPage, totalFilteredPages]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -617,7 +628,10 @@ export default function AdminProductsPage() {
                 pageSize: itemsPerPage,
                 total: filteredProducts.length,
                 onPageChange: setCurrentPage,
-                onPageSizeChange: setItemsPerPage,
+                onPageSizeChange: (size) => {
+                  setItemsPerPage(size);
+                  setCurrentPage(1);
+                },
               }}
             />
           )}

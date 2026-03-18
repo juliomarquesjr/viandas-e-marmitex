@@ -187,17 +187,38 @@ export function DataTable<T extends Record<string, any>>({
     [rowKey]
   );
 
-  // Handlers de seleção
+  /**
+   * Dados exibidos na tabela.
+   * - Sem paginação: lista completa.
+   * - Com paginação e data.length === total: todos os registros vieram no array (cliente) → fatiar.
+   * - Com paginação e data.length !== total: lista já vem fatiada (ex.: API) → não fatiar de novo.
+   */
+  const displayData = React.useMemo(() => {
+    if (!pagination || pagination.total === 0) return data;
+    if (data.length !== pagination.total) return data;
+    const { page, pageSize, total } = pagination;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const start = (safePage - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, pagination]);
+
+  // Handlers de seleção (marca/desmarca só a página visível quando há fatiamento local)
   const handleSelectAll = React.useCallback(() => {
-    if (selected.size === data.length) {
-      onSelectionChange?.(new Set());
-      setInternalSelectedRows(new Set());
+    const scopeKeys = displayData.map(getRowKey);
+    const allOnPageSelected = scopeKeys.length > 0 && scopeKeys.every((k) => selected.has(k));
+    if (allOnPageSelected) {
+      const next = new Set(selected);
+      scopeKeys.forEach((k) => next.delete(k));
+      onSelectionChange?.(next);
+      setInternalSelectedRows(next);
     } else {
-      const allKeys = new Set(data.map(getRowKey));
-      onSelectionChange?.(allKeys);
-      setInternalSelectedRows(allKeys);
+      const next = new Set(selected);
+      scopeKeys.forEach((k) => next.add(k));
+      onSelectionChange?.(next);
+      setInternalSelectedRows(next);
     }
-  }, [data, selected, getRowKey, onSelectionChange]);
+  }, [displayData, selected, getRowKey, onSelectionChange]);
 
   const handleSelectRow = React.useCallback(
     (key: string) => {
@@ -223,13 +244,16 @@ export function DataTable<T extends Record<string, any>>({
     [sortConfig, onSort]
   );
 
-  // Verificar se tem seleção
+  // Verificar se tem seleção (na página visível quando há fatiamento local)
   const hasSelection = onSelectionChange !== undefined || selectedRows !== undefined;
-  const allSelected = data.length > 0 && selected.size === data.length;
-  const someSelected = selected.size > 0 && selected.size < data.length;
+  const selectionScope = displayData;
+  const allSelected =
+    selectionScope.length > 0 && selectionScope.every((row) => selected.has(getRowKey(row)));
+  const someSelected =
+    selectionScope.some((row) => selected.has(getRowKey(row))) && !allSelected;
 
   // Calcular paginação
-  const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 1;
+  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pagination.pageSize)) : 1;
   const startItem = pagination ? (pagination.page - 1) * pagination.pageSize + 1 : 1;
   const endItem = pagination ? Math.min(pagination.page * pagination.pageSize, pagination.total) : data.length;
 
@@ -319,7 +343,7 @@ export function DataTable<T extends Record<string, any>>({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => {
+              displayData.map((row, index) => {
                 const key = getRowKey(row);
                 const isSelected = selected.has(key);
                 const isHighlighted = highlightedRows?.has(key);
