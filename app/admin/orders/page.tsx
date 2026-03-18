@@ -5,7 +5,6 @@ import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
 import { OrderSummaryModal } from "@/app/components/OrderSummaryModal";
 import { SalesFilter } from "@/app/components/sales/SalesFilter";
-import { SalesAnalysisModal } from "@/app/components/SalesAnalysisModal";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
@@ -25,7 +24,6 @@ import {
   Package,
   Printer,
   QrCode,
-  Receipt,
   Trash2,
   Truck,
   User,
@@ -34,7 +32,6 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
@@ -304,7 +301,6 @@ export default function AdminOrdersPage() {
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderSummaryModalOpen, setOrderSummaryModalOpen] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -674,31 +670,6 @@ export default function AdminOrdersPage() {
       {/* Stats Cards */}
       <OrderStatsCards orders={allOrders} />
 
-      {/* Analysis Card */}
-      <Card variant="elevated">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-blue-50">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">
-                  Análise Detalhada das Vendas
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Visualize a desagregação completa com explicações detalhadas
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => setShowDetailsModal(true)}>
-              <Receipt className="h-4 w-4 mr-2" />
-              Análise Detalhada
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Filters */}
       <Card variant="outline">
         <CardContent className="p-4">
@@ -852,14 +823,6 @@ export default function AdminOrdersPage() {
         onOpenChange={setOrderDetailsModalOpen}
         order={selectedOrder}
         onPrint={printThermalReceipt}
-      />
-
-      <SalesAnalysisModal
-        isOpen={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        allOrders={allOrders}
-        totalOrders={totalOrders}
-        filters={filters}
       />
 
       <DeleteConfirmDialog
