@@ -41,6 +41,7 @@ model Customer {
   barcode    String?  @unique // Código de barras para identificação rápida no PDV
   password   String?  // Senha para acesso ao app mobile (hash bcrypt)
   address    Json?    // Endereço em formato JSON
+  imageUrl   String?  // URL da foto do cliente no Vercel Blob
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

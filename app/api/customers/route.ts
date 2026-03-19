@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@/lib/generated/prisma';
+import { del } from '@vercel/blob';
 
 export async function GET(request: Request) {
   try {
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
         barcode: body.barcode,
         password: hashedPassword,
         address: body.address ? JSON.parse(JSON.stringify(body.address)) : undefined,
+        imageUrl: body.imageUrl || null,
         active: body.active !== undefined ? body.active : true
       }
     });
@@ -200,6 +202,14 @@ export async function PUT(request: Request) {
       }
     }
     
+    // Limpar imagem antiga do Vercel Blob se uma nova foi enviada
+    if (data.imageUrl !== undefined) {
+      const existing = await prisma.customer.findUnique({ where: { id }, select: { imageUrl: true } });
+      if (existing?.imageUrl && existing.imageUrl !== data.imageUrl && existing.imageUrl.includes('blob.vercel-storage.com')) {
+        try { await del(existing.imageUrl); } catch {}
+      }
+    }
+
     // Preparar dados de atualização
     const updateData: any = {
       name: data.name,
@@ -208,6 +218,7 @@ export async function PUT(request: Request) {
       doc: data.doc,
       barcode: data.barcode,
       address: data.address ? JSON.parse(JSON.stringify(data.address)) : undefined,
+      imageUrl: data.imageUrl !== undefined ? data.imageUrl : undefined,
       active: data.active !== undefined ? data.active : true
     };
     
@@ -295,6 +306,9 @@ export async function DELETE(request: Request) {
       );
     }
     
+    // Buscar cliente para limpar imagem do Vercel Blob antes de excluir
+    const customerToDelete = await prisma.customer.findUnique({ where: { id }, select: { imageUrl: true } });
+
     // Se não tiver pedidos ou pré-pedidos, podemos excluir o cliente e todos os registros relacionados
     await prisma.$transaction(async (prisma) => {
       // Desativar todos os presets do cliente (em vez de excluir)
@@ -309,6 +323,11 @@ export async function DELETE(request: Request) {
       });
     });
     
+    // Remover imagem do Vercel Blob se existir
+    if (customerToDelete?.imageUrl?.includes('blob.vercel-storage.com')) {
+      try { await del(customerToDelete.imageUrl); } catch {}
+    }
+
     return NextResponse.json({ message: 'Cliente excluído com sucesso' });
   } catch (error) {
     console.error('Error deleting customer:', error);

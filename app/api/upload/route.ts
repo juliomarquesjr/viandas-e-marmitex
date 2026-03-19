@@ -6,18 +6,19 @@ import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 
 // Function to generate hash-based filename
-function generateHashedFilename(originalName: string, fileBuffer: Buffer): string {
+function generateHashedFilename(originalName: string, fileBuffer: Buffer, prefix: string = 'product'): string {
   // Get file extension
   const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
-  
+  void extension; // used only for context, output is always webp
+
   // Generate hash from file content and timestamp
   const timestamp = Date.now().toString();
   const contentHash = crypto.createHash('md5').update(fileBuffer).digest('hex');
   const timeHash = crypto.createHash('md5').update(timestamp).digest('hex').substring(0, 8);
   
   // Combine hashes to create unique filename
-  const hashedName = `product_${contentHash.substring(0, 16)}_${timeHash}.webp`; // Always use WebP for optimization
-  
+  const hashedName = `${prefix}_${contentHash.substring(0, 16)}_${timeHash}.webp`; // Always use WebP for optimization
+
   return hashedName;
 }
 
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       
       const file = formData.get('file') as File;
       const oldImageUrl = formData.get('oldImageUrl') as string;
+      const prefix = (formData.get('prefix') as string) || 'product';
       console.log('Arquivo recebido:', file?.name, file?.size, file?.type);
       console.log('URL da imagem antiga:', oldImageUrl);
 
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
       console.log(`Image optimized: ${originalBuffer.length} bytes -> ${optimizedBuffer.length} bytes`);
       
       // Generate hashed filename
-      const hashedFilename = generateHashedFilename(file.name, originalBuffer);
+      const hashedFilename = generateHashedFilename(file.name, originalBuffer, prefix);
       console.log('Generated filename:', hashedFilename);
 
       // Upload optimized buffer directly to Vercel Blob

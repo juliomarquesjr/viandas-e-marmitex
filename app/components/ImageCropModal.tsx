@@ -241,7 +241,7 @@ export function ImageCropModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {
         // Close modal when clicking outside the card
         if (e.target === e.currentTarget) {

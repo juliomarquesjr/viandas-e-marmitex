@@ -25,21 +25,25 @@ import {
   User,
   CheckCircle,
   XCircle,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 import { CustomerStatsCards } from "./components/CustomerStatsCards";
 import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
+import { CustomerGridView } from "./components/CustomerGridView";
 
 // =============================================================================
 // TIPOS
 // =============================================================================
 
-type Customer = {
+export type Customer = {
   id: string;
   name: string;
   phone: string;
   email?: string;
   doc?: string;
   barcode?: string;
+  imageUrl?: string;
   address?: {
     street?: string;
     number?: string;
@@ -143,6 +147,17 @@ export default function AdminCustomersPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // View mode (table | grid) — persiste em sessionStorage
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">(() => {
+    if (typeof window === "undefined") return "table";
+    return (sessionStorage.getItem("customers-view-mode") as "table" | "grid") ?? "table";
+  });
+
+  const handleViewModeChange = (mode: "table" | "grid") => {
+    setViewMode(mode);
+    sessionStorage.setItem("customers-view-mode", mode);
+  };
+
   // Estados de busca e filtros
   const [searchInput, setSearchInput] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -170,6 +185,7 @@ export default function AdminCustomersPage() {
     state: "",
     zip: "",
     active: true,
+    imageUrl: "",
   });
 
   // Estados de confirmação
@@ -227,6 +243,7 @@ export default function AdminCustomersPage() {
       state: "",
       zip: "",
       active: true,
+      imageUrl: "",
     });
   };
 
@@ -249,6 +266,7 @@ export default function AdminCustomersPage() {
         state: "",
         zip: "",
         active: customer.active,
+        imageUrl: customer.imageUrl || "",
       });
     } else {
       setEditingCustomer(null);
@@ -295,6 +313,7 @@ export default function AdminCustomersPage() {
         barcode: formData.barcode || undefined,
         address: Object.values(address).some((v) => v) ? address : undefined,
         active: formData.active,
+        imageUrl: formData.imageUrl || null,
       };
 
       if (formData.password?.trim()) {
@@ -409,6 +428,12 @@ export default function AdminCustomersPage() {
     }
   };
 
+  // Paginação local (para ambas as views)
+  const paginatedCustomers = customers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   // Colunas da tabela
   const columns: Column<Customer>[] = [
     {
@@ -416,8 +441,16 @@ export default function AdminCustomersPage() {
       header: "Cliente",
       render: (_, customer) => (
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-primary" />
+          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+            {customer.imageUrl ? (
+              <img
+                src={customer.imageUrl}
+                alt={customer.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <User className="h-5 w-5 text-slate-400" />
+            )}
           </div>
           <div className="min-w-0">
             <a
@@ -488,10 +521,38 @@ export default function AdminCustomersPage() {
         description="Gerencie os clientes do estabelecimento"
         icon={Users}
         actions={
-          <Button onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Cliente
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Toggle table/grid */}
+            <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => handleViewModeChange("table")}
+                className={`px-3 py-2 transition-colors ${
+                  viewMode === "table"
+                    ? "bg-primary text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+                aria-label="Modo tabela"
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange("grid")}
+                className={`px-3 py-2 transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-primary text-white"
+                    : "bg-white text-slate-500 hover:bg-slate-50"
+                }`}
+                aria-label="Modo cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            <Button onClick={() => openForm()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cliente
+            </Button>
+          </div>
         }
       />
 
@@ -543,7 +604,7 @@ export default function AdminCustomersPage() {
             </CardContent>
           </Card>
 
-          {/* Tabela */}
+          {/* Listagem */}
           {error ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -551,7 +612,7 @@ export default function AdminCustomersPage() {
                 <Button onClick={loadCustomers}>Tentar novamente</Button>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === "table" ? (
             <DataTable
               data={customers}
               columns={columns}
@@ -565,6 +626,20 @@ export default function AdminCustomersPage() {
                   onDownloadBarcode={() => downloadBarcode(customer)}
                 />
               )}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: customers.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: setItemsPerPage,
+              }}
+            />
+          ) : (
+            <CustomerGridView
+              customers={paginatedCustomers}
+              onEdit={openForm}
+              onDelete={(id) => setDeleteConfirm(id)}
+              onDownloadBarcode={downloadBarcode}
               pagination={{
                 page: currentPage,
                 pageSize: itemsPerPage,
