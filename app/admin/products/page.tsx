@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { ProductFormDialog } from "../../components/ProductFormDialog";
+import { ProductFormDialog } from "./components/ProductFormDialog";
 import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
 import { SkeletonTable } from "../components/data-display";
@@ -24,9 +24,13 @@ import {
   CheckCircle,
   XCircle,
   Tag,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 import { ProductStatsCards } from "./components/ProductStatsCards";
 import { ProductPageSkeleton } from "./components/ProductSkeletonLoader";
+import { ProductGridView } from "./components/ProductGridView";
+import { ProductPreviewModal } from "./components/ProductPreviewModal";
 
 // =============================================================================
 // TIPOS
@@ -140,6 +144,7 @@ function ProductActionsMenu({
 
 export default function AdminProductsPage() {
   const { showToast } = useToast();
+  const pageSizeOptions = React.useMemo(() => [10, 25, 50, 100], []);
 
   // Estados de dados
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -155,7 +160,35 @@ export default function AdminProductsPage() {
 
   // Estados de paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const defaultPageSize = pageSizeOptions[0];
+    const savedValue = Number(sessionStorage.getItem("products-items-per-page"));
+    if (Number.isNaN(savedValue)) return defaultPageSize;
+    return pageSizeOptions.includes(savedValue) ? savedValue : defaultPageSize;
+  });
+
+  // Estado de modo de exibição (persistido na sessão)
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">(() => {
+    if (typeof window === "undefined") return "table";
+    return (sessionStorage.getItem("products-view-mode") as "table" | "grid") ?? "table";
+  });
+
+  const handleViewModeChange = (mode: "table" | "grid") => {
+    setViewMode(mode);
+    sessionStorage.setItem("products-view-mode", mode);
+  };
+
+  const handleItemsPerPageChange = React.useCallback(
+    (size: number) => {
+      const defaultPageSize = pageSizeOptions[0];
+      const normalizedSize = pageSizeOptions.includes(size) ? size : defaultPageSize;
+      setItemsPerPage(normalizedSize);
+      setCurrentPage(1);
+      sessionStorage.setItem("products-items-per-page", String(normalizedSize));
+    },
+    [pageSizeOptions]
+  );
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -177,6 +210,9 @@ export default function AdminProductsPage() {
   // Estados de confirmação
   const [deleteConfirm, setDeleteConfirm] = React.useState<string | null>(null);
   const [isDeletingProduct, setIsDeletingProduct] = React.useState(false);
+
+  // Estado do preview
+  const [previewProduct, setPreviewProduct] = React.useState<Product | null>(null);
 
   // Debounce da busca
   React.useEffect(() => {
@@ -520,6 +556,11 @@ export default function AdminProductsPage() {
     Math.ceil(filteredProducts.length / itemsPerPage) || 1
   );
 
+  const paginatedProducts = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, currentPage, itemsPerPage]);
+
   React.useEffect(() => {
     if (currentPage > totalFilteredPages) {
       setCurrentPage(totalFilteredPages);
@@ -551,57 +592,87 @@ export default function AdminProductsPage() {
           {/* Filtros */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Busca */}
-                <div className="flex-1 max-w-md">
-                  <Input
-                    placeholder="Buscar por nome ou código..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    leftIcon={<Search className="h-4 w-4" />}
-                  />
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                  {/* Busca */}
+                  <div className="flex-1 max-w-md">
+                    <Input
+                      placeholder="Buscar por nome ou código..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      leftIcon={<Search className="h-4 w-4" />}
+                    />
+                  </div>
+
+                  {/* Filtro de Status */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="all">Todos os Status</option>
+                    <option value="active">Ativos</option>
+                    <option value="inactive">Inativos</option>
+                  </select>
+
+                  {/* Filtro de Tipo */}
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                    className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="all">Todos os Tipos</option>
+                    <option value="sellable">Venda</option>
+                    <option value="addon">Adicional</option>
+                  </select>
+
+                  {/* Limpar Filtros */}
+                  {(searchInput || statusFilter !== "all" || typeFilter !== "all") && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchInput("");
+                        setStatusFilter("all");
+                        setTypeFilter("all");
+                      }}
+                    >
+                      Limpar
+                    </Button>
+                  )}
                 </div>
 
-                {/* Filtro de Status */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="active">Ativos</option>
-                  <option value="inactive">Inativos</option>
-                </select>
-
-                {/* Filtro de Tipo */}
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as any)}
-                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="all">Todos os Tipos</option>
-                  <option value="sellable">Venda</option>
-                  <option value="addon">Adicional</option>
-                </select>
-
-                {/* Limpar Filtros */}
-                {(searchInput || statusFilter !== "all" || typeFilter !== "all") && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchInput("");
-                      setStatusFilter("all");
-                      setTypeFilter("all");
-                    }}
+                {/* Toggle de visualização */}
+                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
+                  <button
+                    onClick={() => handleViewModeChange("table")}
+                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
+                      viewMode === "table"
+                        ? "bg-primary text-white"
+                        : "bg-white text-slate-500 hover:bg-slate-50"
+                    }`}
+                    title="Visualização em tabela"
+                    aria-label="Visualização em tabela"
                   >
-                    Limpar
-                  </Button>
-                )}
+                    <LayoutList className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange("grid")}
+                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
+                      viewMode === "grid"
+                        ? "bg-primary text-white"
+                        : "bg-white text-slate-500 hover:bg-slate-50"
+                    }`}
+                    title="Visualização em mosaico"
+                    aria-label="Visualização em mosaico"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Tabela */}
+          {/* Tabela / Mosaico */}
           {error ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -609,12 +680,13 @@ export default function AdminProductsPage() {
                 <Button onClick={loadData}>Tentar novamente</Button>
               </CardContent>
             </Card>
-          ) : (
+          ) : viewMode === "table" ? (
             <DataTable
               data={filteredProducts}
               columns={columns}
               rowKey="id"
               emptyMessage="Nenhum produto encontrado"
+              onRowClick={(product) => setPreviewProduct(product)}
               rowActions={(product) => (
                 <ProductActionsMenu
                   product={product}
@@ -628,15 +700,42 @@ export default function AdminProductsPage() {
                 pageSize: itemsPerPage,
                 total: filteredProducts.length,
                 onPageChange: setCurrentPage,
-                onPageSizeChange: (size) => {
-                  setItemsPerPage(size);
-                  setCurrentPage(1);
-                },
+                onPageSizeChange: handleItemsPerPageChange,
               }}
+            />
+          ) : (
+            <ProductGridView
+              products={paginatedProducts}
+              getCategoryName={getCategoryName}
+              formatPrice={formatPrice}
+              onEdit={openForm}
+              onDelete={(id) => setDeleteConfirm(id)}
+              onDownloadBarcode={downloadBarcode}
+              onCardClick={(product) => setPreviewProduct(product)}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: filteredProducts.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: handleItemsPerPageChange,
+              }}
+              emptyMessage="Nenhum produto encontrado"
             />
           )}
         </>
       )}
+
+      {/* Modal de Preview */}
+      <ProductPreviewModal
+        product={previewProduct}
+        categories={categories}
+        open={previewProduct !== null}
+        onClose={() => setPreviewProduct(null)}
+        onEdit={(product) => {
+          setPreviewProduct(null);
+          openForm(product);
+        }}
+      />
 
       {/* Dialog de Formulário */}
       <ProductFormDialog

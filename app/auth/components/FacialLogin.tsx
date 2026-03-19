@@ -4,7 +4,6 @@ import { Button } from "@/app/components/ui/button";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Camera, AlertCircle, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import {
   loadModels,
@@ -26,7 +25,6 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const router = useRouter();
   const cameraStartedRef = useRef(false);
 
   // Iniciar webcam
@@ -245,11 +243,10 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
 
   return (
     <div className="space-y-4 flex-1 flex flex-col">
-
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-red-200 bg-red-50">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
         </Alert>
       )}
 
@@ -257,7 +254,9 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
         <div className="flex items-center justify-center py-6 flex-1">
           <div className="text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-            <p className="text-sm text-gray-600">Carregando modelos de reconhecimento facial...</p>
+            <p className="text-sm text-slate-600">
+              Carregando modelos de reconhecimento facial...
+            </p>
           </div>
         </div>
       )}
@@ -265,7 +264,7 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
       {!stream && modelsLoaded && (
         <Button
           onClick={startWebcam}
-          className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm"
         >
           <Camera className="h-4 w-4 mr-2" />
           Iniciar Câmera
@@ -274,7 +273,7 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
 
       {stream && (
         <div className="space-y-3 flex-1 flex flex-col">
-          <div className="relative bg-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl flex-shrink-0">
+          <div className="relative bg-slate-900 rounded-xl overflow-hidden aspect-video flex-shrink-0 ring-1 ring-slate-200 shadow-md">
             <video
               ref={videoRef}
               autoPlay
@@ -324,7 +323,7 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
           <Button
             onClick={handleFacialLogin}
             disabled={loading || !modelsLoaded || capturing}
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm disabled:hover:scale-100"
           >
             {loading || capturing ? (
               <>
@@ -341,6 +340,16 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
         </div>
       )}
 
+      <button
+        type="button"
+        onClick={() => {
+          stopWebcam();
+          onCancel();
+        }}
+        className="w-full text-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors pt-1"
+      >
+        Voltar para email e senha
+      </button>
     </div>
   );
 }

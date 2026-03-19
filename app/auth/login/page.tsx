@@ -247,9 +247,9 @@ export default function LoginPage() {
         initial={{ x: 40, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-        className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-12 min-h-screen"
+        className="flex-1 flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/90 px-4 sm:px-6 py-12"
       >
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           {/* Header mobile (visível apenas em telas menores que lg) */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <Image
@@ -264,60 +264,62 @@ export default function LoginPage() {
             <p className="text-slate-500 text-sm mt-1">Sistema de gestão</p>
           </div>
 
-          {/* Cabeçalho do form */}
-          <motion.div
-            initial={{ y: 12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
-            className="mb-7"
-          >
-            <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">
-              Bem-vindo de volta!
-            </h2>
-            <p className="text-slate-500 text-sm mt-1.5">
-              Faça login para gerenciar seu restaurante
-            </p>
-          </motion.div>
-
-          {/* Login mode tabs */}
-          <motion.div
-            initial={{ y: 12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.32 }}
-            className="flex gap-1.5 p-1 bg-slate-100 rounded-xl mb-6"
-          >
-            <button
-              type="button"
-              onClick={() => setLoginMode("traditional")}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                loginMode === "traditional"
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-200/80"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
+          {/* Card: cabeçalho, abas e conteúdo */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/50 backdrop-blur-sm p-6 sm:p-8">
+            {/* Cabeçalho do form */}
+            <motion.div
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.25 }}
+              className="mb-6"
             >
-              <Mail className="h-4 w-4" />
-              Email / Senha
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginMode("facial")}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                loginMode === "facial"
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-200/80"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Camera className="h-4 w-4" />
-              Reconhecimento Facial
-            </button>
-          </motion.div>
+              <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Bem-vindo de volta!
+              </h2>
+              <p className="text-slate-500 text-sm mt-1.5">
+                Faça login para gerenciar seu restaurante
+              </p>
+            </motion.div>
 
-          {/* Formulário */}
-          {loginMode === "facial" ? (
-            <FacialLogin onCancel={() => setLoginMode("traditional")} />
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-5">
+            {/* Login mode tabs */}
+            <motion.div
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.32 }}
+              className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl mb-6 ring-1 ring-slate-200/80"
+            >
+              <button
+                type="button"
+                onClick={() => setLoginMode("traditional")}
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  loginMode === "traditional"
+                    ? "bg-white text-blue-600 shadow-md shadow-slate-200/60 border border-slate-200/90"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="truncate">Email / Senha</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMode("facial")}
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  loginMode === "facial"
+                    ? "bg-white text-blue-600 shadow-md shadow-slate-200/60 border border-slate-200/90"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Camera className="h-4 w-4 shrink-0" />
+                Reconhecimento Facial
+              </button>
+            </motion.div>
+
+            {/* Formulário */}
+            {loginMode === "facial" ? (
+              <FacialLogin onCancel={() => setLoginMode("traditional")} />
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <div className="space-y-5">
                 {error && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
@@ -413,18 +415,21 @@ export default function LoginPage() {
                 </motion.div>
               </div>
             </form>
-          )}
+            )}
+          </div>
 
-          {/* Footer */}
+          {/* Footer — fora do card */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.6 }}
-            className="mt-8 pt-6 border-t border-slate-100 text-center space-y-2"
+            className="mt-6 text-center space-y-1.5"
           >
-            <p className="text-xs text-slate-400">Dúvidas? Contate o administrador do sistema</p>
-            <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <p className="text-[11px] sm:text-xs text-slate-400">
+              Dúvidas? Contate o administrador do sistema
+            </p>
+            <div className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-slate-400">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
               Sistema online
             </div>
           </motion.div>
