@@ -27,22 +27,30 @@ export function CustomerPageSkeleton() {
       {/* Filters Skeleton */}
       <Card>
         <CardContent className="p-4 animate-pulse">
-          <div className="flex flex-col sm:flex-row gap-4 items-start">
-            {/* Busca */}
-            <div className="flex-1 max-w-md space-y-2">
-              <div className="h-3 bg-slate-200 rounded w-40" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1 items-start">
+              {/* Busca */}
+              <div className="flex-1 max-w-md space-y-2">
+                <div className="h-3 bg-slate-200 rounded w-40" />
+                <div className="h-10 bg-slate-200 rounded-lg" />
+              </div>
+
+              {/* Filtro de Status */}
+              <div className="space-y-2 w-40">
+                <div className="h-3 bg-slate-200 rounded w-28" />
+                <div className="h-10 bg-slate-200 rounded-lg" />
+              </div>
+
+              {/* Botão limpar (placeholder) */}
+              <div className="mt-6 sm:mt-0 sm:self-end">
+                <div className="h-9 w-20 bg-slate-200 rounded-lg" />
+              </div>
             </div>
 
-            {/* Filtro de Status */}
-            <div className="space-y-2 w-40">
-              <div className="h-3 bg-slate-200 rounded w-28" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
-            </div>
-
-            {/* Botão limpar (quando visível) */}
-            <div className="mt-6">
-              <div className="h-9 w-20 bg-slate-200 rounded-lg" />
+            {/* Toggle tabela / mosaico (igual à página carregada) */}
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0 self-end sm:self-auto">
+              <div className="h-9 w-9 bg-slate-200 border-r border-slate-200" />
+              <div className="h-9 w-9 bg-slate-200" />
             </div>
           </div>
         </CardContent>

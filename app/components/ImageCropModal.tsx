@@ -241,7 +241,7 @@ export function ImageCropModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => {
         // Close modal when clicking outside the card
         if (e.target === e.currentTarget) {
@@ -249,7 +249,7 @@ export function ImageCropModal({
         }
       }}
     >
-      <Card className="w-full max-w-4xl max-h-[90vh] bg-white shadow-2xl border-0 flex flex-col">
+      <Card className="w-full max-w-4xl max-h-[90vh] bg-white shadow-2xl border-0 flex flex-col relative z-[9999]">
         <CardHeader className="border-b border-gray-200">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
             <CropIcon className="h-5 w-5 text-primary" />

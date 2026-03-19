@@ -2,7 +2,22 @@
 
 import { Button } from "@/app/components/ui/button";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { ImageCropModal } from "@/app/components/ImageCropModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui";
+import { Slider } from "@/app/components/ui/slider";
 import {
   Camera,
   Upload,
@@ -11,8 +26,18 @@ import {
   CheckCircle2,
   Trash2,
   ArrowLeft,
+  Check,
+  Crop as CropIcon,
+  RotateCcw,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import ReactCrop, {
+  Crop,
+  PixelCrop,
+  centerCrop,
+  makeAspectCrop
+} from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 interface CustomerPhotoModalProps {
   isOpen: boolean;
@@ -23,6 +48,17 @@ interface CustomerPhotoModalProps {
 }
 
 type Step = "capture" | "preview";
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
 
 export function CustomerPhotoModal({
   isOpen,
@@ -37,11 +73,20 @@ export function CustomerPhotoModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [uploadedImageSrc, setUploadedImageSrc] = useState<string>("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [scale, setScale] = useState(1);
+  const [rotate, setRotate] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
+  const imgRef = useRef<HTMLImageElement>(null);
+  const fileRef = useRef<File | null>(null); 
   // Reset ao abrir/fechar
   useEffect(() => {
     if (isOpen) {
@@ -49,8 +94,37 @@ export function CustomerPhotoModal({
       setPreviewUrl(null);
       setPendingFile(null);
       setError(null);
+      setUploadedImageSrc('');
+      setUploadedFile(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
+      setScale(1);
+      setRotate(0);
+      setIsProcessing(false);
+      // Carregar lista de dispositivos de vídeo
+      loadVideoDevices();
     }
   }, [isOpen]);
+
+  // Carregar lista de dispositivos de vídeo
+  const loadVideoDevices = async () => {
+    try {
+      // Primeiro solicitar permissão para acessar dispositivos
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      
+      // Enumerar dispositivos
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      setVideoDevices(videoDevices);
+      
+      // Selecionar a primeira câmera por padrão
+      if (videoDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoDevices[0].deviceId);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dispositivos de vídeo:", err);
+    }
+  };
 
   // Parar webcam quando fechar
   useEffect(() => {
@@ -60,10 +134,17 @@ export function CustomerPhotoModal({
   const startWebcam = async () => {
     setError(null);
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+      const constraints: MediaStreamConstraints = {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user",
+          ...(selectedDeviceId && { deviceId: { exact: selectedDeviceId } })
+        },
         audio: false,
-      });
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       setTimeout(() => {
         if (videoRef.current) {
@@ -121,120 +202,260 @@ export function CustomerPhotoModal({
     }, "image/jpeg", 0.92);
   };
 
-  const handleCropComplete = (croppedFile: File) => {
-    setCropModalOpen(false);
-    const url = URL.createObjectURL(croppedFile);
-    setPendingFile(croppedFile);
-    setPreviewUrl(url);
-    setStep("preview");
+  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      fileRef.current = file;
+      setUploadedFile(file);
+      setCrop(undefined); // Makes crop preview update between images.
+      const reader = new FileReader();
+      reader.addEventListener('load', () =>
+        setUploadedImageSrc(reader.result?.toString() || '')
+      );
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    setCrop(centerCrop(
+      makeAspectCrop(
+        {
+          unit: '%',
+          width: 90,
+        },
+        1,
+        width,
+        height
+      ),
+      width,
+      height
+    ));
+  };
+
+  const getCroppedImg = (
+    image: HTMLImageElement,
+    crop: PixelCrop,
+    scale: number = 1,
+    rotate: number = 0
+  ): Promise<File> => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      throw new Error('No 2d context');
+    }
+
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    
+    // Calculate actual crop dimensions
+    const cropX = crop.x * scaleX;
+    const cropY = crop.y * scaleY;
+    const cropWidth = crop.width * scaleX;
+    const cropHeight = crop.height * scaleY;
+
+    // Set canvas size to crop size
+    canvas.width = Math.floor(cropWidth);
+    canvas.height = Math.floor(cropHeight);
+
+    // Scale canvas context
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingQuality = 'high';
+
+    // Rotate if needed
+    if (rotate) {
+      const rotateCenter = [canvas.width / 2, canvas.height / 2];
+      ctx.translate(rotateCenter[0], rotateCenter[1]);
+      ctx.rotate((rotate * Math.PI) / 180);
+      ctx.translate(-rotateCenter[0], -rotateCenter[1]);
+    }
+
+    // Draw cropped image
+    ctx.drawImage(
+      image,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      cropWidth,
+      cropHeight
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('Canvas is empty');
+        }
+        
+        // Create file with original name but add crop suffix
+        const originalName = fileRef.current?.name || 'image.jpg';
+        const nameWithoutExt = originalName.split('.').slice(0, -1).join('.');
+        const ext = originalName.split('.').pop();
+        const newName = `${nameWithoutExt}_cropped.${ext}`;
+        
+        const file = new File([blob], newName, {
+          type: blob.type,
+          lastModified: Date.now(),
+        });
+        resolve(file);
+      }, 'image/jpeg', 0.95); // High quality JPEG
+    });
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!imgRef.current || !completedCrop) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const croppedImageFile = await getCroppedImg(
+        imgRef.current,
+        completedCrop,
+        scale,
+        rotate
+      );
+      
+      const url = URL.createObjectURL(croppedImageFile);
+      setPendingFile(croppedImageFile);
+      setPreviewUrl(url);
+      setUploadedImageSrc('');
+      setUploadedFile(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
+      setScale(1);
+      setRotate(0);
+      setStep("preview");
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      setError('Erro ao processar a imagem. Tente novamente.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const resetCropSettings = () => {
+    setScale(1);
+    setRotate(0);
+    if (imgRef.current) {
+      const { width, height } = imgRef.current;
+      setCrop(centerCrop(
+        makeAspectCrop(
+          {
+            unit: '%',
+            width: 90,
+          },
+          1,
+          width,
+          height
+        ),
+        width,
+        height
+      ));
+    }
   };
 
   const handleConfirm = () => {
     if (!pendingFile) return;
     onPhotoSelected(pendingFile);
     handleClose();
-  };
-
+  }; 
   const handleClose = () => {
     stopWebcam();
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (uploadedImageSrc) URL.revokeObjectURL(uploadedImageSrc);
     setPreviewUrl(null);
     setPendingFile(null);
     setError(null);
     setStep("capture");
     setMode("webcam");
+    setUploadedImageSrc('');
+    setUploadedFile(null);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
+    setScale(1);
+    setRotate(0);
+    setIsProcessing(false);
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
-      <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden flex flex-col max-h-[90vh]">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {step === "preview" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      if (previewUrl) URL.revokeObjectURL(previewUrl);
-                      setPreviewUrl(null);
-                      setPendingFile(null);
-                      setStep("capture");
-                      setError(null);
-                    }}
-                    className="h-8 w-8 -ml-2"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                <div
-                  className="h-9 w-9 rounded-lg flex items-center justify-center shadow-sm"
-                  style={{ background: "var(--modal-header-icon-bg)" }}
-                >
-                  <Camera className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">
-                    {step === "capture"
-                      ? currentPhotoUrl
-                        ? "Atualizar Foto"
-                        : "Foto do Cliente"
-                      : "Confirmar Foto"}
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {step === "capture" ? "Tire uma foto ou envie um arquivo" : "Confirme antes de salvar"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-2">
-                  <div className={`h-1.5 w-1.5 rounded-full transition-all ${step === "capture" ? "bg-primary" : "bg-gray-300"}`} />
-                  <div className={`h-1.5 w-1.5 rounded-full transition-all ${step === "preview" ? "bg-primary" : "bg-gray-300"}`} />
-                </div>
+      <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              {step === "preview" && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={handleClose}
-                  className="h-8 w-8 text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    if (previewUrl) URL.revokeObjectURL(previewUrl);
+                    setPreviewUrl(null);
+                    setPendingFile(null);
+                    setStep("capture");
+                    setError(null);
+                  }}
+                  className="h-8 w-8 -ml-2"
                 >
-                  <X className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
+              )}
+              <div
+                className="h-9 w-9 rounded-lg flex items-center justify-center shadow-sm"
+                style={{ background: "var(--modal-header-icon-bg)" }}
+              >
+                <Camera className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  {step === "capture"
+                    ? currentPhotoUrl
+                      ? "Atualizar Foto"
+                      : "Foto do Cliente"
+                    : "Confirmar Foto"}
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {step === "capture" ? "Tire uma foto ou envie um arquivo" : "Confirme antes de salvar"}
+                </p>
               </div>
             </div>
-          </div>
+          </DialogHeader>
 
-          {/* Conteúdo */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             {step === "capture" ? (
-              <div className="space-y-5">
+              <>
                 {/* Foto atual */}
                 {currentPhotoUrl && (
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0">
-                      <img src={currentPhotoUrl} alt="Foto atual" className="h-full w-full object-cover" />
+                  <>
+                    <SectionDivider label="Foto Atual" />
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0">
+                        <img src={currentPhotoUrl} alt="Foto atual" className="h-full w-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900">Foto atual</p>
+                        <p className="text-xs text-slate-500">Selecione uma nova para substituir ou remova</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { onRemovePhoto(); handleClose(); }}
+                        className="border-red-200 text-red-600 hover:bg-red-50 shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Remover
+                      </Button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">Foto atual</p>
-                      <p className="text-xs text-slate-500">Selecione uma nova para substituir ou remova</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { onRemovePhoto(); handleClose(); }}
-                      className="border-red-200 text-red-600 hover:bg-red-50 shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1.5" />
-                      Remover
-                    </Button>
-                  </div>
+                  </>
                 )}
 
                 {/* Seleção de modo */}
+                <SectionDivider label="Método de Captura" />
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => { setMode("webcam"); stopWebcam(); setError(null); }}
@@ -270,6 +491,36 @@ export function CustomerPhotoModal({
                 {/* Webcam */}
                 {mode === "webcam" && (
                   <div className="space-y-4">
+                    {/* Seletor de Câmera */}
+                    {videoDevices.length > 1 && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Câmera
+                        </label>
+                        <Select
+                          value={selectedDeviceId}
+                          onValueChange={(value) => {
+                            setSelectedDeviceId(value);
+                            if (stream) {
+                              stopWebcam();
+                              setTimeout(() => startWebcam(), 100);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione uma câmera" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                            {videoDevices.map((device) => (
+                              <SelectItem key={device.deviceId} value={device.deviceId}>
+                                {device.label || `Câmera ${videoDevices.indexOf(device) + 1}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     {!stream ? (
                       <div
                         className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer"
@@ -313,33 +564,171 @@ export function CustomerPhotoModal({
                       </div>
                     )}
                   </div>
-                )}
-
+                )} 
                 {/* Upload */}
                 {mode === "upload" && (
                   <div>
-                    <div
-                      onClick={() => setCropModalOpen(true)}
-                      className="aspect-video bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border-2 border-dashed border-slate-300 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-center justify-center group"
-                    >
-                      <div className="text-center space-y-3">
-                        <div className="h-14 w-14 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                          <Upload className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
+                    {!uploadedImageSrc ? (
+                      // Área de seleção de arquivo
+                      <div>
+                        <div
+                          onClick={() => document.getElementById('file-input')?.click()}
+                          className="aspect-video bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border-2 border-dashed border-slate-300 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-center justify-center group"
+                        >
+                          <div className="text-center space-y-3">
+                            <div className="h-14 w-14 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Upload className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700 group-hover:text-primary transition-colors">
+                                Clique para selecionar
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-700 group-hover:text-primary transition-colors">
-                            Clique para selecionar
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={onSelectFile}
+                          className="hidden"
+                          id="file-input"
+                        />
+                      </div>
+                    ) : (
+                      // Área de crop
+                      <div className="space-y-4">
+                        {/* Preview e Crop */}
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                          <div className="flex justify-center">
+                            <ReactCrop
+                              crop={crop}
+                              onChange={(_, percentCrop) => setCrop(percentCrop)}
+                              onComplete={(c) => setCompletedCrop(c)}
+                              aspect={1}
+                              minWidth={50}
+                              minHeight={50}
+                              className="max-w-full max-h-[300px]"
+                            >
+                              <img
+                                ref={imgRef}
+                                alt="Crop me"
+                                src={uploadedImageSrc}
+                                style={{ 
+                                  transform: `scale(${scale}) rotate(${rotate}deg)`,
+                                  maxWidth: '100%',
+                                  maxHeight: '300px',
+                                  objectFit: 'contain'
+                                }}
+                                onLoad={onImageLoad}
+                                className="rounded-md"
+                              />
+                            </ReactCrop>
+                          </div>
+                        </div>
+
+                        {/* Controles */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Zoom */}
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                              Zoom: {scale.toFixed(2)}x
+                            </label>
+                            <Slider
+                              value={[scale]}
+                              onValueChange={(value) => setScale(value[0])}
+                              min={0.5}
+                              max={3}
+                              step={0.1}
+                              className="w-full"
+                            />
+                          </div>
+
+                          {/* Rotação */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                                Rotação: {rotate}°
+                              </label>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRotate(0)}
+                                className="text-xs h-6 px-2"
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Reset
+                              </Button>
+                            </div>
+                            <Slider
+                              value={[rotate]}
+                              onValueChange={(value) => setRotate(value[0])}
+                              min={-180}
+                              max={180}
+                              step={1}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Botões de Ação */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setUploadedImageSrc('');
+                              setUploadedFile(null);
+                              setCrop(undefined);
+                              setCompletedCrop(undefined);
+                              setScale(1);
+                              setRotate(0);
+                            }}
+                            className="flex-1"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Escolher Outra Imagem
+                          </Button>
+                          
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={resetCropSettings}
+                            className="flex-1"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Resetar Configurações
+                          </Button>
+                          
+                          <Button
+                            type="button"
+                            onClick={handleConfirmCrop}
+                            disabled={!completedCrop || isProcessing}
+                            className="flex-1"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                                Processando...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Confirmar
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             ) : (
               /* Etapa de preview */
-              <div className="space-y-5">
+              <>
+                <SectionDivider label="Preview da Foto" />
                 {previewUrl && (
                   <div className="flex flex-col items-center gap-4">
                     <div className="h-40 w-40 rounded-full overflow-hidden border-4 border-white shadow-xl">
@@ -351,12 +740,11 @@ export function CustomerPhotoModal({
                     </div>
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" size="sm" onClick={handleClose}>
               Cancelar
             </Button>
@@ -366,20 +754,9 @@ export function CustomerPhotoModal({
                 Usar esta foto
               </Button>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Modal de crop para uploads */}
-      <ImageCropModal
-        isOpen={cropModalOpen}
-        onClose={() => setCropModalOpen(false)}
-        onCropComplete={handleCropComplete}
-        aspectRatio={1}
-        title="Recortar Foto"
-        description="Ajuste o recorte da foto do cliente"
-        cropButtonText="Confirmar"
-      />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

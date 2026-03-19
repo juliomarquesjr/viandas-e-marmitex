@@ -127,6 +127,14 @@ export function CustomerFormDialog({
     }
   };
 
+  const handlePhotoModalOpen = () => {
+    setPhotoModalOpen(true);
+  };
+
+  const handlePhotoModalClose = () => {
+    setPhotoModalOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -139,7 +147,7 @@ export function CustomerFormDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <Dialog open={open && !photoModalOpen} onOpenChange={(v) => !v && onClose()}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>
@@ -215,7 +223,7 @@ export function CustomerFormDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setPhotoModalOpen(true)}
+                  onClick={handlePhotoModalOpen}
                   disabled={uploadingPhoto}
                   className="shrink-0"
                 >
@@ -527,7 +535,7 @@ export function CustomerFormDialog({
 
       <CustomerPhotoModal
         isOpen={photoModalOpen}
-        onClose={() => setPhotoModalOpen(false)}
+        onClose={handlePhotoModalClose}
         currentPhotoUrl={formData.imageUrl || undefined}
         onPhotoSelected={handlePhotoSelected}
         onRemovePhoto={() => updateFormData("imageUrl", "")}
