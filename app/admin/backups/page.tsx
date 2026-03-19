@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { Button } from "@/app/components/ui/button";
-import { CloudDownload, Database, Loader2, ShieldCheck, Upload } from "lucide-react";
+import { CloudDownload, Database, Loader2, Upload } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 import { useBackupActions } from "./hooks/useBackupActions";
 import { BackupSection } from "./components/BackupSection";
 import { RestoreSection } from "./components/RestoreSection";
-import { SecuritySection } from "./components/SecuritySection";
 import { RestoreDialog } from "./components/RestoreDialog";
 import { ProgressModal } from "./components/ProgressModal";
 import { BackupsPageSkeleton } from "./components/BackupsPageSkeleton";
@@ -29,13 +28,6 @@ const navItems = [
     shortDescription: "Importar arquivo .sql",
     fullDescription: "Restaure o banco de dados a partir de um arquivo de backup",
     icon: Upload,
-  },
-  {
-    id: "security" as const,
-    label: "Segurança",
-    shortDescription: "Boas práticas",
-    fullDescription: "Recomendações de segurança para gerenciar seus backups",
-    icon: ShieldCheck,
   },
 ];
 
@@ -88,7 +80,7 @@ export default function BackupsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Gerenciamento de Backups"
-        description="Crie e restaure backups do banco de dados com segurança"
+        description="Crie e restaure backups do banco de dados"
         icon={Database}
         actions={
           <Button size="sm" onClick={handleCreateBackup} disabled={isCreating}>
@@ -185,7 +177,6 @@ export default function BackupsPage() {
                 onOpenRestoreDialog={() => setIsRestoreDialogOpen(true)}
               />
             )}
-            {activeSection === "security" && <SecuritySection />}
           </div>
         </div>
       </div>

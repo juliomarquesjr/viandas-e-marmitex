@@ -256,14 +256,17 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
       {!stream && !modelsLoaded && (
         <div className="flex items-center justify-center py-6 flex-1">
           <div className="text-center space-y-3">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-orange-500" />
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
             <p className="text-sm text-gray-600">Carregando modelos de reconhecimento facial...</p>
           </div>
         </div>
       )}
 
       {!stream && modelsLoaded && (
-        <Button onClick={startWebcam} className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+        <Button
+          onClick={startWebcam}
+          className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+        >
           <Camera className="h-4 w-4 mr-2" />
           Iniciar Câmera
         </Button>
@@ -321,7 +324,7 @@ export function FacialLogin({ onCancel }: FacialLoginProps) {
           <Button
             onClick={handleFacialLogin}
             disabled={loading || !modelsLoaded || capturing}
-            className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
           >
             {loading || capturing ? (
               <>

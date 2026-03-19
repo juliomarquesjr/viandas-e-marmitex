@@ -74,6 +74,21 @@
   --modal-header-icon-ring: rgba(37, 99, 235, 0.18);
   --modal-header-close: #94a3b8;
   --modal-header-close-hover: rgba(37, 99, 235, 0.08);
+
+  /* Login — painel de marca (gradientes decorativos, alinhado ao azul do sistema) */
+  --auth-brand-glow-1-from: #3b82f6;
+  --auth-brand-glow-1-to: #38bdf8;
+  --auth-brand-glow-2-from: #38bdf8;
+  --auth-brand-glow-2-to: #60a5fa;
+  --auth-brand-glow-3-from: #60a5fa;
+  --auth-brand-glow-3-to: #818cf8;
+  --auth-brand-logo-halo-from: #3b82f6;
+  --auth-brand-logo-halo-to: #6366f1;
+  --auth-brand-title-mid: #7dd3fc;
+  --auth-brand-title-end: #93c5fd;
+  --auth-brand-divider: rgba(59, 130, 246, 0.4);
+  --auth-brand-feature-bg: rgba(59, 130, 246, 0.15);
+  --auth-brand-feature-border: rgba(59, 130, 246, 0.25);
 }
 
 @theme inline {
