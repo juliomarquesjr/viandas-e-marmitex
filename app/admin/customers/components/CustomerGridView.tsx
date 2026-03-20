@@ -114,14 +114,20 @@ function CustomerCard({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onCardClick,
 }: {
   customer: Customer;
   onEdit: (customer: Customer) => void;
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
+  onCardClick?: (customer: Customer) => void;
 }) {
   return (
-    <Card variant="interactive" className="relative flex flex-col overflow-hidden group">
+    <Card
+      variant="interactive"
+      className="relative flex flex-col overflow-hidden group"
+      onClick={() => onCardClick?.(customer)}
+    >
       {/* Botão de ações */}
       <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
         <CardActionsMenu
@@ -184,6 +190,7 @@ export interface CustomerGridViewProps {
   onEdit: (customer: Customer) => void;
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
+  onCardClick?: (customer: Customer) => void;
   pagination: {
     page: number;
     pageSize: number;
@@ -199,6 +206,7 @@ export function CustomerGridView({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onCardClick,
   pagination,
   emptyMessage = "Nenhum cliente encontrado",
 }: CustomerGridViewProps) {
@@ -229,6 +237,7 @@ export function CustomerGridView({
             onEdit={onEdit}
             onDelete={onDelete}
             onDownloadBarcode={onDownloadBarcode}
+            onCardClick={onCardClick}
           />
         ))}
       </div>

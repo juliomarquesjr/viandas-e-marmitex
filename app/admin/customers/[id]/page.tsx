@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { User, ArrowLeft } from "lucide-react";
 
-import { Button } from "../../../components/ui/button";
-import { PageHeader } from "../../components/layout/PageHeader";
 import { BudgetModal } from "../../../components/BudgetModal";
 import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
@@ -20,6 +17,7 @@ import { useCustomerActions } from "./hooks/useCustomerActions";
 
 // Components
 import { CustomerProfile } from "./components/CustomerProfile";
+import { ConsumptionChart } from "./components/ConsumptionChart";
 import { CustomerMetrics } from "./components/CustomerMetrics";
 import { CustomerActions } from "./components/CustomerActions";
 import { PurchaseHistory } from "./components/PurchaseHistory";
@@ -51,7 +49,7 @@ export default function CustomerDetailPage() {
 
   const {
     orderFilter, customStartDate, customEndDate,
-    filteredOrders, filteredStats, currentPage, itemsPerPage, paginatedOrders,
+    filteredOrders, filteredStats, currentPage, itemsPerPage,
     handleFilterChange, setCustomStartDate, setCustomEndDate, setCurrentPage
   } = useCustomerOrders(orders);
 
@@ -175,24 +173,10 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={customer.name}
-        description="Detalhes do cliente e histórico de compras"
-        icon={User}
-        breadcrumb={[
-          { label: "Clientes", href: "/admin/customers" },
-          { label: customer.name }
-        ]}
-        actions={
-          <Button variant="outline" onClick={() => router.back()} className="gap-2">
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </Button>
-        }
-      />
-
-      <CustomerProfile 
-        customer={customer} 
-        downloadBarcode={downloadBarcode} 
+      <CustomerProfile
+        customer={customer}
+        onBack={() => router.back()}
+        downloadBarcode={downloadBarcode}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -209,10 +193,11 @@ export default function CustomerDetailPage() {
         />
       </div>
 
+      <ConsumptionChart orders={orders} />
+
       <PurchaseHistory
         orders={orders}
         filteredOrders={filteredOrders}
-        paginatedOrders={paginatedOrders}
         orderFilter={orderFilter}
         customStartDate={customStartDate}
         customEndDate={customEndDate}

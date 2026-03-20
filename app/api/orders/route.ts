@@ -87,7 +87,8 @@ export async function GET(request: Request) {
               product: {
                 select: {
                   id: true,
-                  name: true
+                  name: true,
+                  imageUrl: true
                 }
               }
             }

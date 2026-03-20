@@ -14,6 +14,7 @@ export type Customer = {
   doc?: string;
   barcode?: string;
   address?: any;
+  imageUrl?: string | null;
   active: boolean;
   createdAt: string;
 };
@@ -34,6 +35,7 @@ export type Order = {
     product: {
       id: string;
       name: string;
+      imageUrl?: string | null;
       pricePerKgCents?: number | null;
     };
   }[];

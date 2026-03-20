@@ -31,6 +31,7 @@ import {
 import { CustomerStatsCards } from "./components/CustomerStatsCards";
 import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 import { CustomerGridView } from "./components/CustomerGridView";
+import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
 
 // =============================================================================
 // TIPOS
@@ -187,6 +188,9 @@ export default function AdminCustomersPage() {
     active: true,
     imageUrl: "",
   });
+
+  // Estado do modal de resumo
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
 
   // Estados de confirmação
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
@@ -453,12 +457,9 @@ export default function AdminCustomersPage() {
             )}
           </div>
           <div className="min-w-0">
-            <a
-              href={`/admin/customers/${customer.id}`}
-              className="font-medium text-slate-900 hover:text-primary truncate block"
-            >
+            <span className="font-medium text-slate-900 truncate block">
               {customer.name}
-            </a>
+            </span>
             <p className="text-xs text-slate-500">
               {new Date(customer.createdAt).toLocaleDateString("pt-BR")}
             </p>
@@ -622,6 +623,7 @@ export default function AdminCustomersPage() {
               columns={columns}
               rowKey="id"
               emptyMessage="Nenhum cliente encontrado"
+              onRowClick={(customer) => setSelectedCustomer(customer)}
               rowActions={(customer) => (
                 <CustomerActionsMenu
                   customer={customer}
@@ -644,6 +646,7 @@ export default function AdminCustomersPage() {
               onEdit={openForm}
               onDelete={(id) => setDeleteConfirm(id)}
               onDownloadBarcode={downloadBarcode}
+              onCardClick={(customer) => setSelectedCustomer(customer)}
               pagination={{
                 page: currentPage,
                 pageSize: itemsPerPage,
@@ -655,6 +658,17 @@ export default function AdminCustomersPage() {
           )}
         </>
       )}
+
+      {/* Modal de Resumo do Cliente */}
+      <CustomerSummaryModal
+        open={selectedCustomer !== null}
+        customer={selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        onEdit={() => {
+          openForm(selectedCustomer!);
+          setSelectedCustomer(null);
+        }}
+      />
 
       {/* Dialog de Formulário */}
       <CustomerFormDialog

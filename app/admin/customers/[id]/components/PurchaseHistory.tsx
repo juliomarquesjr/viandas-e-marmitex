@@ -1,14 +1,15 @@
-import { Receipt, Package, Trash2, Wallet } from "lucide-react";
+import Image from "next/image";
+import { Receipt, Package, Wallet, Trash2 } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../../../components/ui/card";
 import { Input } from "../../../../components/ui/input";
+import { DataTable, Column } from "../../../components/data-display/DataTable";
 import { cn } from "@/lib/utils";
 import { Order } from "../types";
 
 interface PurchaseHistoryProps {
   orders: Order[];
   filteredOrders: Order[];
-  paginatedOrders: Order[];
   orderFilter: string;
   customStartDate: string;
   customEndDate: string;
@@ -26,10 +27,93 @@ interface PurchaseHistoryProps {
   getPaymentMethodLabel: (method: string | null) => string;
 }
 
+// Cores determinísticas baseadas no nome do produto
+const PRODUCT_COLORS = [
+  "bg-violet-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
+
+function getProductColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length];
+}
+
+function getProductInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+interface ProductAvatarsProps {
+  items: Order["items"];
+}
+
+function ProductAvatars({ items }: ProductAvatarsProps) {
+  const MAX_SHOWN = 3;
+  const shown = items.slice(0, MAX_SHOWN);
+  const extra = items.length - MAX_SHOWN;
+
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-2">
+        {shown.map((item, i) => (
+          <div key={i} className="relative shrink-0" style={{ zIndex: MAX_SHOWN - i }}>
+            {item.product.imageUrl ? (
+              <div
+                className="h-7 w-7 rounded-full ring-2 ring-white overflow-hidden bg-slate-100"
+                title={item.product.name}
+              >
+                <Image
+                  src={item.product.imageUrl}
+                  alt={item.product.name}
+                  width={28}
+                  height={28}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  "h-7 w-7 rounded-full ring-2 ring-white flex items-center justify-center",
+                  getProductColor(item.product.name)
+                )}
+                title={item.product.name}
+              >
+                <span className="text-[9px] font-bold text-white leading-none">
+                  {getProductInitials(item.product.name)}
+                </span>
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center ring-1 ring-white leading-none">
+              {item.weightKg && Number(item.weightKg) > 0
+                ? `${Number(item.weightKg).toFixed(1)}`
+                : item.quantity}
+            </span>
+          </div>
+        ))}
+        {extra > 0 && (
+          <div
+            className="h-7 w-7 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center"
+            style={{ zIndex: 0 }}
+          >
+            <span className="text-[9px] font-bold text-slate-600">+{extra}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PurchaseHistory({
   orders,
   filteredOrders,
-  paginatedOrders,
   orderFilter,
   customStartDate,
   customEndDate,
@@ -46,55 +130,137 @@ export function PurchaseHistory({
   getPaymentMethodIcon,
   getPaymentMethodLabel,
 }: PurchaseHistoryProps) {
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  
-  const renderPaginationButtons = () => {
-    return Array.from({ length: totalPages }, (_, i) => i + 1)
-      .filter((page) => {
-        if (totalPages <= 7) return true;
-        if (page === 1 || page === totalPages) return true;
-        if (page >= currentPage - 1 && page <= currentPage + 1) return true;
-        return false;
-      })
-      .map((page, index, arr) => (
-        <div key={page} className="flex items-center">
-          {index > 0 && arr[index - 1] !== page - 1 && (
-            <span className="px-1 text-slate-400 text-xs">…</span>
+  const totalOrders = orders.filter(
+    (o) => !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")
+  ).length;
+
+  const columns: Column<Order>[] = [
+    {
+      key: "id",
+      header: "Pedido",
+      render: (_, order) => (
+        <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+          #{order.id.slice(0, 8)}
+        </span>
+      ),
+    },
+    {
+      key: "items",
+      header: "Itens",
+      render: (_, order) => {
+        const isFichaPayment =
+          order.type === "ficha_payment" || order.paymentMethod === "ficha_payment";
+
+        if (isFichaPayment) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+              <Wallet className="h-3 w-3" />
+              Entrada de Valores
+            </span>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-3">
+            {order.items.length > 0 && <ProductAvatars items={order.items} />}
+            <div className="min-w-0">
+              <p className="text-slate-700 font-medium text-xs mb-0.5">
+                {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+              </p>
+              <div className="space-y-0.5">
+                {order.items.slice(0, 2).map((item, idx) => (
+                  <p key={idx} className="text-[11px] text-slate-400 truncate">
+                    {item.weightKg && Number(item.weightKg) > 0
+                      ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                      : `${item.quantity}× ${item.product.name}`}
+                  </p>
+                ))}
+                {order.items.length > 2 && (
+                  <p className="text-[11px] text-slate-400 italic">
+                    +{order.items.length - 2} mais...
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "totalCents",
+      header: "Valor",
+      render: (_, order) => (
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">
+            {formatCurrency(order.totalCents)}
+          </p>
+          {order.discountCents > 0 && (
+            <p className="text-[11px] text-red-500">
+              -{formatCurrency(order.discountCents)}
+            </p>
           )}
-          <Button
-            variant={currentPage === page ? "default" : "outline"}
-            size="sm"
-            onClick={() => onPageChange(page)}
-            className="h-7 w-7 p-0 text-xs"
-          >
-            {page}
-          </Button>
         </div>
-      ));
-  };
+      ),
+    },
+    {
+      key: "paymentMethod",
+      header: "Pagamento",
+      align: "center",
+      render: (_, order) => {
+        const Icon = getPaymentMethodIcon(order.paymentMethod);
+        const label = getPaymentMethodLabel(order.paymentMethod);
+        return Icon ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <Icon className="h-5 w-5 text-slate-400" />
+            <span className="text-[10px] text-slate-400 leading-tight">{label}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-500">{label}</span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "center",
+      render: (_, order) => {
+        const statusInfo = getStatusInfo(order.status);
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium",
+              statusInfo.color
+            )}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+            {statusInfo.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "createdAt",
+      header: "Data",
+      render: (_, order) => (
+        <p className="text-[11px] text-slate-500 whitespace-nowrap">
+          {formatDate(order.createdAt)}
+        </p>
+      ),
+    },
+  ];
 
   return (
-    <Card className="border-slate-200 shadow-sm">
+    <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-slate-500" />
+            <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-slate-400" />
               Histórico de Compras
             </CardTitle>
-            <CardDescription className="mt-0.5">
-              Exibindo {paginatedOrders.length} de {filteredOrders.length} registro
-              {filteredOrders.length !== 1 ? "s" : ""}
-              {filteredOrders.length !==
-                orders.filter(
-                  (o) =>
-                    !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")
-                ).length &&
-                ` (${orders.filter(
-                  (o) =>
-                    !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")
-                ).length
-                } total)`}
+            <CardDescription className="mt-0.5 text-xs">
+              Exibindo {filteredOrders.length} de {totalOrders} registro
+              {totalOrders !== 1 ? "s" : ""}
               {orderFilter !== "all" && (
                 <span className="text-primary ml-2">
                   •{" "}
@@ -153,196 +319,44 @@ export function PurchaseHistory({
       </CardHeader>
 
       <CardContent className="p-0">
-        {filteredOrders.length > 0 ? (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y border-slate-100 bg-slate-50/60">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Pedido
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Itens
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Valor
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Pagamento
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Data
-                    </th>
-                    <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide w-16"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedOrders.map((order) => {
-                    const isFichaPayment =
-                      order.type === "ficha_payment" ||
-                      order.paymentMethod === "ficha_payment";
-                    return (
-                      <tr
-                        key={order.id}
-                        className={cn(
-                          "hover:bg-slate-50/70 transition-colors",
-                          isFichaPayment ? "bg-emerald-50/40" : ""
-                        )}
-                      >
-                        <td className="py-3.5 px-4">
-                          <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            #{order.id.slice(0, 8)}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 max-w-[260px]">
-                          {isFichaPayment ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
-                                <Wallet className="h-3 w-3" />
-                                Entrada de Valores
-                              </span>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="text-slate-700 font-medium text-xs mb-0.5">
-                                {order.items.length} item
-                                {order.items.length !== 1 ? "s" : ""}
-                              </p>
-                              <div className="space-y-0.5">
-                                {order.items.map((item, idx) => (
-                                  <p
-                                    key={idx}
-                                    className="text-xs text-slate-400 truncate"
-                                  >
-                                    {item.weightKg && Number(item.weightKg) > 0
-                                      ? `${Number(item.weightKg).toFixed(
-                                          3
-                                        )} kg × ${item.product.name}`
-                                      : `${item.quantity}× ${item.product.name}`}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <p className="font-semibold text-slate-900">
-                            {formatCurrency(order.totalCents)}
-                          </p>
-                          {order.discountCents > 0 && (
-                            <p className="text-xs text-red-500">
-                              -{formatCurrency(order.discountCents)}
-                            </p>
-                          )}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          {(() => {
-                            const Icon = getPaymentMethodIcon(order.paymentMethod);
-                            const label = getPaymentMethodLabel(order.paymentMethod);
-                            return Icon ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <Icon className="h-4 w-4 text-slate-500" />
-                                <span className="text-[10px] text-slate-400">
-                                  {label}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-slate-500">
-                                {label}
-                              </span>
-                            );
-                          })()}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          <span
-                            className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                              getStatusInfo(order.status).color
-                            )}
-                          >
-                            {getStatusInfo(order.status).label}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4">
-                          <p className="text-xs text-slate-600 whitespace-nowrap">
-                            {formatDate(order.createdAt)}
-                          </p>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onOpenDeleteDialog(order.id)}
-                            className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        <DataTable<Order>
+          data={filteredOrders}
+          columns={columns}
+          rowKey="id"
+          className="border-0 shadow-none rounded-none"
+          emptyComponent={
+            <div className="flex flex-col items-center gap-2 text-slate-500 py-4">
+              <Package className="h-12 w-12 text-slate-200" />
+              <h3 className="text-sm font-semibold text-slate-600">
+                {orders.length === 0
+                  ? "Nenhuma compra registrada"
+                  : "Nenhuma compra encontrada"}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {orders.length === 0
+                  ? "Este cliente ainda não realizou nenhuma compra."
+                  : "Nenhuma compra encontrada para o período selecionado."}
+              </p>
             </div>
-
-            {filteredOrders.length > itemsPerPage && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-                <p className="text-xs text-slate-500">
-                  Página {currentPage} de {totalPages} · {filteredOrders.length}{" "}
-                  registros
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="h-7 px-2.5 text-xs"
-                  >
-                    Anterior
-                  </Button>
-                  
-                  {renderPaginationButtons()}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="h-7 px-2.5 text-xs"
-                  >
-                    Próxima
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-16">
-            <Package className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-slate-700 mb-1">
-              {orders.length === 0
-                ? "Nenhuma compra registrada"
-                : "Nenhuma compra encontrada"}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {orders.length === 0
-                ? "Este cliente ainda não realizou nenhuma compra."
-                : "Nenhuma compra encontrada para o período selecionado."}
-            </p>
-          </div>
-        )}
+          }
+          pagination={{
+            page: currentPage,
+            pageSize: itemsPerPage,
+            total: filteredOrders.length,
+            onPageChange,
+          }}
+          rowActions={(order) => (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenDeleteDialog(order.id)}
+              className="h-7 w-7 text-slate-300 hover:text-red-600 hover:bg-red-50"
+              title="Excluir"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        />
       </CardContent>
     </Card>
   );
