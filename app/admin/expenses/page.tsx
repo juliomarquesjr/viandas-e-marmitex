@@ -5,13 +5,13 @@ import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { Button } from "@/app/components/ui/button";
 import {
   ChevronDown,
+  ClipboardList,
   DollarSign,
   FileText,
   Grid3X3,
   List,
   Plus,
   Receipt,
-  Settings,
   Wallet,
 } from "lucide-react";
 import { useRef } from "react";
@@ -89,7 +89,7 @@ export default function ExpensesPage() {
               </button>
             </div>
 
-            {/* Gerenciar dropdown */}
+            {/* Cadastros auxiliares e relatório */}
             <div className="relative manage-menu-container" ref={manageMenuRef}>
               <Button
                 variant="outline"
@@ -97,8 +97,8 @@ export default function ExpensesPage() {
                 onClick={() => ex.setIsManageMenuOpen(!ex.isManageMenuOpen)}
                 className="gap-2"
               >
-                <Settings className="h-4 w-4" />
-                Gerenciar
+                <ClipboardList className="h-4 w-4" />
+                Cadastros e relatórios
                 <ChevronDown
                   className={`h-4 w-4 transition-transform duration-150 ${
                     ex.isManageMenuOpen ? "rotate-180" : ""
@@ -106,7 +106,7 @@ export default function ExpensesPage() {
                 />
               </Button>
               {ex.isManageMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
                   <button
                     onClick={() => {
                       ex.setManageExpenseTypesOpen(true);
@@ -137,19 +137,20 @@ export default function ExpensesPage() {
                     <Wallet className="h-4 w-4 text-slate-400" />
                     Formas de Pagamento
                   </button>
+                  <div className="my-1 border-t border-slate-100" />
+                  <button
+                    onClick={() => {
+                      ex.setIsReportModalOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-slate-400" />
+                    Relatório de Despesas
+                  </button>
                 </div>
               )}
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => ex.setIsReportModalOpen(true)}
-              className="gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Relatório
-            </Button>
 
             <Button size="sm" onClick={() => ex.setIsFormOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />

@@ -240,7 +240,7 @@ export function ExpenseReportModal({ open, onClose, supplierTypes }: ExpenseRepo
             </Button>
             <Button onClick={handleGenerateReport}>
               <FileText className="h-4 w-4 mr-2" />
-              Gerar Relatório
+              Gerar Relatório de Despesas
             </Button>
           </div>
         </DialogFooter>

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   Bell,
   ChevronDown,
+  Construction,
   Info,
   LogOut,
   Settings,
@@ -287,6 +288,42 @@ const PLACEHOLDER_NOTIFICATIONS = [
 ];
 
 /**
+ * Cobre conteúdo placeholder com desfoque e mensagem de recurso em desenvolvimento.
+ */
+function NotificationsDevelopmentOverlay({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative overflow-hidden", className)}>
+      {/* Desfoque no próprio conteúdo (evita o “véu branco” do backdrop-blur) */}
+      <div
+        className="pointer-events-none select-none absolute inset-0 overflow-hidden blur-[3px]"
+        aria-hidden
+      >
+        {children}
+      </div>
+      <div
+        className="absolute inset-0 z-10 flex items-center justify-center bg-transparent p-4"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="max-w-[15rem] rounded-xl border border-slate-200/90 bg-white/95 px-4 py-3 text-center shadow-lg">
+          <Construction className="mx-auto h-7 w-7 shrink-0 text-primary" aria-hidden />
+          <p className="mt-2 text-sm font-semibold text-slate-800">Em fase de desenvolvimento</p>
+          <p className="mt-1 text-xs text-slate-500 leading-snug">
+            As notificações reais do sistema serão exibidas aqui em uma versão futura.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * NotificationBell - Sino de notificações com painel dropdown + modal de histórico
  */
 export function NotificationBell() {
@@ -359,35 +396,37 @@ export function NotificationBell() {
                 <Bell className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold text-slate-800">Notificações</span>
               </div>
-              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary border border-primary/20">
-                {PLACEHOLDER_NOTIFICATIONS.length}
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 border border-slate-200">
+                Em breve
               </span>
             </div>
 
-            {/* Lista de notificações */}
-            <div className="divide-y divide-slate-100">
-              {PLACEHOLDER_NOTIFICATIONS.map((n) => (
-                <div
-                  key={n.id}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-                >
+            {/* Lista de notificações (placeholder visual + overlay) */}
+            <NotificationsDevelopmentOverlay className="min-h-[200px]">
+              <div className="divide-y divide-slate-100">
+                {PLACEHOLDER_NOTIFICATIONS.map((n) => (
                   <div
-                    className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
-                    style={{
-                      background: "var(--modal-header-icon-bg)",
-                      outline: "1px solid var(--modal-header-icon-ring)",
-                    }}
+                    key={n.id}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
                   >
-                    <Info className="h-3.5 w-3.5 text-primary" />
+                    <div
+                      className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+                      style={{
+                        background: "var(--modal-header-icon-bg)",
+                        outline: "1px solid var(--modal-header-icon-ring)",
+                      }}
+                    >
+                      <Info className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{n.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.description}</p>
+                    </div>
+                    <span className="flex-shrink-0 text-xs text-slate-400 mt-0.5">{n.time}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{n.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.description}</p>
-                  </div>
-                  <span className="flex-shrink-0 text-xs text-slate-400 mt-0.5">{n.time}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </NotificationsDevelopmentOverlay>
 
             {/* Botão "Mostrar mais" */}
             <div className="border-t border-slate-100">
@@ -424,33 +463,33 @@ export function NotificationBell() {
           </DialogHeader>
 
           {/* Body */}
-          <div className="px-6 py-1 bg-white divide-y divide-slate-100 max-h-96 overflow-y-auto">
-            {PLACEHOLDER_NOTIFICATIONS.map((n) => (
-              <div key={n.id} className="flex items-start gap-3 py-3">
-                <div
-                  className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
-                  style={{
-                    background: "var(--modal-header-icon-bg)",
-                    outline: "1px solid var(--modal-header-icon-ring)",
-                  }}
-                >
-                  <Info className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-slate-800">{n.title}</p>
-                    <span className="text-xs text-slate-400 flex-shrink-0">{n.time}</span>
+          <NotificationsDevelopmentOverlay className="mx-6 h-96 overflow-hidden rounded-lg">
+            <div className="divide-y divide-slate-100 px-4 py-1">
+              {PLACEHOLDER_NOTIFICATIONS.map((n) => (
+                <div key={n.id} className="flex items-start gap-3 py-3">
+                  <div
+                    className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
+                    style={{
+                      background: "var(--modal-header-icon-bg)",
+                      outline: "1px solid var(--modal-header-icon-ring)",
+                    }}
+                  >
+                    <Info className="h-4 w-4 text-primary" />
                   </div>
-                  <p className="text-sm text-slate-500 mt-0.5">{n.description}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-800">{n.title}</p>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{n.time}</span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-0.5">{n.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </NotificationsDevelopmentOverlay>
 
           <DialogFooter>
-            <p className="text-xs text-slate-400">
-              Exibindo {PLACEHOLDER_NOTIFICATIONS.length} notificações
-            </p>
+            <p className="text-xs text-slate-400">Histórico completo disponível em versão futura</p>
             <Button variant="outline" onClick={() => setHistoryOpen(false)}>
               Fechar
             </Button>
