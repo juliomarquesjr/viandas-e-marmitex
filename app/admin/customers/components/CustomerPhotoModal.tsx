@@ -386,7 +386,7 @@ export function CustomerPhotoModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <div className="flex items-center gap-3">
               {step === "preview" && (
@@ -445,9 +445,9 @@ export function CustomerPhotoModal({
                         variant="outline"
                         size="sm"
                         onClick={() => { onRemovePhoto(); handleClose(); }}
-                        className="border-red-200 text-red-600 hover:bg-red-50 shrink-0"
+                        className="border-red-200 text-red-600 hover:bg-red-50 shrink-0 text-xs h-8"
                       >
-                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                         Remover
                       </Button>
                     </div>
@@ -456,29 +456,36 @@ export function CustomerPhotoModal({
 
                 {/* Seleção de modo */}
                 <SectionDivider label="Método de Captura" />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { setMode("webcam"); stopWebcam(); setError(null); }}
-                    className={`h-11 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-                      mode === "webcam"
-                        ? "bg-primary text-white border-primary shadow-sm"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary"
+                <div className="relative bg-slate-100 rounded-lg p-1">
+                  <div
+                    className={`absolute top-1 bottom-1 rounded-md bg-white shadow-sm transition-all duration-200 ease-in-out ${
+                      mode === "webcam" ? "left-1 right-[calc(50%-4px)]" : "left-[calc(50%-4px)] right-1"
                     }`}
-                  >
-                    <Camera className="h-4 w-4" />
-                    Webcam
-                  </button>
-                  <button
-                    onClick={() => { setMode("upload"); stopWebcam(); setError(null); }}
-                    className={`h-11 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-                      mode === "upload"
-                        ? "bg-primary text-white border-primary shadow-sm"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-primary/40 hover:text-primary"
-                    }`}
-                  >
-                    <Upload className="h-4 w-4" />
-                    Arquivo
-                  </button>
+                  />
+                  <div className="relative grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => { setMode("webcam"); stopWebcam(); setError(null); }}
+                      className={`relative z-10 h-9 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
+                        mode === "webcam"
+                          ? "text-primary font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      Webcam
+                    </button>
+                    <button
+                      onClick={() => { setMode("upload"); stopWebcam(); setError(null); }}
+                      className={`relative z-10 h-9 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
+                        mode === "upload"
+                          ? "text-primary font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Arquivo
+                    </button>
+                  </div>
                 </div>
 
                 {error && (
@@ -530,8 +537,8 @@ export function CustomerPhotoModal({
                           <div className="h-14 w-14 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg">
                             <Camera className="h-7 w-7 text-slate-400" />
                           </div>
-                          <Button onClick={(e) => { e.stopPropagation(); startWebcam(); }} variant="default" size="sm">
-                            <Camera className="h-4 w-4 mr-2" />
+                          <Button onClick={(e) => { e.stopPropagation(); startWebcam(); }} variant="default" size="sm" className="text-xs h-8">
+                            <Camera className="h-3.5 w-3.5 mr-1.5" />
                             Iniciar Câmera
                           </Button>
                         </div>
@@ -552,12 +559,12 @@ export function CustomerPhotoModal({
                             <div className="border-2 border-white/40 rounded-full w-40 h-40" />
                           </div>
                         </div>
-                        <div className="flex gap-3">
-                          <Button onClick={capturePhoto} className="flex-1 h-10">
-                            <Camera className="h-4 w-4 mr-2" />
+                        <div className="flex gap-2">
+                          <Button onClick={capturePhoto} className="flex-1 h-8 text-xs">
+                            <Camera className="h-3.5 w-3.5 mr-1.5" />
                             Capturar
                           </Button>
-                          <Button variant="outline" onClick={stopWebcam} className="h-10">
+                          <Button variant="outline" onClick={stopWebcam} className="h-8 text-xs">
                             Cancelar
                           </Button>
                         </div>
@@ -580,10 +587,10 @@ export function CustomerPhotoModal({
                               <Upload className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-700 group-hover:text-primary transition-colors">
+                              <p className="text-xs font-medium text-slate-700 group-hover:text-primary transition-colors">
                                 Clique para selecionar
                               </p>
-                              <p className="text-xs text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
                             </div>
                           </div>
                         </div>
@@ -600,40 +607,50 @@ export function CustomerPhotoModal({
                       <div className="space-y-4">
                         {/* Preview e Crop */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                          <div className="flex justify-center">
-                            <ReactCrop
-                              crop={crop}
-                              onChange={(_, percentCrop) => setCrop(percentCrop)}
-                              onComplete={(c) => setCompletedCrop(c)}
-                              aspect={1}
-                              minWidth={50}
-                              minHeight={50}
-                              className="max-w-full max-h-[300px]"
-                            >
-                              <img
-                                ref={imgRef}
-                                alt="Crop me"
-                                src={uploadedImageSrc}
-                                style={{ 
-                                  transform: `scale(${scale}) rotate(${rotate}deg)`,
-                                  maxWidth: '100%',
-                                  maxHeight: '300px',
-                                  objectFit: 'contain'
-                                }}
-                                onLoad={onImageLoad}
-                                className="rounded-md"
-                              />
-                            </ReactCrop>
+                          <div className="relative w-full flex justify-center overflow-hidden">
+                            <div className="max-w-full max-h-[280px] overflow-hidden">
+                              <ReactCrop
+                                crop={crop}
+                                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                                onComplete={(c) => setCompletedCrop(c)}
+                                aspect={1}
+                                minWidth={50}
+                                minHeight={50}
+                                className="max-w-full"
+                              >
+                                <img
+                                  ref={imgRef}
+                                  alt="Crop me"
+                                  src={uploadedImageSrc}
+                                  style={{
+                                    transform: `scale(${scale}) rotate(${rotate}deg)`,
+                                    maxWidth: '100%',
+                                    maxHeight: '280px',
+                                    objectFit: 'contain'
+                                  }}
+                                  onLoad={onImageLoad}
+                                  className="rounded-md"
+                                />
+                              </ReactCrop>
+                            </div>
                           </div>
                         </div>
 
                         {/* Controles */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                           {/* Zoom */}
                           <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                              Zoom: {scale.toFixed(2)}x
-                            </label>
+                            <div className="flex items-center gap-2">
+                              <div className="h-5 w-5 rounded bg-blue-50 flex items-center justify-center">
+                                <span className="text-[10px] font-semibold text-blue-600">+</span>
+                              </div>
+                              <label className="text-xs font-medium text-slate-700 uppercase tracking-wide">
+                                Zoom
+                              </label>
+                              <span className="text-xs text-slate-500 ml-auto font-mono">
+                                {scale.toFixed(2)}x
+                              </span>
+                            </div>
                             <Slider
                               value={[scale]}
                               onValueChange={(value) => setScale(value[0])}
@@ -647,19 +664,29 @@ export function CustomerPhotoModal({
                           {/* Rotação */}
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                                Rotação: {rotate}°
-                              </label>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setRotate(0)}
-                                className="text-xs h-6 px-2"
-                              >
-                                <RotateCcw className="h-3 w-3 mr-1" />
-                                Reset
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <div className="h-5 w-5 rounded bg-blue-50 flex items-center justify-center">
+                                  <span className="text-[10px] font-semibold text-blue-600">↻</span>
+                                </div>
+                                <label className="text-xs font-medium text-slate-700 uppercase tracking-wide">
+                                  Rotação
+                                </label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500 font-mono">
+                                  {rotate}°
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setRotate(0)}
+                                  className="text-xs h-7 px-2.5 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                                >
+                                  <RotateCcw className="h-3 w-3 mr-1" />
+                                  Reset
+                                </Button>
+                              </div>
                             </div>
                             <Slider
                               value={[rotate]}
@@ -673,49 +700,51 @@ export function CustomerPhotoModal({
                         </div>
 
                         {/* Botões de Ação */}
-                        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setUploadedImageSrc('');
-                              setUploadedFile(null);
-                              setCrop(undefined);
-                              setCompletedCrop(undefined);
-                              setScale(1);
-                              setRotate(0);
-                            }}
-                            className="flex-1"
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Escolher Outra Imagem
-                          </Button>
-                          
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={resetCropSettings}
-                            className="flex-1"
-                          >
-                            <RotateCcw className="h-4 w-4 mr-2" />
-                            Resetar Configurações
-                          </Button>
+                        <div className="flex flex-col gap-3 pt-4 border-t border-slate-200">
+                          <div className="grid grid-cols-2 gap-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setUploadedImageSrc('');
+                                setUploadedFile(null);
+                                setCrop(undefined);
+                                setCompletedCrop(undefined);
+                                setScale(1);
+                                setRotate(0);
+                              }}
+                              className="h-8 text-xs font-medium hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                            >
+                              <Upload className="h-3.5 w-3.5 mr-1.5" />
+                              Outra Imagem
+                            </Button>
+                            
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={resetCropSettings}
+                              className="h-8 text-xs font-medium hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                              Resetar
+                            </Button>
+                          </div>
                           
                           <Button
                             type="button"
                             onClick={handleConfirmCrop}
                             disabled={!completedCrop || isProcessing}
-                            className="flex-1"
+                            className="w-full h-9 text-xs font-medium shadow-sm hover:shadow-md transition-all"
                           >
                             {isProcessing ? (
                               <>
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-1.5"></div>
                                 Processando...
                               </>
                             ) : (
                               <>
-                                <Check className="h-4 w-4 mr-2" />
-                                Confirmar
+                                <Check className="h-3.5 w-3.5 mr-1.5" />
+                                Confirmar e Aplicar
                               </>
                             )}
                           </Button>
@@ -745,12 +774,12 @@ export function CustomerPhotoModal({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={handleClose}>
+            <Button variant="outline" size="sm" onClick={handleClose} className="text-xs h-8">
               Cancelar
             </Button>
             {step === "preview" && (
-              <Button size="sm" onClick={handleConfirm} disabled={!pendingFile}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+              <Button size="sm" onClick={handleConfirm} disabled={!pendingFile} className="text-xs h-8">
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                 Usar esta foto
               </Button>
             )}
