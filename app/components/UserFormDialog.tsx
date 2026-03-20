@@ -1,18 +1,33 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
-  User as UserIcon,
-  Lock,
+  Check,
+  Loader2,
   Mail,
   Phone,
   Shield,
-  X,
+  User as UserIcon,
   UserPlus,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface UserFormData {
   name: string;
@@ -40,6 +55,20 @@ interface UserFormDialogProps {
   } | null;
 }
 
+type FormErrors = Partial<Record<keyof UserFormData, string>>;
+type FormTouched = Partial<Record<keyof UserFormData, boolean>>;
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
 export function UserFormDialog({
   isOpen,
   onClose,
@@ -54,6 +83,9 @@ export function UserFormDialog({
     status: "active",
     password: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<FormTouched>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -76,16 +108,14 @@ export function UserFormDialog({
           password: "",
         });
       }
+      setErrors({});
+      setTouched({});
+      setIsSubmitting(false);
     }
   }, [isOpen, user]);
 
-  if (!isOpen) return null;
-
   const updateFormData = (field: keyof UserFormData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Função para aplicar máscara de telefone brasileiro
@@ -108,171 +138,260 @@ export function UserFormDialog({
     updateFormData("phone", maskedValue);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(e, formData);
+  const validateField = (field: keyof FormErrors, value: any): string | undefined => {
+    switch (field) {
+      case "name": return !value?.trim() ? "Obrigatório" : undefined;
+      case "email": return !value?.trim() ? "Obrigatório" : undefined;
+      case "role": return !value ? "Obrigatório" : undefined;
+      case "password": return !user && !value?.trim() ? "Obrigatório" : undefined;
+      default: return undefined;
+    }
   };
 
+  const handleBlur = (field: keyof FormErrors) => {
+    setTouched((t) => ({ ...t, [field]: true }));
+    setErrors((e) => ({ ...e, [field]: validateField(field, formData[field]) }));
+  };
+
+  const validateForm = (): boolean => {
+    const fields: Array<keyof FormErrors> = ["name", "email", "role", "password"];
+    const newErrors: FormErrors = {};
+    let valid = true;
+    fields.forEach((field) => {
+      const err = validateField(field, formData[field]);
+      if (err) { newErrors[field] = err; valid = false; }
+    });
+    setErrors(newErrors);
+    setTouched({ name: true, email: true, phone: true, role: true, status: true, password: true });
+    return valid;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await onSubmit(e, formData);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const err = (field: keyof FormErrors) =>
+    touched[field] && errors[field] ? "border-red-400 focus:ring-red-400/20" : "";
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
-      >
-        {/* Header with gradient and shadow */}
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-          <div className="relative flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-orange-600" />
-                {user ? "Editar Usuário" : "Novo Usuário"}
-              </h2>
-              <p className="text-gray-600 mt-1 text-sm">
-                {user
-                  ? "Atualize as informações do usuário"
-                  : "Preencha os dados para cadastrar um novo usuário"}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
             >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
+              <UserPlus className="h-5 w-5 text-primary" />
+            </div>
+            {user ? "Editar Usuário" : "Novo Usuário"}
+          </DialogTitle>
+          <DialogDescription>
+            {user
+              ? "Atualize as informações do usuário abaixo"
+              : "Preencha os dados para cadastrar um novo usuário"}
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Scrollable form content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <form id="user-form-modal" onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Personal Information Section */}
-              <div className="md:col-span-2">
-                <h3 className="text-base font-semibold text-orange-800 flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-orange-600" />
-                  Informações Pessoais
-                </h3>
-                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
-              </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Nome Completo <span className="text-red-500">*</span>
-                </label>
+            {/* ── Informações Pessoais ── */}
+            <SectionDivider label="Informações Pessoais" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Nome — 2/3 da largura */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Nome Completo <span className="text-red-400">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     placeholder="Nome completo do usuário"
                     value={formData.name}
                     onChange={(e) => updateFormData("name", e.target.value)}
-                    className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
+                    onBlur={() => handleBlur("name")}
+                    className={`pl-9 ${err("name")}`}
                     required
                   />
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
+                {touched.name && errors.name && (
+                  <p className="text-xs text-red-500">{errors.name}</p>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  E-mail <span className="text-red-500">*</span>
-                </label>
+              {/* Email — 2/3 da largura */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Email <span className="text-red-400">*</span>
+                </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     type="email"
                     placeholder="usuario@exemplo.com"
                     value={formData.email}
                     onChange={(e) => updateFormData("email", e.target.value)}
-                    className="pl-10 rounded-lg border-input focus:border-ring focus:ring-ring/20"
+                    onBlur={() => handleBlur("email")}
+                    className={`pl-9 ${err("email")}`}
                     required
                   />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                </div>
+                {touched.email && errors.email && (
+                  <p className="text-xs text-red-500">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Telefone — 1/3 da largura */}
+              <div className="space-y-1.5 sm:col-span-1">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Telefone
+                </Label>
+                <div className="relative">
+                  <Input
+                    placeholder="(11) 99999-9999"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    className="pl-9"
+                  />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Phone className="h-4 w-4" />
-                  Telefone
-                </label>
-                <Input
-                  placeholder="(11) 99999-9999"
-                  value={formData.phone}
-                  onChange={handlePhoneChange}
-                  className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                />
+            {/* ── Perfil & Acesso ── */}
+            <SectionDivider label="Perfil & Acesso" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Perfil */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Perfil <span className="text-red-400">*</span>
+                </Label>
+                <div className="relative">
+                  <Select
+                    value={formData.role}
+                    onValueChange={(v) => {
+                      updateFormData("role", v as UserFormData["role"]);
+                      if (touched.role) setErrors((e) => ({ ...e, role: undefined }));
+                    }}
+                  >
+                    <SelectTrigger className={`pl-9 ${err("role")}`}>
+                      <SelectValue placeholder="Selecione o perfil" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                      <SelectItem value="pdv">PDV</SelectItem>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+                {touched.role && errors.role && (
+                  <p className="text-xs text-red-500">{errors.role}</p>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Shield className="h-4 w-4" />
-                  Perfil <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => updateFormData("role", e.target.value as UserFormData["role"])}
-                  className="w-full px-3 py-2 rounded-lg border border-input focus:border-ring focus:ring-ring/20 focus:outline-none"
-                  required
-                >
-                  <option value="pdv">PDV</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Status
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => updateFormData("status", e.target.value as UserFormData["status"])}
-                  className="w-full px-3 py-2 rounded-lg border border-input focus:border-ring focus:ring-ring/20 focus:outline-none"
-                >
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Lock className="h-4 w-4" />
-                  {user ? "Nova Senha" : "Senha"} {user ? "" : <span className="text-red-500">*</span>}
-                </label>
-                <Input
-                  type="password"
-                  placeholder={user ? "Deixe em branco para manter a senha atual" : "Digite uma senha"}
-                  value={formData.password}
-                  onChange={(e) => updateFormData("password", e.target.value)}
-                  className="rounded-lg border-input focus:border-ring focus:ring-ring/20"
-                  {...(!user && { required: true })}
-                />
+              {/* Senha */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Senha{" "}
+                  {user && (
+                    <span className="text-slate-300 font-normal normal-case tracking-normal">
+                      — deixe em branco para não alterar
+                    </span>
+                  )}
+                  {!user && <span className="text-red-400">*</span>}
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    placeholder={user ? "Nova senha (opcional)" : "Senha para acesso"}
+                    value={formData.password}
+                    onChange={(e) => updateFormData("password", e.target.value)}
+                    onBlur={() => handleBlur("password")}
+                    className={`pl-9 ${err("password")}`}
+                    {...(!user && { required: true })}
+                  />
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                </div>
+                {touched.password && errors.password && (
+                  <p className="text-xs text-red-500">{errors.password}</p>
+                )}
               </div>
             </div>
-          </form>
-        </div>
 
-        {/* Footer with actions */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form="user-form-modal"
-              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-            >
-              {user ? "Atualizar Usuário" : "Cadastrar Usuário"}
-            </Button>
+            {/* ── Status ── */}
+            <SectionDivider label="Status" />
+
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-9 w-9 rounded-lg flex items-center justify-center"
+                  style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                >
+                  <Check className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Status do Usuário</p>
+                  <p className="text-xs text-slate-400">Ative ou desative o acesso do usuário</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateFormData("status", formData.status === "active" ? "inactive" : "active")}
+                className={`relative h-6 w-11 rounded-full transition-colors flex-shrink-0 ${
+                  formData.status === "active" ? "bg-primary" : "bg-slate-200"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                    formData.status === "active" ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
-        </div>
-      </motion.div>
-    </div>
+
+          <DialogFooter>
+            <p className="text-xs text-slate-400">
+              <span className="text-red-400">*</span> campos obrigatórios
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {user ? "Atualizando..." : "Cadastrando..."}
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    {user ? "Atualizar" : "Cadastrar Usuário"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
