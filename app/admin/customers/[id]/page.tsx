@@ -8,12 +8,13 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
 
 // Utils
-import { statusMap, paymentMethodMap } from "./constants";
+import { formatCurrency, formatDate, getStatusInfo, getPaymentMethodLabel, getPaymentMethodIcon } from "./constants";
 
 // Hooks
 import { useCustomerData } from "./hooks/useCustomerData";
 import { useCustomerOrders } from "./hooks/useCustomerOrders";
 import { useCustomerActions } from "./hooks/useCustomerActions";
+import { useClosingReport } from "./hooks/useClosingReport";
 
 // Components
 import { CustomerProfile } from "./components/CustomerProfile";
@@ -23,6 +24,7 @@ import { CustomerActions } from "./components/CustomerActions";
 import { PurchaseHistory } from "./components/PurchaseHistory";
 import { PaymentDialog } from "./components/dialogs/PaymentDialog";
 import { ClosingReportDialog } from "./components/dialogs/ClosingReportDialog";
+import { Button } from "../../../components/ui/button";
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -36,13 +38,6 @@ export default function CustomerDetailPage() {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<{ id: string, isFichaPayment: boolean } | null>(null);
-
-  // Reporting state
-  const [reportStartDate, setReportStartDate] = useState("");
-  const [reportEndDate, setReportEndDate] = useState("");
-  const [showDebtBalance, setShowDebtBalance] = useState(true);
-  const [showPeriodBalance, setShowPeriodBalance] = useState(true);
-  const [showPaymentsTotal, setShowPaymentsTotal] = useState(true);
 
   // Custom Hooks
   const { customer, orders, stats, loading, error, loadCustomer, setOrders, calculateStats } = useCustomerData(customerId);
@@ -71,77 +66,22 @@ export default function CustomerDetailPage() {
     }
   );
 
+  const {
+    config: reportConfig,
+    setStartDate,
+    setEndDate,
+    setShowDebtBalance,
+    setShowPeriodBalance,
+    setShowPaymentsTotal,
+    setDefaultDates,
+    handleGenerateReport,
+  } = useClosingReport(customer);
+
   useEffect(() => {
     if (customerId) {
       loadCustomer();
     }
   }, [customerId, loadCustomer]);
-
-  // General formatting utilities
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(cents / 100);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getStatusInfo = (status: string) => {
-    return statusMap[status as keyof typeof statusMap] || { label: status, color: "bg-gray-100 text-gray-800" };
-  };
-
-  const getPaymentMethodLabel = (method: string | null) => {
-    if (!method) return "Não especificado";
-    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.label || method;
-  };
-
-  const getPaymentMethodIcon = (method: string | null) => {
-    if (!method) return null;
-    return paymentMethodMap[method as keyof typeof paymentMethodMap]?.icon;
-  };
-
-  const setDefaultDates = (confirm = false) => {
-    if (!confirm && (reportStartDate || reportEndDate)) {
-      if (window.confirm('Isso irá substituir as datas atuais pelos últimos 30 dias. Deseja continuar?')) {
-        setDefaultDates(true);
-      }
-      return;
-    }
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-
-    setReportEndDate(today.toISOString().split('T')[0]);
-    setReportStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
-  };
-
-  const generateReportUrl = (isThermal: boolean) => {
-    if (!customer) return '#';
-    const baseUrl = isThermal ? '/print/customer-report-thermal' : '/print/customer-report';
-    return `${baseUrl}?customerId=${customer.id}&startDate=${encodeURIComponent(reportStartDate)}&endDate=${encodeURIComponent(reportEndDate)}&showDebtBalance=${showDebtBalance}&showPeriodBalance=${showPeriodBalance}&showPaymentsTotal=${showPaymentsTotal}`;
-  };
-
-  const handleGenerateReport = (isThermal: boolean) => {
-    if (!customer || !reportStartDate || !reportEndDate) {
-      alert("Por favor, preencha todas as datas para gerar o relatório.");
-      return;
-    }
-    if (new Date(reportStartDate) > new Date(reportEndDate)) {
-      alert("A data inicial não pode ser maior que a data final.");
-      return;
-    }
-    window.open(generateReportUrl(isThermal), '_blank');
-    setIsReportDialogOpen(false);
-  };
 
   if (loading) {
     return (
@@ -180,10 +120,10 @@ export default function CustomerDetailPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <CustomerMetrics 
-          stats={stats} 
-          filteredStats={filteredStats} 
-          orderFilter={orderFilter} 
+        <CustomerMetrics
+          stats={stats}
+          filteredStats={filteredStats}
+          orderFilter={orderFilter}
         />
         <CustomerActions
           onOpenPaymentDialog={() => setIsPaymentDialogOpen(true)}
@@ -231,19 +171,14 @@ export default function CustomerDetailPage() {
         isOpen={isReportDialogOpen}
         onOpenChange={setIsReportDialogOpen}
         customer={customer}
-        reportStartDate={reportStartDate}
-        reportEndDate={reportEndDate}
-        setReportStartDate={setReportStartDate}
-        setReportEndDate={setReportEndDate}
-        showDebtBalance={showDebtBalance}
+        config={reportConfig}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
         setShowDebtBalance={setShowDebtBalance}
-        showPeriodBalance={showPeriodBalance}
         setShowPeriodBalance={setShowPeriodBalance}
-        showPaymentsTotal={showPaymentsTotal}
         setShowPaymentsTotal={setShowPaymentsTotal}
         setDefaultDates={setDefaultDates}
-        generateReport={() => handleGenerateReport(false)}
-        generateThermalReport={() => handleGenerateReport(true)}
+        generateReport={handleGenerateReport}
         onSendEmailSuccess={() => setIsReportDialogOpen(false)}
       />
 

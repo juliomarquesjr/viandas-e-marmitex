@@ -31,3 +31,34 @@ export const paymentMethodMap = {
   "cartao credito": { label: "Cartão de Crédito", icon: CreditCard },
   "cartãocrédito": { label: "Cartão de Crédito", icon: CreditCard },
 };
+
+export function formatCurrency(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+}
+
+export function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function getStatusInfo(status: string) {
+  return statusMap[status as keyof typeof statusMap] || { label: status, color: "bg-gray-100 text-gray-800" };
+}
+
+export function getPaymentMethodLabel(method: string | null) {
+  if (!method) return "Não especificado";
+  return paymentMethodMap[method as keyof typeof paymentMethodMap]?.label || method;
+}
+
+export function getPaymentMethodIcon(method: string | null) {
+  if (!method) return null;
+  return paymentMethodMap[method as keyof typeof paymentMethodMap]?.icon || null;
+}

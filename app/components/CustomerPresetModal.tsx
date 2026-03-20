@@ -1,20 +1,17 @@
 "use client";
 
-import {
-    Check,
-    Edit3,
-    Package,
-    Plus,
-    Save,
-    Trash2,
-    X
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Loader2, Minus, Package, Plus, Save, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "./Toast";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 type Product = {
   id: string;
@@ -40,541 +37,381 @@ type CustomerPresetModalProps = {
   customerName: string;
 };
 
-export function CustomerPresetModal({ 
-  isOpen, 
-  onClose, 
-  customerId, 
-  customerName 
+function formatPrice(priceCents: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(priceCents / 100);
+}
+
+export function CustomerPresetModal({
+  isOpen,
+  onClose,
+  customerId,
+  customerName,
 }: CustomerPresetModalProps) {
   const { showToast } = useToast();
-  const [presets, setPresets] = useState<CustomerPreset[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [quantity, setQuantity] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingPreset, setEditingPreset] = useState<string | null>(null);
-  const [editQuantity, setEditQuantity] = useState(1);
-  const [showProductList, setShowProductList] = useState(false);
+  // Map: productId → quantity (qty > 0 = in preset)
+  const [productQty, setProductQty] = useState<Map<string, number>>(new Map());
 
-  // Buscar presets existentes
-  const fetchPresets = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch(`/api/customers/${customerId}/presets`);
-      if (response.ok) {
-        const result = await response.json();
-        setPresets(result.data || []);
+      const [presetsRes, productsRes] = await Promise.all([
+        fetch(`/api/customers/${customerId}/presets`),
+        fetch("/api/products?active=true", { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
+      ]);
+
+      const initialQty = new Map<string, number>();
+
+      if (presetsRes.ok) {
+        const result = await presetsRes.json();
+        const presets: CustomerPreset[] = result.data || [];
+        presets.forEach((p) => initialQty.set(p.productId, p.quantity));
       }
+
+      if (productsRes.ok) {
+        const result = await productsRes.json();
+        setAvailableProducts(result.data || []);
+      }
+
+      setProductQty(initialQty);
     } catch (error) {
-      console.error("Erro ao buscar presets:", error);
+      console.error("Erro ao carregar dados:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Buscar produtos disponíveis
-  const fetchProducts = async () => {
-    try {
-      const response = await fetch("/api/products?active=true", {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (response.ok) {
-        const result = await response.json();
-        setAvailableProducts(result.data || []);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar produtos:", error);
-    }
-  };
-
   useEffect(() => {
     if (isOpen) {
-      fetchPresets();
-      fetchProducts();
+      fetchData();
+    } else {
+      setSearchQuery("");
+      setProductQty(new Map());
     }
   }, [isOpen, customerId]);
 
-  // Filtrar produtos baseado na busca (busca em tempo real)
-  const filteredProducts = availableProducts.filter(product => {
-    if (!searchQuery.trim()) return false; // Só mostra produtos quando há busca
-    
-    const query = searchQuery.toLowerCase().trim();
-    return (
-      product.name.toLowerCase().includes(query) ||
-      (product.barcode && product.barcode.includes(query))
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return availableProducts;
+    return availableProducts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.includes(q))
     );
-  });
+  }, [availableProducts, searchQuery]);
 
-  // Adicionar produto ao preset
-  const addProductToPreset = () => {
-    if (!selectedProductId || quantity <= 0) return;
+  const selectedProducts = useMemo(
+    () => availableProducts.filter((p) => (productQty.get(p.id) ?? 0) > 0),
+    [availableProducts, productQty]
+  );
 
-    const product = availableProducts.find(p => p.id === selectedProductId);
-    if (!product) return;
-
-    // Verificar se o produto já está no preset
-    if (presets.some(p => p.productId === selectedProductId)) {
-      showToast("⚠️ Este produto já está configurado no preset!", "warning");
-      return;
-    }
-
-    const newPreset: Omit<CustomerPreset, 'id'> = {
-      productId: selectedProductId,
-      quantity,
-      product
-    };
-
-    setPresets([...presets, newPreset as CustomerPreset]);
-    setSelectedProductId("");
-    setQuantity(1);
-    setSearchQuery("");
-    
-    showToast(`✅ ${product.name} adicionado ao preset com sucesso!`, "success");
+  const setQty = (productId: string, qty: number) => {
+    setProductQty((prev) => {
+      const next = new Map(prev);
+      if (qty <= 0) next.delete(productId);
+      else next.set(productId, qty);
+      return next;
+    });
   };
 
-  // Função para selecionar produto e fechar a lista
-  const selectProduct = (productId: string) => {
-    setSelectedProductId(productId);
-    setSearchQuery(""); // Limpa a busca para fechar a lista
-    setShowProductList(false); // Fecha a lista de produtos
+  const increment = (productId: string) => {
+    const current = productQty.get(productId) ?? 0;
+    setQty(productId, Math.min(current + 1, 99));
   };
 
-  // Iniciar edição de quantidade
-  const startEditQuantity = (preset: CustomerPreset) => {
-    setEditingPreset(preset.productId);
-    setEditQuantity(preset.quantity);
+  const decrement = (productId: string) => {
+    const current = productQty.get(productId) ?? 0;
+    setQty(productId, current - 1);
   };
 
-  // Salvar edição de quantidade
-  const saveEditQuantity = (productId: string) => {
-    if (editQuantity <= 0) return;
-    
-    setPresets(presets.map(p => 
-      p.productId === productId 
-        ? { ...p, quantity: editQuantity }
-        : p
-    ));
-    setEditingPreset(null);
-    setEditQuantity(1);
-  };
-
-  // Cancelar edição
-  const cancelEdit = () => {
-    setEditingPreset(null);
-    setEditQuantity(1);
-  };
-
-  // Remover produto do preset
-  const removeProductFromPreset = (productId: string) => {
-    setPresets(presets.filter(p => p.productId !== productId));
-  };
-
-  // Salvar presets
   const savePresets = async () => {
     try {
       setSaving(true);
+      const presets = Array.from(productQty.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      }));
+
       const response = await fetch(`/api/customers/${customerId}/presets`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          presets: presets.map(p => ({
-            productId: p.productId,
-            quantity: p.quantity,
-          })),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presets }),
       });
 
       if (response.ok) {
-        const result = await response.json();
-        showToast(`✅ ${presets.length} produto(s) configurado(s) com sucesso!`, "success");
-        fetchPresets(); // Recarregar presets
+        showToast(`${presets.length} produto(s) salvos no preset com sucesso!`, "success");
+        onClose();
       } else {
         const error = await response.json();
-        showToast(`❌ Erro ao salvar presets: ${error.error}`, "error");
+        showToast(`Erro ao salvar presets: ${error.error}`, "error");
       }
-    } catch (error) {
-      console.error("Erro ao salvar presets:", error);
-      showToast("❌ Erro inesperado ao salvar presets. Tente novamente.", "error");
+    } catch {
+      showToast("Erro inesperado ao salvar presets.", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  // Limpar todos os presets
-  const clearAllPresets = async () => {
-    // Usar toast de confirmação em vez de confirm nativo
-    showToast("🔄 Removendo todos os presets...", "info");
-
-    try {
-      setSaving(true);
-      const response = await fetch(`/api/customers/${customerId}/presets`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        setPresets([]);
-        showToast("🗑️ Todos os presets foram removidos com sucesso!", "success");
-      } else {
-        const error = await response.json();
-        showToast(`❌ Erro ao remover presets: ${error.error}`, "error");
-      }
-    } catch (error) {
-      console.error("Erro ao remover presets:", error);
-      showToast("❌ Erro inesperado ao remover presets. Tente novamente.", "error");
-    } finally {
-      setSaving(false);
-    }
+  const clearAll = () => {
+    setProductQty(new Map());
   };
 
-  const formatPrice = (priceCents: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(priceCents / 100);
-  };
-
-  const handleClose = () => {
-    // Resetar estados ao fechar
-    setSelectedProductId("");
-    setQuantity(1);
-    setSearchQuery("");
-    setEditingPreset(null);
-    setEditQuantity(1);
-    setShowProductList(false);
-    onClose();
-  };
+  const selectedCount = selectedProducts.length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
-        {/* Header com gradiente */}
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-          <div className="relative p-6 flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Package className="h-5 w-5 text-orange-600" />
-                Preset de Produtos
-              </DialogTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                Configure produtos para {customerName}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
+        <DialogHeader>
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{
+                background: "var(--modal-header-icon-bg)",
+                outline: "1px solid var(--modal-header-icon-ring)",
+              }}
             >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            Preset de Produtos
+          </DialogTitle>
+          <DialogDescription>
+            Configure os produtos padrão para <strong>{customerName}</strong> — escolha e ajuste as quantidades
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Conteúdo scrollável */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-3">
-          {loading ? (
-            <div className="text-center py-8">Carregando presets...</div>
-          ) : (
-            <>
-              {/* Lista de presets atuais */}
-              {presets.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-muted-foreground">
-                      Produtos configurados ({presets.length})
-                    </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearAllPresets}
-                      disabled={saving}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2"
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Limpar
-                    </Button>
-                  </div>
-                  
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {presets.map((preset) => (
-                      <div
-                        key={preset.productId}
-                        className="flex items-center justify-between p-2 border rounded bg-muted/20 hover:bg-muted/40 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{preset.product.name}</div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-muted-foreground">
-                                {preset.product.pricePerKgCents && preset.product.pricePerKgCents > 0 ? (
-                                  <>{formatPrice(preset.product.pricePerKgCents)}/kg</>
-                                ) : (
-                                  <>{formatPrice(preset.product.priceCents)}</>
-                                )}
-                              </div>
-                              {preset.product.pricePerKgCents && preset.product.pricePerKgCents > 0 && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                  Por Quilo
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                          {/* Edição de quantidade */}
-                          {editingPreset === preset.productId ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min="1"
-                                max="99"
-                                value={editQuantity}
-                                onChange={(e) => setEditQuantity(parseInt(e.target.value) || 1)}
-                                className="w-12 h-6 text-xs text-center"
-                              />
-                              <Button
-                                size="sm"
-                                onClick={() => saveEditQuantity(preset.productId)}
-                                disabled={editQuantity <= 0}
-                                className="h-6 w-6 p-0"
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={cancelEdit}
-                                className="h-6 w-6 p-0"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <Badge className="text-xs h-5 px-1 bg-slate-100 text-slate-800 hover:bg-slate-200">
-                                {preset.quantity}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditQuantity(preset)}
-                                title="Editar quantidade"
-                                className="h-6 w-6 p-0"
-                              >
-                                <Edit3 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                          
-                          {/* Botão remover */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeProductFromPreset(preset.productId)}
-                            disabled={saving}
-                            title="Remover produto"
-                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhum produto configurado</p>
-                </div>
-              )}
-
-              {/* Formulário para adicionar produto */}
-              <div className="space-y-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-primary" />
-                  <span className="text-base font-semibold text-primary">Adicionar Produto</span>
-                </div>
-                
-                {/* Campo de busca */}
-                <div className="relative">
-                  <Input
-                    placeholder="Digite o nome, código de barras ou descrição do produto..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setShowProductList(e.target.value.trim().length > 0);
-                      if (e.target.value.trim().length === 0) {
-                        setSelectedProductId('');
-                      }
-                    }}
-                    className="w-full pr-8 h-9 border-primary/30 focus:border-primary"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedProductId('');
-                        setShowProductList(false);
-                      }}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Lista de resultados da busca */}
-                {showProductList && searchQuery.trim() && (
-                  <div className="max-h-32 overflow-y-auto border rounded bg-background">
-                    {filteredProducts.length > 0 ? (
-                      <div className="space-y-1 p-1">
-                        {filteredProducts.map((product) => (
-                          <button
-                            key={product.id}
-                            onClick={() => selectProduct(product.id)}
-                            className={`w-full p-2 text-left hover:bg-muted/50 transition-colors rounded text-xs ${
-                              selectedProductId === product.id 
-                                ? 'bg-primary/10 border-l-2 border-l-primary' 
-                                : ''
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium truncate">{product.name}</div>
-                                <div className="flex items-center gap-2">
-                                  <div className="text-muted-foreground">
-                                    {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
-                                      <>{formatPrice(product.pricePerKgCents)}/kg</>
-                                    ) : (
-                                      <>{formatPrice(product.priceCents)}</>
-                                    )}
-                                    {product.barcode && ` • ${product.barcode}`}
-                                  </div>
-                                  {product.pricePerKgCents && product.pricePerKgCents > 0 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                      Por Quilo
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {selectedProductId === product.id && (
-                                <Check className="h-3 w-3 text-primary flex-shrink-0" />
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 text-center text-xs text-muted-foreground">
-                        Nenhum produto encontrado
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Produto selecionado e quantidade */}
-                {selectedProductId && (
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-primary/30 shadow-sm">
-                    {(() => {
-                      const selectedProduct = availableProducts.find(p => p.id === selectedProductId);
-                      return selectedProduct ? (
-                        <>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold truncate text-primary">{selectedProduct.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {selectedProduct.pricePerKgCents && selectedProduct.pricePerKgCents > 0 ? (
-                                <>{formatPrice(selectedProduct.pricePerKgCents)}/kg</>
-                              ) : (
-                                <>{formatPrice(selectedProduct.priceCents)}</>
-                              )}
-                              {selectedProduct.pricePerKgCents && selectedProduct.pricePerKgCents > 0 && (
-                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                  Por Quilo
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium text-muted-foreground">Qtd:</label>
-                            <Input
-                              type="number"
-                              min="1"
-                              max="99"
-                              value={quantity}
-                              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                              className="w-14 h-7 text-xs text-center border-primary/30"
-                            />
-                          </div>
-                          <Button
-                            onClick={addProductToPreset}
-                            disabled={quantity <= 0}
-                            size="sm"
-                            className="h-7 px-3 text-xs bg-primary hover:bg-primary/90"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Adicionar
-                          </Button>
-                        </>
-                      ) : null;
-                    })()}
-                  </div>
-                )}
-
-                {/* Instruções quando não há busca */}
-                {!searchQuery.trim() && !selectedProductId && (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-muted-foreground">Digite acima para buscar produtos</p>
-                    <p className="text-xs text-muted-foreground">Busque por nome, código de barras ou descrição</p>
-                  </div>
+        <div className="flex flex-1 overflow-hidden">
+          {/* ── Catálogo de produtos (esquerda) ── */}
+          <div className="flex flex-col flex-1 border-r border-slate-100 overflow-hidden">
+            {/* Barra de busca */}
+            <div className="px-4 py-3 border-b border-slate-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar produto por nome ou código..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-9 pr-4 text-sm border border-slate-200 rounded-lg bg-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    ×
+                  </button>
                 )}
               </div>
+            </div>
 
-            </>
-          )}
-        </div>
+            {/* Lista de produtos */}
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-16 text-slate-400 gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-sm">Carregando produtos...</span>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+                  <Package className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Nenhum produto encontrado</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {filteredProducts.map((product) => {
+                    const qty = productQty.get(product.id) ?? 0;
+                    const isKg = !!(product.pricePerKgCents && product.pricePerKgCents > 0);
+                    const isSelected = qty > 0;
 
-        {/* Rodapé fixo */}
-        {presets.length > 0 && (
-          <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={savePresets}
-                disabled={saving}
-                className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
-              >
-                {saving ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
-                    Salvando...
-                  </span>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar Presets
-                  </>
-                )}
-              </Button>
+                    return (
+                      <div
+                        key={product.id}
+                        className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                          isSelected
+                            ? "bg-primary/5 border-l-2 border-l-primary"
+                            : "hover:bg-slate-50 border-l-2 border-l-transparent"
+                        }`}
+                      >
+                        {/* Avatar / imagem */}
+                        <div className="h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <Package className="h-4 w-4 text-slate-300" />
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${isSelected ? "text-primary" : "text-slate-800"}`}>
+                            {product.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-slate-500">
+                              {isKg
+                                ? `${formatPrice(product.pricePerKgCents!)}/kg`
+                                : formatPrice(product.priceCents)}
+                            </span>
+                            {isKg && (
+                              <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                                Por kg
+                              </span>
+                            )}
+                            {product.barcode && (
+                              <span className="text-[10px] text-slate-400">{product.barcode}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stepper */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {isSelected ? (
+                            <>
+                              <button
+                                onClick={() => decrement(product.id)}
+                                className="h-7 w-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="w-8 text-center text-sm font-bold text-primary tabular-nums">
+                                {qty}
+                              </span>
+                              <button
+                                onClick={() => increment(product.id)}
+                                className="h-7 w-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setQty(product.id, 1)}
+                              className="h-7 w-7 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50">
+              <p className="text-xs text-slate-400">
+                {filteredProducts.length} produto{filteredProducts.length !== 1 ? "s" : ""} disponível{filteredProducts.length !== 1 ? "s" : ""}
+                {searchQuery && ` · filtrando por "${searchQuery}"`}
+              </p>
             </div>
           </div>
-        )}
+
+          {/* ── Painel de configurados (direita) ── */}
+          <div className="w-56 flex flex-col bg-slate-50/40 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Configurados
+              </span>
+              {selectedCount > 0 && (
+                <span
+                  className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "var(--modal-header-icon-bg)",
+                    color: "var(--modal-header-text)",
+                  }}
+                >
+                  {selectedCount}
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {selectedCount === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full py-8 px-4 text-center text-slate-400 gap-2">
+                  <Package className="h-7 w-7 opacity-30" />
+                  <p className="text-xs leading-snug">
+                    Clique em <Plus className="inline h-3 w-3" /> ao lado de um produto para adicioná-lo
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {selectedProducts.map((product) => {
+                    const qty = productQty.get(product.id)!;
+                    return (
+                      <div key={product.id} className="px-4 py-3 flex items-start gap-2">
+                        <Check className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-slate-800 leading-snug truncate">
+                            {product.name}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {qty}× {formatPrice(product.priceCents)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setQty(product.id, 0)}
+                          className="flex-shrink-0 text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {selectedCount > 0 && (
+              <div className="px-4 py-2 border-t border-slate-100">
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Limpar tudo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <p className="text-xs text-slate-400">
+            {selectedCount > 0
+              ? `${selectedCount} produto${selectedCount !== 1 ? "s" : ""} no preset`
+              : "Nenhum produto selecionado"}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={savePresets} disabled={saving || selectedCount === 0}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Preset
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
