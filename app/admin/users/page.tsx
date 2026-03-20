@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
 import { useToast } from "../../components/Toast";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
 import { UserFormDialog } from "../../components/UserFormDialog";
 import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
@@ -572,7 +572,7 @@ export default function AdminUsersPage() {
         )}
 
         {/* Modal de Confirmação */}
-        <ConfirmDialog
+        <DeleteConfirmDialog
           open={isConfirmOpen}
           onOpenChange={(open) => {
             setIsConfirmOpen(open);
@@ -586,7 +586,6 @@ export default function AdminUsersPage() {
             }
             setPendingAction(null);
           }}
-          confirmText="Excluir"
           isLoading={isDeletingUser}
         />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/app/admin/components/layout/PageHeader";
-import { ConfirmDialog } from "@/app/components/ConfirmDialog";
+import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { Button } from "@/app/components/ui/button";
 import {
   ChevronDown,
@@ -237,7 +237,7 @@ export default function ExpensesPage() {
         }}
       />
 
-      <ConfirmDialog
+      <DeleteConfirmDialog
         open={!!ex.deletingExpense}
         onOpenChange={(open) => !open && ex.setDeletingExpense(undefined)}
         onConfirm={ex.handleDeleteExpense}

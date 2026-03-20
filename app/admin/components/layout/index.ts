@@ -6,4 +6,4 @@
 
 export { ModernSidebar, MobileSidebar, SidebarProvider, useSidebar } from "./ModernSidebar";
 export { PageHeader, SimplePageHeader, PageSection, Breadcrumb } from "./PageHeader";
-export { UserMenu, UserAvatar, HeaderActions } from "./UserMenu";
+export { UserMenu, UserAvatar, HeaderActions, NotificationBell } from "./UserMenu";

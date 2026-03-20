@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useToast } from "../../components/Toast";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
 import { ProductFormDialog } from "./components/ProductFormDialog";
 import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
@@ -767,12 +767,11 @@ export default function AdminProductsPage() {
       />
 
       {/* Dialog de Confirmação de Exclusão */}
-      <ConfirmDialog
+      <DeleteConfirmDialog
         open={deleteConfirm !== null}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
         title="Excluir Produto"
         description="Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
-        confirmText="Excluir"
         onConfirm={() => deleteConfirm && deleteProduct(deleteConfirm)}
         isLoading={isDeletingProduct}
       />
