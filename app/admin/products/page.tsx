@@ -277,8 +277,12 @@ export default function AdminProductsPage() {
         name: product.name,
         barcode: product.barcode || "",
         category_id: product.categoryId || "",
-        priceCents: (product.priceCents / 100).toFixed(2),
-        pricePerKgCents: product.pricePerKgCents ? (product.pricePerKgCents / 100).toFixed(2) : "",
+        // Inteiros em centavos (string), igual ao que o ProductFormDialog grava — evita parseInt("12.50") === 12
+        priceCents: String(product.priceCents),
+        pricePerKgCents:
+          product.pricePerKgCents != null && product.pricePerKgCents > 0
+            ? String(product.pricePerKgCents)
+            : "",
         description: product.description || "",
         stockEnabled: product.stockEnabled,
         stock: product.stock?.toString() || "",
@@ -308,14 +312,20 @@ export default function AdminProductsPage() {
     }
 
     try {
+      const priceCents = parseInt(String(formData.priceCents || "0"), 10);
+      const pricePerKgParsed = parseInt(String(formData.pricePerKgCents || "0"), 10);
       const productData = {
         name: formData.name,
         barcode: formData.barcode || undefined,
         categoryId: formData.category_id || undefined,
-        priceCents: Math.round(parseFloat(formData.priceCents || "0") * 100),
-        pricePerKgCents: formData.pricePerKgCents
-          ? Math.round(parseFloat(formData.pricePerKgCents) * 100)
-          : undefined,
+        priceCents: Number.isNaN(priceCents) ? 0 : priceCents,
+        pricePerKgCents:
+          formData.pricePerKgCents != null &&
+          String(formData.pricePerKgCents).trim() !== "" &&
+          !Number.isNaN(pricePerKgParsed) &&
+          pricePerKgParsed > 0
+            ? pricePerKgParsed
+            : undefined,
         description: formData.description || undefined,
         stockEnabled: formData.stockEnabled,
         stock: formData.stockEnabled ? parseInt(formData.stock || "0") : undefined,

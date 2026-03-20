@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import bcrypt from "bcryptjs";
+import { del } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
         password: hashedPassword,
         role: body.role || 'pdv',
         active: body.status === 'active',
+        imageUrl: body.imageUrl || null,
         facialImageUrl: body.facialImageUrl || undefined,
         facialDescriptor: body.facialDescriptor || undefined
       }
@@ -174,7 +176,19 @@ export async function PUT(request: Request) {
     
     // Preparar dados de atualização
     let updateData: any = {};
-    
+
+    // Limpar imagem de perfil antiga do Vercel Blob se uma nova URL foi enviada
+    if (data.imageUrl !== undefined) {
+      if (
+        existingUser.imageUrl &&
+        existingUser.imageUrl !== data.imageUrl &&
+        existingUser.imageUrl.includes('blob.vercel-storage.com')
+      ) {
+        try { await del(existingUser.imageUrl); } catch {}
+      }
+      updateData.imageUrl = data.imageUrl || null;
+    }
+
     // Se não for atualização apenas facial, incluir campos básicos
     if (!isFacialOnlyUpdate) {
       updateData.name = data.name;
@@ -233,10 +247,24 @@ export async function DELETE(request: Request) {
       );
     }
     
+    // Buscar imagens antes de deletar para limpeza no Vercel Blob
+    const userToDelete = await prisma.user.findUnique({
+      where: { id },
+      select: { imageUrl: true, facialImageUrl: true }
+    });
+
     await prisma.user.delete({
       where: { id }
     });
-    
+
+    // Remover imagens do Vercel Blob
+    if (userToDelete?.imageUrl?.includes('blob.vercel-storage.com')) {
+      try { await del(userToDelete.imageUrl); } catch {}
+    }
+    if (userToDelete?.facialImageUrl?.includes('blob.vercel-storage.com')) {
+      try { await del(userToDelete.facialImageUrl); } catch {}
+    }
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);

@@ -22,6 +22,7 @@ model User {
   password          String
   role              String   @default("pdv") // admin, pdv
   active            Boolean  @default(true)
+  imageUrl          String?  // URL da foto de perfil no Vercel Blob
   facialImageUrl    String?  // URL da imagem facial para login por reconhecimento
   facialDescriptor  Json?    // Descriptor facial (array de números) para comparação rápida
   createdAt         DateTime @default(now())

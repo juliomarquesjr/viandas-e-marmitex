@@ -18,7 +18,6 @@ import {
   Search,
   Mail,
   Phone,
-  Calendar,
   MoreVertical,
   Edit,
   Trash2,
@@ -26,9 +25,12 @@ import {
   User,
   Camera,
   ScanFace,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersPageSkeleton } from "./components/UsersPageSkeleton";
+import { UserGridView } from "./components/UserGridView";
 
 // =============================================================================
 // TIPOS
@@ -41,6 +43,7 @@ type User = {
   phone?: string;
   role: "admin" | "pdv";
   status: "active" | "inactive";
+  imageUrl?: string;
   facialImageUrl?: string;
   createdAt: string;
   updatedAt: string;
@@ -137,6 +140,17 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Estado de visualização (tabela ou cards)
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">(() => {
+    if (typeof window === "undefined") return "table";
+    return (sessionStorage.getItem("users-view-mode") as "table" | "grid") ?? "table";
+  });
+
+  const handleViewModeChange = (mode: "table" | "grid") => {
+    setViewMode(mode);
+    sessionStorage.setItem("users-view-mode", mode);
+  };
+
   // Estados de busca e filtros
   const [searchInput, setSearchInput] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -223,6 +237,7 @@ export default function AdminUsersPage() {
         role: formData.role,
         status: formData.status,
         password: formData.password || undefined,
+        imageUrl: formData.imageUrl || null,
       };
 
       if (editingUser) {
@@ -322,8 +337,12 @@ export default function AdminUsersPage() {
       header: "Usuário",
       render: (_, user) => (
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-primary" />
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+            {user.imageUrl ? (
+              <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <User className="h-4 w-4 text-primary" />
+            )}
           </div>
           <div className="min-w-0">
             <p className="font-medium text-slate-900 truncate">{user.name}</p>
@@ -410,6 +429,12 @@ export default function AdminUsersPage() {
     },
   ];
 
+  // Dados paginados para o grid view
+  const paginatedUsers = users.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <div className="space-y-6">
@@ -448,8 +473,8 @@ export default function AdminUsersPage() {
                     />
                   </div>
 
-                  {/* Filtros e Ações */}
-                  <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+                  {/* Filtros, Ações e Toggle de Visão */}
+                  <div className="flex flex-wrap gap-3 w-full lg:w-auto items-center">
                     <div className="relative">
                       <select
                         value={roleFilter}
@@ -518,15 +543,45 @@ export default function AdminUsersPage() {
                     >
                       Limpar
                     </Button>
+
+                    {/* Toggle de Visualização */}
+                    <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleViewModeChange("table")}
+                        className={`flex items-center justify-center h-9 w-9 transition-colors ${
+                          viewMode === "table"
+                            ? "bg-primary text-white"
+                            : "bg-white text-slate-500 hover:bg-slate-50"
+                        }`}
+                        title="Visualização em tabela"
+                        aria-label="Visualização em tabela"
+                      >
+                        <LayoutList className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleViewModeChange("grid")}
+                        className={`flex items-center justify-center h-9 w-9 transition-colors ${
+                          viewMode === "grid"
+                            ? "bg-primary text-white"
+                            : "bg-white text-slate-500 hover:bg-slate-50"
+                        }`}
+                        title="Visualização em mosaico"
+                        aria-label="Visualização em mosaico"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Tabela de Usuários */}
-            <Card>
-              <CardContent className="p-0">
-                {error ? (
+            {/* Conteúdo: Tabela ou Grid */}
+            {error ? (
+              <Card>
+                <CardContent className="p-0">
                   <div className="text-center py-12">
                     <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
                       <div className="h-6 w-6 rounded-full bg-red-500" />
@@ -537,7 +592,11 @@ export default function AdminUsersPage() {
                     <p className="text-slate-500 mb-4">{error}</p>
                     <Button onClick={loadUsers}>Tentar novamente</Button>
                   </div>
-                ) : (
+                </CardContent>
+              </Card>
+            ) : viewMode === "table" ? (
+              <Card>
+                <CardContent className="p-0">
                   <DataTable
                     columns={columns}
                     data={users}
@@ -555,9 +614,31 @@ export default function AdminUsersPage() {
                         : "Nenhum usuário cadastrado"
                     }
                   />
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <UserGridView
+                users={paginatedUsers}
+                onEdit={openForm}
+                onDelete={(id) => {
+                  const user = users.find((u) => u.id === id);
+                  if (user) handleDeleteClick(user);
+                }}
+                onFacialCapture={handleFacialCapture}
+                pagination={{
+                  page: currentPage,
+                  pageSize: itemsPerPage,
+                  total: users.length,
+                  onPageChange: setCurrentPage,
+                  onPageSizeChange: setItemsPerPage,
+                }}
+                emptyMessage={
+                  searchTerm || roleFilter !== "all" || statusFilter !== "all"
+                    ? "Nenhum usuário encontrado com os filtros aplicados"
+                    : "Nenhum usuário cadastrado"
+                }
+              />
+            )}
           </>
         )}
 

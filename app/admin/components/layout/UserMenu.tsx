@@ -11,7 +11,6 @@ import {
   Construction,
   Info,
   LogOut,
-  Settings,
   ShoppingCart,
   User,
 } from "lucide-react";
@@ -226,16 +225,6 @@ export function UserMenu() {
               >
                 <ShoppingCart className="h-4 w-4 text-slate-400" />
                 Abrir PDV
-              </Link>
-
-              <Link
-                href="/admin/settings"
-                className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                role="menuitem"
-                onClick={() => setOpen(false)}
-              >
-                <Settings className="h-4 w-4 text-slate-400" />
-                Configurações
               </Link>
             </div>
 
