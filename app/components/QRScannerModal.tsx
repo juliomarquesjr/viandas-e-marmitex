@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import {
   Dialog,
@@ -38,7 +39,7 @@ export function QRScannerModal({
   onClose,
   onQRCodeScanned,
 }: QRScannerModalProps) {
-  const [mode, setMode] = useState<ScanMode>("mobile-link");
+  const [mode, setMode] = useState<ScanMode>("barcode");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +52,9 @@ export function QRScannerModal({
   const [isPolling, setIsPolling] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [barcodeUrl, setBarcodeUrl] = useState("");
 
   // Iniciar sessão quando o modal abrir no modo mobile-link
   useEffect(() => {
@@ -84,6 +87,13 @@ export function QRScannerModal({
 
     return () => clearInterval(interval);
   }, [sessionId, timeRemaining]);
+
+  // Focar campo do leitor USB (modo código de barras / teclado) ao abrir a aba
+  useEffect(() => {
+    if (!isOpen || mode !== "barcode") return;
+    const t = window.setTimeout(() => barcodeInputRef.current?.focus(), 200);
+    return () => window.clearTimeout(t);
+  }, [isOpen, mode]);
 
   // Iniciar sessão de scan
   const startSession = async () => {
@@ -205,13 +215,51 @@ export function QRScannerModal({
     }
   };
 
+  const submitBarcodeUrl = async () => {
+    const raw = barcodeUrl.trim().replace(/\s+/g, "");
+    if (!raw || processing) return;
+
+    setError(null);
+    setProcessing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("qrData", raw);
+
+      const response = await fetch("/api/nf-scanner/process-qr", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof errorData.error === "string" ? errorData.error : "Erro ao processar link da nota"
+        );
+      }
+
+      const { data } = await response.json();
+      setBarcodeUrl("");
+      onQRCodeScanned(data);
+      handleClose();
+    } catch (err) {
+      console.error("Erro ao processar leitura:", err);
+      setError(err instanceof Error ? err.message : "Erro ao processar link da nota");
+    } finally {
+      setProcessing(false);
+      window.setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    }
+  };
+
   // Fechar modal
   const handleClose = () => {
     stopPolling();
     setSessionId(null);
     setScanUrl("");
+    setBarcodeUrl("");
     setError(null);
     setLinkCopied(false);
+    setMode("barcode");
     onClose();
   };
 
@@ -236,13 +284,29 @@ export function QRScannerModal({
             Escanear QR Code da Nota Fiscal
           </DialogTitle>
           <DialogDescription>
-            Capture o QR Code da nota fiscal usando seu celular ou faça upload de uma imagem
+            Use o leitor de código de barras, o link no celular ou envie uma imagem com o QR Code da nota fiscal
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Seleção de modo - Tabs deslizantes */}
           <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl ring-1 ring-slate-200/80">
+            <button
+              type="button"
+              onClick={() => {
+                stopPolling();
+                setMode("barcode");
+                setError(null);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === "barcode"
+                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Barcode className="h-4 w-4 shrink-0" />
+              <span className="truncate">Barcode</span>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -274,21 +338,6 @@ export function QRScannerModal({
               <Upload className="h-4 w-4 shrink-0" />
               <span className="truncate">Upload</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("barcode");
-                setError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                mode === "barcode"
-                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Barcode className="h-4 w-4 shrink-0" />
-              <span className="truncate">Barcode</span>
-            </button>
           </div>
 
           {/* Mensagens de erro */}
@@ -297,6 +346,67 @@ export function QRScannerModal({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
+          )}
+
+          {/* Modo: leitor USB (teclado) — URL do QR Code da NFC-e da SEFAZ */}
+          {mode === "barcode" && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={{
+                    background: "var(--modal-header-icon-bg)",
+                    outline: "1px solid var(--modal-header-icon-ring)",
+                  }}
+                >
+                  <Barcode className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-semibold text-slate-800">Leitor de código de barras (modo teclado)</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Clique no campo abaixo e leia o código. O equipamento envia o link da SEFAZ como se fosse digitação;
+                    na maioria dos leitores, ao terminar é enviado <span className="font-medium">Enter</span> e a nota é
+                    processada automaticamente. Você também pode colar o link e clicar em Processar.
+                  </p>
+                </div>
+              </div>
+
+              <Input
+                ref={barcodeInputRef}
+                type="text"
+                inputSize="lg"
+                value={barcodeUrl}
+                onChange={(e) => setBarcodeUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submitBarcodeUrl();
+                  }
+                }}
+                placeholder="https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=..."
+                disabled={processing}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono text-xs sm:text-sm"
+                aria-label="URL ou dados da NFC-e lidos pelo leitor"
+              />
+
+              <Button
+                type="button"
+                className="w-full h-10"
+                disabled={processing || !barcodeUrl.trim()}
+                onClick={() => void submitBarcodeUrl()}
+              >
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando nota…
+                  </>
+                ) : (
+                  "Processar leitura"
+                )}
+              </Button>
+            </div>
           )}
 
           {/* Modo: Link Mobile */}
@@ -462,30 +572,6 @@ export function QRScannerModal({
                     </>
                   )}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Modo: Barcode */}
-          {mode === "barcode" && (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <div
-                className="h-16 w-16 rounded-full flex items-center justify-center"
-                style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
-              >
-                <Barcode className="h-7 w-7 text-primary" />
-              </div>
-              <div className="text-center space-y-2">
-                <p className="text-base font-semibold text-slate-800">Recurso em Desenvolvimento</p>
-                <p className="text-sm text-slate-500 max-w-xs mx-auto">
-                  A leitura de código de barras estará disponível em breve. Em breve você poderá escanear produtos diretamente.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                <p className="text-xs text-amber-700 font-medium">
-                  Esta funcionalidade será lançada nas próximas atualizações
-                </p>
               </div>
             </div>
           )}

@@ -203,6 +203,7 @@ export default function ExpensesPage() {
             }}
             onDelete={ex.setDeletingExpense}
             onNewExpense={() => ex.setIsFormOpen(true)}
+            onExpenseClick={ex.handleExpenseClick}
           />
         )}
       </div>

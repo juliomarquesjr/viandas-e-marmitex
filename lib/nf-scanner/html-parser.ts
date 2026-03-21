@@ -1,7 +1,7 @@
 // Parser de HTML de notas fiscais (para SEFAZes que retornam HTML ao invés de XML)
 
-import { InvoiceData, InvoiceItem, InvoiceEmitent, InvoiceTotals } from './types';
-import { extractUFFromChave, formatValueToCents, normalizeChaveAcesso } from './utils';
+import { InvoiceData, InvoiceItem } from './types';
+import { extractUFFromChave, normalizeChaveAcesso } from './utils';
 
 /**
  * Extrai texto de um elemento HTML usando regex simples
@@ -44,10 +44,10 @@ function cleanText(text: string): string {
 }
 
 /**
- * Converte valor monetário de string para centavos
- * Ex: "R$ 10,50" ou "10,50" -> 1050
- * Ex: "9,60" -> 960
- * Ex: "96" -> 9600 (assume que é R$ 96,00 se não tiver decimal)
+ * Converte valor monetário de string para reais.
+ * Ex: "R$ 10,50" ou "10,50" -> 10.5
+ * Ex: "9,60" -> 9.6
+ * Ex: "96" -> 96
  */
 function parseCurrency(value: string): number {
   // Remove R$, espaços
@@ -61,51 +61,76 @@ function parseCurrency(value: string): number {
   
   if (hasComma) {
     // Tem vírgula - formato brasileiro (ex: "9,60" ou "1.234,56")
-    // Remove pontos (separadores de milhar) e converte vírgula para ponto
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-    if (isNaN(num)) return 0;
-    // Converte reais para centavos
-    return formatValueToCents(num);
+    return parseFloat(cleaned) || 0;
   } else if (hasDot) {
-    // Tem ponto - pode ser formato internacional (ex: "9.60") ou separador de milhar (ex: "1.234")
-    // Se tiver apenas um ponto e o número após o ponto tiver 2 dígitos, é decimal
-    const parts = cleaned.split('.');
-    if (parts.length === 2 && parts[1].length === 2) {
-      // Formato internacional com decimal (ex: "9.60")
-      const num = parseFloat(cleaned);
-      if (isNaN(num)) return 0;
-      return formatValueToCents(num);
-    } else {
-      // Separador de milhar (ex: "1.234" = 1234 reais)
-      cleaned = cleaned.replace(/\./g, '');
-      const num = parseFloat(cleaned);
-      if (isNaN(num)) return 0;
-      return formatValueToCents(num);
+    // Tem ponto - pode ser decimal ("9.60") ou milhar ("1.234")
+    const decimalPattern = /^\d+\.\d{2}$/;
+    const thousandPattern = /^\d{1,3}(?:\.\d{3})+$/;
+
+    if (decimalPattern.test(cleaned)) {
+      return parseFloat(cleaned) || 0;
     }
+
+    if (thousandPattern.test(cleaned)) {
+      return parseFloat(cleaned.replace(/\./g, '')) || 0;
+    }
+
+    return parseFloat(cleaned.replace(/\./g, '')) || 0;
   } else {
-    // Não tem vírgula nem ponto
-    // Pode ser:
-    // - "96" = R$ 96,00 (reais inteiros)
-    // - "960" = R$ 9,60 (sem separador decimal, últimos 2 dígitos são centavos)
-    const digitsOnly = cleaned.replace(/\D/g, '');
-    const num = parseFloat(digitsOnly);
-    if (isNaN(num)) return 0;
-    
-    // Se tiver 3 ou mais dígitos, assume que os últimos 2 são centavos
-    // Ex: "960" -> 9,60 -> 960 centavos
-    // Ex: "1234" -> 12,34 -> 1234 centavos
-    if (digitsOnly.length >= 3) {
-      // Os últimos 2 dígitos são centavos
-      const reais = Math.floor(num / 100);
-      const centavos = num % 100;
-      return reais * 100 + centavos; // Já está em centavos
-    } else {
-      // Menos de 3 dígitos - assume reais inteiros
-      // Ex: "96" -> R$ 96,00 -> 9600 centavos
-      return formatValueToCents(num);
+    return parseFloat(cleaned.replace(/\D/g, '')) || 0;
+  }
+}
+
+function extractMonetaryValue(html: string, patterns: RegExp[]): number | undefined {
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    const rawValue = match?.[1] || match?.[2];
+    if (!rawValue) {
+      continue;
+    }
+
+    const parsedValue = parseCurrency(cleanText(rawValue));
+    if (parsedValue > 0) {
+      return parsedValue;
     }
   }
+
+  return undefined;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractValueFromSummaryLine(html: string, label: string): number | undefined {
+  const escapedLabel = escapeRegExp(label);
+  const pattern = new RegExp(
+    `<div[^>]*id="linhaTotal"[^>]*>[\\s\\S]*?<label[^>]*>${escapedLabel}\\s*R\\$:\\s*<\\/label>\\s*<span[^>]*class="totalNumb[^"]*"[^>]*>([\\d.,]+)<\\/span>`,
+    'i'
+  );
+  const match = html.match(pattern);
+  return match?.[1] ? parseCurrency(cleanText(match[1])) : undefined;
+}
+
+function extractValueAfterMarker(html: string, marker: string): number | undefined {
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex === -1) {
+    return undefined;
+  }
+
+  const snippet = html.slice(markerIndex, markerIndex + 400);
+  const match = snippet.match(/<span[^>]*class="totalNumb[^"]*"[^>]*>([\d.,]+)<\/span>/i);
+  return match?.[1] ? parseCurrency(cleanText(match[1])) : undefined;
+}
+
+function buildCurrencyPatterns(label: string): RegExp[] {
+  return [
+    new RegExp(`${label}\\s*R\\$\\s*:?\\s*([\\d.,]+)`, 'i'),
+    new RegExp(`${label}[^\\d]{0,20}([\\d.,]+)`, 'i'),
+    new RegExp(`<strong>${label}\\s*:?\\s*<\\/strong>\\s*([^<]+)`, 'i'),
+    new RegExp(`${label}[^<]*<strong>([^<]+)<\\/strong>`, 'i'),
+  ];
 }
 
 /**
@@ -220,7 +245,7 @@ export function parseRSHTML(html: string, chaveAcesso: string): InvoiceData | nu
       const vlUnitText = vlUnitMatch ? cleanText(vlUnitMatch[1]) : '';
       const valorUnitario = vlUnitText ? parseCurrency(vlUnitText) : 0;
       if (vlUnitText) {
-        console.log(`  - Valor unitário texto: "${vlUnitText}" -> ${valorUnitario} centavos`);
+        console.log(`  - Valor unitário texto: "${vlUnitText}" -> R$ ${valorUnitario}`);
       }
       
       // Extrai valor total (última coluna alinhada à direita)
@@ -242,7 +267,7 @@ export function parseRSHTML(html: string, chaveAcesso: string): InvoiceData | nu
       const vlTotalText = vlTotalMatch ? cleanText(vlTotalMatch[1]) : '';
       const valorTotal = vlTotalText ? parseCurrency(vlTotalText) : (valorUnitario * quantidade);
       if (vlTotalText) {
-        console.log(`  - Valor total texto: "${vlTotalText}" -> ${valorTotal} centavos`);
+        console.log(`  - Valor total texto: "${vlTotalText}" -> R$ ${valorTotal}`);
       }
       
       if (descricao && quantidade > 0) {
@@ -288,32 +313,55 @@ export function parseRSHTML(html: string, chaveAcesso: string): InvoiceData | nu
     }
     
     // Calcular totais
-    const valorProdutos = itens.reduce((sum, item) => sum + item.valorTotal, 0);
-    
-    // Tentar extrair total da nota (pode estar em diferentes lugares)
-    let valorTotal = valorProdutos;
+    const somaItens = itens.reduce((sum, item) => sum + item.valorTotal, 0);
+    const valorProdutos =
+      extractValueFromSummaryLine(html, 'Valor total') ??
+      extractMonetaryValue(html, buildCurrencyPatterns('Valor total')) ??
+      somaItens;
+    const valorDesconto = extractMonetaryValue(html, [
+      /<div[^>]*id="linhaTotal"[^>]*>[\s\S]*?<label[^>]*>Descontos\s*R\$:\s*<\/label>\s*<span[^>]*class="totalNumb[^"]*"[^>]*>([\d.,]+)<\/span>/i,
+      ...buildCurrencyPatterns('Descontos'),
+      ...buildCurrencyPatterns('Desconto'),
+      /<td[^>]*>Desconto[^<]*<\/td>[\s\S]*?<td[^>]*align="right"[^>]*>([^<]+)<\/td>/i,
+      /<span[^>]*class="txtT"[^>]*>Desconto[^<]*<\/span>[\s\S]*?<span[^>]*class="txtT"[^>]*>([^<]+)<\/span>/i,
+    ]);
+    const valorAPagar =
+      extractValueFromSummaryLine(html, 'Valor a pagar') ??
+      extractMonetaryValue(html, buildCurrencyPatterns('Valor a pagar'));
+    const valorPago =
+      extractValueAfterMarker(html, 'Valor pago R$:') ??
+      extractMonetaryValue(html, buildCurrencyPatterns('Valor pago'));
+
+    // Tentar extrair total final da nota (prioridade: valor a pagar)
+    let valorTotal = valorAPagar ?? somaItens;
     
     // Busca por padrões comuns de total no HTML do RS
     const totalPatterns = [
+      ...buildCurrencyPatterns('Total'),
       /<strong>Total:\s*<\/strong>([^<]+)/i,
-      /Total[^<]*<strong>([^<]+)<\/strong>/i,
       /<td[^>]*>Total[^<]*<\/td>[\s\S]*?<td[^>]*align="right"[^>]*>([^<]+)<\/td>/i,
-      /Valor\s+Total[^<]*<strong>([^<]+)<\/strong>/i,
       /<span[^>]*class="txtT"[^>]*>Total[^<]*<\/span>[\s\S]*?<span[^>]*class="txtT"[^>]*>([^<]+)<\/span>/i,
       /<div[^>]*class="txtT"[^>]*>Total[^<]*<\/div>[\s\S]*?<div[^>]*class="txtT"[^>]*>([^<]+)<\/div>/i,
     ];
-    
-    for (const pattern of totalPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        const totalValue = parseCurrency(cleanText(match[1] || match[2]));
-        if (totalValue > 0 && totalValue >= valorProdutos) {
-          valorTotal = totalValue;
-          console.log('Total extraído do HTML:', valorTotal);
-          break;
+
+    if (!valorAPagar) {
+      for (const pattern of totalPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          const totalValue = parseCurrency(cleanText(match[1] || match[2]));
+          if (totalValue > 0) {
+            valorTotal = totalValue;
+            console.log('Total extraído do HTML:', valorTotal);
+            break;
+          }
         }
       }
     }
+
+    const descontoInferido =
+      valorDesconto == null && valorProdutos > valorTotal
+        ? Number((valorProdutos - valorTotal).toFixed(2))
+        : undefined;
     
     // Se não encontrou total específico, usa a soma dos itens
     if (valorTotal === valorProdutos && valorProdutos > 0) {
@@ -365,8 +413,10 @@ export function parseRSHTML(html: string, chaveAcesso: string): InvoiceData | nu
       } : undefined,
       itens,
       totais: {
-        valorTotal,
-        valorProdutos,
+        valorProdutos, // Valor bruto dos produtos
+        valorDesconto: valorDesconto ?? descontoInferido,
+        valorTotal, // Valor final da nota (já com descontos)
+        valorPago,
       },
     };
     

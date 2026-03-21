@@ -30,6 +30,11 @@ import type {
 // Cache simples em memória para notas fiscais
 const invoiceCache = new Map<string, { data: InvoiceData; timestamp: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hora
+const CACHE_VERSION = 'nf-v2';
+
+function getCacheKey(chaveAcesso: string): string {
+  return `${CACHE_VERSION}:${chaveAcesso}`;
+}
 
 /**
  * Processa o QR Code e retorna os dados da nota fiscal
@@ -54,7 +59,7 @@ async function processQRCode(qrData: string): Promise<InvoiceData> {
   console.log('[ScanSession API] Chave de acesso:', chaveAcesso);
   
   // Verificar cache
-  const cached = invoiceCache.get(chaveAcesso);
+  const cached = invoiceCache.get(getCacheKey(chaveAcesso));
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     console.log('[ScanSession API] Retornando do cache');
     return cached.data;
@@ -125,7 +130,7 @@ async function processQRCode(qrData: string): Promise<InvoiceData> {
   }
   
   // Salvar no cache
-  invoiceCache.set(chaveAcesso, {
+  invoiceCache.set(getCacheKey(chaveAcesso), {
     data: invoiceData,
     timestamp: Date.now(),
   });

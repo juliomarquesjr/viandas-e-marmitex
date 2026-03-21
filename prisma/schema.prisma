@@ -288,6 +288,7 @@ model Expense {
   amountCents     Int           @default(0) // Valor em centavos para evitar problemas de arredondamento
   description     String        // Descrição da despesa
   date            DateTime      // Data da despesa
+  nfChaveAcesso   String?       // Chave de acesso SEFAZ (44 dígitos), presente quando lançada via NF
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -300,6 +301,7 @@ model Expense {
   @@index([supplierTypeId])
   @@index([paymentMethodId])
   @@index([date])
+  @@index([nfChaveAcesso])
 }
 
 // Modelo de Rastreamento de Entrega

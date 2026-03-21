@@ -2,7 +2,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import { InvoiceData, InvoiceItem, InvoiceEmitent, InvoiceTotals } from './types';
-import { extractUFFromChave, formatValueToCents } from './utils';
+import { extractUFFromChave } from './utils';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -97,6 +97,7 @@ function parseNFeStructure(nfe: any): InvoiceData | null {
     const det = infNFe.det || [];
     const total = infNFe.total || {};
     const totalICMSTot = total.ICMSTot || total.ICMS || total || {};
+    const pag = infNFe.pag || {};
     
     // Extrair chave de acesso de diferentes formatos
     let chaveAcesso = '';
@@ -152,13 +153,25 @@ function parseNFeStructure(nfe: any): InvoiceData | null {
     
     // Processa itens
     const itens: InvoiceItem[] = Array.isArray(det) ? det.map(parseItem) : (det ? [parseItem(det)] : []);
-    
+
+    // Calcula totais em reais, mantendo a mesma unidade usada no XML da NF.
+    // vProd = valor bruto dos produtos
+    // vDesc = valor do desconto
+    // vNF = valor final da nota (já com descontos aplicados)
+    const valorProdutos = parseNumber(totalICMSTot.vProd || totalICMSTot['@_vProd'] || '0');
+    const valorDesconto = parseNumber(totalICMSTot.vDesc || totalICMSTot['@_vDesc'] || '0');
+    const valorFrete = parseNumber(totalICMSTot.vFrete || totalICMSTot['@_vFrete'] || '0');
+    const valorICMS = parseNumber(totalICMSTot.vICMS || totalICMSTot['@_vICMS'] || '0');
+    const valorNF = parseNumber(totalICMSTot.vNF || totalICMSTot['@_vNF'] || '0');
+    const valorPago = parseValorPago(pag);
+
     const totais: InvoiceTotals = {
-      valorProdutos: parseNumber(totalICMSTot.vProd || totalICMSTot['@_vProd'] || '0'),
-      valorDesconto: parseNumber(totalICMSTot.vDesc || totalICMSTot['@_vDesc'] || '0'),
-      valorFrete: parseNumber(totalICMSTot.vFrete || totalICMSTot['@_vFrete'] || '0'),
-      valorICMS: parseNumber(totalICMSTot.vICMS || totalICMSTot['@_vICMS'] || '0'),
-      valorTotal: parseNumber(totalICMSTot.vNF || totalICMSTot['@_vNF'] || totalICMSTot.vProd || totalICMSTot['@_vProd'] || '0'),
+      valorProdutos, // Valor bruto dos produtos (293,03)
+      valorDesconto, // Valor do desconto (43,58)
+      valorFrete,
+      valorICMS,
+      valorTotal: valorNF > 0 ? valorNF : (valorProdutos - valorDesconto + valorFrete), // Valor final a pagar (249,45)
+      valorPago,
     };
     
     return {
@@ -213,6 +226,24 @@ function parseNumber(value: string | number | undefined): number {
   if (!value) return 0;
   const str = String(value).replace(',', '.');
   return parseFloat(str) || 0;
+}
+
+function parseValorPago(pag: any): number | undefined {
+  if (!pag) {
+    return undefined;
+  }
+
+  const detPagRaw = pag.detPag || pag.pag || [];
+  const detPagList = Array.isArray(detPagRaw) ? detPagRaw : detPagRaw ? [detPagRaw] : [];
+  const totalPago = detPagList.reduce((sum, item) => {
+    const valor = parseNumber(item?.vPag || item?.['@_vPag'] || '0');
+    return sum + valor;
+  }, 0);
+
+  const troco = parseNumber(pag.vTroco || pag['@_vTroco'] || '0');
+  const valorLiquidoPago = totalPago - troco;
+
+  return valorLiquidoPago > 0 ? valorLiquidoPago : totalPago > 0 ? totalPago : undefined;
 }
 
 /**

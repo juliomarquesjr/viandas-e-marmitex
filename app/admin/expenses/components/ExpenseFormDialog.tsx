@@ -22,6 +22,7 @@ import {
 import { QRScannerModal } from "@/app/components/QRScannerModal";
 import { InvoiceDataDisplay } from "@/app/components/InvoiceDataDisplay";
 import { InvoiceData } from "@/lib/nf-scanner/types";
+import { formatValueToCents } from "@/lib/nf-scanner/utils";
 import {
   ExpenseFormData,
   ExpensePaymentMethod,
@@ -30,6 +31,7 @@ import {
   SupplierType,
 } from "@/lib/types";
 import {
+  AlertTriangle,
   Calendar,
   CreditCard,
   DollarSign,
@@ -62,6 +64,7 @@ const emptyForm: ExpenseFormData = {
   amountCents: 0,
   description: "",
   date: new Date().toISOString().split("T")[0],
+  nfChaveAcesso: "",
 };
 
 function SectionDivider({ label }: { label: string }) {
@@ -92,6 +95,7 @@ export function ExpenseFormDialog({
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [isInvoiceDisplayOpen, setIsInvoiceDisplayOpen] = useState(false);
   const [scannedInvoiceData, setScannedInvoiceData] = useState<InvoiceData | null>(null);
+  const [nfDuplicateWarning, setNfDuplicateWarning] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -115,6 +119,7 @@ export function ExpenseFormDialog({
     }
     setErrors({});
     setTouched({});
+    setNfDuplicateWarning(false);
   }, [expense, open]);
 
   const validateField = (field: keyof FormErrors, value: any): string | undefined => {
@@ -173,15 +178,39 @@ export function ExpenseFormDialog({
     setIsInvoiceDisplayOpen(true);
   };
 
-  const handleUseInvoiceForExpense = () => {
+  const handleUseInvoiceForExpense = async () => {
     if (!scannedInvoiceData) return;
-    const cents = scannedInvoiceData.totais.valorTotal;
-    const formatted = (cents / 100).toFixed(2);
+    // A NF mantém valores em reais; a despesa persiste `amountCents`.
+    const amountToApply = scannedInvoiceData.totais.valorTotal;
+    const amountCents = formatValueToCents(amountToApply);
+    const formatted = (amountCents / 100).toFixed(2);
     setDisplayPrice(`R$ ${formatted.replace(".", ",")}`);
-    setFormData((f) => ({ ...f, amountCents: cents, date: scannedInvoiceData.dataEmissao }));
+    const chave = scannedInvoiceData.chaveAcesso;
+    setFormData((f) => ({
+      ...f,
+      amountCents,
+      date: scannedInvoiceData.dataEmissao,
+      nfChaveAcesso: chave,
+    }));
     setIsInvoiceDisplayOpen(false);
     setScannedInvoiceData(null);
     showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
+
+    // Verificar se essa chave já foi usada em outra despesa
+    try {
+      const res = await fetch(`/api/expenses?nfChaveAcesso=${encodeURIComponent(chave)}&limit=1`);
+      if (res.ok) {
+        const data = await res.json();
+        const existing = data.expenses?.filter((e: { id?: string }) =>
+          !expense || e.id !== expense.id
+        );
+        if (existing && existing.length > 0) {
+          setNfDuplicateWarning(true);
+        }
+      }
+    } catch {
+      // falha silenciosa — não impede o fluxo
+    }
   };
 
   const err = (field: keyof FormErrors) =>
@@ -390,6 +419,15 @@ export function ExpenseFormDialog({
                 />
               </div>
             </div>
+
+            {nfDuplicateWarning && (
+              <div className="mx-6 mb-2 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-800 leading-snug">
+                  Esta nota fiscal já foi utilizada em outra despesa. Você pode salvar mesmo assim se necessário.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
               <p className="text-xs text-slate-400">

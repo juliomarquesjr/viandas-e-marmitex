@@ -22,6 +22,7 @@ interface ExpenseListViewProps {
   onEdit: (expense: ExpenseWithRelations) => void;
   onDelete: (expense: ExpenseWithRelations) => void;
   onNewExpense: () => void;
+  onExpenseClick?: (expense: ExpenseWithRelations) => void;
 }
 
 export function ExpenseListView({
@@ -31,6 +32,7 @@ export function ExpenseListView({
   onEdit,
   onDelete,
   onNewExpense,
+  onExpenseClick,
 }: ExpenseListViewProps) {
   if (monthsGrouped.length === 0) {
     return (
@@ -128,7 +130,8 @@ export function ExpenseListView({
               {monthExpenses.map((expense) => (
                 <tr
                   key={expense.id}
-                  className="hover:bg-slate-50/80 transition-colors duration-100 group"
+                  className={`hover:bg-slate-50/80 transition-colors duration-100 group ${onExpenseClick ? "cursor-pointer" : ""}`}
+                  onClick={() => onExpenseClick?.(expense)}
                 >
                   {/* Descrição */}
                   <td className="px-5 py-3.5">
@@ -184,7 +187,7 @@ export function ExpenseListView({
                   </td>
 
                   {/* Ações */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-100">
                       <ExpenseActionsMenu
                         onEdit={() => onEdit(expense)}

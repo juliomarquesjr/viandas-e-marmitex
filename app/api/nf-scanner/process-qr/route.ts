@@ -12,6 +12,11 @@ import { InvoiceData } from '@/lib/nf-scanner/types';
 // Cache simples em memória (em produção, usar Redis ou similar)
 const cache = new Map<string, { data: InvoiceData; timestamp: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hora
+const CACHE_VERSION = 'nf-v2';
+
+function getCacheKey(chaveAcesso: string): string {
+  return `${CACHE_VERSION}:${chaveAcesso}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
       console.log('Chave de acesso normalizada:', chaveAcesso);
 
       // Verificar cache
-      const cached = cache.get(chaveAcesso);
+      const cached = cache.get(getCacheKey(chaveAcesso));
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return NextResponse.json({ data: cached.data });
       }
@@ -124,7 +129,7 @@ export async function POST(request: Request) {
                       if (invoiceData) {
                         const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                         const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
-                        cache.set(chave, { data: invoiceData, timestamp: Date.now() });
+                        cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
                         return NextResponse.json({ data: invoiceData });
                       }
                     }
@@ -142,7 +147,7 @@ export async function POST(request: Request) {
               if (invoiceData) {
                 const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                 const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
-                cache.set(chave, { data: invoiceData, timestamp: Date.now() });
+                cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
                 return NextResponse.json({ data: invoiceData });
               }
             }
@@ -172,7 +177,7 @@ export async function POST(request: Request) {
                 const invoiceData = parseRSHTML(directText, chaveAcesso);
                 if (invoiceData) {
                   console.log('HTML parseado com sucesso!');
-                  cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+                  cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
                   return NextResponse.json({ data: invoiceData });
                 }
               }
@@ -221,7 +226,7 @@ export async function POST(request: Request) {
       }
 
       // Salvar no cache
-      cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+      cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
 
       return NextResponse.json({ data: invoiceData });
     }
@@ -288,7 +293,7 @@ export async function POST(request: Request) {
     console.log('Chave de acesso normalizada:', chaveAcesso);
 
     // Verificar cache
-    const cached = cache.get(chaveAcesso);
+    const cached = cache.get(getCacheKey(chaveAcesso));
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({ data: cached.data });
     }
@@ -328,7 +333,7 @@ export async function POST(request: Request) {
     }
 
     // Salvar no cache
-    cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+    cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
 
     return NextResponse.json({ data: invoiceData });
   } catch (error) {
