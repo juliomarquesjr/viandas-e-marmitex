@@ -1,12 +1,15 @@
 "use client";
 
-import { BarChart3, Calendar, X } from "lucide-react";
+import { BarChart3, Calendar, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../../../components/ui/dialog";
@@ -18,6 +21,17 @@ interface GenerateProfitReportDialogProps {
   isLoading?: boolean;
 }
 
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
 export function GenerateProfitReportDialog({
   isOpen,
   onClose,
@@ -26,6 +40,7 @@ export function GenerateProfitReportDialog({
 }: GenerateProfitReportDialogProps) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState<"current" | "last" | "30days" | "custom">("current");
 
   // Inicializar com o mês atual
   useEffect(() => {
@@ -33,9 +48,10 @@ export function GenerateProfitReportDialog({
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
+
       setStartDate(firstDay.toISOString().split("T")[0]);
       setEndDate(lastDay.toISOString().split("T")[0]);
+      setSelectedPeriod("current");
     }
   }, [isOpen]);
 
@@ -50,166 +66,188 @@ export function GenerateProfitReportDialog({
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
+
     setStartDate(firstDay.toISOString().split("T")[0]);
     setEndDate(lastDay.toISOString().split("T")[0]);
+    setSelectedPeriod("current");
   };
 
   const setLastMonth = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-    
+
     setStartDate(firstDay.toISOString().split("T")[0]);
     setEndDate(lastDay.toISOString().split("T")[0]);
+    setSelectedPeriod("last");
   };
 
   const setLast30Days = () => {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
+
     setStartDate(thirtyDaysAgo.toISOString().split("T")[0]);
     setEndDate(today.toISOString().split("T")[0]);
+    setSelectedPeriod("30days");
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Gerar Relatório de Lucros
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-md text-slate-400 hover:text-slate-500"
-              onClick={onClose}
-              disabled={isLoading}
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{
+                background: "var(--modal-header-icon-bg)",
+                outline: "1px solid var(--modal-header-icon-ring)",
+              }}
             >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
+              <BarChart3 className="h-5 w-5 text-primary" />
+            </div>
+            Gerar Relatório de Lucros
+          </DialogTitle>
+          <DialogDescription>
             Selecione o período para análise de receitas, despesas e lucros.
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
-        <form id="profit-report-form" onSubmit={handleSubmit} className="space-y-6 mt-4">
-          {/* Seção de Atalhos */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-slate-500" />
-              <h3 className="text-sm font-medium text-slate-700">Períodos Predefinidos</h3>
-            </div>
-            
+        <form id="profit-report-form" onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+            {/* ── Períodos Predefinidos ── */}
+            <SectionDivider label="Períodos Predefinidos" />
+
             <div className="grid grid-cols-3 gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant={selectedPeriod === "current" ? "default" : "outline"}
                 size="sm"
-                onClick={setCurrentMonth}
+                onClick={() => {
+                  setCurrentMonth();
+                }}
                 disabled={isLoading}
-                className="w-full text-xs font-normal text-slate-600 hover:bg-slate-50"
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "current" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
               >
                 Este Mês
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant={selectedPeriod === "last" ? "default" : "outline"}
                 size="sm"
-                onClick={setLastMonth}
+                onClick={() => {
+                  setLastMonth();
+                }}
                 disabled={isLoading}
-                className="w-full text-xs font-normal text-slate-600 hover:bg-slate-50"
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "last" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
               >
                 Mês Passado
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant={selectedPeriod === "30days" ? "default" : "outline"}
                 size="sm"
-                onClick={setLast30Days}
+                onClick={() => {
+                  setLast30Days();
+                }}
                 disabled={isLoading}
-                className="w-full text-xs font-normal text-slate-600 hover:bg-slate-50"
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "30days" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
               >
                 Últimos 30 Dias
               </Button>
             </div>
-          </div>
 
-          <div className="h-px bg-slate-100" />
+            {/* ── Período Personalizado ── */}
+            <SectionDivider label="Período Personalizado" />
 
-          {/* Seção de Período Personalizado */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-slate-700">Período Personalizado</h3>
-            
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-600">
-                  Data Inicial <span className="text-red-500">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Data Inicial <span className="text-red-400">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setSelectedPeriod("custom");
+                    }}
                     required
                     disabled={isLoading}
-                    className="pl-8 text-sm h-10"
+                    className="pl-9"
                   />
-                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-600">
-                  Data Final <span className="text-red-500">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Data Final <span className="text-red-400">*</span>
+                </Label>
                 <div className="relative">
                   <Input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setSelectedPeriod("custom");
+                    }}
                     required
                     disabled={isLoading}
-                    className="pl-8 text-sm h-10"
+                    className="pl-9"
                   />
-                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={isLoading}
-              className="text-slate-600"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-primary hover:bg-primary/90 text-white min-w-[140px]"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white animate-spin rounded-full" />
-                  Gerando...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Gerar Relatório
-                </div>
-              )}
-            </Button>
-          </div>
+          <DialogFooter>
+            <p className="text-xs text-slate-400">
+              <span className="text-red-400">*</span> campos obrigatórios
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="profit-report-form"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Gerar Relatório
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
