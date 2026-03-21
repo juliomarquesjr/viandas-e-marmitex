@@ -16,6 +16,7 @@ declare module "next-auth" {
   interface User {
     role: string;
     id: string;
+    image?: string | null;
   }
 }
 
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    image?: string | null;
   }
 }
 
@@ -78,7 +80,8 @@ export const authOptions: AuthOptions = {
               id: user.id,
               name: user.name,
               email: user.email,
-              role: user.role
+              role: user.role,
+              image: user.imageUrl ?? null,
             };
           } catch (error) {
             console.error('[AUTH] Erro ao verificar token facial:', error);
@@ -115,23 +118,39 @@ export const authOptions: AuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          image: user.imageUrl ?? null,
         };
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.image = user.image ?? null;
       }
+
+      if (trigger === "update" && session?.user) {
+        if (session.user.name !== undefined) {
+          token.name = session.user.name;
+        }
+        if (session.user.email !== undefined) {
+          token.email = session.user.email;
+        }
+        if (session.user.image !== undefined) {
+          token.image = session.user.image;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.image = (token.image as string | null | undefined) ?? null;
       }
       return session;
     }

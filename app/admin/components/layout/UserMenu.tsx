@@ -87,20 +87,13 @@ export function UserMenu() {
   if (!user) return null;
 
   const roleLabel = user.role === "admin" ? "Administrador" : "PDV";
-  const initials = user.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "U";
 
   // Mapeia os dados da sessão para o formato esperado pelo UserFormDialog
   const sessionUserForForm = {
     id: user.id,
     name: user.name || "",
     email: user.email || "",
+    imageUrl: user.image || "",
     phone: "",
     role: (user.role === "admin" ? "admin" : "pdv") as "admin" | "pdv",
     status: "active" as const,
@@ -117,6 +110,7 @@ export function UserMenu() {
       role: "admin" | "pdv";
       status: "active" | "inactive";
       password: string;
+      imageUrl: string;
     }
   ) => {
     try {
@@ -127,6 +121,7 @@ export function UserMenu() {
         phone: formData.phone,
         role: formData.role,
         status: formData.status,
+        imageUrl: formData.imageUrl,
       };
       if (formData.password) {
         body.password = formData.password;
@@ -144,9 +139,17 @@ export function UserMenu() {
         return;
       }
 
+      const result = await response.json();
       showToast("Perfil atualizado com sucesso!", "success");
-      // Atualiza a sessão para refletir novo nome/email se mudados
-      await updateSession();
+      await updateSession({
+        user: {
+          ...session?.user,
+          name: result.name ?? formData.name,
+          email: result.email ?? formData.email,
+          image: result.imageUrl ?? formData.imageUrl ?? null,
+          role: result.role ?? formData.role,
+        },
+      });
       setProfileOpen(false);
     } catch {
       showToast("Erro ao atualizar perfil.", "error");
@@ -168,9 +171,7 @@ export function UserMenu() {
           aria-haspopup="true"
         >
           {/* Avatar */}
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white text-sm font-semibold">
-            {initials}
-          </div>
+          <UserAvatar name={user.name || "Usuário"} image={user.image || undefined} />
 
           {/* Info */}
           <div className="hidden md:block text-left">

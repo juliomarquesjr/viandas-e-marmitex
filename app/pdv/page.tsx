@@ -796,9 +796,17 @@ export default function PDVPage() {
           {/* User Info */}
           {session?.user && (
             <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-white/80 border border-white/30 backdrop-blur-sm shadow-sm">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
-              </div>
+              {session.user.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "Usuário"}
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+              )}
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-gray-900">
                   {session.user.name}
