@@ -5,6 +5,11 @@ import { Card, CardContent } from "@/app/components/ui/card";
 import { Badge, StatusBadge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/app/components/ui/popover";
+import {
   User,
   MoreVertical,
   Edit,
@@ -46,71 +51,67 @@ function CardActionsMenu({
   onFacialCapture: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
 
   return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
-        aria-label="Ações"
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+          aria-label="Ações"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={4}
+        collisionPadding={12}
+        className="w-max max-w-[min(100vw-1.5rem,20rem)] p-1 bg-white text-slate-700 border-slate-200 shadow-lg"
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.stopPropagation()}
       >
-        <MoreVertical className="h-4 w-4" />
-      </Button>
-
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-48 bg-white rounded-lg border border-slate-200 shadow-lg py-1">
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-              onFacialCapture();
-            }}
-          >
-            <ScanFace className="h-4 w-4 mr-2 text-slate-400" />
-            Reconhecimento Facial
-          </button>
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-              onEdit();
-            }}
-          >
-            <Edit className="h-4 w-4 mr-2 text-slate-400" />
-            Editar
-          </button>
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Remover
-          </button>
-        </div>
-      )}
-    </div>
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+            onFacialCapture();
+          }}
+        >
+          <ScanFace className="h-4 w-4 mr-2 text-slate-400" />
+          Reconhecimento Facial
+        </button>
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+            onEdit();
+          }}
+        >
+          <Edit className="h-4 w-4 mr-2 text-slate-400" />
+          Editar
+        </button>
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+            onDelete();
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Remover
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
