@@ -7,11 +7,11 @@ import { OrderSummaryModal } from "@/app/components/OrderSummaryModal";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
-import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { DataTable, Column } from "@/app/admin/components/data-display/DataTable";
 import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
 import { SkeletonTable } from "@/app/admin/components/data-display/LoadingSkeleton";
+import { cn } from "@/lib/utils";
 import {
   Banknote,
   Check,
@@ -26,15 +26,14 @@ import {
   User,
   Wallet,
   XCircle,
-  ChevronLeft,
-  ChevronRight,
   ShoppingCart,
   List,
   ListX,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrderStatsCards } from "./components/OrderStatsCards";
 import { OrderActionsMenu } from "./components/OrderActionsMenu";
 import { OrderFilterBar } from "./components/OrderFilterBar";
@@ -56,6 +55,7 @@ type Order = {
     name: string;
     phone: string;
     address?: any;
+    imageUrl?: string | null;
   } | null;
   items: {
     id: string;
@@ -65,6 +65,7 @@ type Order = {
     product: {
       id: string;
       name: string;
+      imageUrl?: string | null;
       pricePerKgCents?: number | null;
     };
   }[];
@@ -96,6 +97,82 @@ const paymentMethodMap = {
   cartãocrédito: { label: "Cartão de Crédito", icon: CreditCard },
   cartãodébito: { label: "Cartão de Débito", icon: CreditCard },
 };
+
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  preparing: "bg-indigo-100 text-indigo-800",
+  ready: "bg-green-100 text-green-800",
+  delivered: "bg-purple-100 text-purple-800",
+  cancelled: "bg-red-100 text-red-800",
+};
+
+const PRODUCT_COLORS = [
+  "bg-violet-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
+
+function getProductColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length];
+}
+
+function getProductInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+type OrderItem = {
+  id: string;
+  quantity: number;
+  priceCents: number;
+  weightKg?: number | null;
+  product: { id: string; name: string; imageUrl?: string | null; pricePerKgCents?: number | null };
+};
+
+function ProductAvatars({ items }: { items: OrderItem[] }) {
+  const MAX_SHOWN = 3;
+  const shown = items.slice(0, MAX_SHOWN);
+  const extra = items.length - MAX_SHOWN;
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-2">
+        {shown.map((item, i) => (
+          <div key={i} className="relative shrink-0" style={{ zIndex: MAX_SHOWN - i }}>
+            {item.product.imageUrl ? (
+              <div className="h-7 w-7 rounded-full ring-2 ring-white overflow-hidden bg-slate-100" title={item.product.name}>
+                <Image src={item.product.imageUrl} alt={item.product.name} width={28} height={28} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className={cn("h-7 w-7 rounded-full ring-2 ring-white flex items-center justify-center", getProductColor(item.product.name))}
+                title={item.product.name}
+              >
+                <span className="text-[9px] font-bold text-white leading-none">{getProductInitials(item.product.name)}</span>
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center ring-1 ring-white leading-none">
+              {item.weightKg && Number(item.weightKg) > 0 ? `${Number(item.weightKg).toFixed(1)}` : item.quantity}
+            </span>
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="h-7 w-7 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center" style={{ zIndex: 0 }}>
+            <span className="text-[9px] font-bold text-slate-600">+{extra}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const getTodayDateValue = () => {
   const today = new Date();
@@ -170,36 +247,6 @@ export default function AdminOrdersPage() {
     }
     return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
   }, [allOrders]);
-
-  // Scroll handlers
-  const productsScrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollButtons = () => {
-    const el = productsScrollRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setCanScrollLeft(scrollLeft > 0);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
-  };
-
-  const scrollProducts = (dir: "left" | "right") => {
-    const el = productsScrollRef.current;
-    if (!el) return;
-    const delta = 320;
-    el.scrollBy({ left: dir === "left" ? -delta : delta, behavior: "smooth" });
-    setTimeout(updateScrollButtons, 350);
-  };
-
-  useEffect(() => {
-    updateScrollButtons();
-    const el = productsScrollRef.current;
-    if (!el) return;
-    const onScroll = () => updateScrollButtons();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [productSummary]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -385,8 +432,16 @@ export default function AdminOrdersPage() {
             href={`/admin/customers/${order.customer.id}`}
             className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-lg transition-colors max-w-xs"
           >
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-blue-600" />
+            <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden bg-blue-100 flex items-center justify-center">
+              {order.customer.imageUrl ? (
+                <img
+                  src={order.customer.imageUrl}
+                  alt={order.customer.name}
+                  className="h-9 w-9 rounded-full object-cover"
+                />
+              ) : (
+                <User className="h-4 w-4 text-blue-600" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="font-medium text-slate-900 text-sm hover:text-blue-600 transition-colors truncate">
@@ -403,12 +458,36 @@ export default function AdminOrdersPage() {
               <User className="h-4 w-4 text-slate-400" />
             </div>
             <div className="min-w-0">
-              <div className="font-medium text-slate-500 truncate">
-                Venda avulsa
-              </div>
+              <div className="font-medium text-slate-500 truncate">Venda avulsa</div>
             </div>
           </div>
         )
+      ),
+    },
+    {
+      key: "items",
+      header: "Itens",
+      render: (_value, order) => (
+        <div className="flex items-center gap-3">
+          {order.items.length > 0 && <ProductAvatars items={order.items} />}
+          <div className="min-w-0">
+            <p className="text-slate-700 font-medium text-xs mb-0.5">
+              {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+            </p>
+            <div className="space-y-0.5">
+              {order.items.slice(0, 2).map((item, idx) => (
+                <p key={idx} className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                  {item.weightKg && Number(item.weightKg) > 0
+                    ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                    : `${item.quantity}× ${item.product.name}`}
+                </p>
+              ))}
+              {order.items.length > 2 && (
+                <p className="text-[11px] text-slate-400 italic">+{order.items.length - 2} mais...</p>
+              )}
+            </div>
+          </div>
+        </div>
       ),
     },
     {
@@ -416,37 +495,18 @@ export default function AdminOrdersPage() {
       header: "Valor",
       sortable: true,
       render: (_value, order) => (
-        <div className="flex flex-col items-start">
-          <div className="font-bold text-slate-900">
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">
             {formatCurrency(order.totalCents)}
-          </div>
-          {(order.discountCents > 0 || order.deliveryFeeCents > 0) && (
-            <div className="mt-1 pt-1 border-t border-slate-100 space-y-0.5 text-xs">
-              {order.discountCents > 0 && (
-                <div className="flex justify-between text-red-600">
-                  <span>Desc.:</span>
-                  <span>-{formatCurrency(order.discountCents)}</span>
-                </div>
-              )}
-              {order.deliveryFeeCents > 0 && (
-                <div className="flex justify-between text-slate-500">
-                  <span>Entrega:</span>
-                  <span>+{formatCurrency(order.deliveryFeeCents)}</span>
-                </div>
-              )}
-            </div>
+          </p>
+          {order.discountCents > 0 && (
+            <p className="text-[11px] text-red-500">-{formatCurrency(order.discountCents)}</p>
+          )}
+          {order.deliveryFeeCents > 0 && (
+            <p className="text-[11px] text-slate-400">+{formatCurrency(order.deliveryFeeCents)} entrega</p>
           )}
           {order.paymentMethod === "cash" && order.cashReceivedCents != null && order.changeCents != null && (
-            <div className="mt-1 pt-1 border-t border-slate-100 space-y-0.5 text-xs">
-              <div className="flex justify-between text-green-600">
-                <span>Recebido:</span>
-                <span>{formatCurrency(order.cashReceivedCents)}</span>
-              </div>
-              <div className="flex justify-between text-blue-600">
-                <span>Troco:</span>
-                <span>{formatCurrency(order.changeCents)}</span>
-              </div>
-            </div>
+            <p className="text-[11px] text-blue-500">troco {formatCurrency(order.changeCents)}</p>
           )}
         </div>
       ),
@@ -454,43 +514,31 @@ export default function AdminOrdersPage() {
     {
       key: "paymentMethod",
       header: "Pagamento",
+      align: "center",
       render: (_value, order) => {
         const Icon = getPaymentMethodIcon(order.paymentMethod);
         const label = getPaymentMethodLabel(order.paymentMethod);
-
-        return (
-          <div className="flex items-center gap-2">
-            {Icon ? (
-              <>
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Icon className="h-4 w-4 text-blue-600" />
-                </div>
-                <span className="text-sm font-medium text-slate-900">{label}</span>
-              </>
-            ) : (
-              <span className="text-sm text-slate-500">{label}</span>
-            )}
+        return Icon ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <Icon className="h-5 w-5 text-slate-400" />
+            <span className="text-[10px] text-slate-400 leading-tight text-center">{label}</span>
           </div>
+        ) : (
+          <span className="text-xs text-slate-500">{label}</span>
         );
       },
     },
     {
       key: "status",
       header: "Status",
+      align: "center",
       render: (_value, order) => {
         const statusInfo = getStatusInfo(order.status);
-        const statusColors: Record<string, string> = {
-          pending: "bg-yellow-100 text-yellow-800",
-          confirmed: "bg-blue-100 text-blue-800",
-          preparing: "bg-indigo-100 text-indigo-800",
-          ready: "bg-green-100 text-green-800",
-          delivered: "bg-purple-100 text-purple-800",
-          cancelled: "bg-red-100 text-red-800",
-        };
         return (
-          <Badge className={`${statusColors[order.status] || "bg-slate-100 text-slate-800"} px-2.5 py-1 rounded-full text-xs font-medium`}>
+          <span className={cn("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium", statusColors[order.status] || "bg-slate-100 text-slate-800")}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
             {statusInfo.label}
-          </Badge>
+          </span>
         );
       },
     },
@@ -499,14 +547,9 @@ export default function AdminOrdersPage() {
       header: "Data",
       sortable: true,
       render: (_value, order) => (
-        <div className="flex flex-col">
-          <div className="text-sm font-medium text-slate-900">
-            {formatDate(order.createdAt)}
-          </div>
-          <div className="text-xs text-slate-500">
-            {new Date(order.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' })}
-          </div>
-        </div>
+        <p className="text-[11px] text-slate-500 whitespace-nowrap">
+          {formatDate(order.createdAt)}
+        </p>
       ),
     },
     {
@@ -587,63 +630,52 @@ export default function AdminOrdersPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="relative">
-                  {productSummary.length > 4 && (
-                    <>
-                      <div className="pointer-events-none absolute left-0 top-0 h-full w-10 bg-gradient-to-r from-white to-transparent z-10" />
-                      <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-white to-transparent z-10" />
-
-                      <button
-                        type="button"
-                        className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
-                          canScrollLeft ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
-                        }`}
-                        onClick={() => canScrollLeft && scrollProducts("left")}
-                        aria-label="Deslizar para a esquerda"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
-                          canScrollRight ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
-                        }`}
-                        onClick={() => canScrollRight && scrollProducts("right")}
-                        aria-label="Deslizar para a direita"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                  <div
-                    ref={productsScrollRef}
-                    className="overflow-x-auto scroll-smooth scrollbar-hide"
-                  >
-                    <div className="flex gap-3 px-8 py-2">
-                      {productSummary.map((product) => (
-                        <div
-                          key={product.productId}
-                          className="flex min-w-[200px] items-center p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
-                        >
-                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                            <Package className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-slate-900 truncate">
+                {(() => {
+                  const maxQty = productSummary[0]?.totalQuantity ?? 1;
+                  const rankColors = [
+                    "bg-yellow-400 text-yellow-900",
+                    "bg-slate-300 text-slate-700",
+                    "bg-amber-600 text-amber-100",
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {productSummary.map((product, index) => {
+                        const badgeColor = index < 3 ? rankColors[index] : "bg-slate-100 text-slate-500";
+                        const progressPct = Math.round((product.totalQuantity / maxQty) * 100);
+                        return (
+                          <div
+                            key={product.productId}
+                            className="flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <Package className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badgeColor}`}>
+                                #{index + 1}
+                              </span>
+                            </div>
+                            <h3 className="text-xs font-medium text-slate-900 truncate mb-1">
                               {product.productName}
                             </h3>
-                            <div className="mt-0.5 flex items-baseline gap-1">
+                            <div className="flex items-baseline gap-1 mb-2">
                               <span className="text-lg font-bold text-blue-600">
                                 {product.totalQuantity}
                               </span>
                               <span className="text-xs text-slate-500">unid.</span>
                             </div>
+                            <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-1 bg-blue-400 rounded-full"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
