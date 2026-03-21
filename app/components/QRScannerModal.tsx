@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
@@ -18,12 +19,13 @@ import {
   Clock,
   Link2,
   Barcode,
+  QrCode,
 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { InvoiceData } from "@/lib/nf-scanner/types";
 import { POLLING_INTERVAL_MS } from "@/lib/scan-session/types";
 
-type ScanMode = "mobile-link" | "upload";
+type ScanMode = "mobile-link" | "upload" | "barcode";
 
 interface QRScannerModalProps {
   isOpen: boolean;
@@ -56,11 +58,11 @@ export function QRScannerModal({
     if (isOpen && mode === "mobile-link") {
       startSession();
     }
-    
+
     return () => {
       stopPolling();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive/deps
   }, [isOpen, mode]);
 
   // Atualizar tempo restante
@@ -70,7 +72,7 @@ export function QRScannerModal({
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          // Sessão expirou
+          // Sessão expirada
           setError("Sessão expirada. Clique em 'Gerar Novo Link' para tentar novamente.");
           stopPolling();
           setSessionId(null);
@@ -101,14 +103,14 @@ export function QRScannerModal({
       }
 
       const data = await response.json();
-      
+
       setSessionId(data.sessionId);
       setScanUrl(data.scanUrl);
       setTimeRemaining(data.expiresIn);
-      
+
       // Iniciar polling
       startPolling(data.sessionId);
-      
+
     } catch (err) {
       console.error("Erro ao iniciar sessão:", err);
       setError("Erro ao criar sessão. Tente novamente.");
@@ -222,59 +224,71 @@ export function QRScannerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && !processing && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle>
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0"
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
               style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
             >
-              <Link2 className="h-4 w-4 text-primary" />
+              <QrCode className="h-5 w-5 text-primary" />
             </div>
-            Escanear QR Code
+            Escanear QR Code da Nota Fiscal
           </DialogTitle>
+          <DialogDescription>
+            Capture o QR Code da nota fiscal usando seu celular ou faça upload de uma imagem
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Seleção de modo */}
-          <div className="flex gap-2">
-            <Button
-              variant={mode === "mobile-link" ? "default" : "outline"}
-              size="sm"
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Seleção de modo - Tabs deslizantes */}
+          <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl ring-1 ring-slate-200/80">
+            <button
+              type="button"
               onClick={() => {
                 setMode("mobile-link");
                 setError(null);
               }}
-              className="flex-1"
-              disabled={processing}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === "mobile-link"
+                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              <Smartphone className="h-4 w-4 mr-2" />
-              Link Mobile
-            </Button>
-            <Button
-              variant={mode === "upload" ? "default" : "outline"}
-              size="sm"
+              <Smartphone className="h-4 w-4 shrink-0" />
+              <span className="truncate">Link Mobile</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setMode("upload");
                 stopPolling();
                 setError(null);
               }}
-              className="flex-1"
-              disabled={processing}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === "upload"
+                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              className="flex-1 opacity-50 cursor-not-allowed"
-              title="Disponível em breve"
+              <Upload className="h-4 w-4 shrink-0" />
+              <span className="truncate">Upload</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("barcode");
+                setError(null);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                mode === "barcode"
+                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              <Barcode className="h-4 w-4 mr-2" />
-              Barcode
-            </Button>
+              <Barcode className="h-4 w-4 shrink-0" />
+              <span className="truncate">Barcode</span>
+            </button>
           </div>
 
           {/* Mensagens de erro */}
@@ -289,57 +303,72 @@ export function QRScannerModal({
           {mode === "mobile-link" && (
             <div className="space-y-4">
               {isStartingSession ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
-                  <p className="text-sm text-slate-500">Criando sessão...</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div
+                    className="h-14 w-14 rounded-full flex items-center justify-center mb-4"
+                    style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                  >
+                    <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">Criando sessão segura...</p>
+                  <p className="text-xs text-slate-500 mt-1">Aguarde um momento</p>
                 </div>
               ) : sessionId ? (
                 <div className="space-y-4">
                   {/* Link */}
-                  <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                      <Link2 className="h-4 w-4" />
-                      Link para Captura Mobile
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl border border-slate-200 p-5 space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="h-9 w-9 rounded-lg flex items-center justify-center"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Link2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Link para Captura Mobile</p>
+                        <p className="text-xs text-slate-500">Acesse no celular para escanear</p>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      Acesse este link no seu celular para usar a câmera e escanear o QR Code da nota fiscal.
-                    </p>
-                    
+
                     {/* URL */}
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-white border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-600 truncate">
+                      <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-600 truncate font-mono">
                         {scanUrl}
                       </div>
                       <Button
                         onClick={copyLink}
                         size="sm"
                         variant={linkCopied ? "default" : "outline"}
-                        className={linkCopied ? "bg-green-600 hover:bg-green-700" : ""}
+                        className={linkCopied ? "bg-green-600 hover:bg-green-700 h-8 text-xs gap-1.5" : "h-8 text-xs gap-1.5"}
                       >
                         {linkCopied ? (
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3.5 w-3.5" />
                         ) : (
-                          <Copy className="h-4 w-4" />
+                          <Copy className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     </div>
+
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Abra este link no seu celular para usar a câmera e escanear o QR Code da nota fiscal de forma segura.
+                    </p>
                   </div>
 
                   {/* Timer e Status */}
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <div className="flex items-center justify-between px-2 py-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Clock className="h-4 w-4" />
                       <span>
                         Expira em:{" "}
-                        <span className={timeRemaining <= 10 ? "text-red-500 font-medium" : ""}>
+                        <span className={`font-semibold ${timeRemaining <= 10 ? "text-red-600" : "text-slate-900"}`}>
                           {formatTime(timeRemaining)}
                         </span>
                       </span>
                     </div>
                     {isPolling && (
-                      <div className="flex items-center gap-1.5 text-xs text-orange-600">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Aguardando escaneamento...
+                      <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Aguardando...
                       </div>
                     )}
                   </div>
@@ -348,33 +377,37 @@ export function QRScannerModal({
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={startSession}
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs gap-1.5"
                     >
-                      <Link2 className="h-4 w-4 mr-2" />
+                      <Link2 className="h-3.5 w-3.5" />
                       Gerar Novo Link
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={handleClose}
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs gap-1.5"
                     >
                       Cancelar
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                  <div className="text-center">
-                    <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-500">
-                      Clique no botão abaixo para gerar um link de captura
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div
+                    className="h-16 w-16 rounded-full flex items-center justify-center"
+                    style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                  >
+                    <Link2 className="h-7 w-7 text-primary" />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-semibold text-slate-700">Link de captura seguro</p>
+                    <p className="text-xs text-slate-500">
+                      Gere um link para escanear a nota fiscal usando seu celular
                     </p>
                   </div>
-                  <Button onClick={startSession} size="sm">
-                    <Link2 className="h-4 w-4 mr-2" />
+                  <Button onClick={startSession} className="h-8 text-xs gap-1.5">
+                    <Link2 className="h-3.5 w-3.5" />
                     Gerar Link
                   </Button>
                 </div>
@@ -394,23 +427,38 @@ export function QRScannerModal({
               />
               <div
                 onClick={() => !processing && fileInputRef.current?.click()}
-                className={`aspect-video bg-slate-50 rounded-lg border-2 border-dashed border-slate-300 transition-all flex items-center justify-center cursor-pointer ${
-                  processing ? "opacity-50 cursor-not-allowed" : "hover:border-orange-400 hover:bg-orange-50/30"
+                className={`aspect-video rounded-xl border-2 border-dashed transition-all flex items-center justify-center cursor-pointer ${
+                  processing
+                    ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                    : "border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100/50 hover:border-primary hover:from-primary/5 hover:to-primary/10"
                 }`}
               >
-                <div className="text-center space-y-2">
+                <div className="text-center space-y-3 px-6">
                   {processing ? (
                     <>
-                      <Loader2 className="h-10 w-10 text-orange-500 animate-spin mx-auto" />
-                      <p className="text-sm font-medium text-slate-700">Processando...</p>
+                      <div
+                        className="h-14 w-14 rounded-full flex items-center justify-center mx-auto"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Processando imagem...</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Extraindo dados do QR Code</p>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Upload className="h-10 w-10 text-slate-400 mx-auto" />
-                      <p className="text-sm font-medium text-slate-700">
-                        Clique para selecionar imagem
-                      </p>
-                      <p className="text-xs text-slate-500">PNG, JPG ou JPEG</p>
+                      <div
+                        className="h-14 w-14 rounded-full flex items-center justify-center mx-auto"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Upload className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Clique para selecionar imagem</p>
+                        <p className="text-xs text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
+                      </div>
                     </>
                   )}
                 </div>
@@ -418,10 +466,29 @@ export function QRScannerModal({
             </div>
           )}
 
-          {/* Info sobre barcode */}
-          <p className="text-xs text-slate-400 text-center">
-            * Barcode: disponível em breve para leitura de código de barras de produtos
-          </p>
+          {/* Modo: Barcode */}
+          {mode === "barcode" && (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div
+                className="h-16 w-16 rounded-full flex items-center justify-center"
+                style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+              >
+                <Barcode className="h-7 w-7 text-primary" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="text-base font-semibold text-slate-800">Recurso em Desenvolvimento</p>
+                <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                  A leitura de código de barras estará disponível em breve. Em breve você poderá escanear produtos diretamente.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700 font-medium">
+                  Esta funcionalidade será lançada nas próximas atualizações
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

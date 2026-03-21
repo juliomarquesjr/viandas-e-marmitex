@@ -25,28 +25,38 @@ export function ProductPageSkeleton() {
       </div>
 
       {/* Filters Skeleton */}
-      <Card>
-        <CardContent className="p-4 animate-pulse">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 max-w-md space-y-2">
-              <div className="h-3 bg-slate-200 rounded w-32" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
-            </div>
-            <div className="space-y-2 w-40">
-              <div className="h-3 bg-slate-200 rounded w-24" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
-            </div>
-            <div className="space-y-2 w-40">
-              <div className="h-3 bg-slate-200 rounded w-24" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
-            </div>
-            <div className="space-y-2 w-28 sm:w-24">
-              <div className="h-3 bg-slate-200 rounded w-16" />
-              <div className="h-10 bg-slate-200 rounded-lg" />
-            </div>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden animate-pulse">
+        {/* Header strip */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 bg-slate-200 rounded-lg" />
+            <div className="h-3 bg-slate-200 rounded w-28" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="h-3 bg-slate-200 rounded w-20" />
+        </div>
+        {/* Controls row */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 p-3">
+          {/* Search */}
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 bg-slate-200 rounded w-24" />
+            <div className="h-10 bg-slate-200 rounded-lg" />
+          </div>
+          {/* Status select */}
+          <div className="space-y-1.5 shrink-0 w-full sm:w-[160px]">
+            <div className="h-2.5 bg-slate-200 rounded w-12" />
+            <div className="h-10 bg-slate-200 rounded-md" />
+          </div>
+          {/* Type select */}
+          <div className="space-y-1.5 shrink-0 w-full sm:w-[160px]">
+            <div className="h-2.5 bg-slate-200 rounded w-10" />
+            <div className="h-10 bg-slate-200 rounded-md" />
+          </div>
+          {/* Separator */}
+          <div className="hidden sm:block w-px h-10 bg-slate-200 shrink-0" />
+          {/* View toggle */}
+          <div className="h-10 w-20 bg-slate-200 rounded-lg shrink-0 self-center sm:self-auto" />
+        </div>
+      </div>
 
       {/* Table Skeleton */}
       <Card className="overflow-hidden animate-pulse">

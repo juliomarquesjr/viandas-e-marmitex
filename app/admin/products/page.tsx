@@ -8,7 +8,6 @@ import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
 import { SkeletonTable } from "../components/data-display";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Badge, StatusBadge } from "../../components/ui/badge";
 import { Card, CardContent } from "../../components/ui/card";
 import {
@@ -19,7 +18,6 @@ import {
 import {
   Package,
   Plus,
-  Search,
   MoreVertical,
   Edit,
   Trash2,
@@ -28,14 +26,12 @@ import {
   Image as ImageIcon,
   CheckCircle,
   XCircle,
-  Tag,
-  LayoutList,
-  LayoutGrid,
 } from "lucide-react";
 import { ProductStatsCards } from "./components/ProductStatsCards";
 import { ProductPageSkeleton } from "./components/ProductSkeletonLoader";
 import { ProductGridView } from "./components/ProductGridView";
 import { ProductPreviewModal } from "./components/ProductPreviewModal";
+import { ProductFilterBar } from "./components/ProductFilterBar";
 
 // =============================================================================
 // TIPOS
@@ -596,87 +592,18 @@ export default function AdminProductsPage() {
           <ProductStatsCards products={products} />
 
           {/* Filtros */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  {/* Busca */}
-                  <div className="flex-1 max-w-md">
-                    <Input
-                      placeholder="Buscar por nome ou código..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      leftIcon={<Search className="h-4 w-4" />}
-                    />
-                  </div>
-
-                  {/* Filtro de Status */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="all">Todos os Status</option>
-                    <option value="active">Ativos</option>
-                    <option value="inactive">Inativos</option>
-                  </select>
-
-                  {/* Filtro de Tipo */}
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as any)}
-                    className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="all">Todos os Tipos</option>
-                    <option value="sellable">Venda</option>
-                    <option value="addon">Adicional</option>
-                  </select>
-
-                  {/* Limpar Filtros */}
-                  {(searchInput || statusFilter !== "all" || typeFilter !== "all") && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSearchInput("");
-                        setStatusFilter("all");
-                        setTypeFilter("all");
-                      }}
-                    >
-                      Limpar
-                    </Button>
-                  )}
-                </div>
-
-                {/* Toggle de visualização */}
-                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
-                  <button
-                    onClick={() => handleViewModeChange("table")}
-                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                      viewMode === "table"
-                        ? "bg-primary text-white"
-                        : "bg-white text-slate-500 hover:bg-slate-50"
-                    }`}
-                    title="Visualização em tabela"
-                    aria-label="Visualização em tabela"
-                  >
-                    <LayoutList className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleViewModeChange("grid")}
-                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                      viewMode === "grid"
-                        ? "bg-primary text-white"
-                        : "bg-white text-slate-500 hover:bg-slate-50"
-                    }`}
-                    title="Visualização em mosaico"
-                    aria-label="Visualização em mosaico"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ProductFilterBar
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            typeFilter={typeFilter}
+            onTypeChange={setTypeFilter}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            totalCount={products.length}
+            filteredCount={filteredProducts.length}
+          />
 
           {/* Tabela / Mosaico */}
           {error ? (
