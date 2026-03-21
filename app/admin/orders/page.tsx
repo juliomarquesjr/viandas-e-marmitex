@@ -4,7 +4,6 @@ import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
 import { OrderSummaryModal } from "@/app/components/OrderSummaryModal";
-import { SalesFilter } from "@/app/components/sales/SalesFilter";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
@@ -30,12 +29,16 @@ import {
   ChevronLeft,
   ChevronRight,
   ShoppingCart,
+  List,
+  ListX,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OrderStatsCards } from "./components/OrderStatsCards";
 import { OrderActionsMenu } from "./components/OrderActionsMenu";
+import { OrderFilterBar } from "./components/OrderFilterBar";
+import { OrderPageSkeleton } from "./components/OrderPageSkeleton";
 
 type Order = {
   id: string;
@@ -94,23 +97,41 @@ const paymentMethodMap = {
   cartãodébito: { label: "Cartão de Débito", icon: CreditCard },
 };
 
+const getTodayDateValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const getPaymentMethodLabel = (method: string | null) => {
+  if (!method) return "Não especificado";
+  const hasMethod = method in paymentMethodMap;
+
+  if (hasMethod) {
+    return paymentMethodMap[method as keyof typeof paymentMethodMap].label;
+  }
+
+  return method;
+};
+
 export default function AdminOrdersPage() {
   const { showToast } = useToast();
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalOrders, setTotalOrders] = useState(0);
   const itemsPerPage = 10;
+  const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState({
     searchTerm: "",
     dateRange: {
-      start: new Date().toISOString().split('T')[0],
-      end: new Date().toISOString().split('T')[0]
-    }
+      start: getTodayDateValue(),
+      end: getTodayDateValue(),
+    },
   });
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -119,6 +140,20 @@ export default function AdminOrdersPage() {
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderSummaryModalOpen, setOrderSummaryModalOpen] = useState(false);
+  const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
+
+  // Load product summary state from session storage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('productSummaryEnabled');
+    if (saved !== null) {
+      setProductSummaryEnabled(saved === 'true');
+    }
+  }, []);
+
+  // Save product summary state to session storage when it changes
+  useEffect(() => {
+    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
+  }, [productSummaryEnabled]);
 
   // Product summary
   const productSummary = useMemo(() => {
@@ -166,9 +201,22 @@ export default function AdminOrdersPage() {
     return () => el.removeEventListener("scroll", onScroll);
   }, [productSummary]);
 
-  const loadOrders = async () => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((prev) => {
+        if (prev.searchTerm === searchInput) return prev;
+        return { ...prev, searchTerm: searchInput };
+      });
+      setCurrentPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams();
 
       if (filters.dateRange.start) {
@@ -185,42 +233,34 @@ export default function AdminOrdersPage() {
       const response = await fetch(`/api/orders?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
-
-      setAllOrders(result.data);
-      setTotalOrders(result.data.length);
-
-      const totalPagesCount = Math.ceil(result.data.length / itemsPerPage);
-      setTotalPages(totalPagesCount);
-
-      const sliceStart = (currentPage - 1) * itemsPerPage;
-      const sliceEnd = sliceStart + itemsPerPage;
-      const paginatedOrders = result.data.slice(sliceStart, sliceEnd);
-
-      setOrders(paginatedOrders);
+      setAllOrders(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.dateRange.end, filters.dateRange.start]);
 
   useEffect(() => {
     loadOrders();
-  }, [filters.dateRange]);
+  }, [loadOrders]);
 
-  useEffect(() => {
-    if (allOrders.length > 0) {
-      const sliceStart = (currentPage - 1) * itemsPerPage;
-      const sliceEnd = sliceStart + itemsPerPage;
-      const paginatedOrders = allOrders.slice(sliceStart, sliceEnd);
-      setOrders(paginatedOrders);
-    }
-  }, [currentPage, allOrders]);
-
-  const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
-    setFilters(newFilters);
+  const handleDateRangeChange = useCallback((dateRange: { start: string; end: string }) => {
+    setFilters((prev) => ({ ...prev, dateRange }));
     setCurrentPage(1);
-  };
+  }, []);
+
+  const handleResetDateRange = useCallback(() => {
+    const today = getTodayDateValue();
+    setFilters((prev) => ({
+      ...prev,
+      dateRange: {
+        start: today,
+        end: today,
+      },
+    }));
+    setCurrentPage(1);
+  }, []);
 
   const formatCurrency = (cents: number | null) => {
     if (cents === null || cents === undefined) return "N/A";
@@ -247,7 +287,6 @@ export default function AdminOrdersPage() {
         throw new Error("Failed to delete order");
       }
 
-      setOrders((prev) => prev.filter((order) => order.id !== orderToDelete));
       setAllOrders((prev) => prev.filter((order) => order.id !== orderToDelete));
       setDeleteDialogOpen(false);
       setOrderToDelete(null);
@@ -284,16 +323,6 @@ export default function AdminOrdersPage() {
     };
   };
 
-  const getPaymentMethodLabel = (method: string | null) => {
-    if (!method) return "Não especificado";
-    const hasMethod = method in paymentMethodMap;
-
-    if (hasMethod) {
-      return paymentMethodMap[method as keyof typeof paymentMethodMap].label;
-    }
-    return method;
-  };
-
   const getPaymentMethodIcon = (method: string | null) => {
     if (!method) return null;
     const hasMethod = method in paymentMethodMap;
@@ -303,6 +332,36 @@ export default function AdminOrdersPage() {
     }
     return null;
   };
+
+  const filteredOrders = useMemo(() => {
+    const normalizedSearch = filters.searchTerm.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return allOrders;
+    }
+
+    return allOrders.filter((order) => {
+      const customerName = order.customer?.name?.toLowerCase() ?? "";
+      const customerPhone = order.customer?.phone?.toLowerCase() ?? "";
+      const orderId = order.id.toLowerCase();
+      const paymentMethod = getPaymentMethodLabel(order.paymentMethod).toLowerCase();
+
+      return (
+        customerName.includes(normalizedSearch) ||
+        customerPhone.includes(normalizedSearch) ||
+        orderId.includes(normalizedSearch) ||
+        paymentMethod.includes(normalizedSearch)
+      );
+    });
+  }, [allOrders, filters.searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -475,141 +534,174 @@ export default function AdminOrdersPage() {
         description="Acompanhe todas as vendas realizadas"
         icon={ShoppingCart}
         actions={
-          <Button onClick={() => setDailySalesPrintModalOpen(true)}>
-            <Printer className="h-4 w-4 mr-2" />
-            Imprimir Vendas Diárias
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={productSummaryEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setProductSummaryEnabled(!productSummaryEnabled)}
+            >
+              {productSummaryEnabled ? (
+                <>
+                  <List className="h-4 w-4 mr-2" />
+                  Resumo Ativo
+                </>
+              ) : (
+                <>
+                  <ListX className="h-4 w-4 mr-2" />
+                  Resumo Inativo
+                </>
+              )}
+            </Button>
+            <Button size="sm" onClick={() => setDailySalesPrintModalOpen(true)}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir Vendas Diárias
+            </Button>
+          </div>
         }
       />
 
-      {/* Stats Cards */}
-      <OrderStatsCards orders={allOrders} />
+      {loading && allOrders.length === 0 ? (
+        <OrderPageSkeleton />
+      ) : (
+        <>
+          <OrderStatsCards orders={allOrders} />
 
-      {/* Filters */}
-      <SalesFilter onFilterChange={handleFilterChange} />
+          <OrderFilterBar
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            dateRange={filters.dateRange}
+            onDateRangeChange={handleDateRangeChange}
+            onResetDateRange={handleResetDateRange}
+            totalCount={allOrders.length}
+            filteredCount={filteredOrders.length}
+          />
 
-      {/* Product Summary */}
-      {allOrders.length > 0 && productSummary.length > 0 && (
-        <Card variant="outline">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-900">
-              Resumo de Produtos
-            </CardTitle>
-            <CardDescription>
-              Quantidade total de cada produto nas vendas do período
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              {productSummary.length > 4 && (
-                <>
-                  <div className="pointer-events-none absolute left-0 top-0 h-full w-10 bg-gradient-to-r from-white to-transparent z-10" />
-                  <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-white to-transparent z-10" />
+          {allOrders.length > 0 && productSummary.length > 0 && productSummaryEnabled && (
+            <Card variant="outline">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-slate-900">
+                  Resumo de Produtos
+                </CardTitle>
+                <CardDescription>
+                  Quantidade total de cada produto nas vendas do período
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  {productSummary.length > 4 && (
+                    <>
+                      <div className="pointer-events-none absolute left-0 top-0 h-full w-10 bg-gradient-to-r from-white to-transparent z-10" />
+                      <div className="pointer-events-none absolute right-0 top-0 h-full w-10 bg-gradient-to-l from-white to-transparent z-10" />
 
-                  <button
-                    type="button"
-                    className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
-                      canScrollLeft ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
-                    }`}
-                    onClick={() => canScrollLeft && scrollProducts("left")}
-                    aria-label="Deslizar para a esquerda"
+                      <button
+                        type="button"
+                        className={`absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
+                          canScrollLeft ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => canScrollLeft && scrollProducts("left")}
+                        aria-label="Deslizar para a esquerda"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
+                          canScrollRight ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => canScrollRight && scrollProducts("right")}
+                        aria-label="Deslizar para a direita"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                  <div
+                    ref={productsScrollRef}
+                    className="overflow-x-auto scroll-smooth scrollbar-hide"
                   >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center transition-colors ${
-                      canScrollRight ? "hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
-                    }`}
-                    onClick={() => canScrollRight && scrollProducts("right")}
-                    aria-label="Deslizar para a direita"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </>
-              )}
-              <div
-                ref={productsScrollRef}
-                className="overflow-x-auto scroll-smooth scrollbar-hide"
-              >
-                <div className="flex gap-3 px-8 py-2">
-                  {productSummary.map((product) => (
-                    <div
-                      key={product.productId}
-                      className="flex min-w-[200px] items-center p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
-                    >
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                        <Package className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-slate-900 truncate">
-                          {product.productName}
-                        </h3>
-                        <div className="mt-0.5 flex items-baseline gap-1">
-                          <span className="text-lg font-bold text-blue-600">
-                            {product.totalQuantity}
-                          </span>
-                          <span className="text-xs text-slate-500">unid.</span>
+                    <div className="flex gap-3 px-8 py-2">
+                      {productSummary.map((product) => (
+                        <div
+                          key={product.productId}
+                          className="flex min-w-[200px] items-center p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
+                        >
+                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                            <Package className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-medium text-slate-900 truncate">
+                              {product.productName}
+                            </h3>
+                            <div className="mt-0.5 flex items-baseline gap-1">
+                              <span className="text-lg font-bold text-blue-600">
+                                {product.totalQuantity}
+                              </span>
+                              <span className="text-xs text-slate-500">unid.</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Orders Table */}
-      <Card variant="outline">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            Lista de Vendas
-          </CardTitle>
-          <CardDescription>
-            {totalOrders} venda{totalOrders !== 1 ? "s" : ""} encontrada{totalOrders !== 1 ? "s" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable rows={5} columns={6} hasActions />
-          ) : error ? (
-            <EmptyState
-              icon={XCircle}
-              title="Erro ao carregar vendas"
-              description={error}
-              action={{
-                label: "Tentar novamente",
-                onClick: loadOrders
-              }}
-            />
-          ) : orders.length === 0 ? (
-            <EmptyState
-              icon={ShoppingCart}
-              title="Nenhuma venda encontrada"
-              description={
-                filters.dateRange.start || filters.dateRange.end
-                  ? "Tente ajustar os filtros de busca"
-                  : "Ainda não há vendas registradas"
-              }
-            />
-          ) : (
-            <DataTable
-              data={orders}
-              columns={columns}
-              rowKey="id"
-              className="rounded-none border-0 shadow-none -mx-5 -mb-5"
-              pagination={{
-                page: currentPage,
-                pageSize: itemsPerPage,
-                total: totalOrders,
-                onPageChange: setCurrentPage,
-              }}
-            />
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+
+          <Card variant="outline">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-slate-900">
+                Lista de Vendas
+              </CardTitle>
+              <CardDescription>
+                {filteredOrders.length} venda{filteredOrders.length !== 1 ? "s" : ""} encontrada
+                {filteredOrders.length !== 1 ? "s" : ""}
+                {filters.searchTerm.trim()
+                  ? ` de ${allOrders.length}`
+                  : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <SkeletonTable rows={5} columns={5} hasActions />
+              ) : error ? (
+                <EmptyState
+                  icon={XCircle}
+                  title="Erro ao carregar vendas"
+                  description={error}
+                  action={{
+                    label: "Tentar novamente",
+                    onClick: loadOrders,
+                  }}
+                />
+              ) : filteredOrders.length === 0 ? (
+                <EmptyState
+                  icon={ShoppingCart}
+                  title="Nenhuma venda encontrada"
+                  description={
+                    filters.searchTerm || filters.dateRange.start || filters.dateRange.end
+                      ? "Tente ajustar os filtros de busca"
+                      : "Ainda não há vendas registradas"
+                  }
+                />
+              ) : (
+                <DataTable
+                  data={filteredOrders}
+                  columns={columns}
+                  rowKey="id"
+                  className="rounded-none border-0 shadow-none -mx-5 -mb-5"
+                  pagination={{
+                    page: currentPage,
+                    pageSize: itemsPerPage,
+                    total: filteredOrders.length,
+                    onPageChange: setCurrentPage,
+                  }}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Modals */}
       <OrderSummaryModal
