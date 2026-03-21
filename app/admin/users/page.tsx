@@ -8,7 +8,6 @@ import { UserFormDialog } from "../../components/UserFormDialog";
 import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Badge, StatusBadge } from "../../components/ui/badge";
 import { Card, CardContent } from "../../components/ui/card";
 import {
@@ -20,7 +19,6 @@ import { FacialCaptureModal } from "../components/FacialCaptureModal";
 import {
   Users,
   Plus,
-  Search,
   Mail,
   Phone,
   MoreVertical,
@@ -29,12 +27,11 @@ import {
   Shield,
   User,
   ScanFace,
-  LayoutList,
-  LayoutGrid,
 } from "lucide-react";
 import { UserStatsCards } from "./components/UserStatsCards";
 import { UsersPageSkeleton } from "./components/UsersPageSkeleton";
 import { UserGridView } from "./components/UserGridView";
+import { UserFilterBar } from "./components/UserFilterBar";
 
 // =============================================================================
 // TIPOS
@@ -129,6 +126,7 @@ function UserActionsMenu({
 
 export default function AdminUsersPage() {
   const { showToast } = useToast();
+  const pageSizeOptions = React.useMemo(() => [10, 25, 50, 100], []);
 
   // Estados de dados
   const [users, setUsers] = React.useState<User[]>([]);
@@ -146,6 +144,17 @@ export default function AdminUsersPage() {
     sessionStorage.setItem("users-view-mode", mode);
   };
 
+  const handleItemsPerPageChange = React.useCallback(
+    (size: number) => {
+      const defaultPageSize = pageSizeOptions[0];
+      const normalizedSize = pageSizeOptions.includes(size) ? size : defaultPageSize;
+      setItemsPerPage(normalizedSize);
+      setCurrentPage(1);
+      sessionStorage.setItem("users-items-per-page", String(normalizedSize));
+    },
+    [pageSizeOptions]
+  );
+
   // Estados de busca e filtros
   const [searchInput, setSearchInput] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -154,7 +163,13 @@ export default function AdminUsersPage() {
 
   // Estados de paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const defaultPageSize = pageSizeOptions[0];
+    const savedValue = Number(sessionStorage.getItem("users-items-per-page"));
+    if (Number.isNaN(savedValue)) return defaultPageSize;
+    return pageSizeOptions.includes(savedValue) ? savedValue : defaultPageSize;
+  });
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -182,9 +197,11 @@ export default function AdminUsersPage() {
   const loadUsers = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/users?q=${searchTerm}&role=${roleFilter}&status=${statusFilter}`
-      );
+      setError(null);
+      const response = await fetch("/api/users", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       if (!response.ok) throw new Error("Falha ao carregar usuários");
       const result = await response.json();
       setUsers(result.data || []);
@@ -193,11 +210,10 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, roleFilter, statusFilter]);
+  }, []);
 
   React.useEffect(() => {
     loadUsers();
-    setCurrentPage(1);
   }, [loadUsers]);
 
   // Funções do formulário
@@ -424,11 +440,33 @@ export default function AdminUsersPage() {
     },
   ];
 
-  // Dados paginados para o grid view
-  const paginatedUsers = users.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const filteredUsers = React.useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return users.filter((user) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        user.name.toLowerCase().includes(normalizedSearch) ||
+        user.email.toLowerCase().includes(normalizedSearch);
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, roleFilter, statusFilter]);
+
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage) || 1);
+
+  const paginatedUsers = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(start, start + itemsPerPage);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  React.useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
+    }
+  }, [currentPage, totalFilteredPages]);
 
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
@@ -454,124 +492,18 @@ export default function AdminUsersPage() {
             <UserStatsCards users={users} />
 
             {/* Barra de Filtros */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                  {/* Busca Principal */}
-                  <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder="Buscar usuários..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      className="pl-10 pr-4 py-2 text-sm"
-                    />
-                  </div>
-
-                  {/* Filtros, Ações e Toggle de Visão */}
-                  <div className="flex flex-wrap gap-3 w-full lg:w-auto items-center">
-                    <div className="relative">
-                      <select
-                        value={roleFilter}
-                        onChange={(e) =>
-                          setRoleFilter(e.target.value as typeof roleFilter)
-                        }
-                        className="appearance-none bg-white border border-slate-200 rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all w-full md:w-36"
-                      >
-                        <option value="all">Todos os Perfis</option>
-                        <option value="admin">Administrador</option>
-                        <option value="pdv">PDV</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <svg
-                          className="h-4 w-4 text-slate-400"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <select
-                        value={statusFilter}
-                        onChange={(e) =>
-                          setStatusFilter(e.target.value as typeof statusFilter)
-                        }
-                        className="appearance-none bg-white border border-slate-200 rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all w-full md:w-32"
-                      >
-                        <option value="all">Todos os Status</option>
-                        <option value="active">Ativo</option>
-                        <option value="inactive">Inativo</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <svg
-                          className="h-4 w-4 text-slate-400"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSearchInput("");
-                        setRoleFilter("all");
-                        setStatusFilter("all");
-                      }}
-                      className="h-9 px-3 text-sm"
-                    >
-                      Limpar
-                    </Button>
-
-                    {/* Toggle de Visualização */}
-                    <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleViewModeChange("table")}
-                        className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                          viewMode === "table"
-                            ? "bg-primary text-white"
-                            : "bg-white text-slate-500 hover:bg-slate-50"
-                        }`}
-                        title="Visualização em tabela"
-                        aria-label="Visualização em tabela"
-                      >
-                        <LayoutList className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleViewModeChange("grid")}
-                        className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                          viewMode === "grid"
-                            ? "bg-primary text-white"
-                            : "bg-white text-slate-500 hover:bg-slate-50"
-                        }`}
-                        title="Visualização em mosaico"
-                        aria-label="Visualização em mosaico"
-                      >
-                        <LayoutGrid className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <UserFilterBar
+              searchValue={searchInput}
+              onSearchChange={setSearchInput}
+              roleFilter={roleFilter}
+              onRoleChange={setRoleFilter}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              totalCount={users.length}
+              filteredCount={filteredUsers.length}
+            />
 
             {/* Conteúdo: Tabela ou Grid */}
             {error ? (
@@ -594,14 +526,14 @@ export default function AdminUsersPage() {
                 <CardContent className="p-0">
                   <DataTable
                     columns={columns}
-                    data={users}
+                    data={filteredUsers}
                     rowKey="id"
                     pagination={{
                       page: currentPage,
                       pageSize: itemsPerPage,
-                      total: users.length,
+                      total: filteredUsers.length,
                       onPageChange: setCurrentPage,
-                      onPageSizeChange: setItemsPerPage,
+                      onPageSizeChange: handleItemsPerPageChange,
                     }}
                     emptyMessage={
                       searchTerm || roleFilter !== "all" || statusFilter !== "all"
@@ -616,16 +548,16 @@ export default function AdminUsersPage() {
                 users={paginatedUsers}
                 onEdit={openForm}
                 onDelete={(id) => {
-                  const user = users.find((u) => u.id === id);
+                  const user = filteredUsers.find((u) => u.id === id) ?? users.find((u) => u.id === id);
                   if (user) handleDeleteClick(user);
                 }}
                 onFacialCapture={handleFacialCapture}
                 pagination={{
                   page: currentPage,
                   pageSize: itemsPerPage,
-                  total: users.length,
+                  total: filteredUsers.length,
                   onPageChange: setCurrentPage,
-                  onPageSizeChange: setItemsPerPage,
+                  onPageSizeChange: handleItemsPerPageChange,
                 }}
                 emptyMessage={
                   searchTerm || roleFilter !== "all" || statusFilter !== "all"

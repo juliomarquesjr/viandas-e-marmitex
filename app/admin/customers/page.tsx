@@ -7,10 +7,8 @@ import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
 import { CustomerFormDialog } from "../../components/CustomerFormDialog";
 import { PageHeader } from "../components/layout";
 import { DataTable, Column } from "../components/data-display";
-import { SkeletonTable } from "../components/data-display";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Badge, StatusBadge } from "../../components/ui/badge";
+import { StatusBadge } from "../../components/ui/badge";
 import { Card, CardContent } from "../../components/ui/card";
 import {
   Popover,
@@ -20,7 +18,6 @@ import {
 import {
   Users,
   Plus,
-  Search,
   Phone,
   Mail,
   MapPin,
@@ -29,15 +26,12 @@ import {
   Trash2,
   Barcode,
   User,
-  CheckCircle,
-  XCircle,
-  LayoutList,
-  LayoutGrid,
 } from "lucide-react";
 import { CustomerStatsCards } from "./components/CustomerStatsCards";
 import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 import { CustomerGridView } from "./components/CustomerGridView";
 import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
+import { CustomerFilterBar } from "./components/CustomerFilterBar";
 
 // =============================================================================
 // TIPOS
@@ -139,6 +133,7 @@ function CustomerActionsMenu({
 
 export default function AdminCustomersPage() {
   const { showToast } = useToast();
+  const pageSizeOptions = React.useMemo(() => [10, 25, 50, 100], []);
 
   // Estados de dados
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -156,6 +151,17 @@ export default function AdminCustomersPage() {
     sessionStorage.setItem("customers-view-mode", mode);
   };
 
+  const handleItemsPerPageChange = React.useCallback(
+    (size: number) => {
+      const defaultPageSize = pageSizeOptions[0];
+      const normalizedSize = pageSizeOptions.includes(size) ? size : defaultPageSize;
+      setItemsPerPage(normalizedSize);
+      setCurrentPage(1);
+      sessionStorage.setItem("customers-items-per-page", String(normalizedSize));
+    },
+    [pageSizeOptions]
+  );
+
   // Estados de busca e filtros
   const [searchInput, setSearchInput] = React.useState("");
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -163,7 +169,13 @@ export default function AdminCustomersPage() {
 
   // Estados de paginação
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [itemsPerPage, setItemsPerPage] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const defaultPageSize = pageSizeOptions[0];
+    const savedValue = Number(sessionStorage.getItem("customers-items-per-page"));
+    if (Number.isNaN(savedValue)) return defaultPageSize;
+    return pageSizeOptions.includes(savedValue) ? savedValue : defaultPageSize;
+  });
 
   // Estados do formulário
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -208,23 +220,23 @@ export default function AdminCustomersPage() {
   const loadCustomers = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/customers?q=${searchTerm}&status=${statusFilter}`,
-        { cache: "no-store", headers: { "Cache-Control": "no-cache" } }
-      );
+      setError(null);
+      const response = await fetch("/api/customers", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       if (!response.ok) throw new Error("Falha ao carregar clientes");
       const result = await response.json();
-      setCustomers(result.data);
+      setCustomers(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar clientes");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, []);
 
   React.useEffect(() => {
     loadCustomers();
-    setCurrentPage(1);
   }, [loadCustomers]);
 
   // Funções do formulário
@@ -429,11 +441,43 @@ export default function AdminCustomersPage() {
     }
   };
 
-  // Paginação local (para ambas as views)
-  const paginatedCustomers = customers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const filteredCustomers = React.useMemo(() => {
+    const rawSearch = searchTerm.trim();
+    const normalizedSearch = rawSearch.toLowerCase();
+
+    return customers.filter((customer) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        customer.name.toLowerCase().includes(normalizedSearch) ||
+        customer.phone.includes(rawSearch) ||
+        customer.email?.toLowerCase().includes(normalizedSearch) ||
+        customer.doc?.includes(rawSearch) ||
+        customer.barcode?.includes(rawSearch);
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && customer.active) ||
+        (statusFilter === "inactive" && !customer.active);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [customers, searchTerm, statusFilter]);
+
+  const totalFilteredPages = Math.max(
+    1,
+    Math.ceil(filteredCustomers.length / itemsPerPage) || 1
   );
+
+  const paginatedCustomers = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredCustomers.slice(start, start + itemsPerPage);
+  }, [filteredCustomers, currentPage, itemsPerPage]);
+
+  React.useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
+    }
+  }, [currentPage, totalFilteredPages]);
 
   // Colunas da tabela
   const columns: Column<Customer>[] = [
@@ -534,77 +578,16 @@ export default function AdminCustomersPage() {
           <CustomerStatsCards customers={customers} />
 
           {/* Filtros */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                  {/* Busca */}
-                  <div className="flex-1 max-w-md">
-                    <Input
-                      placeholder="Buscar por nome, telefone ou email..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      leftIcon={<Search className="h-4 w-4" />}
-                    />
-                  </div>
-
-                  {/* Filtro de Status */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="all">Todos os Status</option>
-                    <option value="active">Ativos</option>
-                    <option value="inactive">Inativos</option>
-                  </select>
-
-                  {/* Limpar Filtros */}
-                  {(searchInput || statusFilter !== "all") && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSearchInput("");
-                        setStatusFilter("all");
-                      }}
-                    >
-                      Limpar
-                    </Button>
-                  )}
-                </div>
-
-                {/* Toggle de visualização (mesmo padrão da tela de produtos) */}
-                <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange("table")}
-                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                      viewMode === "table"
-                        ? "bg-primary text-white"
-                        : "bg-white text-slate-500 hover:bg-slate-50"
-                    }`}
-                    title="Visualização em tabela"
-                    aria-label="Visualização em tabela"
-                  >
-                    <LayoutList className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange("grid")}
-                    className={`flex items-center justify-center h-9 w-9 transition-colors ${
-                      viewMode === "grid"
-                        ? "bg-primary text-white"
-                        : "bg-white text-slate-500 hover:bg-slate-50"
-                    }`}
-                    title="Visualização em mosaico"
-                    aria-label="Visualização em mosaico"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CustomerFilterBar
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            totalCount={customers.length}
+            filteredCount={filteredCustomers.length}
+          />
 
           {/* Listagem */}
           {error ? (
@@ -616,7 +599,7 @@ export default function AdminCustomersPage() {
             </Card>
           ) : viewMode === "table" ? (
             <DataTable
-              data={customers}
+              data={filteredCustomers}
               columns={columns}
               rowKey="id"
               emptyMessage="Nenhum cliente encontrado"
@@ -632,9 +615,9 @@ export default function AdminCustomersPage() {
               pagination={{
                 page: currentPage,
                 pageSize: itemsPerPage,
-                total: customers.length,
+                total: filteredCustomers.length,
                 onPageChange: setCurrentPage,
-                onPageSizeChange: setItemsPerPage,
+                onPageSizeChange: handleItemsPerPageChange,
               }}
             />
           ) : (
@@ -647,9 +630,9 @@ export default function AdminCustomersPage() {
               pagination={{
                 page: currentPage,
                 pageSize: itemsPerPage,
-                total: customers.length,
+                total: filteredCustomers.length,
                 onPageChange: setCurrentPage,
-                onPageSizeChange: setItemsPerPage,
+                onPageSizeChange: handleItemsPerPageChange,
               }}
             />
           )}

@@ -235,11 +235,13 @@ export default function AdminProductsPage() {
         setCategories(categoriesResult.data || []);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar produtos");
+      const msg = err instanceof Error ? err.message : "Erro ao carregar produtos";
+      setError(msg);
+      showToast(msg, "error", "Erro ao carregar");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   React.useEffect(() => {
     loadData();

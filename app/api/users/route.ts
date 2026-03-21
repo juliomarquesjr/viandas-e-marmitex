@@ -7,8 +7,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const size = parseInt(searchParams.get('size') || '10');
+    const pageParam = searchParams.get('page');
+    const sizeParam = searchParams.get('size');
+    const page = pageParam ? parseInt(pageParam) : null;
+    const size = sizeParam ? parseInt(sizeParam) : null;
     const role = searchParams.get('role') || 'all';
     const status = searchParams.get('status') || 'all';
     
@@ -32,11 +34,15 @@ export async function GET(request: Request) {
       where.active = status === 'active';
     }
     
+    const shouldPaginate = page !== null && size !== null;
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip: (page - 1) * size,
-        take: size,
+        ...(shouldPaginate && {
+          skip: (page - 1) * size,
+          take: size,
+        }),
         orderBy: { createdAt: 'desc' }
       }),
       prisma.user.count({ where })
@@ -49,12 +55,14 @@ export async function GET(request: Request) {
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       })),
-      pagination: {
-        page,
-        size,
-        total,
-        pages: Math.ceil(total / size)
-      }
+      ...(shouldPaginate && {
+        pagination: {
+          page,
+          size,
+          total,
+          pages: Math.ceil(total / size)
+        }
+      })
     });
   } catch (error) {
     console.error('Error fetching users:', error);

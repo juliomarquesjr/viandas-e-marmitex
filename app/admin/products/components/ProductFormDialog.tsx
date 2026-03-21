@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Category, Product } from "../page";
+import { useToast } from "@/app/components/Toast";
 import { ImageCropModal } from "@/app/components/ImageCropModal";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -65,6 +66,7 @@ export function ProductFormDialog({
   handleFileUpload,
   formatPriceToReais,
 }: ProductFormDialogProps) {
+  const { showToast } = useToast();
   const [displayPrice, setDisplayPrice] = useState("");
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -166,7 +168,7 @@ export function ProductFormDialog({
     try {
       await handleFileUpload(croppedImageFile);
     } catch (error) {
-      console.error("Error uploading cropped image:", error);
+      showToast("Não foi possível fazer o upload da imagem. Tente novamente.", "error", "Erro no upload");
     } finally {
       setIsUploadingImage(false);
     }

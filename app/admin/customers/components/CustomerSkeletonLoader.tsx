@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@/app/components/ui/card";
+import { Card } from "@/app/components/ui/card";
 
 export function CustomerPageSkeleton() {
   return (
@@ -25,36 +25,31 @@ export function CustomerPageSkeleton() {
       </div>
 
       {/* Filters Skeleton */}
-      <Card>
-        <CardContent className="p-4 animate-pulse">
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 flex-1 items-start">
-              {/* Busca */}
-              <div className="flex-1 max-w-md space-y-2">
-                <div className="h-3 bg-slate-200 rounded w-40" />
-                <div className="h-10 bg-slate-200 rounded-lg" />
-              </div>
-
-              {/* Filtro de Status */}
-              <div className="space-y-2 w-40">
-                <div className="h-3 bg-slate-200 rounded w-28" />
-                <div className="h-10 bg-slate-200 rounded-lg" />
-              </div>
-
-              {/* Botão limpar (placeholder) */}
-              <div className="mt-6 sm:mt-0 sm:self-end">
-                <div className="h-9 w-20 bg-slate-200 rounded-lg" />
-              </div>
-            </div>
-
-            {/* Toggle tabela / mosaico (igual à página carregada) */}
-            <div className="flex rounded-lg border border-slate-200 overflow-hidden shrink-0 self-end sm:self-auto">
-              <div className="h-9 w-9 bg-slate-200 border-r border-slate-200" />
-              <div className="h-9 w-9 bg-slate-200" />
-            </div>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden animate-pulse">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 bg-slate-200 rounded-lg" />
+            <div className="h-3 bg-slate-200 rounded w-28" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="h-3 bg-slate-200 rounded w-20" />
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 p-3">
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 bg-slate-200 rounded w-24" />
+            <div className="h-10 bg-slate-200 rounded-lg" />
+          </div>
+
+          <div className="space-y-1.5 shrink-0 w-full sm:w-[160px]">
+            <div className="h-2.5 bg-slate-200 rounded w-12" />
+            <div className="h-10 bg-slate-200 rounded-md" />
+          </div>
+
+          <div className="hidden sm:block w-px h-10 bg-slate-200 shrink-0" />
+
+          <div className="h-10 w-20 bg-slate-200 rounded-lg shrink-0 self-center sm:self-auto" />
+        </div>
+      </div>
 
       {/* Table Skeleton */}
       <Card className="overflow-hidden animate-pulse">
