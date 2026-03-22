@@ -257,6 +257,12 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
     const handleShowToast = (event: CustomEvent) => {
       const { message, type, title, description } = event.detail;
       showToast(message, type, title, description);
+
+      if (type === "success") {
+        new Audio("/audio/success1.mp3").play().catch(() => {});
+      } else if (type === "error") {
+        new Audio("/audio/error1.mp3").play().catch(() => {});
+      }
     };
 
     window.addEventListener("showToast", handleShowToast as EventListener);
