@@ -54,8 +54,8 @@ export interface StartSessionRequest {
   type?: ScanType;
 }
 
-// Duração da sessão em milissegundos (60 segundos)
-export const SESSION_DURATION_MS = 60 * 1000;
+// Duração da sessão em milissegundos (3 minutos)
+export const SESSION_DURATION_MS = 3 * 60 * 1000;
 
 // Intervalo de polling em milissegundos (2 segundos)
 export const POLLING_INTERVAL_MS = 2000;

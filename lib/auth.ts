@@ -130,6 +130,7 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.image = user.image ?? null;
+        token.picture = user.image ?? null;
       }
 
       if (trigger === "update" && session?.user) {
@@ -141,6 +142,11 @@ export const authOptions: AuthOptions = {
         }
         if (session.user.image !== undefined) {
           token.image = session.user.image;
+          // NextAuth usa `picture` em alguns fluxos internos; manter alinhado evita sessão sem foto no cliente.
+          token.picture = session.user.image;
+        }
+        if (session.user.role !== undefined) {
+          token.role = session.user.role;
         }
       }
 
@@ -150,7 +156,10 @@ export const authOptions: AuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
-        session.user.image = (token.image as string | null | undefined) ?? null;
+        const img =
+          (token.image as string | null | undefined) ??
+          (token.picture as string | null | undefined);
+        session.user.image = img ?? null;
       }
       return session;
     }

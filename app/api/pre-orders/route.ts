@@ -3,6 +3,21 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
+const preOrderCustomerSelect = {
+  id: true,
+  name: true,
+  phone: true,
+  imageUrl: true,
+  address: true,
+};
+
+const preOrderItemProductSelect = {
+  id: true,
+  name: true,
+  imageUrl: true,
+  pricePerKgCents: true,
+};
+
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -65,19 +80,12 @@ export async function GET(request: Request) {
           createdAt: true,
           deliveryStatus: true,
           customer: {
-            select: {
-              id: true,
-              name: true,
-              phone: true
-            }
+            select: preOrderCustomerSelect
           },
           items: {
             include: {
               product: {
-                select: {
-                  id: true,
-                  name: true
-                }
+                select: preOrderItemProductSelect
               }
             }
           }
@@ -235,19 +243,12 @@ export async function POST(request: Request) {
       },
       include: {
         customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true
-          }
+          select: preOrderCustomerSelect
         },
         items: {
           include: {
             product: {
-              select: {
-                id: true,
-                name: true
-              }
+              select: preOrderItemProductSelect
             }
           }
         }
@@ -520,19 +521,12 @@ export async function PUT(request: Request) {
       },
       include: {
         customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true
-          }
+          select: preOrderCustomerSelect
         },
         items: {
           include: {
             product: {
-              select: {
-                id: true,
-                name: true
-              }
+              select: preOrderItemProductSelect
             }
           }
         }

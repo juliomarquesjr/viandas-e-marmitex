@@ -519,6 +519,7 @@ export function UserAvatar({ name, image, size = "md", className }: UserAvatarPr
   if (image) {
     return (
       <img
+        key={image}
         src={image}
         alt={name || "Avatar"}
         className={cn("rounded-full object-cover", sizeStyles[size], className)}

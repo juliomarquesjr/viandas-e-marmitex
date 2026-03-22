@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSession } from "next-auth/react";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
 import { useToast } from "../../components/Toast";
 import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
@@ -126,6 +127,7 @@ function UserActionsMenu({
 
 export default function AdminUsersPage() {
   const { showToast } = useToast();
+  const { data: session, update: updateSession } = useSession();
   const pageSizeOptions = React.useMemo(() => [10, 25, 50, 100], []);
 
   // Estados de dados
@@ -267,6 +269,22 @@ export default function AdminUsersPage() {
         setUsers((prev) =>
           prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
         );
+
+        if (
+          session?.user &&
+          session.user.id === updatedUser.id
+        ) {
+          await updateSession({
+            user: {
+              ...session.user,
+              name: updatedUser.name,
+              email: updatedUser.email,
+              image: updatedUser.imageUrl ?? null,
+              role: updatedUser.role,
+            },
+          });
+        }
+
         showToast("Usuário atualizado com sucesso!", "success");
         closeForm();
       } else {

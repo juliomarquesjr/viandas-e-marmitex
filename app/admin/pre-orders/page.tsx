@@ -1,41 +1,38 @@
 "use client";
 
+import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
+import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
+import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
+import { PreOrderSummaryModal } from "@/app/components/PreOrderSummaryModal";
+import { PreOrderDetailsModal } from "@/app/components/PreOrderDetailsModal";
+import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
+import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
-import { Badge } from "@/app/components/ui/badge";
 import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { DataTable, Column } from "@/app/admin/components/data-display/DataTable";
 import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
 import { SkeletonTable } from "@/app/admin/components/data-display/LoadingSkeleton";
-import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
-import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
-import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
-import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
-import { useToast } from "@/app/components/Toast";
+import { cn } from "@/lib/utils";
 import {
-  MoreVertical,
   Package,
   Printer,
-  Receipt,
   ShoppingCart,
-  Tag,
-  Ticket,
-  Trash2,
+  List,
+  ListX,
+  XCircle,
   User,
-  Users,
-  X,
-  MapPin,
-  Plus,
-  TrendingUp,
   Search,
-  CheckCircle,
+  Plus,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
 import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
+import { PreOrderActionsMenu } from "./components/PreOrderActionsMenu";
 
 // =============================================================================
 // TIPOS
@@ -55,14 +52,18 @@ type PreOrder = {
     id: string;
     name: string;
     phone: string;
+    imageUrl?: string | null;
   } | null;
   items: {
     id: string;
     quantity: number;
     priceCents: number;
+    weightKg?: number | null;
     product: {
       id: string;
       name: string;
+      imageUrl?: string | null;
+      pricePerKgCents?: number | null;
     };
   }[];
 };
@@ -74,109 +75,93 @@ type ProductSummary = {
 };
 
 // =============================================================================
-// MENU DE AÇÕES
+// UTILITÁRIOS VISUAIS
 // =============================================================================
 
-function PreOrderActionsMenu({
-  onEdit,
-  onDelete,
-  onPrint,
-  onConvert,
-  onTrack,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  onPrint: () => void;
-  onConvert: () => void;
-  onTrack: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+const PRODUCT_COLORS = [
+  "bg-violet-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+function getProductColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length];
+}
 
+function getProductInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+type PreOrderItem = {
+  id: string;
+  quantity: number;
+  priceCents: number;
+  weightKg?: number | null;
+  product: { id: string; name: string; imageUrl?: string | null; pricePerKgCents?: number | null };
+};
+
+function ProductAvatars({ items }: { items: PreOrderItem[] }) {
+  const MAX_SHOWN = 3;
+  const shown = items.slice(0, MAX_SHOWN);
+  const extra = items.length - MAX_SHOWN;
   return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setOpen(!open)}
-        aria-label="Ações"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </Button>
-
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-48 bg-white rounded-lg border border-slate-200 shadow-lg py-1">
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-          >
-            <Package className="h-4 w-4 mr-2 text-slate-400" />
-            Editar
-          </button>
-
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onPrint();
-            }}
-          >
-            <Printer className="h-4 w-4 mr-2 text-slate-400" />
-            Imprimir recibo
-          </button>
-
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onConvert();
-            }}
-          >
-            <Receipt className="h-4 w-4 mr-2 text-slate-400" />
-            Converter em venda
-          </button>
-
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onTrack();
-            }}
-          >
-            <MapPin className="h-4 w-4 mr-2 text-slate-400" />
-            Rastrear Entrega
-          </button>
-
-          <button
-            className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir
-          </button>
-        </div>
-      )}
+    <div className="flex items-center">
+      <div className="flex -space-x-2">
+        {shown.map((item, i) => (
+          <div key={i} className="relative shrink-0" style={{ zIndex: MAX_SHOWN - i }}>
+            {item.product.imageUrl ? (
+              <div className="h-7 w-7 rounded-full ring-2 ring-white overflow-hidden bg-slate-100" title={item.product.name}>
+                <Image src={item.product.imageUrl} alt={item.product.name} width={28} height={28} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className={cn("h-7 w-7 rounded-full ring-2 ring-white flex items-center justify-center", getProductColor(item.product.name))}
+                title={item.product.name}
+              >
+                <span className="text-[9px] font-bold text-white leading-none">{getProductInitials(item.product.name)}</span>
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center ring-1 ring-white leading-none">
+              {item.weightKg && Number(item.weightKg) > 0 ? `${Number(item.weightKg).toFixed(1)}` : item.quantity}
+            </span>
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="h-7 w-7 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center" style={{ zIndex: 0 }}>
+            <span className="text-[9px] font-bold text-slate-600">+{extra}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+const formatCurrency = (cents: number | null) => {
+  if (cents === null || cents === undefined) return "N/A";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -185,19 +170,13 @@ function PreOrderActionsMenu({
 export default function AdminPreOrdersPage() {
   const { showToast } = useToast();
   const router = useRouter();
-  const [preOrders, setPreOrders] = useState<PreOrder[]>([]);
+  const [allPreOrders, setAllPreOrders] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isConverting, setIsConverting] = useState(false);
-
-  // Estados de busca e filtros
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "in_progress" | "delivered" | "cancelled">("all");
-  const [filters, setFilters] = useState({
-    searchTerm: "",
-    dateRange: { start: "", end: "" }
-  });
 
   const [isPreOrderDialogOpen, setIsPreOrderDialogOpen] = useState(false);
   const [editingPreOrderId, setEditingPreOrderId] = useState<string | null>(null);
@@ -206,42 +185,67 @@ export default function AdminPreOrdersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [preOrderToDelete, setPreOrderToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
+  const [preOrderDetailsModalOpen, setPreOrderDetailsModalOpen] = useState(false);
+  const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
 
-  const loadPreOrders = async () => {
+  // Load product summary state from session storage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('productSummaryEnabled');
+    if (saved !== null) {
+      setProductSummaryEnabled(saved === 'true');
+    }
+  }, []);
+
+  // Save product summary state to session storage when it changes
+  useEffect(() => {
+    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
+  }, [productSummaryEnabled]);
+
+  // Product summary
+  const productSummary = useMemo(() => {
+    const map: { [key: string]: { productId: string; productName: string; totalQuantity: number } } = {};
+    for (const preOrder of allPreOrders) {
+      for (const item of preOrder.items) {
+        const id = item.product.id;
+        if (map[id]) {
+          map[id].totalQuantity += item.quantity;
+        } else {
+          map[id] = { productId: id, productName: item.product.name, totalQuantity: item.quantity };
+        }
+      }
+    }
+    return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [allPreOrders]);
+
+  const loadPreOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      setError(null);
 
-      if (filters.dateRange.start) {
-        params.append("startDate", filters.dateRange.start);
-      }
-
-      if (filters.dateRange.end) {
-        params.append("endDate", filters.dateRange.end);
-      }
-
-      const response = await fetch(`/api/pre-orders?${params.toString()}`);
+      const response = await fetch(`/api/pre-orders`);
       if (!response.ok) throw new Error("Failed to fetch pre-orders");
       const result = await response.json();
-
-      setPreOrders(result.data);
+      setAllPreOrders(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load pre-orders");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadPreOrders();
-  }, []);
+  }, [loadPreOrders]);
 
-  // Debounce da busca
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setSearchTerm(searchInput);
-    }, 500);
-    return () => clearTimeout(timer);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
   }, [searchInput]);
 
   useEffect(() => {
@@ -258,39 +262,6 @@ export default function AdminPreOrdersPage() {
       }, 100);
     }
   }, []);
-
-  const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
-    setFilters(newFilters);
-  };
-
-  const formatCurrency = (cents: number | null) => {
-    if (cents === null || cents === undefined) return "N/A";
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(cents / 100);
-  };
-
-  const calculateProductSummary = (): ProductSummary[] => {
-    const productMap: { [key: string]: ProductSummary } = {};
-
-    filteredPreOrders.forEach(preOrder => {
-      preOrder.items.forEach(item => {
-        const productId = item.product.id;
-        if (productMap[productId]) {
-          productMap[productId].totalQuantity += item.quantity;
-        } else {
-          productMap[productId] = {
-            productId: productId,
-            productName: item.product.name,
-            totalQuantity: item.quantity
-          };
-        }
-      });
-    });
-
-    return Object.values(productMap).sort((a, b) => b.totalQuantity - a.totalQuantity);
-  };
 
   const openDeleteDialog = (preOrderId: string) => {
     setPreOrderToDelete(preOrderId);
@@ -310,7 +281,7 @@ export default function AdminPreOrdersPage() {
         throw new Error("Failed to delete pre-order");
       }
 
-      setPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
+      setAllPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
       setDeleteDialogOpen(false);
       setPreOrderToDelete(null);
       showToast("Pré-pedido excluído com sucesso!", "success");
@@ -408,16 +379,6 @@ export default function AdminPreOrdersPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const openNewPreOrderDialog = () => {
     setEditingPreOrderId(null);
     setIsPreOrderDialogOpen(true);
@@ -428,24 +389,53 @@ export default function AdminPreOrdersPage() {
     setIsPreOrderDialogOpen(true);
   };
 
+  const handleViewPreOrderDetails = (preOrder: PreOrder) => {
+    setSelectedPreOrder(preOrder);
+    setPreOrderDetailsModalOpen(true);
+  };
+
+  const handleViewPreOrderSummary = (preOrder: PreOrder) => {
+    setSelectedPreOrder(preOrder);
+    setPreOrderSummaryModalOpen(true);
+  };
+
+  const handleViewCustomer = (customerId: string) => {
+    router.push(`/admin/customers/${customerId}`);
+  };
+
+  // Filtrar pré-pedidos
+  const filteredPreOrders = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return allPreOrders;
+    }
+
+    return allPreOrders.filter((preOrder) => {
+      const customerName = preOrder.customer?.name?.toLowerCase() ?? "";
+      const customerPhone = preOrder.customer?.phone?.toLowerCase() ?? "";
+      const productNames = preOrder.items.map(item => item.product.name.toLowerCase()).join(" ");
+
+      return (
+        customerName.includes(normalizedSearch) ||
+        customerPhone.includes(normalizedSearch) ||
+        productNames.includes(normalizedSearch)
+      );
+    });
+  }, [allPreOrders, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPreOrders.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
-
-  // Filtrar pré-pedidos
-  const filteredPreOrders = preOrders.filter((preOrder) => {
-    const matchesSearch =
-      !searchTerm ||
-      preOrder.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      preOrder.customer?.phone.includes(searchTerm) ||
-      preOrder.items.some(item => item.product.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus =
-      statusFilter === "all" ||
-      preOrder.deliveryStatus === statusFilter ||
-      (!preOrder.deliveryStatus && statusFilter === "pending");
-    return matchesSearch && matchesStatus;
-  });
 
   // Table columns
   const columns: Column<PreOrder>[] = [
@@ -457,29 +447,35 @@ export default function AdminPreOrdersPage() {
         preOrder.customer ? (
           <Link
             href={`/admin/customers/${preOrder.customer.id}`}
-            className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors max-w-xs"
+            className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-lg transition-colors max-w-xs"
           >
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-blue-600" />
+            <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden bg-blue-100 flex items-center justify-center">
+              {preOrder.customer.imageUrl ? (
+                <img
+                  src={preOrder.customer.imageUrl}
+                  alt={preOrder.customer.name}
+                  className="h-9 w-9 rounded-full object-cover"
+                />
+              ) : (
+                <User className="h-4 w-4 text-blue-600" />
+              )}
             </div>
             <div className="min-w-0">
-              <div className="font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors truncate">
+              <div className="font-medium text-slate-900 text-sm hover:text-blue-600 transition-colors truncate">
                 {preOrder.customer.name}
               </div>
-              <div className="text-xs text-gray-500 truncate">
+              <div className="text-xs text-slate-500 truncate">
                 {preOrder.customer.phone}
               </div>
             </div>
           </Link>
         ) : (
-          <div className="flex items-center gap-3 text-gray-500 text-sm max-w-xs p-2">
-            <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <Users className="h-4 w-4 text-gray-400" />
+          <div className="flex items-center gap-3 text-slate-500 text-sm max-w-xs p-2">
+            <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 text-slate-400" />
             </div>
             <div className="min-w-0">
-              <div className="font-medium text-gray-500 truncate">
-                Venda avulsa
-              </div>
+              <div className="font-medium text-slate-500 truncate">Venda avulsa</div>
             </div>
           </div>
         )
@@ -489,28 +485,22 @@ export default function AdminPreOrdersPage() {
       key: "items",
       header: "Itens",
       render: (_value, preOrder) => (
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-            <Package className="h-4 w-4 text-orange-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium text-gray-900">
+        <div className="flex items-center gap-3">
+          {preOrder.items.length > 0 && <ProductAvatars items={preOrder.items} />}
+          <div className="min-w-0">
+            <p className="text-slate-700 font-medium text-xs mb-0.5">
               {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
-            </div>
-            <div className="flex flex-wrap gap-1 mt-1">
+            </p>
+            <div className="space-y-0.5">
               {preOrder.items.slice(0, 2).map((item, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="text-xs"
-                >
-                  {item.quantity}x {truncateText(item.product.name, 15)}
-                </Badge>
+                <p key={idx} className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                  {item.weightKg && Number(item.weightKg) > 0
+                    ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                    : `${item.quantity}× ${item.product.name}`}
+                </p>
               ))}
               {preOrder.items.length > 2 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{preOrder.items.length - 2} mais
-                </Badge>
+                <p className="text-[11px] text-slate-400 italic">+{preOrder.items.length - 2} mais...</p>
               )}
             </div>
           </div>
@@ -522,14 +512,15 @@ export default function AdminPreOrdersPage() {
       header: "Valor",
       sortable: true,
       render: (_value, preOrder) => (
-        <div className="flex flex-col items-start">
-          <div className="font-bold text-gray-900">
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">
             {formatCurrency(preOrder.totalCents)}
-          </div>
+          </p>
           {preOrder.discountCents > 0 && (
-            <div className="text-xs text-red-600 font-medium mt-1">
-              Desconto: -{formatCurrency(preOrder.discountCents)}
-            </div>
+            <p className="text-[11px] text-red-500">-{formatCurrency(preOrder.discountCents)}</p>
+          )}
+          {preOrder.deliveryFeeCents > 0 && (
+            <p className="text-[11px] text-slate-400">+{formatCurrency(preOrder.deliveryFeeCents)} entrega</p>
           )}
         </div>
       ),
@@ -542,23 +533,8 @@ export default function AdminPreOrdersPage() {
           <div className="flex-shrink-0 mt-0.5">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
           </div>
-          <div className="text-sm text-gray-900 max-w-xs truncate">
+          <div className="text-sm text-slate-900 max-w-xs truncate">
             {preOrder.notes || "-"}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "createdAt",
-      header: "Data",
-      sortable: true,
-      render: (_value, preOrder) => (
-        <div className="flex flex-col">
-          <div className="text-sm font-medium text-gray-900">
-            {formatDate(preOrder.createdAt)}
-          </div>
-          <div className="text-xs text-gray-500">
-            {new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' })}
           </div>
         </div>
       ),
@@ -566,26 +542,39 @@ export default function AdminPreOrdersPage() {
     {
       key: "deliveryStatus",
       header: "Status",
+      align: "center",
       render: (_value, preOrder) => (
-        <div className="flex flex-col gap-2">
-          {preOrder.deliveryStatus ? (
-            <DeliveryStatusBadge
-              status={preOrder.deliveryStatus as any}
-            />
-          ) : (
-            <span className="text-xs text-gray-500">-</span>
-          )}
-          {preOrder.deliveryStatus &&
-            preOrder.deliveryStatus !== "pending" &&
-            preOrder.deliveryStatus !== "cancelled" && (
-            <Link href={`/admin/pre-orders/${preOrder.id}/tracking`}>
-              <Button variant="ghost" size="sm" className="h-7 text-xs">
-                <MapPin className="h-3 w-3 mr-1" />
-                Rastrear
-              </Button>
-            </Link>
-          )}
-        </div>
+        preOrder.deliveryStatus ? (
+          <DeliveryStatusBadge status={preOrder.deliveryStatus as any} />
+        ) : (
+          <span className="text-xs text-slate-500">-</span>
+        )
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Data",
+      sortable: true,
+      render: (_value, preOrder) => (
+        <p className="text-[11px] text-slate-500 whitespace-nowrap">
+          {formatDate(preOrder.createdAt)}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "60px",
+      render: (_value, preOrder) => (
+        <PreOrderActionsMenu
+          onEdit={() => openEditPreOrderDialog(preOrder.id)}
+          onViewDetails={() => handleViewPreOrderDetails(preOrder)}
+          onViewSummary={() => handleViewPreOrderSummary(preOrder)}
+          onPrint={() => printThermalReceipt(preOrder.id)}
+          onConvert={() => convertToOrder(preOrder)}
+          onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+          onDelete={() => openDeleteDialog(preOrder.id)}
+        />
       ),
     },
   ];
@@ -598,131 +587,198 @@ export default function AdminPreOrdersPage() {
         description="Acompanhe todos os pré-pedidos cadastrados"
         icon={ShoppingCart}
         actions={
-          <Button size="sm" onClick={openNewPreOrderDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Pré-Pedido
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={productSummaryEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setProductSummaryEnabled(!productSummaryEnabled)}
+            >
+              {productSummaryEnabled ? (
+                <>
+                  <List className="h-4 w-4 mr-2" />
+                  Resumo Ativo
+                </>
+              ) : (
+                <>
+                  <ListX className="h-4 w-4 mr-2" />
+                  Resumo Inativo
+                </>
+              )}
+            </Button>
+            <Button size="sm" onClick={openNewPreOrderDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Pré-Pedido
+            </Button>
+          </div>
         }
       />
 
-      {loading && preOrders.length === 0 ? (
+      {loading && allPreOrders.length === 0 ? (
         <PreOrdersPageSkeleton />
       ) : (
         <>
-          {/* Estatísticas */}
-          <PreOrderStatsCards preOrders={filteredPreOrders} />
+          <PreOrderStatsCards preOrders={allPreOrders} />
 
-          {/* Filtros */}
+          {/* Busca */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Busca */}
+              <div className="flex gap-2">
                 <div className="flex-1 max-w-md">
                   <Input
-                    placeholder="Buscar por cliente, telefone ou produto..."
+                    placeholder="Buscar por cliente ou produto..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     leftIcon={<Search className="h-4 w-4" />}
+                    rightIcon={
+                      searchInput ? (
+                        <button
+                          type="button"
+                          onClick={() => setSearchInput("")}
+                          className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          aria-label="Limpar busca"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      ) : undefined
+                    }
                   />
                 </div>
-
-                {/* Filtro de Status */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="pending">Pendente</option>
-                  <option value="in_progress">Em Progresso</option>
-                  <option value="delivered">Entregue</option>
-                  <option value="cancelled">Cancelado</option>
-                </select>
-
-                {/* Limpar Filtros */}
-                {(searchInput || statusFilter !== "all") && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchInput("");
-                      setStatusFilter("all");
-                    }}
-                  >
-                    Limpar
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Product Summary */}
-          {filteredPreOrders.length > 0 && (
+          {allPreOrders.length > 0 && productSummary.length > 0 && productSummaryEnabled && (
             <Card variant="outline">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">
+                <CardTitle className="text-lg font-semibold text-slate-900">
                   Resumo de Produtos
                 </CardTitle>
                 <CardDescription>
-                  Quantidade total de cada produto em todos os pré-pedidos
+                  Quantidade total de cada produto nos pré-pedidos do período
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {calculateProductSummary().map((product) => (
-                    <div
-                      key={product.productId}
-                      className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-all hover:border-blue-200"
-                    >
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
-                        <Package className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {product.productName}
-                        </h3>
-                        <div className="mt-0.5 flex items-baseline gap-1">
-                          <span className="text-lg font-bold text-blue-600">
-                            {product.totalQuantity}
-                          </span>
-                          <span className="text-xs text-gray-500">unid.</span>
-                        </div>
-                      </div>
+                {(() => {
+                  const maxQty = productSummary[0]?.totalQuantity ?? 1;
+                  const rankColors = [
+                    "bg-yellow-400 text-yellow-900",
+                    "bg-slate-300 text-slate-700",
+                    "bg-amber-600 text-amber-100",
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {productSummary.map((product, index) => {
+                        const badgeColor = index < 3 ? rankColors[index] : "bg-slate-100 text-slate-500";
+                        const progressPct = Math.round((product.totalQuantity / maxQty) * 100);
+                        return (
+                          <div
+                            key={product.productId}
+                            className="flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <Package className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badgeColor}`}>
+                                #{index + 1}
+                              </span>
+                            </div>
+                            <h3 className="text-xs font-medium text-slate-900 truncate mb-1">
+                              {product.productName}
+                            </h3>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="text-lg font-bold text-blue-600">
+                                {product.totalQuantity}
+                              </span>
+                              <span className="text-xs text-slate-500">unid.</span>
+                            </div>
+                            <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-1 bg-blue-400 rounded-full"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
 
-          {/* Pre-Orders Table */}
-          {error ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Button onClick={loadPreOrders}>Tentar novamente</Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable
-              data={filteredPreOrders}
-              columns={columns}
-              rowKey="id"
-              emptyMessage="Nenhum pré-pedido encontrado"
-              rowActions={(preOrder) => (
-                <PreOrderActionsMenu
-                  onEdit={() => openEditPreOrderDialog(preOrder.id)}
-                  onDelete={() => openDeleteDialog(preOrder.id)}
-                  onPrint={() => printThermalReceipt(preOrder.id)}
-                  onConvert={() => convertToOrder(preOrder)}
-                  onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+          <Card variant="outline">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-slate-900">
+                Lista de Pré-Pedidos
+              </CardTitle>
+              <CardDescription>
+                {filteredPreOrders.length} pré-pedido{filteredPreOrders.length !== 1 ? "s" : ""} encontrado{filteredPreOrders.length !== 1 ? "s" : ""}
+                {searchTerm.trim() ? ` de ${allPreOrders.length}` : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <SkeletonTable rows={5} columns={5} hasActions />
+              ) : error ? (
+                <EmptyState
+                  icon={XCircle}
+                  title="Erro ao carregar pré-pedidos"
+                  description={error}
+                  action={{
+                    label: "Tentar novamente",
+                    onClick: loadPreOrders,
+                  }}
+                />
+              ) : filteredPreOrders.length === 0 ? (
+                <EmptyState
+                  icon={ShoppingCart}
+                  title="Nenhum pré-pedido encontrado"
+                  description={
+                    searchTerm.trim()
+                      ? "Tente ajustar os filtros de busca"
+                      : "Ainda não há pré-pedidos registrados"
+                  }
+                />
+              ) : (
+                <DataTable
+                  data={filteredPreOrders}
+                  columns={columns}
+                  rowKey="id"
+                  className="rounded-none border-0 shadow-none -mx-5 -mb-5"
+                  onRowClick={handleViewPreOrderDetails}
+                  pagination={{
+                    page: currentPage,
+                    pageSize: itemsPerPage,
+                    total: filteredPreOrders.length,
+                    onPageChange: setCurrentPage,
+                  }}
                 />
               )}
-            />
-          )}
+            </CardContent>
+          </Card>
         </>
       )}
 
       {/* Modals */}
+      <PreOrderSummaryModal
+        open={preOrderSummaryModalOpen}
+        onOpenChange={setPreOrderSummaryModalOpen}
+        preOrder={selectedPreOrder}
+      />
+
+      <PreOrderDetailsModal
+        open={preOrderDetailsModalOpen}
+        onOpenChange={setPreOrderDetailsModalOpen}
+        preOrder={selectedPreOrder}
+        onPrint={printThermalReceipt}
+        onEdit={(id) => { setPreOrderDetailsModalOpen(false); openEditPreOrderDialog(id); }}
+        onConvert={(preOrder) => { setPreOrderDetailsModalOpen(false); convertToOrder(preOrder); }}
+        onTrack={(id) => { setPreOrderDetailsModalOpen(false); router.push(`/admin/pre-orders/${id}/tracking`); }}
+        onDelete={(id) => { setPreOrderDetailsModalOpen(false); openDeleteDialog(id); }}
+      />
+
       <PreOrderFormDialog
         open={isPreOrderDialogOpen}
         onOpenChange={setIsPreOrderDialogOpen}
