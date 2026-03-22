@@ -120,6 +120,7 @@ export async function GET(request: Request) {
         description: row.description,
         date: new Date(row.date),
         nfChaveAcesso: row.nfChaveAcesso ?? null,
+        nfQrCodeUrl: row.nfQrCodeUrl ?? null,
         createdAt: new Date(row.createdAt),
         updatedAt: new Date(row.updatedAt),
         type: row.type,
@@ -281,6 +282,7 @@ export async function POST(request: Request) {
         description: (body.description || '').trim(),
         date: new Date(body.date + 'T00:00:00.000Z'),
         nfChaveAcesso: body.nfChaveAcesso || null,
+        nfQrCodeUrl: body.nfQrCodeUrl || null,
       },
       include: {
         type: {

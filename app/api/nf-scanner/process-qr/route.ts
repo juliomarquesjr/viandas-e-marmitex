@@ -127,6 +127,7 @@ export async function POST(request: Request) {
                     if (extractedXml) {
                       const invoiceData = parseNFXML(extractedXml);
                       if (invoiceData) {
+                        invoiceData.urlConsulta = qrData;
                         const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                         const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
                         cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
@@ -145,13 +146,14 @@ export async function POST(request: Request) {
               const { parseNFXML } = await import('@/lib/nf-scanner/xml-parser');
               const invoiceData = parseNFXML(directText);
               if (invoiceData) {
+                invoiceData.urlConsulta = qrData;
                 const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                 const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
                 cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
                 return NextResponse.json({ data: invoiceData });
               }
             }
-            
+
             // Se retornou HTML, tentar extrair XML
             const { extractXMLFromHTML } = await import('@/lib/nf-scanner/sefaz-client');
             const extractedXml = extractXMLFromHTML(directText);
@@ -161,6 +163,7 @@ export async function POST(request: Request) {
               const invoiceData = parseNFXML(extractedXml);
               if (invoiceData) {
                 console.log('XML parseado com sucesso!');
+                invoiceData.urlConsulta = qrData;
                 const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                 const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
                 cache.set(chave, { data: invoiceData, timestamp: Date.now() });
@@ -170,18 +173,19 @@ export async function POST(request: Request) {
               }
             } else {
               console.warn('Não foi possível extrair XML do HTML retornado, tentando parsear HTML diretamente...');
-              
+
               // Se for HTML do RS, tentar parsear diretamente
-              if (qrData.includes('sefaz.rs.gov.br')) {
+              if (qrData.includes('sefaz.rs.gov.br') || qrData.includes('svrs.rs.gov.br')) {
                 const { parseRSHTML } = await import('@/lib/nf-scanner/html-parser');
                 const invoiceData = parseRSHTML(directText, chaveAcesso);
                 if (invoiceData) {
                   console.log('HTML parseado com sucesso!');
+                  invoiceData.urlConsulta = qrData;
                   cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
                   return NextResponse.json({ data: invoiceData });
                 }
               }
-              
+
               console.log('HTML completo (primeiros 2000 chars):', directText.substring(0, 2000));
             }
           }

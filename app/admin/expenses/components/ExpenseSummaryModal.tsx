@@ -15,10 +15,13 @@ import {
   AlertCircle,
   CreditCard,
   Edit,
+  ExternalLink,
   FileText,
   Loader2,
   Receipt,
+  Tag,
   Trash2,
+  Truck,
 } from "lucide-react";
 
 interface ExpenseSummaryModalProps {
@@ -32,6 +35,40 @@ interface ExpenseSummaryModalProps {
 function maskChave(chave: string): string {
   if (chave.length < 10) return chave;
   return `${chave.substring(0, 20)}...${chave.slice(-4)}`;
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
+interface InfoCardProps {
+  label: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function InfoCard({ label, icon, children, className = "" }: InfoCardProps) {
+  return (
+    <div className={`rounded-xl p-3 border border-slate-200 flex flex-col gap-2 ${className}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          {label}
+        </span>
+        <div className="h-6 w-6 rounded-md bg-slate-100 flex items-center justify-center">
+          {icon}
+        </div>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
 }
 
 export function ExpenseSummaryModal({
@@ -55,9 +92,9 @@ export function ExpenseSummaryModal({
     setIsLoadingNf(true);
     setNfError(null);
     try {
-      const res = await fetch(
-        `/api/nf-scanner/consulta?chave=${encodeURIComponent(expense.nfChaveAcesso)}`
-      );
+      const params = new URLSearchParams({ chave: expense.nfChaveAcesso });
+      if (expense.nfQrCodeUrl) params.set('url', expense.nfQrCodeUrl);
+      const res = await fetch(`/api/nf-scanner/consulta?${params}`);
       const json = await res.json();
       if (!res.ok || !json.data) {
         throw new Error(json.error || "Erro ao consultar nota fiscal");
@@ -136,66 +173,87 @@ export function ExpenseSummaryModal({
           </div>
 
           {/* Body */}
-          <div className="bg-white divide-y divide-slate-100">
-            {/* Tipo */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <span className="text-sm text-slate-500">Tipo</span>
-              <span className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1">
-                {expense.type.name}
-              </span>
+          <div className="bg-white px-5 py-4 space-y-4">
+
+            {/* Seção: Classificação */}
+            <SectionDivider label="Classificação" />
+            <div className="grid grid-cols-2 gap-2">
+              <InfoCard label="Tipo" icon={<Tag className="h-3.5 w-3.5 text-slate-400" />}>
+                <span className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5">
+                  {expense.type.name}
+                </span>
+              </InfoCard>
+              <InfoCard label="Fornecedor" icon={<Truck className="h-3.5 w-3.5 text-slate-400" />}>
+                <span className="inline-flex items-center text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2 py-0.5">
+                  {expense.supplierType.name}
+                </span>
+              </InfoCard>
             </div>
 
-            {/* Fornecedor */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <span className="text-sm text-slate-500">Fornecedor</span>
-              <span className="inline-flex items-center text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2.5 py-1">
-                {expense.supplierType.name}
-              </span>
-            </div>
-
-            {/* Pagamento */}
-            <div className="flex items-center justify-between px-6 py-3">
-              <span className="text-sm text-slate-500">Pagamento</span>
+            {/* Seção: Pagamento */}
+            <SectionDivider label="Pagamento" />
+            <InfoCard label="Forma de Pagamento" icon={<CreditCard className="h-3.5 w-3.5 text-slate-400" />}>
               {expense.paymentMethod ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2.5 py-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2 py-0.5">
                   <CreditCard className="h-3 w-3" />
                   {expense.paymentMethod.name}
                 </span>
               ) : (
                 <span className="text-xs text-slate-400 italic">Não informado</span>
               )}
-            </div>
+            </InfoCard>
 
-            {/* Nota Fiscal (condicional) */}
+            {/* Seção: Nota Fiscal (condicional) */}
             {hasNf && (
-              <div className="px-6 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">Nota Fiscal</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleVerNf}
-                    disabled={isLoadingNf}
-                    className="gap-1.5 h-7 px-2.5 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
-                  >
-                    {isLoadingNf ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <FileText className="h-3 w-3" />
-                    )}
-                    {isLoadingNf ? "Consultando..." : "Ver Nota Fiscal"}
-                  </Button>
-                </div>
-                <p className="font-mono text-[11px] text-slate-400 break-all leading-relaxed">
-                  {maskChave(expense.nfChaveAcesso!)}
-                </p>
-                {nfError && (
-                  <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                    <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-red-700 leading-snug">{nfError}</p>
+              <>
+                <SectionDivider label="Nota Fiscal" />
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-md bg-amber-100 flex items-center justify-center">
+                        <FileText className="h-3.5 w-3.5 text-amber-600" />
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                        Chave SEFAZ
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVerNf}
+                      disabled={isLoadingNf}
+                      className="gap-1.5 h-7 px-2.5 text-xs border-amber-200 text-amber-700 hover:bg-amber-100 bg-white"
+                    >
+                      {isLoadingNf ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <FileText className="h-3 w-3" />
+                      )}
+                      {isLoadingNf ? "Consultando..." : "Ver Nota Fiscal"}
+                    </Button>
                   </div>
-                )}
-              </div>
+                  <p className="font-mono text-[11px] text-slate-500 break-all leading-relaxed">
+                    {maskChave(expense.nfChaveAcesso!)}
+                  </p>
+                  {expense.nfQrCodeUrl && (
+                    <a
+                      href={expense.nfQrCodeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-800 hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Abrir no portal SEFAZ
+                    </a>
+                  )}
+                  {nfError && (
+                    <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+                      <p className="text-xs text-red-700 leading-snug">{nfError}</p>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 

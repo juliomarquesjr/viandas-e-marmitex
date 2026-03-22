@@ -289,6 +289,7 @@ model Expense {
   description     String        // Descrição da despesa
   date            DateTime      // Data da despesa
   nfChaveAcesso   String?       // Chave de acesso SEFAZ (44 dígitos), presente quando lançada via NF
+  nfQrCodeUrl     String?       // URL original do QR code da NF (permite re-consulta direta ao portal da SEFAZ)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

@@ -21,14 +21,16 @@ import {
   Check,
   Hash,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { InvoiceData } from "@/lib/nf-scanner/types";
 
 interface InvoiceDataDisplayProps {
   invoiceData: InvoiceData;
   onClose: () => void;
   readOnly?: boolean;
+  expenseId?: string;
   onUseForExpense?: () => void;
   onScanAgain?: () => void;
 }
@@ -64,10 +66,30 @@ export function InvoiceDataDisplay({
   invoiceData,
   onClose,
   readOnly = false,
+  expenseId,
   onUseForExpense,
   onScanAgain,
 }: InvoiceDataDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
+  useEffect(() => {
+    if (readOnly || !invoiceData.chaveAcesso) return;
+    setIsCheckingDuplicate(true);
+    setIsDuplicate(false);
+    fetch(`/api/expenses?nfChaveAcesso=${encodeURIComponent(invoiceData.chaveAcesso)}&limit=1`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const existing = (data.expenses ?? []).filter(
+          (e: { id?: string }) => !expenseId || e.id !== expenseId
+        );
+        if (existing.length > 0) setIsDuplicate(true);
+      })
+      .catch(() => {/* falha silenciosa */})
+      .finally(() => setIsCheckingDuplicate(false));
+  }, [invoiceData.chaveAcesso, readOnly, expenseId]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -199,6 +221,16 @@ export function InvoiceDataDisplay({
             </button>
           </div>
 
+          {/* Aviso de NF duplicada */}
+          {!readOnly && isDuplicate && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-800 leading-snug">
+                Esta nota fiscal já está vinculada a outra despesa e não pode ser utilizada novamente.
+              </p>
+            </div>
+          )}
+
           {/* Emitente */}
           <SectionDivider label="Emitente" icon={<Building2 className="h-3.5 w-3.5" />} />
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 divide-y divide-slate-100 px-4">
@@ -306,10 +338,15 @@ export function InvoiceDataDisplay({
                 type="button"
                 size="sm"
                 onClick={onUseForExpense}
+                disabled={isCheckingDuplicate || isDuplicate}
                 className="gap-1.5 min-w-[140px]"
               >
-                <Receipt className="h-3.5 w-3.5" />
-                Usar para despesa
+                {isCheckingDuplicate ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Receipt className="h-3.5 w-3.5" />
+                )}
+                {isCheckingDuplicate ? "Verificando..." : "Usar para despesa"}
               </Button>
             )}
           </div>

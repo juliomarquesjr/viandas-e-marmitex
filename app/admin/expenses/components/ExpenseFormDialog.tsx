@@ -31,10 +31,10 @@ import {
   SupplierType,
 } from "@/lib/types";
 import {
-  AlertTriangle,
   Calendar,
   CreditCard,
   DollarSign,
+  FileText,
   Loader2,
   QrCode,
   Receipt,
@@ -95,8 +95,9 @@ export function ExpenseFormDialog({
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [isInvoiceDisplayOpen, setIsInvoiceDisplayOpen] = useState(false);
   const [scannedInvoiceData, setScannedInvoiceData] = useState<InvoiceData | null>(null);
-  const [nfDuplicateWarning, setNfDuplicateWarning] = useState(false);
   const { showToast } = useToast();
+
+  const isAmountLocked = !!(expense?.nfChaveAcesso || formData.nfChaveAcesso);
 
   useEffect(() => {
     if (expense) {
@@ -119,7 +120,6 @@ export function ExpenseFormDialog({
     }
     setErrors({});
     setTouched({});
-    setNfDuplicateWarning(false);
   }, [expense, open]);
 
   const validateField = (field: keyof FormErrors, value: any): string | undefined => {
@@ -191,26 +191,11 @@ export function ExpenseFormDialog({
       amountCents,
       date: scannedInvoiceData.dataEmissao,
       nfChaveAcesso: chave,
+      nfQrCodeUrl: scannedInvoiceData.urlConsulta || undefined,
     }));
     setIsInvoiceDisplayOpen(false);
     setScannedInvoiceData(null);
     showToast("Dados da nota fiscal preenchidos automaticamente!", "success");
-
-    // Verificar se essa chave já foi usada em outra despesa
-    try {
-      const res = await fetch(`/api/expenses?nfChaveAcesso=${encodeURIComponent(chave)}&limit=1`);
-      if (res.ok) {
-        const data = await res.json();
-        const existing = data.expenses?.filter((e: { id?: string }) =>
-          !expense || e.id !== expense.id
-        );
-        if (existing && existing.length > 0) {
-          setNfDuplicateWarning(true);
-        }
-      }
-    } catch {
-      // falha silenciosa — não impede o fluxo
-    }
   };
 
   const err = (field: keyof FormErrors) =>
@@ -249,9 +234,11 @@ export function ExpenseFormDialog({
                   Valor <span className="text-red-400">*</span>
                 </Label>
                 <div className={`flex items-center border rounded-xl overflow-hidden transition-all ${
-                  touched.amountCents && errors.amountCents
-                    ? "border-red-400 ring-2 ring-red-400/15"
-                    : "border-slate-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
+                  isAmountLocked
+                    ? "border-slate-200 bg-slate-50"
+                    : touched.amountCents && errors.amountCents
+                      ? "border-red-400 ring-2 ring-red-400/15"
+                      : "border-slate-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
                 }`}>
                   <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-50 border-r border-slate-200 flex-shrink-0">
                     <DollarSign className="h-4 w-4 text-slate-400" />
@@ -260,28 +247,41 @@ export function ExpenseFormDialog({
                   <input
                     value={displayPrice.replace(/^R\$\s?/, "")}
                     onChange={(e) => {
+                      if (isAmountLocked) return;
                       const raw = "R$ " + e.target.value;
                       const formatted = e.target.value ? formatCurrencyInput(raw) : "";
                       setDisplayPrice(formatted);
                       setFormData((f) => ({ ...f, amountCents: formatted ? convertToCents(formatted) : 0 }));
                       if (touched.amountCents) setErrors((er) => ({ ...er, amountCents: undefined }));
                     }}
-                    onBlur={() => handleBlur("amountCents")}
-                    className="flex-1 px-3 py-3 text-xl font-bold text-slate-900 bg-white outline-none placeholder:text-slate-300 placeholder:font-normal placeholder:text-base"
+                    onBlur={() => !isAmountLocked && handleBlur("amountCents")}
+                    readOnly={isAmountLocked}
+                    className={`flex-1 px-3 py-3 text-xl font-bold outline-none placeholder:text-slate-300 placeholder:font-normal placeholder:text-base ${
+                      isAmountLocked
+                        ? "text-slate-500 bg-slate-50 cursor-not-allowed"
+                        : "text-slate-900 bg-white"
+                    }`}
                     placeholder="0,00"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setIsQRScannerOpen(true)}
-                    className="mx-2 text-xs h-7 px-2 gap-1.5 text-slate-400 hover:text-primary flex-shrink-0"
+                    onClick={() => !isAmountLocked && setIsQRScannerOpen(true)}
+                    disabled={isAmountLocked}
+                    className="mx-2 text-xs h-7 px-2 gap-1.5 text-slate-400 hover:text-primary flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <QrCode className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Nota fiscal</span>
                   </Button>
                 </div>
-                {touched.amountCents && errors.amountCents && (
+                {isAmountLocked && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    Valor definido pela nota fiscal e não pode ser alterado
+                  </p>
+                )}
+                {!isAmountLocked && touched.amountCents && errors.amountCents && (
                   <p className="text-xs text-red-500">{errors.amountCents}</p>
                 )}
               </div>
@@ -420,15 +420,6 @@ export function ExpenseFormDialog({
               </div>
             </div>
 
-            {nfDuplicateWarning && (
-              <div className="mx-6 mb-2 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-sm text-amber-800 leading-snug">
-                  Esta nota fiscal já foi utilizada em outra despesa. Você pode salvar mesmo assim se necessário.
-                </p>
-              </div>
-            )}
-
             <DialogFooter>
               <p className="text-xs text-slate-400">
                 <span className="text-red-400">*</span> campos obrigatórios
@@ -465,6 +456,7 @@ export function ExpenseFormDialog({
       {isInvoiceDisplayOpen && scannedInvoiceData && (
         <InvoiceDataDisplay
           invoiceData={scannedInvoiceData}
+          expenseId={expense?.id}
           onUseForExpense={handleUseInvoiceForExpense}
           onClose={() => { setIsInvoiceDisplayOpen(false); setScannedInvoiceData(null); }}
           onScanAgain={() => { setIsInvoiceDisplayOpen(false); setScannedInvoiceData(null); setIsQRScannerOpen(true); }}

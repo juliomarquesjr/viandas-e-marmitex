@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { consultarSEFAZ, extractXMLFromHTML } from '@/lib/nf-scanner/sefaz-client';
+import { consultarSEFAZ } from '@/lib/nf-scanner/sefaz-client';
 import { parseNFXML } from '@/lib/nf-scanner/xml-parser';
 import { InvoiceData } from '@/lib/nf-scanner/types';
 
@@ -25,6 +25,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const chave = searchParams.get('chave');
+    const url = searchParams.get('url');
 
     if (!chave) {
       return NextResponse.json(
@@ -51,7 +52,55 @@ export async function GET(request: Request) {
       return NextResponse.json({ data: cached.data });
     }
 
-    // Consultar SEFAZ
+    // Se tiver URL original do QR code, tentar consultar diretamente primeiro (necessário para RS/SVRS)
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const directResponse = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+            'Referer': 'https://www.sefaz.rs.gov.br/',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (directResponse.ok) {
+          const text = await directResponse.text();
+          if (!text.includes('902') && !text.includes('Parâmetros informados inválidos')) {
+            const { extractXMLFromHTML } = await import('@/lib/nf-scanner/sefaz-client');
+            const extractedXml = extractXMLFromHTML(text);
+            if (extractedXml) {
+              const invoiceData = parseNFXML(extractedXml);
+              if (invoiceData) {
+                invoiceData.urlConsulta = url;
+                cache.set(getCacheKey(chaveNormalizada), { data: invoiceData, timestamp: Date.now() });
+                return NextResponse.json({ data: invoiceData });
+              }
+            }
+            // HTML sem XML extraível — tentar parser HTML do RS/SVRS
+            if (url.includes('sefaz.rs.gov.br') || url.includes('svrs.rs.gov.br')) {
+              const { parseRSHTML } = await import('@/lib/nf-scanner/html-parser');
+              const invoiceData = parseRSHTML(text, chaveNormalizada);
+              if (invoiceData) {
+                invoiceData.urlConsulta = url;
+                cache.set(getCacheKey(chaveNormalizada), { data: invoiceData, timestamp: Date.now() });
+                return NextResponse.json({ data: invoiceData });
+              }
+            }
+          }
+        }
+      } catch (urlError) {
+        console.warn('Erro ao consultar via URL original, tentando via chave:', urlError);
+        // Continua para o fluxo normal via chave
+      }
+    }
+
+    // Consultar SEFAZ via chave
     const sefazResponse = await consultarSEFAZ(chaveNormalizada);
 
     if (!sefazResponse.success) {
@@ -64,6 +113,7 @@ export async function GET(request: Request) {
     // Extrair XML
     let xml = sefazResponse.xml;
     if (!xml && sefazResponse.html) {
+      const { extractXMLFromHTML } = await import('@/lib/nf-scanner/sefaz-client');
       xml = extractXMLFromHTML(sefazResponse.html) ?? undefined;
     }
 
