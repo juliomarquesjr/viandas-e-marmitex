@@ -66,6 +66,8 @@ export interface ExpensesState {
   setManagePaymentMethodsOpen: (v: boolean) => void;
   isReportModalOpen: boolean;
   setIsReportModalOpen: (v: boolean) => void;
+  isInvoiceLookupOpen: boolean;
+  setIsInvoiceLookupOpen: (v: boolean) => void;
   // Handlers
   loading: boolean;
   mounted: boolean;
@@ -115,6 +117,7 @@ export function useExpenses(): ExpensesState {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
   const [allExpensesForGrouping, setAllExpensesForGrouping] = useState<ExpenseWithRelations[]>([]);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isInvoiceLookupOpen, setIsInvoiceLookupOpen] = useState(false);
 
   const groupExpensesByMonth = (list: ExpenseWithRelations[]) => {
     const grouped: { [key: string]: ExpenseWithRelations[] } = {};
@@ -379,6 +382,8 @@ export function useExpenses(): ExpensesState {
     setManagePaymentMethodsOpen,
     isReportModalOpen,
     setIsReportModalOpen,
+    isInvoiceLookupOpen,
+    setIsInvoiceLookupOpen,
     loading,
     mounted,
     loadExpenses,

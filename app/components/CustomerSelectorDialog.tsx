@@ -19,6 +19,7 @@ type Customer = {
   phone?: string;
   email?: string;
   barcode?: string;
+  imageUrl?: string;
   address?: {
     street?: string;
     number?: string;
@@ -244,8 +245,12 @@ export function CustomerSelectorDialog({
                     }}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                        <User className="h-6 w-6 text-orange-600" />
+                      <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 overflow-hidden ring-2 ring-orange-200">
+                        {customer.imageUrl ? (
+                          <img src={customer.imageUrl} alt={customer.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <User className="h-6 w-6 text-orange-600" />
+                        )}
                       </div>
                       
                       <div className="flex-1 min-w-0">

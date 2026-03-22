@@ -26,20 +26,44 @@ import { useState, useRef, useEffect } from "react";
 import { InvoiceData } from "@/lib/nf-scanner/types";
 import { POLLING_INTERVAL_MS } from "@/lib/scan-session/types";
 
-type ScanMode = "mobile-link" | "upload" | "barcode";
+export type ScanMode = "mobile-link" | "upload" | "barcode";
 
 interface QRScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onQRCodeScanned: (data: InvoiceData) => void;
+  initialMode?: ScanMode;
+  availableModes?: ScanMode[];
+  closeOnSuccess?: boolean;
+  title?: string;
+  description?: string;
+  barcodePlaceholder?: string;
+  barcodeAriaLabel?: string;
+  barcodeSubmitLabel?: string;
+  onBarcodeSubmit?: (raw: string) => Promise<InvoiceData>;
 }
 
 export function QRScannerModal({
   isOpen,
   onClose,
   onQRCodeScanned,
+  initialMode = "barcode",
+  availableModes,
+  closeOnSuccess = true,
+  title = "Escanear QR Code da Nota Fiscal",
+  description = "Use o leitor de código de barras, o link no celular ou envie uma imagem com o QR Code da nota fiscal",
+  barcodePlaceholder = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=...",
+  barcodeAriaLabel = "URL ou dados da NFC-e lidos pelo leitor",
+  barcodeSubmitLabel = "Processar leitura",
+  onBarcodeSubmit,
 }: QRScannerModalProps) {
-  const [mode, setMode] = useState<ScanMode>("barcode");
+  const enabledModes = availableModes?.length
+    ? availableModes
+    : (["barcode", "mobile-link", "upload"] satisfies ScanMode[]);
+  const resolvedInitialMode = enabledModes.includes(initialMode)
+    ? initialMode
+    : enabledModes[0];
+  const [mode, setMode] = useState<ScanMode>(resolvedInitialMode);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +79,12 @@ export function QRScannerModal({
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [barcodeUrl, setBarcodeUrl] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(resolvedInitialMode);
+    }
+  }, [isOpen, resolvedInitialMode]);
 
   // Iniciar sessão quando o modal abrir no modo mobile-link
   useEffect(() => {
@@ -143,7 +173,9 @@ export function QRScannerModal({
           // Scan completado com sucesso
           stopPolling();
           onQRCodeScanned(data.result.invoiceData);
-          handleClose();
+          if (closeOnSuccess) {
+            handleClose();
+          }
         } else if (data.status === "expired") {
           // Sessão expirou
           stopPolling();
@@ -202,7 +234,9 @@ export function QRScannerModal({
 
       const { data } = await response.json();
       onQRCodeScanned(data);
-      handleClose();
+      if (closeOnSuccess) {
+        handleClose();
+      }
     } catch (err) {
       console.error("Erro ao processar arquivo:", err);
       setError(err instanceof Error ? err.message : "Erro ao processar imagem");
@@ -223,25 +257,35 @@ export function QRScannerModal({
     setProcessing(true);
 
     try {
-      const formData = new FormData();
-      formData.append("qrData", raw);
+      const data = onBarcodeSubmit
+        ? await onBarcodeSubmit(raw)
+        : await (async () => {
+            const formData = new FormData();
+            formData.append("qrData", raw);
 
-      const response = await fetch("/api/nf-scanner/process-qr", {
-        method: "POST",
-        body: formData,
-      });
+            const response = await fetch("/api/nf-scanner/process-qr", {
+              method: "POST",
+              body: formData,
+            });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          typeof errorData.error === "string" ? errorData.error : "Erro ao processar link da nota"
-        );
-      }
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(
+                typeof errorData.error === "string"
+                  ? errorData.error
+                  : "Erro ao processar link da nota"
+              );
+            }
 
-      const { data } = await response.json();
+            const payload = await response.json();
+            return payload.data as InvoiceData;
+          })();
+
       setBarcodeUrl("");
       onQRCodeScanned(data);
-      handleClose();
+      if (closeOnSuccess) {
+        handleClose();
+      }
     } catch (err) {
       console.error("Erro ao processar leitura:", err);
       setError(err instanceof Error ? err.message : "Erro ao processar link da nota");
@@ -259,7 +303,7 @@ export function QRScannerModal({
     setBarcodeUrl("");
     setError(null);
     setLinkCopied(false);
-    setMode("barcode");
+    setMode(resolvedInitialMode);
     onClose();
   };
 
@@ -281,64 +325,70 @@ export function QRScannerModal({
             >
               <QrCode className="h-5 w-5 text-primary" />
             </div>
-            Escanear QR Code da Nota Fiscal
+            {title}
           </DialogTitle>
-          <DialogDescription>
-            Use o leitor de código de barras, o link no celular ou envie uma imagem com o QR Code da nota fiscal
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Seleção de modo - Tabs deslizantes */}
-          <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl ring-1 ring-slate-200/80">
-            <button
-              type="button"
-              onClick={() => {
-                stopPolling();
-                setMode("barcode");
-                setError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                mode === "barcode"
-                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Barcode className="h-4 w-4 shrink-0" />
-              <span className="truncate">Barcode</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("mobile-link");
-                setError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                mode === "mobile-link"
-                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Smartphone className="h-4 w-4 shrink-0" />
-              <span className="truncate">Link Mobile</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("upload");
-                stopPolling();
-                setError(null);
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
-                mode === "upload"
-                  ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              <Upload className="h-4 w-4 shrink-0" />
-              <span className="truncate">Upload</span>
-            </button>
-          </div>
+          {enabledModes.length > 1 && (
+            <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl ring-1 ring-slate-200/80">
+              {enabledModes.includes("barcode") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopPolling();
+                    setMode("barcode");
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "barcode"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Barcode className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Barcode</span>
+                </button>
+              )}
+              {enabledModes.includes("mobile-link") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("mobile-link");
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "mobile-link"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Link Mobile</span>
+                </button>
+              )}
+              {enabledModes.includes("upload") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("upload");
+                    stopPolling();
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "upload"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Upload className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Upload</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Mensagens de erro */}
           {error && (
@@ -383,12 +433,12 @@ export function QRScannerModal({
                     void submitBarcodeUrl();
                   }
                 }}
-                placeholder="https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=..."
+                placeholder={barcodePlaceholder}
                 disabled={processing}
                 autoComplete="off"
                 spellCheck={false}
                 className="font-mono text-xs sm:text-sm"
-                aria-label="URL ou dados da NFC-e lidos pelo leitor"
+                aria-label={barcodeAriaLabel}
               />
 
               <Button
@@ -403,7 +453,7 @@ export function QRScannerModal({
                     Processando nota…
                   </>
                 ) : (
-                  "Processar leitura"
+                  barcodeSubmitLabel
                 )}
               </Button>
             </div>

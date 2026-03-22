@@ -19,6 +19,7 @@ import { useExpenses } from "./hooks/useExpenses";
 import { ExpenseCalendarView } from "./components/ExpenseCalendarView";
 import { ExpenseFilters } from "./components/ExpenseFilters";
 import { ExpenseFormDialog } from "./components/ExpenseFormDialog";
+import { ExpenseInvoiceLookupDialog } from "./components/ExpenseInvoiceLookupDialog";
 import { ExpenseListView } from "./components/ExpenseListView";
 import { ExpenseReportModal } from "./components/ExpenseReportModal";
 import { ExpenseStatsCards } from "./components/ExpenseStatsCards";
@@ -140,6 +141,16 @@ export default function ExpensesPage() {
                   <div className="my-1 border-t border-slate-100" />
                   <button
                     onClick={() => {
+                      ex.setIsInvoiceLookupOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-slate-400" />
+                    Verificar Nota Fiscal
+                  </button>
+                  <button
+                    onClick={() => {
                       ex.setIsReportModalOpen(true);
                       ex.setIsManageMenuOpen(false);
                     }}
@@ -226,6 +237,11 @@ export default function ExpensesPage() {
         open={ex.isReportModalOpen}
         onClose={() => ex.setIsReportModalOpen(false)}
         supplierTypes={ex.supplierTypes}
+      />
+
+      <ExpenseInvoiceLookupDialog
+        open={ex.isInvoiceLookupOpen}
+        onClose={() => ex.setIsInvoiceLookupOpen(false)}
       />
 
       <ExpenseSummaryModal

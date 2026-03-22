@@ -47,7 +47,7 @@ type PreOrder = {
   notes: string | null;
   createdAt: string;
   customerId: string | null;
-  deliveryStatus?: string;
+  deliveryStatus?: string | null;
   customer: {
     id: string;
     name: string;

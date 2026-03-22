@@ -13,6 +13,7 @@ export type Customer = {
   phone?: string;
   email?: string;
   barcode?: string;
+  imageUrl?: string;
 };
 
 export type Product = {
