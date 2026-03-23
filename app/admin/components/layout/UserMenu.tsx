@@ -7,10 +7,12 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   Bell,
+  Calculator,
   ChevronDown,
   Construction,
   Info,
   LogOut,
+  ScanBarcode,
   ShoppingCart,
   User,
 } from "lucide-react";
@@ -23,6 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
+import { ExpenseInvoiceLookupDialog } from "@/app/admin/expenses/components/ExpenseInvoiceLookupDialog";
+import { CalculatorModal } from "@/app/components/CalculatorModal";
 import { UserFormDialog } from "@/app/components/UserFormDialog";
 import { useToast } from "@/app/components/Toast";
 
@@ -549,12 +553,45 @@ interface HeaderActionsProps {
 }
 
 export function HeaderActions({ children, className }: HeaderActionsProps) {
+  const [calculatorOpen, setCalculatorOpen] = React.useState(false);
+  const [nfLookupOpen, setNfLookupOpen] = React.useState(false);
+
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      {children}
-      <NotificationBell />
-      <UserMenu />
-    </div>
+    <>
+      <div className={cn("flex items-center gap-3", className)}>
+        {children}
+        <button
+          type="button"
+          onClick={() => setCalculatorOpen(true)}
+          className={cn(
+            "relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200",
+            "hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "text-slate-500 hover:text-slate-700"
+          )}
+          title="Calculadora"
+          aria-label="Abrir calculadora"
+        >
+          <Calculator className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setNfLookupOpen(true)}
+          className={cn(
+            "relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200",
+            "hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "text-slate-500 hover:text-slate-700"
+          )}
+          title="Verificar nota fiscal"
+          aria-label="Verificar se a nota fiscal já foi lançada em alguma despesa"
+        >
+          <ScanBarcode className="h-5 w-5" />
+        </button>
+        <NotificationBell />
+        <UserMenu />
+      </div>
+      <CalculatorModal open={calculatorOpen} onOpenChange={setCalculatorOpen} />
+      <ExpenseInvoiceLookupDialog open={nfLookupOpen} onClose={() => setNfLookupOpen(false)} />
+    </>
   );
 }
 

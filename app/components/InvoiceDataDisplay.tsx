@@ -22,9 +22,22 @@ import {
   Hash,
   AlertTriangle,
   Loader2,
+  CheckCircle2,
+  Info,
 } from "lucide-react";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { InvoiceData } from "@/lib/nf-scanner/types";
+
+/** Despesa encontrada na API ao verificar a chave da NF (modo pesquisa). */
+export interface InvoiceLookupExpenseMatch {
+  id: string;
+  description: string;
+  date: string;
+  amountCents: number;
+  type?: { name: string };
+  supplierType?: { name: string };
+}
 
 interface InvoiceDataDisplayProps {
   invoiceData: InvoiceData;
@@ -33,6 +46,10 @@ interface InvoiceDataDisplayProps {
   expenseId?: string;
   onUseForExpense?: () => void;
   onScanAgain?: () => void;
+  /**
+   * Modo “verificar NF”: `undefined` = não exibir bloco; `null` = nenhuma despesa com esta chave; objeto = despesa encontrada.
+   */
+  lookupExpenseMatch?: InvoiceLookupExpenseMatch | null;
 }
 
 function SectionDivider({ label, icon }: { label: string; icon?: React.ReactNode }) {
@@ -69,6 +86,7 @@ export function InvoiceDataDisplay({
   expenseId,
   onUseForExpense,
   onScanAgain,
+  lookupExpenseMatch,
 }: InvoiceDataDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
@@ -100,6 +118,20 @@ export function InvoiceDataDisplay({
       return `${day}/${month}/${year}`;
     } catch {
       return dateStr;
+    }
+  };
+
+  const formatExpenseDate = (value: string) => {
+    try {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return value;
     }
   };
 
@@ -183,6 +215,68 @@ export function InvoiceDataDisplay({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+
+          {/* Resultado da pesquisa por despesa (modo verificar NF) */}
+          {lookupExpenseMatch !== undefined && (
+            <>
+              {lookupExpenseMatch ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" aria-hidden />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-semibold text-emerald-900">
+                        Esta nota fiscal já está cadastrada como despesa
+                      </p>
+                      <p className="text-sm text-emerald-800/90 leading-snug">
+                        <span className="font-medium text-emerald-950">{lookupExpenseMatch.description}</span>
+                        {lookupExpenseMatch.type?.name && (
+                          <span className="text-emerald-800/80">
+                            {" "}
+                            · {lookupExpenseMatch.type.name}
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-emerald-800/85 pt-0.5">
+                        <span>
+                          Data:{" "}
+                          <span className="font-medium text-emerald-950">
+                            {formatExpenseDate(lookupExpenseMatch.date)}
+                          </span>
+                        </span>
+                        <span>
+                          Valor:{" "}
+                          <span className="font-semibold text-emerald-950 tabular-nums">
+                            {formatCurrency(lookupExpenseMatch.amountCents / 100)}
+                          </span>
+                        </span>
+                        {lookupExpenseMatch.supplierType?.name && (
+                          <span>
+                            Fornecedor:{" "}
+                            <span className="font-medium text-emerald-950">
+                              {lookupExpenseMatch.supplierType.name}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin/expenses"
+                    className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-emerald-300/80 bg-white px-3 py-1.5 text-xs font-medium text-emerald-800 shadow-sm transition-colors hover:bg-emerald-50"
+                  >
+                    Ir para despesas
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <Info className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" aria-hidden />
+                  <p className="text-sm text-slate-700 leading-snug">
+                    Nenhuma despesa foi encontrada com esta chave de acesso no sistema. A nota abaixo foi obtida da consulta à SEFAZ.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
 
           {/* Identificação */}
           <SectionDivider label="Identificação" icon={<Hash className="h-3.5 w-3.5" />} />
@@ -311,9 +405,13 @@ export function InvoiceDataDisplay({
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <span>
-              {readOnly
-                ? "Nota fiscal vinculada a esta despesa"
-                : "Valor total e data serão preenchidos automaticamente"}
+              {readOnly && lookupExpenseMatch !== undefined
+                ? lookupExpenseMatch
+                  ? "Confira os dados da nota e o lançamento indicado acima."
+                  : "Nota consultada na SEFAZ; cadastre uma despesa se ainda não lançou."
+                : readOnly
+                  ? "Nota fiscal vinculada a esta despesa"
+                  : "Valor total e data serão preenchidos automaticamente"}
             </span>
           </div>
 

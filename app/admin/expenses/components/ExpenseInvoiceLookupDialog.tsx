@@ -1,6 +1,9 @@
 "use client";
 
-import { InvoiceDataDisplay } from "@/app/components/InvoiceDataDisplay";
+import {
+  InvoiceDataDisplay,
+  type InvoiceLookupExpenseMatch,
+} from "@/app/components/InvoiceDataDisplay";
 import { QRScannerModal } from "@/app/components/QRScannerModal";
 import { InvoiceData } from "@/lib/nf-scanner/types";
 import { extractChaveAcesso } from "@/lib/nf-scanner/utils";
@@ -27,15 +30,20 @@ export function ExpenseInvoiceLookupDialog({
 }: ExpenseInvoiceLookupDialogProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [invoiceData, setInvoiceData] = useState<InvoiceData | null>(null);
+  const [linkedExpense, setLinkedExpense] = useState<
+    InvoiceLookupExpenseMatch | null | undefined
+  >(undefined);
 
   useEffect(() => {
     if (open) {
       setScannerOpen(true);
+      setLinkedExpense(undefined);
       return;
     }
 
     setScannerOpen(false);
     setInvoiceData(null);
+    setLinkedExpense(undefined);
   }, [open]);
 
   const handleBarcodeLookup = async (raw: string): Promise<InvoiceData> => {
@@ -84,6 +92,36 @@ export function ExpenseInvoiceLookupDialog({
   const handleLookupSuccess = (data: InvoiceData) => {
     setInvoiceData(data);
     setScannerOpen(false);
+    setLinkedExpense(undefined);
+
+    fetch(`/api/expenses?nfChaveAcesso=${encodeURIComponent(data.chaveAcesso)}&limit=1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: { expenses?: Array<Record<string, unknown>> } | null) => {
+        if (!payload?.expenses?.length) {
+          setLinkedExpense(null);
+          return;
+        }
+        const exp = payload.expenses[0] as {
+          id: string;
+          description?: string;
+          date: string | Date;
+          amountCents: number;
+          type?: { name: string };
+          supplierType?: { name: string };
+        };
+        setLinkedExpense({
+          id: exp.id,
+          description: exp.description ?? "",
+          date:
+            typeof exp.date === "string"
+              ? exp.date
+              : new Date(exp.date).toISOString(),
+          amountCents: Number(exp.amountCents),
+          type: exp.type,
+          supplierType: exp.supplierType,
+        });
+      })
+      .catch(() => setLinkedExpense(null));
   };
 
   const handleScannerClose = () => {
@@ -93,6 +131,7 @@ export function ExpenseInvoiceLookupDialog({
 
   const handleInvoiceClose = () => {
     setInvoiceData(null);
+    setLinkedExpense(undefined);
     onClose();
   };
 
@@ -117,6 +156,7 @@ export function ExpenseInvoiceLookupDialog({
           readOnly
           invoiceData={invoiceData}
           onClose={handleInvoiceClose}
+          lookupExpenseMatch={linkedExpense}
         />
       )}
     </>
