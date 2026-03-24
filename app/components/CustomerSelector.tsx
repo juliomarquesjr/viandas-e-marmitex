@@ -1,15 +1,7 @@
 import { Package, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Customer } from "./CustomerSelectorDialog";
 import { CustomerSelectorDialog } from "./CustomerSelectorDialog";
-
-type Customer = {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  barcode?: string;
-  imageUrl?: string;
-};
 
 export function CustomerSelector({
   onSelect,

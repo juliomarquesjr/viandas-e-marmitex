@@ -14,6 +14,13 @@ export type Customer = {
   email?: string;
   barcode?: string;
   imageUrl?: string;
+  address?: {
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  };
 };
 
 export type Product = {
