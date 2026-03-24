@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TrendingUp, DollarSign, Users, CreditCard, Calendar, BarChart3, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Clock, CheckCircle, Receipt } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ApiOrder, RangeOption, SalesPoint, StatusTotals, CustomerDebtor } from "./types";
 import { SalesOverPeriodCard } from "./components/SalesOverPeriodCard";
 import { StatusComparisonCard } from "./components/StatusComparisonCard";
 import { SalesDistributionCard } from "./components/SalesDistributionCard";
 import { TopDebtorsCard } from "./components/TopDebtorsCard";
-import { Card, CardContent } from "../components/ui/card";
+import { RangeSelector } from "./components/RangeSelector";
+import { CardContent, CardHighlighted } from "../components/ui/card";
+import { SimplePageHeader } from "./components/layout/PageHeader";
 import "./dashboard.css";
 
 const RANGE_OPTIONS: RangeOption[] = [
@@ -90,10 +93,68 @@ function buildDailySummaries(orders: ApiOrder[], totalDays: number, endDate: Dat
     return list;
 }
 
+// ------- KPI Card -------
+
+const iconBg: Record<string, string> = {
+    success: "bg-emerald-50",
+    info: "bg-blue-50",
+    warning: "bg-amber-50",
+    primary: "bg-slate-100",
+    error: "bg-red-50",
+};
+const iconColor: Record<string, string> = {
+    success: "text-emerald-600",
+    info: "text-blue-600",
+    warning: "text-amber-600",
+    primary: "text-slate-600",
+    error: "text-red-600",
+};
+
+type KpiCardProps = {
+    color: "success" | "info" | "warning" | "primary" | "error";
+    icon: React.ElementType;
+    label: string;
+    value: string;
+    subtitle: string;
+    trend?: number | null;
+};
+
+function KpiCard({ color, icon: Icon, label, value, subtitle, trend }: KpiCardProps) {
+    return (
+        <CardHighlighted highlightColor={color}>
+            <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
+                        <p className="text-2xl font-bold text-slate-900 truncate">{value}</p>
+                        {trend != null && (
+                            <div className="flex items-center gap-1 mt-1.5">
+                                {trend >= 0 ? (
+                                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                ) : (
+                                    <TrendingDown className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                )}
+                                <span className={cn("text-xs font-medium", trend >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                    {trend >= 0 ? "+" : ""}{trend.toFixed(1)}%
+                                </span>
+                                <span className="text-xs text-slate-400">vs anterior</span>
+                            </div>
+                        )}
+                        <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
+                    </div>
+                    <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ml-3", iconBg[color])}>
+                        <Icon className={cn("h-5 w-5", iconColor[color])} />
+                    </div>
+                </div>
+            </CardContent>
+        </CardHighlighted>
+    );
+}
+
+// ------- Page -------
+
 export default function AdminHome() {
-    const [salesRange, setSalesRange] = useState<number>(7);
-    const [statusRange, setStatusRange] = useState<number>(7);
-    const [insightsRange, setInsightsRange] = useState<number>(7);
+    const [globalRange, setGlobalRange] = useState<number>(7);
     const [orders, setOrders] = useState<ApiOrder[]>([]);
     const [dailyData, setDailyData] = useState<SalesPoint[]>(() => {
         const endDate = new Date();
@@ -172,7 +233,7 @@ export default function AdminHome() {
             } catch (fetchError) {
                 setDebtors([]);
                 setDebtorsError(
-                    fetchError instanceof Error ? fetchError.message : "Nao foi possivel carregar os saldos de ficha."
+                    fetchError instanceof Error ? fetchError.message : "Não foi possível carregar os saldos de ficha."
                 );
             } finally {
                 setDebtorsLoading(false);
@@ -185,25 +246,16 @@ export default function AdminHome() {
     const formatCurrency = useCallback((value: number) => currencyFormatter.format(value), []);
 
     const salesChartData = useMemo(() => {
-        if (dailyData.length === 0) {
-            return [];
-        }
-        return dailyData.slice(Math.max(dailyData.length - salesRange, 0));
-    }, [dailyData, salesRange]);
-
-    const statusChartData = useMemo(() => {
-        if (dailyData.length === 0) {
-            return [];
-        }
-        return dailyData.slice(Math.max(dailyData.length - statusRange, 0));
-    }, [dailyData, statusRange]);
+        if (dailyData.length === 0) return [];
+        return dailyData.slice(Math.max(dailyData.length - globalRange, 0));
+    }, [dailyData, globalRange]);
 
     const totalSales = useMemo(() => {
         return salesChartData.reduce((sum, item) => sum + item.total, 0);
     }, [salesChartData]);
 
     const totalsByStatus = useMemo<StatusTotals>(() => {
-        return statusChartData.reduce<StatusTotals>(
+        return salesChartData.reduce<StatusTotals>(
             (acc, item) => {
                 acc.pending += item.pending;
                 acc.confirmed += item.confirmed;
@@ -211,45 +263,54 @@ export default function AdminHome() {
             },
             { pending: 0, confirmed: 0 }
         );
-    }, [statusChartData]);
+    }, [salesChartData]);
 
     const filteredOrders = useMemo(() => {
-        if (orders.length === 0) {
-            return [] as ApiOrder[];
-        }
+        if (orders.length === 0) return [] as ApiOrder[];
 
         const endDate = new Date();
         endDate.setHours(23, 59, 59, 999);
         const startDate = new Date(endDate);
         startDate.setHours(0, 0, 0, 0);
-        startDate.setDate(startDate.getDate() - (insightsRange - 1));
+        startDate.setDate(startDate.getDate() - (globalRange - 1));
 
         return orders.filter((order) => {
-            if (!order?.createdAt) {
-                return false;
-            }
-
+            if (!order?.createdAt) return false;
             const orderDate = new Date(order.createdAt);
             return orderDate >= startDate && orderDate <= endDate;
         });
-    }, [orders, insightsRange]);
+    }, [orders, globalRange]);
+
+    const ticketMedio = useMemo(() => {
+        if (filteredOrders.length === 0) return 0;
+        return filteredOrders.reduce((sum, o) => sum + (o.totalCents ?? 0), 0) / 100 / filteredOrders.length;
+    }, [filteredOrders]);
+
+    // Trend vs período anterior (disponível apenas para ranges onde há dados suficientes: 7d e 15d)
+    const previousPeriodSales = useMemo(() => {
+        if (globalRange * 2 > MAX_HISTORY_DAYS) return null;
+        const prevSlice = dailyData.slice(
+            Math.max(0, dailyData.length - globalRange * 2),
+            dailyData.length - globalRange
+        );
+        return prevSlice.reduce((sum, item) => sum + item.total, 0);
+    }, [dailyData, globalRange]);
+
+    const salesTrend = useMemo<number | null>(() => {
+        if (previousPeriodSales == null || previousPeriodSales === 0) return null;
+        return ((totalSales - previousPeriodSales) / previousPeriodSales) * 100;
+    }, [totalSales, previousPeriodSales]);
 
     const productSalesData = useMemo(() => {
-        if (filteredOrders.length === 0) {
-            return [] as { name: string; value: number }[];
-        }
+        if (filteredOrders.length === 0) return [] as { name: string; value: number }[];
 
         const totals = new Map<string, number>();
 
         filteredOrders.forEach((order) => {
             order.items?.forEach((item) => {
-                if (!item) {
-                    return;
-                }
-
+                if (!item) return;
                 const productName = item.product?.name?.trim() || "Sem nome";
                 const itemTotal = ((item.priceCents ?? 0) * item.quantity) / 100;
-
                 totals.set(productName, (totals.get(productName) ?? 0) + itemTotal);
             });
         });
@@ -278,16 +339,13 @@ export default function AdminHome() {
     };
 
     const paymentMethodData = useMemo(() => {
-        if (filteredOrders.length === 0) {
-            return [] as { name: string; value: number; method: string }[];
-        }
+        if (filteredOrders.length === 0) return [] as { name: string; value: number; method: string }[];
 
         const totals = new Map<string, number>();
 
         filteredOrders.forEach((order) => {
             const method = order.paymentMethod || "desconhecido";
             const orderTotal = (order.totalCents ?? 0) / 100;
-
             totals.set(method, (totals.get(method) ?? 0) + orderTotal);
         });
 
@@ -309,252 +367,100 @@ export default function AdminHome() {
         return paymentMethodData.reduce((sum, item) => sum + item.value, 0);
     }, [paymentMethodData]);
 
+    const totalDebtorBalance = useMemo(() => {
+        return debtors.reduce((sum, d) => sum + d.balanceCents, 0) / 100;
+    }, [debtors]);
+
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/20 custom-scrollbar">
-            {/* Header Section */}
-            <div className="relative overflow-hidden bg-white/95 backdrop-blur-sm border-b border-slate-200/40 sticky top-0 z-10 shadow-sm">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-50/30 to-indigo-50/30" />
-                <div className="relative mx-auto max-w-7xl px-6 py-8">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-4">
-                                <div className="relative">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 shadow-md pulse-glow">
-                                        <BarChart3 className="h-7 w-7 text-white" />
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-gradient-to-r from-green-400 to-green-500 flex items-center justify-center shadow-sm">
-                                        <Sparkles className="h-2.5 w-2.5 text-white" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-700 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                        Dashboard de Vendas
-                                    </h1>
-                                    <p className="text-slate-600 text-lg">
-                                        Acompanhe o desempenho do seu negócio em tempo real
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-full bg-white/60 backdrop-blur-sm border border-slate-200/60 shadow-sm">
-                            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                            <Calendar className="h-4 w-4 text-slate-500" />
-                            <span className="text-sm text-slate-600 font-medium">Atualizado agora</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <>
+            <SimplePageHeader
+                title="Dashboard"
+                description="Visão geral de vendas e operações"
+                actions={
+                    <RangeSelector
+                        options={RANGE_OPTIONS}
+                        currentValue={globalRange}
+                        onSelect={setGlobalRange}
+                    />
+                }
+            />
 
-            <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+            <div className="space-y-6 mt-6">
                 {/* KPI Cards */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mobile-stack">
-                    <Card className="group relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md interactive-hover float-animation">
-                        <div className="absolute inset-0 bg-gradient-to-br from-green-50/80 to-emerald-50/40" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-400" />
-                        <CardContent className="relative p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-slate-600">Total de Vendas</p>
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {formatCurrency(totalSales)}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-green-500" />
-                                        <p className="text-xs text-green-600 font-medium">
-                                            Últimos {salesRange} dias
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 shadow-md group-hover:scale-105 transition-all duration-300">
-                                        <TrendingUp className="h-7 w-7 text-white" />
-                                    </div>
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md interactive-hover float-animation" style={{ animationDelay: '0.5s' }}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-cyan-50/40" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-cyan-400" />
-                        <CardContent className="relative p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-slate-600">Vendas Confirmadas</p>
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {formatCurrency(totalsByStatus.confirmed)}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                        <p className="text-xs text-blue-600 font-medium">
-                                            Últimos {statusRange} dias
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-cyan-500 shadow-md group-hover:scale-105 transition-all duration-300">
-                                        <DollarSign className="h-7 w-7 text-white" />
-                                    </div>
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md interactive-hover float-animation" style={{ animationDelay: '1s' }}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-amber-50/40" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-400" />
-                        <CardContent className="relative p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-slate-600">Vendas Pendentes</p>
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {formatCurrency(totalsByStatus.pending)}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-                                        <p className="text-xs text-orange-600 font-medium">
-                                            Aguardando confirmação
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 shadow-md group-hover:scale-105 transition-all duration-300">
-                                        <CreditCard className="h-7 w-7 text-white" />
-                                    </div>
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-amber-500 rounded-xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md interactive-hover float-animation" style={{ animationDelay: '1.5s' }}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 to-violet-50/40" />
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-violet-400" />
-                        <CardContent className="relative p-6">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-slate-600">Clientes Devedores</p>
-                                    <p className="text-3xl font-bold text-slate-900">
-                                        {debtors.length}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-purple-500" />
-                                        <p className="text-xs text-purple-600 font-medium">
-                                            {formatCurrency(debtors.reduce((sum, d) => sum + d.balanceCents, 0) / 100)} em aberto
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-400 to-violet-500 shadow-md group-hover:scale-105 transition-all duration-300">
-                                        <Users className="h-7 w-7 text-white" />
-                                    </div>
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-violet-500 rounded-xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+                    <KpiCard
+                        color="success"
+                        icon={TrendingUp}
+                        label="Total de Vendas"
+                        value={formatCurrency(totalSales)}
+                        subtitle={`Últimos ${globalRange} dias`}
+                        trend={salesTrend}
+                    />
+                    <KpiCard
+                        color="info"
+                        icon={CheckCircle}
+                        label="Confirmadas"
+                        value={formatCurrency(totalsByStatus.confirmed)}
+                        subtitle={`Últimos ${globalRange} dias`}
+                    />
+                    <KpiCard
+                        color="warning"
+                        icon={Clock}
+                        label="Pendentes"
+                        value={formatCurrency(totalsByStatus.pending)}
+                        subtitle="Aguardando confirmação"
+                    />
+                    <KpiCard
+                        color="primary"
+                        icon={Receipt}
+                        label="Ticket Médio"
+                        value={formatCurrency(ticketMedio)}
+                        subtitle={`Últimos ${globalRange} dias`}
+                    />
+                    <KpiCard
+                        color="error"
+                        icon={Users}
+                        label="Clientes Devedores"
+                        value={String(debtors.length)}
+                        subtitle={`${formatCurrency(totalDebtorBalance)} em aberto`}
+                    />
                 </div>
 
-                {/* Quick Insights */}
-                <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-sm">
-                            <Sparkles className="h-4 w-4 text-white" />
-                        </div>
-                        <h2 className="text-lg font-bold text-slate-800">Insights Rápidos</h2>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-                            <p className="text-2xl font-bold text-blue-900">
-                                {formatCurrency(totalSales / (salesRange || 1))}
-                            </p>
-                            <p className="text-sm text-blue-700">Média diária</p>
-                        </div>
-                        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
-                            <p className="text-2xl font-bold text-green-900">
-                                {((totalsByStatus.confirmed / (totalsByStatus.confirmed + totalsByStatus.pending)) * 100 || 0).toFixed(1)}%
-                            </p>
-                            <p className="text-sm text-green-700">Taxa de confirmação</p>
-                        </div>
-                        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
-                            <p className="text-2xl font-bold text-purple-900">
-                                {productSalesData.length}
-                            </p>
-                            <p className="text-sm text-purple-700">Produtos vendidos</p>
-                        </div>
-                    </div>
-                </div>
+                {/* Gráfico de Vendas — full width */}
+                <SalesOverPeriodCard
+                    loading={loading}
+                    error={error}
+                    chartData={salesChartData}
+                    formatCurrency={formatCurrency}
+                />
 
-                {/* Charts Section */}
-                <div className="space-y-8">
-                    <div className="grid gap-8 lg:grid-cols-1">
-                        <SalesOverPeriodCard
-                            loading={loading}
-                            error={error}
-                            totalSales={totalSales}
-                            chartData={salesChartData}
-                            rangeOptions={RANGE_OPTIONS}
-                            currentRange={salesRange}
-                            onRangeChange={setSalesRange}
-                            formatCurrency={formatCurrency}
-                        />
-                    </div>
-
-                    <div className="grid gap-8 lg:grid-cols-2">
-                        <StatusComparisonCard
-                            loading={loading}
-                            error={error}
-                            chartData={statusChartData}
-                            totalsByStatus={totalsByStatus}
-                            rangeOptions={RANGE_OPTIONS}
-                            currentRange={statusRange}
-                            onRangeChange={setStatusRange}
-                            formatCurrency={formatCurrency}
-                        />
-
-                        <TopDebtorsCard
-                            loading={debtorsLoading}
-                            error={debtorsError}
-                            debtors={debtors}
-                            formatCurrency={formatCurrency}
-                        />
-                    </div>
-
-                    <SalesDistributionCard
+                {/* Status + Devedores — lado a lado */}
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <StatusComparisonCard
                         loading={loading}
-                        productSalesData={productSalesData}
-                        paymentMethodData={paymentMethodData}
-                        totalProductSales={totalProductSales}
-                        totalPaymentSales={totalPaymentSales}
-                        rangeOptions={RANGE_OPTIONS}
-                        currentRange={insightsRange}
-                        onRangeChange={setInsightsRange}
+                        error={error}
+                        chartData={salesChartData}
+                        totalsByStatus={totalsByStatus}
+                        formatCurrency={formatCurrency}
+                    />
+                    <TopDebtorsCard
+                        loading={debtorsLoading}
+                        error={debtorsError}
+                        debtors={debtors}
                         formatCurrency={formatCurrency}
                     />
                 </div>
 
-                {/* Footer */}
-                <div className="bg-white/98 border border-slate-200/40 rounded-2xl p-6 shadow-sm mt-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm">
-                                <BarChart3 className="h-4 w-4 text-white" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-slate-700">Dashboard de Vendas</p>
-                                <p className="text-xs text-slate-500">Dados atualizados em tempo real</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <span>Última atualização: {new Date().toLocaleTimeString('pt-BR')}</span>
-                            <div className="h-1 w-1 rounded-full bg-slate-400" />
-                            <span>Período: Últimos {Math.max(salesRange, statusRange, insightsRange)} dias</span>
-                        </div>
-                    </div>
-                </div>
+                {/* Distribuição — full width */}
+                <SalesDistributionCard
+                    loading={loading}
+                    productSalesData={productSalesData}
+                    paymentMethodData={paymentMethodData}
+                    totalProductSales={totalProductSales}
+                    totalPaymentSales={totalPaymentSales}
+                    formatCurrency={formatCurrency}
+                />
             </div>
-        </main>
+        </>
     );
 }

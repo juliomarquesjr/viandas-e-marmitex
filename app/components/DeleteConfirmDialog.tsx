@@ -3,11 +3,12 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "./ui/dialog";
 
 interface DeleteConfirmDialogProps {
@@ -33,42 +34,50 @@ export function DeleteConfirmDialog({
 }: DeleteConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col">
         <DialogHeader>
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
-          </div>
-          <DialogTitle className="text-center">{title}</DialogTitle>
-          <DialogDescription className="text-center">
-            {description}
-          </DialogDescription>
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{
+                background: "rgba(239,68,68,0.10)",
+                outline: "1px solid rgba(239,68,68,0.20)",
+              }}
+            >
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+            </div>
+            {title}
+          </DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="flex justify-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="flex-1"
-            disabled={isLoading}
-          >
-            {cancelText}
-          </Button>
-          <Button 
-            onClick={onConfirm} 
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              confirmText
-            )}
-          </Button>
-        </div>
+
+        <DialogFooter>
+          <div />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
+              {cancelText}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirm}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                confirmText
+              )}
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

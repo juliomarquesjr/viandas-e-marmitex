@@ -1,7 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import type { RangeOption } from "../types";
-import { Button } from "../../components/ui/button";
 
 type RangeSelectorProps = {
     options: RangeOption[];
@@ -11,16 +11,20 @@ type RangeSelectorProps = {
 
 export function RangeSelector({ options, currentValue, onSelect }: RangeSelectorProps) {
     return (
-        <div className="flex flex-wrap gap-2">
+        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
             {options.map((option) => (
-                <Button
+                <button
                     key={option.value}
-                    variant={currentValue === option.value ? "default" : "outline"}
-                    size="sm"
                     onClick={() => onSelect(option.value)}
+                    className={cn(
+                        "px-3 py-1 text-sm rounded-md font-medium transition-all",
+                        currentValue === option.value
+                            ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                            : "text-slate-500 hover:text-slate-700"
+                    )}
                 >
                     {option.label}
-                </Button>
+                </button>
             ))}
         </div>
     );

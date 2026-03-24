@@ -12,6 +12,11 @@ import { InvoiceData } from '@/lib/nf-scanner/types';
 // Cache simples em memória (em produção, usar Redis ou similar)
 const cache = new Map<string, { data: InvoiceData; timestamp: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hora
+const CACHE_VERSION = 'nf-v2';
+
+function getCacheKey(chaveAcesso: string): string {
+  return `${CACHE_VERSION}:${chaveAcesso}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
       console.log('Chave de acesso normalizada:', chaveAcesso);
 
       // Verificar cache
-      const cached = cache.get(chaveAcesso);
+      const cached = cache.get(getCacheKey(chaveAcesso));
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return NextResponse.json({ data: cached.data });
       }
@@ -122,9 +127,10 @@ export async function POST(request: Request) {
                     if (extractedXml) {
                       const invoiceData = parseNFXML(extractedXml);
                       if (invoiceData) {
+                        invoiceData.urlConsulta = qrData;
                         const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                         const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
-                        cache.set(chave, { data: invoiceData, timestamp: Date.now() });
+                        cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
                         return NextResponse.json({ data: invoiceData });
                       }
                     }
@@ -140,13 +146,14 @@ export async function POST(request: Request) {
               const { parseNFXML } = await import('@/lib/nf-scanner/xml-parser');
               const invoiceData = parseNFXML(directText);
               if (invoiceData) {
+                invoiceData.urlConsulta = qrData;
                 const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                 const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
-                cache.set(chave, { data: invoiceData, timestamp: Date.now() });
+                cache.set(getCacheKey(chave), { data: invoiceData, timestamp: Date.now() });
                 return NextResponse.json({ data: invoiceData });
               }
             }
-            
+
             // Se retornou HTML, tentar extrair XML
             const { extractXMLFromHTML } = await import('@/lib/nf-scanner/sefaz-client');
             const extractedXml = extractXMLFromHTML(directText);
@@ -156,6 +163,7 @@ export async function POST(request: Request) {
               const invoiceData = parseNFXML(extractedXml);
               if (invoiceData) {
                 console.log('XML parseado com sucesso!');
+                invoiceData.urlConsulta = qrData;
                 const { normalizeChaveAcesso } = await import('@/lib/nf-scanner/utils');
                 const chave = normalizeChaveAcesso(invoiceData.chaveAcesso);
                 cache.set(chave, { data: invoiceData, timestamp: Date.now() });
@@ -165,18 +173,19 @@ export async function POST(request: Request) {
               }
             } else {
               console.warn('Não foi possível extrair XML do HTML retornado, tentando parsear HTML diretamente...');
-              
+
               // Se for HTML do RS, tentar parsear diretamente
-              if (qrData.includes('sefaz.rs.gov.br')) {
+              if (qrData.includes('sefaz.rs.gov.br') || qrData.includes('svrs.rs.gov.br')) {
                 const { parseRSHTML } = await import('@/lib/nf-scanner/html-parser');
                 const invoiceData = parseRSHTML(directText, chaveAcesso);
                 if (invoiceData) {
                   console.log('HTML parseado com sucesso!');
-                  cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+                  invoiceData.urlConsulta = qrData;
+                  cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
                   return NextResponse.json({ data: invoiceData });
                 }
               }
-              
+
               console.log('HTML completo (primeiros 2000 chars):', directText.substring(0, 2000));
             }
           }
@@ -221,7 +230,7 @@ export async function POST(request: Request) {
       }
 
       // Salvar no cache
-      cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+      cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
 
       return NextResponse.json({ data: invoiceData });
     }
@@ -288,7 +297,7 @@ export async function POST(request: Request) {
     console.log('Chave de acesso normalizada:', chaveAcesso);
 
     // Verificar cache
-    const cached = cache.get(chaveAcesso);
+    const cached = cache.get(getCacheKey(chaveAcesso));
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({ data: cached.data });
     }
@@ -328,7 +337,7 @@ export async function POST(request: Request) {
     }
 
     // Salvar no cache
-    cache.set(chaveAcesso, { data: invoiceData, timestamp: Date.now() });
+    cache.set(getCacheKey(chaveAcesso), { data: invoiceData, timestamp: Date.now() });
 
     return NextResponse.json({ data: invoiceData });
   } catch (error) {

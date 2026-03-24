@@ -1,43 +1,55 @@
 "use client";
 
-import { ImageCropModal } from "@/app/components/ImageCropModal";
+import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
 import { ConfigFormData, useSystemConfig } from "@/app/hooks/useSystemConfig";
-import {
-    AlertCircle,
-    Building2,
-    Edit3,
-    Image as ImageIcon,
-    Loader2,
-    Mail,
-    MapPin,
-    Phone,
-    QrCode,
-    RefreshCw,
-    Save,
-    Search,
-    Send,
-    Trash2,
-    Upload
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertCircle, Building2, Loader2, Mail, Phone, QrCode, RefreshCw, Save, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BrandingCard } from "./components/BrandingCard";
+import { ContactCard } from "./components/ContactCard";
+import { EmailCard } from "./components/EmailCard";
+import { PaymentCard } from "./components/PaymentCard";
+import { SettingsPageSkeleton } from "./components/SettingsPageSkeleton";
+
+const navItems = [
+  {
+    id: 'contact' as const,
+    label: 'Contato',
+    shortDescription: 'Telefones e endereço',
+    fullDescription: 'Configure os dados de contato e localização da empresa',
+    icon: Phone,
+  },
+  {
+    id: 'branding' as const,
+    label: 'Marca',
+    shortDescription: 'Títulos e logo',
+    fullDescription: 'Configure a identidade visual e os títulos do sistema',
+    icon: Building2,
+  },
+  {
+    id: 'email' as const,
+    label: 'Email',
+    shortDescription: 'Servidor SMTP',
+    fullDescription: 'Configure o servidor de envio de emails e relatórios',
+    icon: Mail,
+  },
+  {
+    id: 'payment' as const,
+    label: 'Pagamento',
+    shortDescription: 'Chave PIX',
+    fullDescription: 'Configure os dados de pagamento PIX para recibos',
+    icon: QrCode,
+  },
+];
+
+type SectionId = typeof navItems[number]['id'];
 
 export default function SettingsPage() {
-  const { 
-    configs, 
-    loading, 
-    saving, 
-    error, 
-    loadConfigs, 
-    saveConfigs, 
-    getFormData 
-  } = useSystemConfig();
-  
+  const { configs, loading, saving, error, saveConfigs, getFormData } = useSystemConfig();
   const { showToast } = useToast();
+  const [activeSection, setActiveSection] = useState<SectionId>('contact');
+
   const [formData, setFormData] = useState<ConfigFormData>({
     contact_address_street: '',
     contact_address_number: '',
@@ -65,1230 +77,154 @@ export default function SettingsPage() {
     restaurant_longitude: '',
   });
 
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [isTestingEmail, setIsTestingEmail] = useState(false);
-  const [testEmail, setTestEmail] = useState('');
-  
-  // Estados para busca de endereço
-  const [addressSearch, setAddressSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Carregar dados do formulário quando as configurações forem carregadas
   useEffect(() => {
-    if (configs.length > 0) {
-      setFormData(getFormData());
-    }
+    if (configs.length > 0) setFormData(getFormData());
   }, [configs, getFormData]);
 
-  // Limpar timeout ao desmontar o componente
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Função para lidar com mudanças nos campos
   const handleInputChange = (key: keyof ConfigFormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  // Função para buscar endereço usando Nominatim
-  const searchAddress = async (query: string) => {
-    if (!query || query.length < 3) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      // Usar Nominatim (OpenStreetMap) - gratuito, sem API key
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'Viandas-e-Marmitex/1.0' // Nominatim requer User-Agent
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar endereço');
-      }
-
-      const data = await response.json();
-      setSearchResults(data);
-      setShowResults(true);
-    } catch (error) {
-      console.error('Erro ao buscar endereço:', error);
-      showToast('Erro ao buscar endereço. Tente novamente.', 'error');
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Função para selecionar um endereço dos resultados
-  const selectAddress = (result: any) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    
-    setFormData(prev => ({
-      ...prev,
-      restaurant_latitude: lat.toString(),
-      restaurant_longitude: lng.toString()
-    }));
-    
-    // Formatar endereço para exibição
-    const displayName = result.display_name || result.address?.display_name || '';
-    setAddressSearch(displayName);
-    setShowResults(false);
-    setSearchResults([]);
-    
-    showToast('Coordenadas preenchidas automaticamente!', 'success');
-  };
-
-  // Função para lidar com o upload da logo
-  const handleLogoUpload = async (file: File) => {
-    setIsUploadingLogo(true);
-    try {
-      // Validar arquivo antes do upload
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Por favor, selecione um arquivo de imagem válido.');
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error('O arquivo deve ter no máximo 5MB.');
-      }
-
-      const uploadFormData = new FormData();
-      uploadFormData.append("file", file);
-      
-      // Incluir URL da logo antiga para deletar se existir
-      if (formData.branding_logo_url) {
-        uploadFormData.append("oldImageUrl", formData.branding_logo_url);
-        console.log('Incluindo URL da logo antiga para remoção:', formData.branding_logo_url);
-      }
-      
-      console.log('Iniciando upload da logo:', file.name, file.size, file.type);
-      
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadFormData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Erro no upload:', errorData);
-        throw new Error(errorData.error || "Falha no upload");
-      }
-
-      const { url } = await response.json();
-      console.log('Upload concluído com sucesso:', url);
-      
-      // Atualizar o estado com a nova URL
-      handleInputChange('branding_logo_url', url);
-      
-      showToast(
-        "Logo enviada com sucesso!",
-        "success",
-        "Logo enviada com sucesso!",
-        "A logo foi atualizada e a imagem antiga foi removida. Não esqueça de salvar as configurações."
-      );
-    } catch (error) {
-      console.error("Erro no upload da logo:", error);
-      showToast(
-        "Erro no upload",
-        "error",
-        "Erro no upload",
-        error instanceof Error ? error.message : "Falha no upload da logo"
-      );
-    } finally {
-      setIsUploadingLogo(false);
-    }
-  };
-
-  // Função para remover a logo
-  const removeLogo = async () => {
-    if (formData.branding_logo_url) {
-      try {
-        console.log('Removendo logo do storage:', formData.branding_logo_url);
-        
-        const response = await fetch('/api/upload', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrl: formData.branding_logo_url })
-        });
-
-        if (response.ok) {
-          console.log('Logo removida do storage com sucesso');
-          showToast(
-            "Logo removida!",
-            "success",
-            "Logo removida!",
-            "A logo foi removida do sistema de arquivos."
-          );
-        } else {
-          console.warn('Falha ao remover logo do storage:', await response.text());
-          showToast(
-            "Aviso",
-            "warning",
-            "Logo removida do formulário",
-            "A logo foi removida do formulário, mas pode não ter sido removida do sistema de arquivos."
-          );
-        }
-      } catch (error) {
-        console.error('Erro ao remover logo do storage:', error);
-        showToast(
-          "Aviso",
-          "warning",
-          "Logo removida do formulário",
-          "A logo foi removida do formulário, mas pode não ter sido removida do sistema de arquivos."
-        );
-      }
-    }
-    
-    // Sempre limpar o campo, mesmo se a remoção do storage falhar
-    handleInputChange('branding_logo_url', '');
-  };
-
-  // Função para lidar com drag and drop
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    
-    if (imageFile) {
-      handleFileSelect(imageFile);
-    } else {
-      showToast(
-        "Arquivo inválido",
-        "error",
-        "Arquivo inválido",
-        "Por favor, selecione um arquivo de imagem válido."
-      );
-    }
-  };
-
-  // Função para lidar com seleção de arquivo
-  const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      showToast(
-        "Arquivo inválido",
-        "error",
-        "Arquivo inválido",
-        "Por favor, selecione um arquivo de imagem válido."
-      );
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      showToast(
-        "Arquivo muito grande",
-        "error",
-        "Arquivo muito grande",
-        "O arquivo deve ter no máximo 5MB."
-      );
-      return;
-    }
-
-    setIsCropModalOpen(true);
-  };
-
-  // Handle cropped image upload
-  const handleCroppedImageUpload = async (croppedImageFile: File) => {
-    setIsUploadingImage(true);
-    try {
-      await handleLogoUpload(croppedImageFile);
-    } catch (error) {
-      console.error('Error uploading cropped image:', error);
-    } finally {
-      setIsUploadingImage(false);
-    }
-  };
-
-  // Função para salvar configurações
   const handleSave = async () => {
     const success = await saveConfigs(formData);
-    
     if (success) {
-      showToast(
-        "Configurações salvas!",
-        "success",
-        "Configurações salvas!",
-        "Todas as configurações foram atualizadas com sucesso."
-      );
+      showToast("Configurações salvas!", "success", "Configurações salvas!", "Todas as configurações foram atualizadas com sucesso.");
     } else {
-      showToast(
-        "Erro ao salvar",
-        "error",
-        "Erro ao salvar",
-        error || "Não foi possível salvar as configurações"
-      );
+      showToast("Erro ao salvar", "error", "Erro ao salvar", error || "Não foi possível salvar as configurações");
     }
   };
 
-  // Função para testar configurações de email
-  const handleTestEmail = async () => {
-    if (!testEmail.trim()) {
-      showToast("Digite um email para teste", "error");
-      return;
-    }
-
-    // Validar formato do email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(testEmail)) {
-      showToast("Formato de email inválido", "error");
-      return;
-    }
-
-    try {
-      setIsTestingEmail(true);
-      
-      const response = await fetch('/api/email/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ testEmail }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        showToast(data.message, "success");
-        setTestEmail(''); // Limpar campo após sucesso
-      } else {
-        showToast(data.error || "Erro ao testar configurações", "error");
-      }
-    } catch (error) {
-      console.error('Erro ao testar email:', error);
-      showToast("Erro ao testar configurações de email", "error");
-    } finally {
-      setIsTestingEmail(false);
-    }
-  };
-
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="h-5 w-5 animate-spin" />
-          <span>Carregando configurações...</span>
-        </div>
-      </div>
-    );
-  }
+  const activeNavItem = navItems.find(n => n.id === activeSection)!;
 
   return (
     <div className="space-y-6">
-      {/* Header com gradiente */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-        <div className="relative flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-blue-600" />
-              Configurações do Sistema
-            </h1>
-            <p className="text-gray-600 mt-2 text-lg">
-              Gerencie as configurações gerais, contato e marca do sistema
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2"
-            >
-              {saving ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Salvar Configurações
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Configurações do Sistema"
+        description="Gerencie as configurações gerais, contato e marca do sistema"
+        icon={Settings}
+        actions={
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Salvando...</>
+            ) : (
+              <><Save className="h-4 w-4 mr-2" />Salvar Configurações</>
+            )}
+          </Button>
+        }
+      />
 
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-red-600" />
-          <span className="text-red-800">{error}</span>
+      {loading && configs.length === 0 ? (
+        <SettingsPageSkeleton />
+      ) : (
+        <div className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <span className="text-sm text-red-800">{error}</span>
+            </div>
+          )}
+
+          {/* Settings Panel */}
+          <div
+            className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex"
+            style={{ minHeight: 580 }}
+          >
+            {/* Sidebar navigation */}
+            <nav className="w-52 flex-shrink-0 border-r border-slate-200 bg-slate-100/70 p-2 space-y-0.5">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
+                      isActive
+                        ? "bg-white shadow-sm border border-slate-200"
+                        : "hover:bg-slate-200/50"
+                    }`}
+                  >
+                    <div
+                      className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isActive ? "bg-primary/10" : "bg-slate-100"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-3.5 w-3.5 transition-colors ${
+                          isActive ? "text-primary" : "text-slate-400"
+                        }`}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        className={`text-sm font-semibold leading-tight ${
+                          isActive ? "text-slate-900" : "text-slate-500"
+                        }`}
+                      >
+                        {item.label}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5 leading-tight truncate">
+                        {item.shortDescription}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Content area */}
+            <div className="flex-1 min-w-0 flex flex-col">
+              {/* Section header — sticky */}
+              <div className="px-8 py-4 border-b border-slate-100 bg-white sticky top-0 z-10 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
+                    <activeNavItem.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-900">
+                      {activeNavItem.label}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {activeNavItem.fullDescription}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active section content */}
+              <div
+                className="flex-1 overflow-y-auto"
+                style={{ scrollbarGutter: "stable" }}
+              >
+                {activeSection === "contact" && (
+                  <ContactCard
+                    formData={formData}
+                    onFieldChange={handleInputChange}
+                  />
+                )}
+                {activeSection === "branding" && (
+                  <BrandingCard
+                    formData={formData}
+                    onFieldChange={handleInputChange}
+                  />
+                )}
+                {activeSection === "email" && (
+                  <EmailCard
+                    formData={formData}
+                    onFieldChange={handleInputChange}
+                  />
+                )}
+                {activeSection === "payment" && (
+                  <PaymentCard
+                    formData={formData}
+                    onFieldChange={handleInputChange}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Configurações de Contato */}
-        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Phone className="h-6 w-6 text-blue-600" />
-              Informações de Contato
-            </CardTitle>
-            <CardDescription className="text-gray-600 mt-1">
-              Configure os dados de contato da empresa
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {/* Seção Telefones */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Phone className="h-4 w-4 text-blue-600" />
-                <h3 className="text-base font-semibold text-blue-800">
-                  Telefones
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-blue-100 via-blue-300 to-blue-100"></div>
-              
-              <div className="grid gap-6 sm:grid-cols-2 mt-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_phone_mobile"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Telefone Celular
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="contact_phone_mobile"
-                      value={formData.contact_phone_mobile}
-                      onChange={(e) => handleInputChange('contact_phone_mobile', e.target.value)}
-                      placeholder="(11) 99999-9999"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                    />
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_phone_landline"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Telefone Residencial
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="contact_phone_landline"
-                      value={formData.contact_phone_landline}
-                      onChange={(e) => handleInputChange('contact_phone_landline', e.target.value)}
-                      placeholder="(11) 3333-3333"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                    />
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Seção Endereço */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <MapPin className="h-4 w-4 text-blue-600" />
-                <h3 className="text-base font-semibold text-blue-800">
-                  Endereço Completo
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-blue-100 via-blue-300 to-blue-100"></div>
-              
-              <div className="grid gap-6 sm:grid-cols-2 mt-4">
-                <div className="sm:col-span-2 space-y-2">
-                  <Label 
-                    htmlFor="contact_address_street"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Rua
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="contact_address_street"
-                      value={formData.contact_address_street}
-                      onChange={(e) => handleInputChange('contact_address_street', e.target.value)}
-                      placeholder="Nome da rua"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                    />
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_address_number"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Número
-                  </Label>
-                  <Input
-                    id="contact_address_number"
-                    value={formData.contact_address_number}
-                    onChange={(e) => handleInputChange('contact_address_number', e.target.value)}
-                    placeholder="123"
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_address_neighborhood"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Bairro
-                  </Label>
-                  <Input
-                    id="contact_address_neighborhood"
-                    value={formData.contact_address_neighborhood}
-                    onChange={(e) => handleInputChange('contact_address_neighborhood', e.target.value)}
-                    placeholder="Centro"
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_address_city"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Cidade
-                  </Label>
-                  <Input
-                    id="contact_address_city"
-                    value={formData.contact_address_city}
-                    onChange={(e) => handleInputChange('contact_address_city', e.target.value)}
-                    placeholder="São Paulo"
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_address_state"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Estado (UF)
-                  </Label>
-                  <Input
-                    id="contact_address_state"
-                    value={formData.contact_address_state}
-                    onChange={(e) => handleInputChange('contact_address_state', e.target.value)}
-                    placeholder="SP"
-                    maxLength={2}
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="contact_address_zipcode"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    CEP
-                  </Label>
-                  <Input
-                    id="contact_address_zipcode"
-                    value={formData.contact_address_zipcode}
-                    onChange={(e) => handleInputChange('contact_address_zipcode', e.target.value)}
-                    placeholder="01234-567"
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="sm:col-span-2 space-y-2">
-                  <Label 
-                    htmlFor="contact_address_complement"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Complemento
-                  </Label>
-                  <Input
-                    id="contact_address_complement"
-                    value={formData.contact_address_complement}
-                    onChange={(e) => handleInputChange('contact_address_complement', e.target.value)}
-                    placeholder="Apto 45, Bloco B"
-                    className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="sm:col-span-2 space-y-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-blue-600" />
-                    <h4 className="text-sm font-semibold text-blue-800">
-                      Coordenadas GPS do Restaurante (para Rastreamento)
-                    </h4>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Configure a localização GPS do restaurante para exibir no mapa de rastreamento de entregas.
-                    Pesquise o endereço abaixo e as coordenadas serão preenchidas automaticamente.
-                  </p>
-                  
-                  {/* Campo de busca de endereço */}
-                  <div className="space-y-2 relative">
-                    <Label 
-                      htmlFor="address_search"
-                      className="text-sm font-medium text-gray-700"
-                    >
-                      Buscar Endereço
-                    </Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="address_search"
-                        value={addressSearch}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setAddressSearch(value);
-                          
-                          // Limpar timeout anterior se existir
-                          if (searchTimeoutRef.current) {
-                            clearTimeout(searchTimeoutRef.current);
-                          }
-                          
-                          // Debounce de 500ms antes de iniciar a pesquisa
-                          if (value.length >= 3) {
-                            searchTimeoutRef.current = setTimeout(() => {
-                              searchAddress(value);
-                            }, 500);
-                          } else {
-                            setSearchResults([]);
-                            setShowResults(false);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (searchResults.length > 0) {
-                            setShowResults(true);
-                          }
-                        }}
-                        placeholder="Ex: Rua Hermes Cortes, 75, Centro, Santa Maria, RS"
-                        className="pl-10 py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                      />
-                      {isSearching && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                      )}
-                      
-                      {/* Lista de resultados */}
-                      {showResults && searchResults.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          {searchResults.map((result, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onClick={() => selectAddress(result)}
-                              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                            >
-                              <div className="flex items-start gap-2">
-                                <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {result.display_name}
-                                  </p>
-                                  {result.address && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      {[
-                                        result.address.road,
-                                        result.address.house_number,
-                                        result.address.neighbourhood || result.address.suburb,
-                                        result.address.city || result.address.town,
-                                        result.address.state,
-                                      ]
-                                        .filter(Boolean)
-                                        .join(', ')}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {addressSearch && !isSearching && searchResults.length === 0 && showResults && (
-                      <p className="text-xs text-gray-500">
-                        Nenhum resultado encontrado. Tente uma busca mais específica.
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label 
-                        htmlFor="restaurant_latitude"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Latitude
-                      </Label>
-                      <Input
-                        id="restaurant_latitude"
-                        value={formData.restaurant_latitude || ''}
-                        onChange={(e) => handleInputChange('restaurant_latitude', e.target.value)}
-                        placeholder="-23.5505"
-                        type="number"
-                        step="any"
-                        className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label 
-                        htmlFor="restaurant_longitude"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Longitude
-                      </Label>
-                      <Input
-                        id="restaurant_longitude"
-                        value={formData.restaurant_longitude || ''}
-                        onChange={(e) => handleInputChange('restaurant_longitude', e.target.value)}
-                        placeholder="-46.6333"
-                        type="number"
-                        step="any"
-                        className="py-3 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 shadow-sm transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Configurações de Marca */}
-        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Building2 className="h-6 w-6 text-purple-600" />
-              Marca e Identidade
-            </CardTitle>
-            <CardDescription className="text-gray-600 mt-1">
-              Configure os títulos e logo do sistema
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {/* Seção Títulos */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Building2 className="h-4 w-4 text-purple-600" />
-                <h3 className="text-base font-semibold text-purple-800">
-                  Títulos do Sistema
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-purple-100 via-purple-300 to-purple-100"></div>
-              
-              <div className="space-y-6 mt-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="branding_system_title"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Título do Sistema
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="branding_system_title"
-                      value={formData.branding_system_title}
-                      onChange={(e) => handleInputChange('branding_system_title', e.target.value)}
-                      placeholder="Viandas e Marmitex"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 shadow-sm transition-all"
-                    />
-                    <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="branding_pdv_title"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Título do PDV
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="branding_pdv_title"
-                      value={formData.branding_pdv_title}
-                      onChange={(e) => handleInputChange('branding_pdv_title', e.target.value)}
-                      placeholder="PDV - Viandas e Marmitex"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 shadow-sm transition-all"
-                    />
-                    <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Seção Logo */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <ImageIcon className="h-4 w-4 text-purple-600" />
-                <h3 className="text-base font-semibold text-purple-800">
-                  Logo da Empresa
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-purple-100 via-purple-300 to-purple-100"></div>
-              
-              {formData.branding_logo_url ? (
-                // Logo preview with edit/remove options
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Logo Atual
-                  </Label>
-                  <div className="relative">
-                    <div className="flex items-start gap-4 p-4 border border-purple-200 rounded-xl bg-purple-50">
-                      <img
-                        src={formData.branding_logo_url}
-                        alt="Logo da empresa"
-                        className="h-24 w-24 rounded-lg object-contain border border-purple-300"
-                      />
-                      <div className="flex-1 space-y-2">
-                        <p className="text-sm text-gray-600">
-                          Logo carregada com sucesso
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsCropModalOpen(true)}
-                            className="flex items-center gap-2 border-purple-200 hover:bg-purple-100 text-purple-700"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            Editar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={removeLogo}
-                            className="flex items-center gap-2 border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Remover
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // Upload area when no logo
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Adicionar Logo
-                  </Label>
-                  <div 
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
-                      isDragOver 
-                        ? 'border-purple-500 bg-purple-100' 
-                        : 'border-purple-300 hover:border-purple-500 bg-purple-50/50'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => setIsCropModalOpen(true)}
-                  >
-                    <ImageIcon className="h-12 w-12 text-purple-400 mx-auto mb-3" />
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">
-                      {isDragOver ? 'Solte a imagem aqui' : 'Selecione uma logo'}
-                    </h4>
-                    <p className="text-sm text-gray-500 mb-4">
-                      {isDragOver 
-                        ? 'Solte o arquivo para fazer upload' 
-                        : 'Clique para selecionar e editar uma logo da empresa'
-                      }
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCropModalOpen(true);
-                      }}
-                      disabled={isUploadingImage || isUploadingLogo}
-                      className="bg-purple-600 hover:bg-purple-700 border-purple-700 text-white hover:text-white px-4 py-3 rounded-xl"
-                    >
-                      {isUploadingImage || isUploadingLogo ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
-                          Enviando...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Selecionar Logo
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              <p className="text-sm text-gray-500">
-                Formatos aceitos: JPEG, PNG, WebP, GIF. Tamanho máximo: 5MB.
-                A logo será redimensionada para formato quadrado.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Configurações de Email */}
-        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Mail className="h-6 w-6 text-green-600" />
-              Configurações de Email
-            </CardTitle>
-            <CardDescription className="text-gray-600 mt-1">
-              Configure o servidor SMTP para envio de relatórios por email
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {/* Seção Status e Configurações Básicas */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Mail className="h-4 w-4 text-green-600" />
-                <h3 className="text-base font-semibold text-green-800">
-                  Configurações Básicas
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
-              
-              <div className="grid gap-6 sm:grid-cols-2 mt-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_enabled"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Habilitar Envio de Emails
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="email_enabled"
-                      checked={formData.email_enabled === 'true'}
-                      onChange={(e) => handleInputChange('email_enabled', e.target.checked ? 'true' : 'false')}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    />
-                    <span className="text-sm text-gray-600">
-                      {formData.email_enabled === 'true' ? 'Ativado' : 'Desativado'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_from_name"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Nome do Remetente
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="email_from_name"
-                      value={formData.email_from_name}
-                      onChange={(e) => handleInputChange('email_from_name', e.target.value)}
-                      placeholder="Viandas e Marmitex"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                    />
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Seção Servidor SMTP */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Send className="h-4 w-4 text-green-600" />
-                <h3 className="text-base font-semibold text-green-800">
-                  Servidor SMTP
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
-              
-              <div className="grid gap-6 sm:grid-cols-2 mt-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_smtp_host"
-                    className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                  >
-                    Servidor SMTP
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="email_smtp_host"
-                      value={formData.email_smtp_host}
-                      onChange={(e) => handleInputChange('email_smtp_host', e.target.value)}
-                      placeholder="smtp.gmail.com"
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                    />
-                    <Send className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_smtp_port"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Porta SMTP
-                  </Label>
-                  <Input
-                    id="email_smtp_port"
-                    value={formData.email_smtp_port}
-                    onChange={(e) => handleInputChange('email_smtp_port', e.target.value)}
-                    placeholder="587"
-                    type="number"
-                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_smtp_user"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Usuário/Email
-                  </Label>
-                  <Input
-                    id="email_smtp_user"
-                    value={formData.email_smtp_user}
-                    onChange={(e) => handleInputChange('email_smtp_user', e.target.value)}
-                    placeholder="seu-email@gmail.com"
-                    type="email"
-                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_smtp_password"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Senha do App
-                  </Label>
-                  <Input
-                    id="email_smtp_password"
-                    value={formData.email_smtp_password}
-                    onChange={(e) => handleInputChange('email_smtp_password', e.target.value)}
-                    placeholder="Sua senha de aplicativo"
-                    type="password"
-                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_smtp_secure"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Conexão Segura (SSL/TLS)
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="email_smtp_secure"
-                      checked={formData.email_smtp_secure === 'true'}
-                      onChange={(e) => handleInputChange('email_smtp_secure', e.target.checked ? 'true' : 'false')}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                    />
-                    <span className="text-sm text-gray-600">
-                      {formData.email_smtp_secure === 'true' ? 'SSL/TLS Ativado' : 'STARTTLS (Recomendado)'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_reply_to"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Email para Resposta
-                  </Label>
-                  <Input
-                    id="email_reply_to"
-                    value={formData.email_reply_to}
-                    onChange={(e) => handleInputChange('email_reply_to', e.target.value)}
-                    placeholder="contato@viandase.com"
-                    type="email"
-                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Seção Email do Remetente */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Mail className="h-4 w-4 text-green-600" />
-                <h3 className="text-base font-semibold text-green-800">
-                  Email do Remetente
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
-              
-              <div className="mt-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="email_from_address"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Email de Envio
-                  </Label>
-                  <Input
-                    id="email_from_address"
-                    value={formData.email_from_address}
-                    onChange={(e) => handleInputChange('email_from_address', e.target.value)}
-                    placeholder="noreply@viandase.com"
-                    type="email"
-                    className="py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Este será o email que aparece como remetente nos relatórios enviados
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Botão de Teste */}
-            <div className="pt-4 border-t border-gray-200">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label 
-                    htmlFor="test_email"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Email para Teste
-                  </Label>
-                  <div className="flex gap-3">
-                    <Input
-                      id="test_email"
-                      value={testEmail}
-                      onChange={(e) => setTestEmail(e.target.value)}
-                      placeholder="seu-email@exemplo.com"
-                      type="email"
-                      className="flex-1 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleTestEmail}
-                      disabled={!formData.email_enabled || !formData.email_smtp_host || !formData.email_smtp_user || !testEmail.trim() || isTestingEmail}
-                      className="px-6 py-3 border-green-200 hover:bg-green-50 text-green-700 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
-                    >
-                      {isTestingEmail ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></div>
-                          Testando...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          Testar Email
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Digite um email válido para testar as configurações SMTP
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Configurações de Pagamento */}
-        <Card className="shadow-lg border-gray-200 rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <QrCode className="h-6 w-6 text-purple-600" />
-              Configurações de Pagamento
-            </CardTitle>
-            <CardDescription className="text-gray-600 mt-1">
-              Configure os dados de pagamento PIX
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            {/* Seção PIX */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <QrCode className="h-4 w-4 text-purple-600" />
-                <h3 className="text-base font-semibold text-purple-800">
-                  Chave PIX
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-purple-100 via-purple-300 to-purple-100"></div>
-              
-              <div className="space-y-2 mt-4">
-                <Label 
-                  htmlFor="payment_pix_key"
-                  className="text-sm font-medium text-gray-700 flex items-center gap-1"
-                >
-                  Chave PIX
-                  <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="payment_pix_key"
-                    value={formData.payment_pix_key}
-                    onChange={(e) => handleInputChange('payment_pix_key', e.target.value)}
-                    placeholder="CPF, CNPJ, Email, Telefone ou Chave Aleatória"
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 shadow-sm transition-all"
-                  />
-                  <QrCode className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  A chave PIX será usada para gerar os QR codes de pagamento nos recibos. 
-                  Pode ser CPF (11 dígitos), CNPJ (14 dígitos), email, telefone (com DDD) ou chave aleatória.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Image Crop Modal */}
-      <ImageCropModal
-        isOpen={isCropModalOpen}
-        onClose={() => setIsCropModalOpen(false)}
-        onCropComplete={handleCroppedImageUpload}
-        onUploadStart={() => setIsUploadingImage(true)}
-        aspectRatio={1} // Square for logo
-        maxWidth={800}
-        maxHeight={800}
-        title="Editar Logo da Empresa"
-        description="Ajuste e faça o crop da logo para garantir que ela fique perfeita"
-        selectImageTitle="Selecione uma logo"
-        selectImageDescription="Escolha uma logo para editar e fazer o crop"
-        cropButtonText="Aplicar e Salvar Logo"
-        selectAnotherButtonText="Escolher Outra Logo"
-      />
     </div>
   );
 }

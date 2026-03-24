@@ -1,11 +1,9 @@
 "use client";
 
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ChartLoading } from "../../components/ChartLoading";
-import { RangeSelector } from "./RangeSelector";
-import type { RangeOption } from "../types";
 
 type DistributionEntry = {
     name: string;
@@ -19,13 +17,105 @@ type SalesDistributionCardProps = {
     paymentMethodData: DistributionEntry[];
     totalProductSales: number;
     totalPaymentSales: number;
-    rangeOptions: RangeOption[];
-    currentRange: number;
-    onRangeChange: (value: number) => void;
     formatCurrency: (value: number) => string;
 };
 
-const PIE_COLORS = ["#6366F1", "#F97316", "#22C55E", "#0EA5E9", "#A855F7", "#F43F5E", "#FACC15", "#14B8A6"];
+const PIE_COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#6366f1", "#0ea5e9", "#8b5cf6", "#64748b"];
+
+type DonutLegendProps = {
+    data: DistributionEntry[];
+    total: number;
+    formatCurrency: (value: number) => string;
+};
+
+function DonutLegend({ data, total, formatCurrency }: DonutLegendProps) {
+    return (
+        <ul className="mt-3 space-y-1.5">
+            {data.map((entry, i) => {
+                const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0.0";
+                return (
+                    <li key={i} className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 min-w-0">
+                            <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                            />
+                            <span className="text-slate-600 truncate">{entry.name}</span>
+                        </span>
+                        <span className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-slate-400 text-xs">{pct}%</span>
+                            <span className="font-medium text-slate-800">{formatCurrency(entry.value)}</span>
+                        </span>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+type DonutSectionProps = {
+    title: string;
+    subtitle: string;
+    total: number;
+    data: DistributionEntry[];
+    loading: boolean;
+    formatCurrency: (value: number) => string;
+    keyPrefix: string;
+};
+
+function DonutSection({ title, subtitle, total, data, loading, formatCurrency, keyPrefix }: DonutSectionProps) {
+    return (
+        <div className="space-y-1">
+            <div className="mb-3">
+                <p className="text-sm font-semibold text-slate-700">{title}</p>
+                <p className="text-xs text-slate-400">{subtitle}</p>
+            </div>
+            <div className="h-52 w-full">
+                {loading ? (
+                    <ChartLoading variant="pie" />
+                ) : data.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Tooltip
+                                formatter={(value) => formatCurrency(Number(value))}
+                                contentStyle={{
+                                    borderRadius: "8px",
+                                    border: "1px solid #e2e8f0",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                                    fontSize: "13px",
+                                }}
+                            />
+                            <Pie
+                                data={data}
+                                dataKey="value"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={55}
+                                outerRadius={90}
+                                paddingAngle={3}
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell
+                                        key={`${keyPrefix}-${entry.name}-${index}`}
+                                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                                    />
+                                ))}
+                            </Pie>
+                        </PieChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                        Sem dados no período selecionado.
+                    </div>
+                )}
+            </div>
+            {data.length > 0 && (
+                <DonutLegend data={data} total={total} formatCurrency={formatCurrency} />
+            )}
+        </div>
+    );
+}
 
 export function SalesDistributionCard({
     loading,
@@ -33,124 +123,34 @@ export function SalesDistributionCard({
     paymentMethodData,
     totalProductSales,
     totalPaymentSales,
-    rangeOptions,
-    currentRange,
-    onRangeChange,
     formatCurrency,
 }: SalesDistributionCardProps) {
     return (
-        <Card className="relative overflow-hidden border-0 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5" />
-            <CardHeader className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                    <CardTitle className="text-xl font-bold text-slate-900">Distribuição das Vendas</CardTitle>
-                    <p className="text-sm text-slate-600">
-                        Análise detalhada por produtos e formas de pagamento
-                    </p>
-                </div>
-                <RangeSelector options={rangeOptions} currentValue={currentRange} onSelect={onRangeChange} />
+        <Card>
+            <CardHeader>
+                <CardTitle>Distribuição das Vendas</CardTitle>
+                <p className="text-sm text-slate-500">Análise por produtos e formas de pagamento</p>
             </CardHeader>
-            <CardContent className="relative space-y-6">
+            <CardContent>
                 <div className="grid gap-8 lg:grid-cols-2">
-                    <div className="space-y-4">
-                        <div className="rounded-lg bg-gradient-to-r from-purple-50 to-purple-100 p-4 border border-purple-200">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-purple-700">Vendas por Produto</p>
-                                    <p className="text-xl font-bold text-purple-900">{formatCurrency(totalProductSales)}</p>
-                                </div>
-                                <div className="text-xs text-purple-600">
-                                    {productSalesData.length} produtos
-                                </div>
-                            </div>
-                        </div>
-                        <div className="h-80 w-full">
-                            {loading ? (
-                                <ChartLoading variant="pie" />
-                            ) : productSalesData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Tooltip
-                                            formatter={(value) => formatCurrency(Number(value))}
-                                            cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                        />
-                                        <Legend />
-                                        <Pie
-                                            data={productSalesData}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={100}
-                                            paddingAngle={4}
-                                        >
-                                            {productSalesData.map((entry, index) => (
-                                                <Cell
-                                                    key={`product-pie-${entry.name}-${index}`}
-                                                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                    Sem dados no período selecionado.
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="rounded-lg bg-gradient-to-r from-pink-50 to-pink-100 p-4 border border-pink-200">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-pink-700">Formas de Pagamento</p>
-                                    <p className="text-xl font-bold text-pink-900">{formatCurrency(totalPaymentSales)}</p>
-                                </div>
-                                <div className="text-xs text-pink-600">
-                                    {paymentMethodData.length} métodos
-                                </div>
-                            </div>
-                        </div>
-                        <div className="h-80 w-full">
-                            {loading ? (
-                                <ChartLoading variant="pie" />
-                            ) : paymentMethodData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Tooltip
-                                            formatter={(value) => formatCurrency(Number(value))}
-                                            cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                        />
-                                        <Legend />
-                                        <Pie
-                                            data={paymentMethodData}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={100}
-                                            paddingAngle={4}
-                                        >
-                                            {paymentMethodData.map((entry, index) => (
-                                                <Cell
-                                                    key={`payment-pie-${entry.method ?? entry.name}-${index}`}
-                                                    fill={PIE_COLORS[index % PIE_COLORS.length]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                                    Sem dados no período selecionado.
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <DonutSection
+                        title="Vendas por Produto"
+                        subtitle={`${productSalesData.length} produtos — total ${formatCurrency(totalProductSales)}`}
+                        total={totalProductSales}
+                        data={productSalesData}
+                        loading={loading}
+                        formatCurrency={formatCurrency}
+                        keyPrefix="product"
+                    />
+                    <DonutSection
+                        title="Formas de Pagamento"
+                        subtitle={`${paymentMethodData.length} métodos — total ${formatCurrency(totalPaymentSales)}`}
+                        total={totalPaymentSales}
+                        data={paymentMethodData}
+                        loading={loading}
+                        formatCurrency={formatCurrency}
+                        keyPrefix="payment"
+                    />
                 </div>
             </CardContent>
         </Card>

@@ -22,6 +22,7 @@ model User {
   password          String
   role              String   @default("pdv") // admin, pdv
   active            Boolean  @default(true)
+  imageUrl          String?  // URL da foto de perfil no Vercel Blob
   facialImageUrl    String?  // URL da imagem facial para login por reconhecimento
   facialDescriptor  Json?    // Descriptor facial (array de números) para comparação rápida
   createdAt         DateTime @default(now())
@@ -41,6 +42,7 @@ model Customer {
   barcode    String?  @unique // Código de barras para identificação rápida no PDV
   password   String?  // Senha para acesso ao app mobile (hash bcrypt)
   address    Json?    // Endereço em formato JSON
+  imageUrl   String?  // URL da foto do cliente no Vercel Blob
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -286,6 +288,8 @@ model Expense {
   amountCents     Int           @default(0) // Valor em centavos para evitar problemas de arredondamento
   description     String        // Descrição da despesa
   date            DateTime      // Data da despesa
+  nfChaveAcesso   String?       // Chave de acesso SEFAZ (44 dígitos), presente quando lançada via NF
+  nfQrCodeUrl     String?       // URL original do QR code da NF (permite re-consulta direta ao portal da SEFAZ)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -298,6 +302,7 @@ model Expense {
   @@index([supplierTypeId])
   @@index([paymentMethodId])
   @@index([date])
+  @@index([nfChaveAcesso])
 }
 
 // Modelo de Rastreamento de Entrega

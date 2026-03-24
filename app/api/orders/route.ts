@@ -79,7 +79,8 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               phone: true,
-              address: true
+              address: true,
+              imageUrl: true
             }
           },
           items: {
@@ -87,7 +88,8 @@ export async function GET(request: Request) {
               product: {
                 select: {
                   id: true,
-                  name: true
+                  name: true,
+                  imageUrl: true
                 }
               }
             }

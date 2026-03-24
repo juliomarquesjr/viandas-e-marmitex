@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const typeId = searchParams.get('typeId');
     const supplierTypeId = searchParams.get('supplierTypeId');
     const paymentMethodId = searchParams.get('paymentMethodId');
+    const nfChaveAcesso = searchParams.get('nfChaveAcesso');
 
     // Construir filtros
     const where: any = {};
@@ -48,6 +49,10 @@ export async function GET(request: Request) {
       where.paymentMethodId = paymentMethodId;
     }
 
+    if (nfChaveAcesso) {
+      where.nfChaveAcesso = nfChaveAcesso;
+    }
+
     const skip = (page - 1) * limit;
 
     // Se temos filtro de data, usar query raw para comparar apenas a parte da data
@@ -75,6 +80,10 @@ export async function GET(request: Request) {
 
       if (paymentMethodId) {
         conditions.push(`e."paymentMethodId" = '${paymentMethodId}'`);
+      }
+
+      if (nfChaveAcesso) {
+        conditions.push(`e."nfChaveAcesso" = '${nfChaveAcesso}'`);
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -110,6 +119,8 @@ export async function GET(request: Request) {
         amountCents: Number(row.amountCents),
         description: row.description,
         date: new Date(row.date),
+        nfChaveAcesso: row.nfChaveAcesso ?? null,
+        nfQrCodeUrl: row.nfQrCodeUrl ?? null,
         createdAt: new Date(row.createdAt),
         updatedAt: new Date(row.updatedAt),
         type: row.type,
@@ -269,7 +280,9 @@ export async function POST(request: Request) {
         paymentMethodId: body.paymentMethodId || null,
         amountCents: body.amountCents,
         description: (body.description || '').trim(),
-        date: new Date(body.date + 'T00:00:00.000Z')
+        date: new Date(body.date + 'T00:00:00.000Z'),
+        nfChaveAcesso: body.nfChaveAcesso || null,
+        nfQrCodeUrl: body.nfQrCodeUrl || null,
       },
       include: {
         type: {

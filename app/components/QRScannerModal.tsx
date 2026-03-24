@@ -1,314 +1,212 @@
 "use client";
 
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Camera, Upload, X, AlertCircle, Loader2, QrCode } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
+import {
+  Smartphone,
+  Upload,
+  AlertCircle,
+  Loader2,
+  Copy,
+  Check,
+  Clock,
+  Link2,
+  Barcode,
+  QrCode,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import jsQR from "jsqr";
 import { InvoiceData } from "@/lib/nf-scanner/types";
+import { POLLING_INTERVAL_MS } from "@/lib/scan-session/types";
+
+export type ScanMode = "mobile-link" | "upload" | "barcode";
 
 interface QRScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onQRCodeScanned: (data: InvoiceData) => void;
+  initialMode?: ScanMode;
+  availableModes?: ScanMode[];
+  closeOnSuccess?: boolean;
+  title?: string;
+  description?: string;
+  barcodePlaceholder?: string;
+  barcodeAriaLabel?: string;
+  barcodeSubmitLabel?: string;
+  onBarcodeSubmit?: (raw: string) => Promise<InvoiceData>;
 }
 
 export function QRScannerModal({
   isOpen,
   onClose,
   onQRCodeScanned,
+  initialMode = "barcode",
+  availableModes,
+  closeOnSuccess = true,
+  title = "Escanear QR Code da Nota Fiscal",
+  description = "Use o leitor de código de barras, o link no celular ou envie uma imagem com o QR Code da nota fiscal",
+  barcodePlaceholder = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=...",
+  barcodeAriaLabel = "URL ou dados da NFC-e lidos pelo leitor",
+  barcodeSubmitLabel = "Processar leitura",
+  onBarcodeSubmit,
 }: QRScannerModalProps) {
-  const [mode, setMode] = useState<"webcam" | "upload">("webcam");
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const enabledModes = availableModes?.length
+    ? availableModes
+    : (["barcode", "mobile-link", "upload"] satisfies ScanMode[]);
+  const resolvedInitialMode = enabledModes.includes(initialMode)
+    ? initialMode
+    : enabledModes[0];
+  const [mode, setMode] = useState<ScanMode>(resolvedInitialMode);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [qrDetected, setQrDetected] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Estados do modo Link Mobile
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [scanUrl, setScanUrl] = useState<string>("");
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [barcodeUrl, setBarcodeUrl] = useState("");
 
-  // Reset ao abrir
   useEffect(() => {
     if (isOpen) {
-      setError(null);
-      setQrDetected(false);
-      setScanning(false);
-      setProcessing(false);
-      setVideoReady(false);
+      setMode(resolvedInitialMode);
     }
-  }, [isOpen]);
+  }, [isOpen, resolvedInitialMode]);
 
-  // Iniciar câmera automaticamente quando o modal abrir no modo webcam
+  // Iniciar sessão quando o modal abrir no modo mobile-link
   useEffect(() => {
-    if (isOpen && mode === "webcam" && !stream && !processing) {
-      // Pequeno delay para garantir que o modal está totalmente aberto
-      const timer = setTimeout(() => {
-        startWebcam();
-      }, 100);
-      return () => clearTimeout(timer);
+    if (isOpen && mode === "mobile-link") {
+      startSession();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      stopPolling();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive/deps
   }, [isOpen, mode]);
 
-  // Limpar ao fechar
+  // Atualizar tempo restante
   useEffect(() => {
-    if (!isOpen) {
-      stopWebcam();
-    }
-  }, [isOpen]);
+    if (!sessionId || timeRemaining <= 0) return;
 
-  // Atualizar vídeo quando stream mudar
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          // Sessão expirada
+          setError("Sessão expirada. Clique em 'Gerar Novo Link' para tentar novamente.");
+          stopPolling();
+          setSessionId(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sessionId, timeRemaining]);
+
+  // Focar campo do leitor USB (modo código de barras / teclado) ao abrir a aba
   useEffect(() => {
-    if (stream && videoRef.current) {
-      const video = videoRef.current;
-      video.srcObject = stream;
-      
-      // Forçar reprodução
-      video.play().catch((err) => {
-        console.error("Erro ao reproduzir vídeo:", err);
-      });
-      
-      // Aguardar o vídeo estar pronto para iniciar scanning
-      const handleVideoReady = () => {
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          setVideoReady(true);
-          // Aguardar um pouco para garantir que o vídeo está renderizando
-          setTimeout(() => {
-            startScanning();
-          }, 300);
-        } else {
-          // Se ainda não tiver dimensões, tentar novamente
-          setTimeout(handleVideoReady, 100);
-        }
-      };
-      
-      // Usar múltiplos eventos para garantir que capturamos quando o vídeo está pronto
-      video.addEventListener("loadedmetadata", handleVideoReady, { once: true });
-      video.addEventListener("loadeddata", handleVideoReady, { once: true });
-      video.addEventListener("canplay", handleVideoReady, { once: true });
-      
-      // Fallback: se após 2 segundos ainda não estiver pronto, tentar iniciar scanning
-      const timeoutId = setTimeout(() => {
-        if (video.videoWidth > 0 && video.videoHeight > 0) {
-          startScanning();
-        }
-      }, 2000);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        // Remover event listeners se o componente desmontar
-        video.removeEventListener("loadedmetadata", handleVideoReady);
-        video.removeEventListener("loadeddata", handleVideoReady);
-        video.removeEventListener("canplay", handleVideoReady);
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stream]);
+    if (!isOpen || mode !== "barcode") return;
+    const t = window.setTimeout(() => barcodeInputRef.current?.focus(), 200);
+    return () => window.clearTimeout(t);
+  }, [isOpen, mode]);
 
-  // Iniciar webcam
-  const startWebcam = async () => {
-    try {
-      setError(null);
-      
-      // Tentar primeiro com environment (mobile), depois fallback para user (desktop)
-      let mediaStream: MediaStream | null = null;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            facingMode: "environment", // Câmera traseira no mobile
-          },
-          audio: false,
-        });
-      } catch (envError) {
-        // Se falhar com environment, tentar com user (desktop)
-        try {
-          mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1280, min: 640 },
-              height: { ideal: 720, min: 480 },
-              facingMode: "user", // Câmera frontal no desktop
-            },
-            audio: false,
-          });
-        } catch (userError) {
-          // Se ambos falharem, tentar sem facingMode
-          mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1280, min: 640 },
-              height: { ideal: 720, min: 480 },
-            },
-            audio: false,
-          });
-        }
-      }
-
-      if (!mediaStream) {
-        throw new Error("Não foi possível acessar a câmera");
-      }
-
-      setStream(mediaStream);
-    } catch (err) {
-      console.error("Erro ao acessar webcam:", err);
-      if (err instanceof Error) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setError(
-            "Permissão de câmera negada. Por favor, permita o acesso à câmera nas configurações do navegador."
-          );
-        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-          setError("Nenhuma câmera encontrada. Verifique se há uma câmera conectada.");
-        } else {
-          setError(`Erro ao acessar webcam: ${err.message}`);
-        }
-      } else {
-        setError("Não foi possível acessar a webcam. Verifique as permissões.");
-      }
-    }
-  };
-
-  // Parar webcam
-  const stopWebcam = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setVideoReady(false);
-    stopScanning();
-  };
-
-  // Iniciar scanning de QR code
-  const startScanning = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-    }
-
-    // Verificar se o vídeo está pronto
-    if (!videoRef.current || videoRef.current.readyState < videoRef.current.HAVE_CURRENT_DATA) {
-      setTimeout(startScanning, 100);
-      return;
-    }
-
-    setScanning(true);
-    scanIntervalRef.current = setInterval(() => {
-      scanQRCode();
-    }, 100); // Processar a cada 100ms para melhor responsividade
-  };
-
-  // Parar scanning
-  const stopScanning = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    setScanning(false);
-  };
-
-  // Escanear QR code do vídeo
-  const scanQRCode = () => {
-    if (!videoRef.current || !canvasRef.current || processing || qrDetected) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (!context) return;
-
-    if (video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0 || video.videoHeight === 0) {
-      return;
-    }
-
-    // Usar resolução maior para melhor detecção (máximo 800px para performance)
-    const maxSize = 800;
-    const videoAspect = video.videoWidth / video.videoHeight;
-    let canvasWidth = video.videoWidth;
-    let canvasHeight = video.videoHeight;
-
-    if (canvasWidth > maxSize || canvasHeight > maxSize) {
-      if (canvasWidth > canvasHeight) {
-        canvasWidth = maxSize;
-        canvasHeight = Math.round(maxSize / videoAspect);
-      } else {
-        canvasHeight = maxSize;
-        canvasWidth = Math.round(maxSize * videoAspect);
-      }
-    }
-
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-    
-    // Melhorar qualidade da imagem
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    
-    // Tentar detectar QR code com diferentes opções
-    let code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: "attemptBoth",
-    });
-
-    // Se não detectou, tentar sem inversão
-    if (!code) {
-      code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
-      });
-    }
-
-    if (code) {
-      setQrDetected(true);
-      stopScanning();
-      processQRCode(code.data);
-    }
-  };
-
-  // Processar QR code
-  const processQRCode = async (qrData: string) => {
-    setProcessing(true);
+  // Iniciar sessão de scan
+  const startSession = async () => {
+    setIsStartingSession(true);
     setError(null);
+    setLinkCopied(false);
 
     try {
-      // Log para debug
-      console.log("QR Code detectado:", qrData.substring(0, 100) + (qrData.length > 100 ? "..." : ""));
-      
-      // Limpar e normalizar os dados do QR code
-      const cleanedData = qrData.trim();
-      
-      const formData = new FormData();
-      formData.append("qrData", cleanedData);
-
-      const response = await fetch("/api/nf-scanner/process-qr", {
+      const response = await fetch("/api/scan-session", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start" }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error || "Erro ao processar QR code";
-        console.error("Erro da API:", errorData);
-        throw new Error(errorMessage);
+        throw new Error("Erro ao criar sessão");
       }
 
-      const { data } = await response.json();
-      onQRCodeScanned(data);
-      handleClose();
+      const data = await response.json();
+
+      setSessionId(data.sessionId);
+      setScanUrl(data.scanUrl);
+      setTimeRemaining(data.expiresIn);
+
+      // Iniciar polling
+      startPolling(data.sessionId);
+
     } catch (err) {
-      console.error("Erro ao processar QR code:", err);
-      setError(err instanceof Error ? err.message : "Erro ao processar QR code");
-      setQrDetected(false);
-      if (mode === "webcam" && stream) {
-        startScanning(); // Reiniciar scanning
-      }
+      console.error("Erro ao iniciar sessão:", err);
+      setError("Erro ao criar sessão. Tente novamente.");
     } finally {
-      setProcessing(false);
+      setIsStartingSession(false);
+    }
+  };
+
+  // Iniciar polling para verificar resultado
+  const startPolling = (id: string) => {
+    stopPolling();
+    setIsPolling(true);
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/scan-session?sessionId=${id}`);
+        const data = await response.json();
+
+        if (data.status === "completed" && data.result?.invoiceData) {
+          // Scan completado com sucesso
+          stopPolling();
+          onQRCodeScanned(data.result.invoiceData);
+          if (closeOnSuccess) {
+            handleClose();
+          }
+        } else if (data.status === "expired") {
+          // Sessão expirou
+          stopPolling();
+          setError("Sessão expirada. Clique em 'Gerar Novo Link' para tentar novamente.");
+          setSessionId(null);
+        }
+      } catch (err) {
+        console.error("Erro no polling:", err);
+      }
+    }, POLLING_INTERVAL_MS);
+  };
+
+  // Parar polling
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    setIsPolling(false);
+  };
+
+  // Copiar link
+  const copyLink = async () => {
+    if (!scanUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(scanUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error("Erro ao copiar:", err);
     }
   };
 
@@ -336,7 +234,9 @@ export function QRScannerModal({
 
       const { data } = await response.json();
       onQRCodeScanned(data);
-      handleClose();
+      if (closeOnSuccess) {
+        handleClose();
+      }
     } catch (err) {
       console.error("Erro ao processar arquivo:", err);
       setError(err instanceof Error ? err.message : "Erro ao processar imagem");
@@ -349,179 +249,333 @@ export function QRScannerModal({
     }
   };
 
+  const submitBarcodeUrl = async () => {
+    const raw = barcodeUrl.trim().replace(/\s+/g, "");
+    if (!raw || processing) return;
+
+    setError(null);
+    setProcessing(true);
+
+    try {
+      const data = onBarcodeSubmit
+        ? await onBarcodeSubmit(raw)
+        : await (async () => {
+            const formData = new FormData();
+            formData.append("qrData", raw);
+
+            const response = await fetch("/api/nf-scanner/process-qr", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(
+                typeof errorData.error === "string"
+                  ? errorData.error
+                  : "Erro ao processar link da nota"
+              );
+            }
+
+            const payload = await response.json();
+            return payload.data as InvoiceData;
+          })();
+
+      setBarcodeUrl("");
+      onQRCodeScanned(data);
+      if (closeOnSuccess) {
+        handleClose();
+      }
+    } catch (err) {
+      console.error("Erro ao processar leitura:", err);
+      setError(err instanceof Error ? err.message : "Erro ao processar link da nota");
+    } finally {
+      setProcessing(false);
+      window.setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    }
+  };
+
   // Fechar modal
   const handleClose = () => {
-    stopWebcam();
+    stopPolling();
+    setSessionId(null);
+    setScanUrl("");
+    setBarcodeUrl("");
     setError(null);
-    setQrDetected(false);
-    setProcessing(false);
+    setLinkCopied(false);
+    setMode(resolvedInitialMode);
     onClose();
   };
 
-  if (!isOpen) return null;
+  // Formatar tempo
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   return (
-    <div 
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !processing) {
-          handleClose();
-        }
-      }}
-    >
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden flex flex-col">
-        {/* Header Minimalista */}
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">
-            Escanear QR Code
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            disabled={processing}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(v) => !v && !processing && handleClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+            >
+              <QrCode className="h-5 w-5 text-primary" />
+            </div>
+            {title}
+          </DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
 
-        {/* Conteúdo */}
-        <div className="p-4">
-          {/* Seleção de modo - mais compacta */}
-          <div className="flex gap-2 mb-4">
-            <Button
-              variant={mode === "webcam" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setMode("webcam");
-                setError(null);
-              }}
-              className="flex-1"
-              disabled={processing}
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Câmera
-            </Button>
-            <Button
-              variant={mode === "upload" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setMode("upload");
-                stopWebcam();
-                setError(null);
-              }}
-              className="flex-1"
-              disabled={processing}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-          </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Seleção de modo - Tabs deslizantes */}
+          {enabledModes.length > 1 && (
+            <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl ring-1 ring-slate-200/80">
+              {enabledModes.includes("barcode") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopPolling();
+                    setMode("barcode");
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "barcode"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Barcode className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Barcode</span>
+                </button>
+              )}
+              {enabledModes.includes("mobile-link") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("mobile-link");
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "mobile-link"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Link Mobile</span>
+                </button>
+              )}
+              {enabledModes.includes("upload") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("upload");
+                    stopPolling();
+                    setError(null);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    mode === "upload"
+                      ? "bg-white text-primary shadow-md shadow-slate-200/60 border border-slate-200/90"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Upload className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Upload</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Mensagens de erro */}
           {error && (
-            <Alert variant="destructive" className="mb-4 border-red-200 bg-red-50">
+            <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Webcam */}
-          {mode === "webcam" && (
-            <div className="space-y-3">
-              {!stream ? (
-                <div className="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-                  <div className="text-center space-y-3">
-                    <Camera className="h-12 w-12 text-gray-400 mx-auto" />
+          {/* Modo: leitor USB (teclado) — URL do QR Code da NFC-e da SEFAZ */}
+          {mode === "barcode" && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={{
+                    background: "var(--modal-header-icon-bg)",
+                    outline: "1px solid var(--modal-header-icon-ring)",
+                  }}
+                >
+                  <Barcode className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-semibold text-slate-800">Leitor de código de barras (modo teclado)</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Clique no campo abaixo e leia o código. O equipamento envia o link da SEFAZ como se fosse digitação;
+                    na maioria dos leitores, ao terminar é enviado <span className="font-medium">Enter</span> e a nota é
+                    processada automaticamente. Você também pode colar o link e clicar em Processar.
+                  </p>
+                </div>
+              </div>
+
+              <Input
+                ref={barcodeInputRef}
+                type="text"
+                inputSize="lg"
+                value={barcodeUrl}
+                onChange={(e) => setBarcodeUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submitBarcodeUrl();
+                  }
+                }}
+                placeholder={barcodePlaceholder}
+                disabled={processing}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono text-xs sm:text-sm"
+                aria-label={barcodeAriaLabel}
+              />
+
+              <Button
+                type="button"
+                className="w-full h-10"
+                disabled={processing || !barcodeUrl.trim()}
+                onClick={() => void submitBarcodeUrl()}
+              >
+                {processing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando nota…
+                  </>
+                ) : (
+                  barcodeSubmitLabel
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Modo: Link Mobile */}
+          {mode === "mobile-link" && (
+            <div className="space-y-4">
+              {isStartingSession ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div
+                    className="h-14 w-14 rounded-full flex items-center justify-center mb-4"
+                    style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                  >
+                    <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">Criando sessão segura...</p>
+                  <p className="text-xs text-slate-500 mt-1">Aguarde um momento</p>
+                </div>
+              ) : sessionId ? (
+                <div className="space-y-4">
+                  {/* Link */}
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl border border-slate-200 p-5 space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="h-9 w-9 rounded-lg flex items-center justify-center"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Link2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Link para Captura Mobile</p>
+                        <p className="text-xs text-slate-500">Acesse no celular para escanear</p>
+                      </div>
+                    </div>
+
+                    {/* URL */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-600 truncate font-mono">
+                        {scanUrl}
+                      </div>
+                      <Button
+                        onClick={copyLink}
+                        size="sm"
+                        variant={linkCopied ? "default" : "outline"}
+                        className={linkCopied ? "bg-green-600 hover:bg-green-700 h-8 text-xs gap-1.5" : "h-8 text-xs gap-1.5"}
+                      >
+                        {linkCopied ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Abra este link no seu celular para usar a câmera e escanear o QR Code da nota fiscal de forma segura.
+                    </p>
+                  </div>
+
+                  {/* Timer e Status */}
+                  <div className="flex items-center justify-between px-2 py-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        Expira em:{" "}
+                        <span className={`font-semibold ${timeRemaining <= 10 ? "text-red-600" : "text-slate-900"}`}>
+                          {formatTime(timeRemaining)}
+                        </span>
+                      </span>
+                    </div>
+                    {isPolling && (
+                      <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Aguardando...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botões */}
+                  <div className="flex gap-2">
                     <Button
-                      onClick={startWebcam}
-                      disabled={processing}
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      variant="outline"
+                      onClick={startSession}
+                      className="flex-1 h-8 text-xs gap-1.5"
                     >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Iniciar Câmera
+                      <Link2 className="h-3.5 w-3.5" />
+                      Gerar Novo Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleClose}
+                      className="flex-1 h-8 text-xs gap-1.5"
+                    >
+                      Cancelar
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover"
-                      style={{ 
-                        transform: 'scaleX(1)',
-                        backgroundColor: '#000'
-                      }}
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
-                    {/* Overlay de carregamento */}
-                    {stream && !videoReady && (
-                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                        <div className="text-center">
-                          <Loader2 className="h-8 w-8 animate-spin text-white mx-auto mb-2" />
-                          <p className="text-sm text-white">Iniciando câmera...</p>
-                        </div>
-                      </div>
-                    )}
-                    {/* Overlay de guia mais sutil */}
-                    {stream && videoReady && (
-                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div className="border-2 border-white/40 rounded-lg w-56 h-56" />
-                      </div>
-                    )}
-                    {qrDetected && (
-                      <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center backdrop-blur-sm">
-                        <div className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium shadow-lg">
-                          QR Code Detectado!
-                        </div>
-                      </div>
-                    )}
-                    {processing && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <div className="bg-white rounded-lg px-4 py-3 flex items-center gap-2">
-                          <Loader2 className="h-5 w-5 animate-spin text-orange-600" />
-                          <span className="text-sm font-medium">Processando...</span>
-                        </div>
-                      </div>
-                    )}
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div
+                    className="h-16 w-16 rounded-full flex items-center justify-center"
+                    style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                  >
+                    <Link2 className="h-7 w-7 text-primary" />
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={stopWebcam}
-                      disabled={processing}
-                      className="flex-1"
-                    >
-                      Parar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClose}
-                      disabled={processing}
-                      className="flex-1"
-                    >
-                      Fechar
-                    </Button>
-                  </div>
-                  {scanning && !qrDetected && !processing && (
-                    <p className="text-center text-xs text-gray-500">
-                      <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
-                      Escaneando...
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-semibold text-slate-700">Link de captura seguro</p>
+                    <p className="text-xs text-slate-500">
+                      Gere um link para escanear a nota fiscal usando seu celular
                     </p>
-                  )}
+                  </div>
+                  <Button onClick={startSession} className="h-8 text-xs gap-1.5">
+                    <Link2 className="h-3.5 w-3.5" />
+                    Gerar Link
+                  </Button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Upload */}
+          {/* Modo: Upload */}
           {mode === "upload" && (
             <div>
               <input
@@ -533,23 +587,38 @@ export function QRScannerModal({
               />
               <div
                 onClick={() => !processing && fileInputRef.current?.click()}
-                className={`aspect-video bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 transition-all flex items-center justify-center cursor-pointer ${
-                  processing ? "opacity-50 cursor-not-allowed" : "hover:border-orange-400 hover:bg-orange-50/30"
+                className={`aspect-video rounded-xl border-2 border-dashed transition-all flex items-center justify-center cursor-pointer ${
+                  processing
+                    ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                    : "border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100/50 hover:border-primary hover:from-primary/5 hover:to-primary/10"
                 }`}
               >
-                <div className="text-center space-y-2">
+                <div className="text-center space-y-3 px-6">
                   {processing ? (
                     <>
-                      <Loader2 className="h-10 w-10 text-orange-500 animate-spin mx-auto" />
-                      <p className="text-sm font-medium text-gray-700">Processando...</p>
+                      <div
+                        className="h-14 w-14 rounded-full flex items-center justify-center mx-auto"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Processando imagem...</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Extraindo dados do QR Code</p>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <Upload className="h-10 w-10 text-gray-400 mx-auto" />
-                      <p className="text-sm font-medium text-gray-700">
-                        Clique para selecionar imagem
-                      </p>
-                      <p className="text-xs text-gray-500">PNG, JPG ou JPEG</p>
+                      <div
+                        className="h-14 w-14 rounded-full flex items-center justify-center mx-auto"
+                        style={{ background: "var(--modal-header-icon-bg)", outline: "1px solid var(--modal-header-icon-ring)" }}
+                      >
+                        <Upload className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Clique para selecionar imagem</p>
+                        <p className="text-xs text-slate-500 mt-0.5">PNG, JPG ou JPEG</p>
+                      </div>
                     </>
                   )}
                 </div>
@@ -557,8 +626,7 @@ export function QRScannerModal({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
-

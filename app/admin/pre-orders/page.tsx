@@ -1,198 +1,42 @@
 "use client";
 
-import { AnimatedCard } from "@/app/components/ui/animated-card";
-import { Button } from "@/app/components/ui/button";
-import {
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from "@/app/components/ui/card";
-import { motion } from "framer-motion";
-import {
-    MoreHorizontal,
-    Package,
-    Printer,
-    Receipt,
-    ShoppingCart,
-    Tag,
-    Ticket,
-    Trash2,
-    User,
-    Users,
-    X,
-    MapPin
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-// Importar o componente de modal
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { PreOrderPaymentDialog } from "@/app/components/PreOrderPaymentDialog";
+import { PreOrderSummaryModal } from "@/app/components/PreOrderSummaryModal";
+import { PreOrderDetailsModal } from "@/app/components/PreOrderDetailsModal";
 import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { useToast } from "@/app/components/Toast";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
+import { PageHeader } from "@/app/admin/components/layout/PageHeader";
+import { DataTable, Column } from "@/app/admin/components/data-display/DataTable";
+import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
+import { SkeletonTable } from "@/app/admin/components/data-display/LoadingSkeleton";
+import { cn } from "@/lib/utils";
+import {
+  Package,
+  Printer,
+  ShoppingCart,
+  List,
+  ListX,
+  XCircle,
+  User,
+  Search,
+  Plus,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
+import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
+import { PreOrderActionsMenu } from "./components/PreOrderActionsMenu";
 
-// Menu de opções por pré-pedido
-function PreOrderActionsMenu({
-  onEdit,
-  onDelete,
-  onPrint,
-  onConvert,
-  onTrack,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  onPrint: () => void;
-  onConvert: () => void;
-  onTrack: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({ 
-    position: 'fixed',
-    zIndex: 50,
-    display: 'none'
-  });
-
-  // Fecha o menu ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setMenuStyle(prev => ({ ...prev, display: 'none' }));
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  // Calcular posição do menu quando abrir
-  useEffect(() => {
-    if (open && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const menuHeight = 200; // Altura aproximada do menu
-      
-      let top, bottom;
-      
-      // Verificar se o menu cabe abaixo do botão
-      if (rect.bottom + menuHeight <= window.innerHeight) {
-        // Abrir para baixo
-        top = `${rect.bottom + 4}px`;
-        bottom = 'auto';
-      } else {
-        // Abrir para cima
-        top = 'auto';
-        bottom = `${window.innerHeight - rect.top + 4}px`;
-      }
-      
-      setMenuStyle({
-        position: 'fixed',
-        top,
-        bottom,
-        right: `${window.innerWidth - rect.right}px`,
-        zIndex: 1000,
-        display: 'block'
-      });
-    } else {
-      setMenuStyle(prev => ({ ...prev, display: 'none' }));
-    }
-  }, [open]);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-        aria-label="Ações do pré-pedido"
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-      </Button>
-      <div 
-        role="menu"
-        className="w-48 bg-background border border-border rounded-lg shadow-xl py-2 animate-fade-in min-w-max"
-        style={menuStyle}
-      >
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onEdit();
-          }}
-        >
-          <Package className="h-4 w-4 mr-2 text-blue-500" />
-          Editar
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onPrint();
-          }}
-        >
-          <Printer className="h-4 w-4 mr-2 text-blue-500" />
-          Imprimir recibo
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onConvert();
-          }}
-        >
-          <Receipt className="h-4 w-4 mr-2 text-blue-500" />
-          Converter em venda
-        </button>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onTrack();
-          }}
-        >
-          <MapPin className="h-4 w-4 mr-2 text-green-500" />
-          Rastrear Entrega
-        </button>
-        
-        <div className="border-t border-border my-1"></div>
-        
-        <button
-          role="menuitem"
-          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 rounded-lg"
-          onClick={() => {
-            setOpen(false);
-            setMenuStyle(prev => ({ ...prev, display: 'none' }));
-            onDelete();
-          }}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Excluir
-        </button>
-      </div>
-    </div>
-  );
-}
+// =============================================================================
+// TIPOS
+// =============================================================================
 
 type PreOrder = {
   id: string;
@@ -203,170 +47,221 @@ type PreOrder = {
   notes: string | null;
   createdAt: string;
   customerId: string | null;
-  deliveryStatus?: string;
+  deliveryStatus?: string | null;
   customer: {
     id: string;
     name: string;
     phone: string;
+    imageUrl?: string | null;
   } | null;
   items: {
     id: string;
     quantity: number;
     priceCents: number;
+    weightKg?: number | null;
     product: {
       id: string;
       name: string;
+      imageUrl?: string | null;
+      pricePerKgCents?: number | null;
     };
   }[];
 };
 
-// Add this type for product summary
 type ProductSummary = {
   productId: string;
   productName: string;
   totalQuantity: number;
 };
 
-// Adicionar este tipo
-type PaymentMethodType = {
-  value: string;
-  label: string;
+// =============================================================================
+// UTILITÁRIOS VISUAIS
+// =============================================================================
+
+const PRODUCT_COLORS = [
+  "bg-violet-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
+
+function getProductColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length];
+}
+
+function getProductInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+type PreOrderItem = {
+  id: string;
+  quantity: number;
+  priceCents: number;
+  weightKg?: number | null;
+  product: { id: string; name: string; imageUrl?: string | null; pricePerKgCents?: number | null };
 };
+
+function ProductAvatars({ items }: { items: PreOrderItem[] }) {
+  const MAX_SHOWN = 3;
+  const shown = items.slice(0, MAX_SHOWN);
+  const extra = items.length - MAX_SHOWN;
+  return (
+    <div className="flex items-center">
+      <div className="flex -space-x-2">
+        {shown.map((item, i) => (
+          <div key={i} className="relative shrink-0" style={{ zIndex: MAX_SHOWN - i }}>
+            {item.product.imageUrl ? (
+              <div className="h-7 w-7 rounded-full ring-2 ring-white overflow-hidden bg-slate-100" title={item.product.name}>
+                <Image src={item.product.imageUrl} alt={item.product.name} width={28} height={28} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className={cn("h-7 w-7 rounded-full ring-2 ring-white flex items-center justify-center", getProductColor(item.product.name))}
+                title={item.product.name}
+              >
+                <span className="text-[9px] font-bold text-white leading-none">{getProductInitials(item.product.name)}</span>
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center ring-1 ring-white leading-none">
+              {item.weightKg && Number(item.weightKg) > 0 ? `${Number(item.weightKg).toFixed(1)}` : item.quantity}
+            </span>
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="h-7 w-7 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center" style={{ zIndex: 0 }}>
+            <span className="text-[9px] font-bold text-slate-600">+{extra}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const formatCurrency = (cents: number | null) => {
+  if (cents === null || cents === undefined) return "N/A";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+};
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
 
 export default function AdminPreOrdersPage() {
   const { showToast } = useToast();
-  const [preOrders, setPreOrders] = useState<PreOrder[]>([]);
+  const router = useRouter();
+  const [allPreOrders, setAllPreOrders] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isConverting, setIsConverting] = useState(false);
-  const [filters, setFilters] = useState({
-    searchTerm: "",
-    dateRange: { start: "", end: "" }
-  });
-  
-  // Estados para o modal
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [isPreOrderDialogOpen, setIsPreOrderDialogOpen] = useState(false);
   const [editingPreOrderId, setEditingPreOrderId] = useState<string | null>(null);
-  
-  // States for the payment modal
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedPreOrder, setSelectedPreOrder] = useState<PreOrder | null>(null);
-  
-  // State for dropdown menu
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  
-  // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [preOrderToDelete, setPreOrderToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenDropdownId(null);
-    };
+  const [isConverting, setIsConverting] = useState(false);
+  const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
+  const [preOrderDetailsModalOpen, setPreOrderDetailsModalOpen] = useState(false);
+  const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
 
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
+  // Load product summary state from session storage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('productSummaryEnabled');
+    if (saved !== null) {
+      setProductSummaryEnabled(saved === 'true');
+    }
   }, []);
 
-  // Hook para ler parâmetros da URL
-  const router = useRouter();
-  
-  const loadPreOrders = async () => {
+  // Save product summary state to session storage when it changes
+  useEffect(() => {
+    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
+  }, [productSummaryEnabled]);
+
+  // Product summary
+  const productSummary = useMemo(() => {
+    const map: { [key: string]: { productId: string; productName: string; totalQuantity: number } } = {};
+    for (const preOrder of allPreOrders) {
+      for (const item of preOrder.items) {
+        const id = item.product.id;
+        if (map[id]) {
+          map[id].totalQuantity += item.quantity;
+        } else {
+          map[id] = { productId: id, productName: item.product.name, totalQuantity: item.quantity };
+        }
+      }
+    }
+    return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [allPreOrders]);
+
+  const loadPreOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
+      setError(null);
 
-      if (filters.dateRange.start) {
-        params.append("startDate", filters.dateRange.start);
-      }
-
-      if (filters.dateRange.end) {
-        params.append("endDate", filters.dateRange.end);
-      }
-
-      const response = await fetch(`/api/pre-orders?${params.toString()}`);
+      const response = await fetch(`/api/pre-orders`);
       if (!response.ok) throw new Error("Failed to fetch pre-orders");
       const result = await response.json();
-
-      setPreOrders(result.data);
+      setAllPreOrders(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load pre-orders");
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Remove or comment out this effect to prevent automatic loading based on filters
-  /*
-  useEffect(() => {
-    loadPreOrders();
-  }, [filters.dateRange]);
-  */
-  
-  // Add this effect to load all pre-orders when the component mounts
-  useEffect(() => {
-    loadPreOrders();
   }, []);
-  
-  // useEffect para verificar parâmetros da URL
+
   useEffect(() => {
-    // Verificar se há parâmetro para abrir o modal automaticamente
+    loadPreOrders();
+  }, [loadPreOrders]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const openModal = params.get('openModal');
     if (openModal === 'true') {
-      // Remover o parâmetro da URL para evitar reabertura
       const url = new URL(window.location.href);
       url.searchParams.delete('openModal');
       window.history.replaceState({}, '', url.toString());
-      
-      // Abrir o modal após um pequeno delay para garantir que o componente foi montado
+
       setTimeout(() => {
         setEditingPreOrderId(null);
         setIsPreOrderDialogOpen(true);
       }, 100);
     }
   }, []);
-
-  const handleFilterChange = (newFilters: { searchTerm: string; dateRange: { start: string; end: string } }) => {
-    setFilters(newFilters);
-    // Remove automatic reload when filters change
-    // loadPreOrders();
-  };
-
-  const formatCurrency = (cents: number | null) => {
-    if (cents === null || cents === undefined) return "N/A";
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(cents / 100);
-  };
-
-  // Add this function to calculate product summary
-  const calculateProductSummary = (): ProductSummary[] => {
-    const productMap: { [key: string]: ProductSummary } = {};
-
-    preOrders.forEach(preOrder => {
-      preOrder.items.forEach(item => {
-        const productId = item.product.id;
-        if (productMap[productId]) {
-          productMap[productId].totalQuantity += item.quantity;
-        } else {
-          productMap[productId] = {
-            productId: productId,
-            productName: item.product.name,
-            totalQuantity: item.quantity
-          };
-        }
-      });
-    });
-
-    // Convert to array and sort by quantity (descending)
-    return Object.values(productMap).sort((a, b) => b.totalQuantity - a.totalQuantity);
-  };
 
   const openDeleteDialog = (preOrderId: string) => {
     setPreOrderToDelete(preOrderId);
@@ -386,8 +281,7 @@ export default function AdminPreOrdersPage() {
         throw new Error("Failed to delete pre-order");
       }
 
-      // Remover o pré-pedido da lista
-      setPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
+      setAllPreOrders((prev) => prev.filter((preOrder) => preOrder.id !== preOrderToDelete));
       setDeleteDialogOpen(false);
       setPreOrderToDelete(null);
       showToast("Pré-pedido excluído com sucesso!", "success");
@@ -399,27 +293,22 @@ export default function AdminPreOrdersPage() {
     }
   };
 
-  // Função para imprimir recibo térmico
   const printThermalReceipt = (preOrderId: string) => {
     const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}`;
     window.open(receiptUrl, '_blank');
   };
 
-  // Função para converter pré-pedido em venda
   const convertToOrder = async (preOrder: PreOrder) => {
-    // Open the payment dialog instead of using prompt
     setSelectedPreOrder(preOrder);
     setIsPaymentDialogOpen(true);
   };
 
-  // Função para confirmar a conversão com forma de pagamento
   const handleConfirmConversion = async (paymentMethod: string, discountCents: number, cashReceived?: number, change?: number) => {
     if (!selectedPreOrder) return;
-    
+
     setIsConverting(true);
-    
+
     try {
-      // Map payment method labels to API values
       const paymentMethodMap: { [key: string]: string } = {
         "cash": "cash",
         "debit": "debit",
@@ -427,12 +316,10 @@ export default function AdminPreOrdersPage() {
         "pix": "pix",
         "ficha_payment": "invoice"
       };
-      
+
       const apiPaymentMethod = paymentMethodMap[paymentMethod] || paymentMethod;
-      
-      // If there's a discount change, we need to update the pre-order first
+
       if (discountCents !== selectedPreOrder.discountCents) {
-        // Update the pre-order with the new discount
         const updateResponse = await fetch(`/api/pre-orders`, {
           method: 'PUT',
           headers: {
@@ -457,20 +344,17 @@ export default function AdminPreOrdersPage() {
           throw new Error('Failed to update pre-order discount');
         }
       }
-      
-      // Prepare data for conversion
+
       const conversionData: any = {
         preOrderId: selectedPreOrder.id,
         paymentMethod: apiPaymentMethod
       };
-      
-      // Add cash payment details if applicable
+
       if (apiPaymentMethod === "cash" && cashReceived !== undefined && change !== undefined) {
         conversionData.cashReceived = cashReceived;
         conversionData.change = change;
       }
-      
-      // Convert pre-order to order
+
       const response = await fetch('/api/pre-orders?convert=true', {
         method: 'POST',
         headers: {
@@ -483,13 +367,9 @@ export default function AdminPreOrdersPage() {
         throw new Error('Failed to convert pre-order to order');
       }
 
-      // Close the payment dialog
       setIsPaymentDialogOpen(false);
       setSelectedPreOrder(null);
-      
-      // Recarregar a lista de pré-pedidos
       loadPreOrders();
-      
       showToast('Pré-pedido convertido em venda com sucesso!', 'success');
     } catch (error) {
       console.error("Error converting pre-order to order:", error);
@@ -499,17 +379,6 @@ export default function AdminPreOrdersPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Funções para abrir o modal
   const openNewPreOrderDialog = () => {
     setEditingPreOrderId(null);
     setIsPreOrderDialogOpen(true);
@@ -520,366 +389,403 @@ export default function AdminPreOrdersPage() {
     setIsPreOrderDialogOpen(true);
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Gerenciamento de Pré-Pedidos
-          </h1>
-          <p className="text-muted-foreground">Acompanhe todos os pré-pedidos cadastrados</p>
-        </div>
-        <Button className="bg-primary hover:bg-primary/90" onClick={openNewPreOrderDialog}>
-          Novo Pré-Pedido
-        </Button>
-      </div>
+  const handleViewPreOrderDetails = (preOrder: PreOrder) => {
+    setSelectedPreOrder(preOrder);
+    setPreOrderDetailsModalOpen(true);
+  };
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AnimatedCard delay={0.1}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">
-                  Total de Pré-Pedidos
-                </p>
-                <p className="text-3xl font-bold text-blue-900">
-                  {preOrders.length}
-                </p>
-              </div>
-              <ShoppingCart className="h-12 w-12 text-blue-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+  const handleViewPreOrderSummary = (preOrder: PreOrder) => {
+    setSelectedPreOrder(preOrder);
+    setPreOrderSummaryModalOpen(true);
+  };
 
-        <AnimatedCard delay={0.2}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">
-                  Valor Total
-                </p>
-                <p className="text-3xl font-bold text-green-900">
-                  {formatCurrency(
-                    preOrders.reduce((sum, preOrder) => sum + preOrder.totalCents, 0)
-                  )}
-                </p>
-              </div>
-              <Receipt className="h-12 w-12 text-green-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+  const handleViewCustomer = (customerId: string) => {
+    router.push(`/admin/customers/${customerId}`);
+  };
 
-        <AnimatedCard delay={0.3}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-600">
-                  Itens com Desconto
-                </p>
-                <p className="text-3xl font-bold text-amber-900">
-                  {preOrders.filter((preOrder) => preOrder.discountCents > 0).length}
-                </p>
-              </div>
-              <Tag className="h-12 w-12 text-amber-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+  // Filtrar pré-pedidos
+  const filteredPreOrders = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
 
-        <AnimatedCard delay={0.4}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-600">
-                  Total de Desconto
-                </p>
-                <p className="text-3xl font-bold text-red-900">
-                  {formatCurrency(
-                    preOrders.reduce((sum, preOrder) => sum + preOrder.discountCents, 0)
-                  )}
-                </p>
-              </div>
-              <Ticket className="h-12 w-12 text-red-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
-      </div>
+    if (!normalizedSearch) {
+      return allPreOrders;
+    }
 
-      {/* Resumo de Produtos */}
-      <AnimatedCard>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-foreground">
-            Resumo de Produtos nos Pré-Pedidos
-          </CardTitle>
-          <CardDescription>
-            Quantidade total de cada produto em todos os pré-pedidos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {preOrders.length === 0 ? (
-            <div className="text-center py-6">
-              <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum produto encontrado nos pré-pedidos</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {calculateProductSummary().map((product, index) => (
-                <div 
-                  key={product.productId}
-                  className="flex items-center p-4 bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
-                >
-                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mr-4">
-                    <Package className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 truncate">
-                      {product.productName}
-                    </h3>
-                    <div className="mt-1 flex items-center">
-                      <span className="text-lg font-bold text-blue-600">
-                        {product.totalQuantity}
-                      </span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        unidades
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </AnimatedCard>
+    return allPreOrders.filter((preOrder) => {
+      const customerName = preOrder.customer?.name?.toLowerCase() ?? "";
+      const customerPhone = preOrder.customer?.phone?.toLowerCase() ?? "";
+      const productNames = preOrder.items.map(item => item.product.name.toLowerCase()).join(" ");
 
-      {/* Tabela de Pré-Pedidos */}
-      <AnimatedCard>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-foreground">
-            Lista de Pré-Pedidos
-          </CardTitle>
-          <CardDescription>
-            {preOrders.length} pré-pedido{preOrders.length !== 1 ? "s" : ""} encontrado
-            {preOrders.length !== 1 ? "s" : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-muted-foreground">Carregando pré-pedidos...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <X className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                Erro ao carregar pré-pedidos
-              </h3>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button
-                onClick={loadPreOrders}
-                className="bg-primary hover:bg-primary/90"
-              >
-                Tentar novamente
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 rounded-t-lg">
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Cliente
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Itens
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Valor
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Descrição
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Data
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm">
-                      Status Entrega
-                    </th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm w-8">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preOrders.map((preOrder, index) => {
-                    return (
-                      <motion.tr
-                        key={preOrder.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b border-border hover:bg-accent/50 transition-all duration-200"
-                      >
-                        <td className="py-4 px-6">
-                          {preOrder.customer ? (
-                            <Link 
-                              href={`/admin/customers/${preOrder.customer.id}`}
-                              className="flex items-center gap-3 hover:bg-accent p-2 rounded-lg transition-colors max-w-xs"
-                            >
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <User className="h-5 w-5 text-primary" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium text-foreground text-sm hover:text-primary transition-colors truncate">
-                                  {preOrder.customer.name}
-                                </div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {preOrder.customer.phone}
-                                </div>
-                              </div>
-                            </Link>
-                          ) : (
-                            <div className="flex items-center gap-3 text-muted-foreground text-sm max-w-xs">
-                              <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                <Users className="h-5 w-5 text-gray-400" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium text-gray-500 truncate">
-                                  Venda avulsa
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </td>
+      return (
+        customerName.includes(normalizedSearch) ||
+        customerPhone.includes(normalizedSearch) ||
+        productNames.includes(normalizedSearch)
+      );
+    });
+  }, [allPreOrders, searchTerm]);
 
-                        <td className="py-4 px-6">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                              <Package className="h-4 w-4 text-orange-600" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-foreground">
-                                {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
-                              </div>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {preOrder.items.slice(0, 2).map((item, idx) => (
-                                  <span 
-                                    key={idx}
-                                    className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-orange-100 text-orange-800 border border-orange-200"
-                                  >
-                                    {item.quantity}x {truncateText(item.product.name, 15)}
-                                  </span>
-                                ))}
-                                {preOrder.items.length > 2 && (
-                                  <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
-                                    +{preOrder.items.length - 2} mais
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
+  const totalPages = Math.max(1, Math.ceil(filteredPreOrders.length / itemsPerPage));
 
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col items-start">
-                            <div className="font-bold text-foreground text-lg">
-                              {formatCurrency(preOrder.totalCents)}
-                            </div>
-                            {preOrder.discountCents > 0 && (
-                              <div className="text-xs text-red-600 font-medium mt-1">
-                                Desconto: -{formatCurrency(preOrder.discountCents)}
-                              </div>
-                            )}
-                          </div>
-                        </td>
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
-                        <td className="py-4 px-6">
-                          <div className="flex items-start gap-2">
-                            <div className="flex-shrink-0 mt-0.5">
-                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                            </div>
-                            <div className="text-sm text-foreground max-w-xs truncate">
-                              {preOrder.notes || "-"}
-                            </div>
-                          </div>
-                        </td>
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
 
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col">
-                            <div className="text-sm font-medium text-foreground">
-                              {formatDate(preOrder.createdAt)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).charAt(0).toUpperCase() + new Date(preOrder.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(1)}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex flex-col gap-2">
-                            {preOrder.deliveryStatus ? (
-                              <DeliveryStatusBadge 
-                                status={preOrder.deliveryStatus as any}
-                              />
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                            {preOrder.deliveryStatus && 
-                             preOrder.deliveryStatus !== "pending" && 
-                             preOrder.deliveryStatus !== "cancelled" && (
-                              <Link href={`/admin/pre-orders/${preOrder.id}/tracking`}>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  Rastrear
-                                </Button>
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 w-8">
-                          <PreOrderActionsMenu
-                            onEdit={() => openEditPreOrderDialog(preOrder.id)}
-                            onDelete={() => openDeleteDialog(preOrder.id)}
-                            onPrint={() => printThermalReceipt(preOrder.id)}
-                            onConvert={() => convertToOrder(preOrder)}
-                            onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
-                          />
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {preOrders.length === 0 && (
-                <div className="text-center py-12">
-                  <ShoppingCart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    Nenhum pré-pedido encontrado
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {filters.dateRange.start || filters.dateRange.end
-                      ? "Tente ajustar os filtros de busca"
-                      : "Ainda não há pré-pedidos registrados"}
-                  </p>
-                </div>
+  // Table columns
+  const columns: Column<PreOrder>[] = [
+    {
+      key: "customer",
+      header: "Cliente",
+      sortable: true,
+      render: (_value, preOrder) => (
+        preOrder.customer ? (
+          <Link
+            href={`/admin/customers/${preOrder.customer.id}`}
+            className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-lg transition-colors max-w-xs"
+          >
+            <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden bg-blue-100 flex items-center justify-center">
+              {preOrder.customer.imageUrl ? (
+                <img
+                  src={preOrder.customer.imageUrl}
+                  alt={preOrder.customer.name}
+                  className="h-9 w-9 rounded-full object-cover"
+                />
+              ) : (
+                <User className="h-4 w-4 text-blue-600" />
               )}
             </div>
+            <div className="min-w-0">
+              <div className="font-medium text-slate-900 text-sm hover:text-blue-600 transition-colors truncate">
+                {preOrder.customer.name}
+              </div>
+              <div className="text-xs text-slate-500 truncate">
+                {preOrder.customer.phone}
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 text-slate-500 text-sm max-w-xs p-2">
+            <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 text-slate-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-slate-500 truncate">Venda avulsa</div>
+            </div>
+          </div>
+        )
+      ),
+    },
+    {
+      key: "items",
+      header: "Itens",
+      render: (_value, preOrder) => (
+        <div className="flex items-center gap-3">
+          {preOrder.items.length > 0 && <ProductAvatars items={preOrder.items} />}
+          <div className="min-w-0">
+            <p className="text-slate-700 font-medium text-xs mb-0.5">
+              {preOrder.items.length} item{preOrder.items.length !== 1 ? "s" : ""}
+            </p>
+            <div className="space-y-0.5">
+              {preOrder.items.slice(0, 2).map((item, idx) => (
+                <p key={idx} className="text-[11px] text-slate-400 truncate max-w-[160px]">
+                  {item.weightKg && Number(item.weightKg) > 0
+                    ? `${Number(item.weightKg).toFixed(3)} kg × ${item.product.name}`
+                    : `${item.quantity}× ${item.product.name}`}
+                </p>
+              ))}
+              {preOrder.items.length > 2 && (
+                <p className="text-[11px] text-slate-400 italic">+{preOrder.items.length - 2} mais...</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "totalCents",
+      header: "Valor",
+      sortable: true,
+      render: (_value, preOrder) => (
+        <div>
+          <p className="font-semibold text-slate-900 text-sm">
+            {formatCurrency(preOrder.totalCents)}
+          </p>
+          {preOrder.discountCents > 0 && (
+            <p className="text-[11px] text-red-500">-{formatCurrency(preOrder.discountCents)}</p>
           )}
-        </CardContent>
-      </AnimatedCard>
-      
-      {/* Modal de Pré-Pedido */}
-      <PreOrderFormDialog 
-        open={isPreOrderDialogOpen} 
+          {preOrder.deliveryFeeCents > 0 && (
+            <p className="text-[11px] text-slate-400">+{formatCurrency(preOrder.deliveryFeeCents)} entrega</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "notes",
+      header: "Descrição",
+      render: (_value, preOrder) => (
+        <div className="flex items-start gap-2">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+          </div>
+          <div className="text-sm text-slate-900 max-w-xs truncate">
+            {preOrder.notes || "-"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "deliveryStatus",
+      header: "Status",
+      align: "center",
+      render: (_value, preOrder) => (
+        preOrder.deliveryStatus ? (
+          <DeliveryStatusBadge status={preOrder.deliveryStatus as any} />
+        ) : (
+          <span className="text-xs text-slate-500">-</span>
+        )
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Data",
+      sortable: true,
+      render: (_value, preOrder) => (
+        <p className="text-[11px] text-slate-500 whitespace-nowrap">
+          {formatDate(preOrder.createdAt)}
+        </p>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      width: "60px",
+      render: (_value, preOrder) => (
+        <PreOrderActionsMenu
+          onEdit={() => openEditPreOrderDialog(preOrder.id)}
+          onViewDetails={() => handleViewPreOrderDetails(preOrder)}
+          onViewSummary={() => handleViewPreOrderSummary(preOrder)}
+          onPrint={() => printThermalReceipt(preOrder.id)}
+          onConvert={() => convertToOrder(preOrder)}
+          onTrack={() => router.push(`/admin/pre-orders/${preOrder.id}/tracking`)}
+          onDelete={() => openDeleteDialog(preOrder.id)}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title="Pré-Pedidos"
+        description="Acompanhe todos os pré-pedidos cadastrados"
+        icon={ShoppingCart}
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant={productSummaryEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setProductSummaryEnabled(!productSummaryEnabled)}
+            >
+              {productSummaryEnabled ? (
+                <>
+                  <List className="h-4 w-4 mr-2" />
+                  Resumo Ativo
+                </>
+              ) : (
+                <>
+                  <ListX className="h-4 w-4 mr-2" />
+                  Resumo Inativo
+                </>
+              )}
+            </Button>
+            <Button size="sm" onClick={openNewPreOrderDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Pré-Pedido
+            </Button>
+          </div>
+        }
+      />
+
+      {loading && allPreOrders.length === 0 ? (
+        <PreOrdersPageSkeleton />
+      ) : (
+        <>
+          <PreOrderStatsCards preOrders={allPreOrders} />
+
+          {/* Busca */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex gap-2">
+                <div className="flex-1 max-w-md">
+                  <Input
+                    placeholder="Buscar por cliente ou produto..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    leftIcon={<Search className="h-4 w-4" />}
+                    rightIcon={
+                      searchInput ? (
+                        <button
+                          type="button"
+                          onClick={() => setSearchInput("")}
+                          className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          aria-label="Limpar busca"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {allPreOrders.length > 0 && productSummary.length > 0 && productSummaryEnabled && (
+            <Card variant="outline">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-slate-900">
+                  Resumo de Produtos
+                </CardTitle>
+                <CardDescription>
+                  Quantidade total de cada produto nos pré-pedidos do período
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const maxQty = productSummary[0]?.totalQuantity ?? 1;
+                  const rankColors = [
+                    "bg-yellow-400 text-yellow-900",
+                    "bg-slate-300 text-slate-700",
+                    "bg-amber-600 text-amber-100",
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {productSummary.map((product, index) => {
+                        const badgeColor = index < 3 ? rankColors[index] : "bg-slate-100 text-slate-500";
+                        const progressPct = Math.round((product.totalQuantity / maxQty) * 100);
+                        return (
+                          <div
+                            key={product.productId}
+                            className="flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-100 hover:shadow-md transition-all hover:border-blue-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <Package className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badgeColor}`}>
+                                #{index + 1}
+                              </span>
+                            </div>
+                            <h3 className="text-xs font-medium text-slate-900 truncate mb-1">
+                              {product.productName}
+                            </h3>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="text-lg font-bold text-blue-600">
+                                {product.totalQuantity}
+                              </span>
+                              <span className="text-xs text-slate-500">unid.</span>
+                            </div>
+                            <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-1 bg-blue-400 rounded-full"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card variant="outline">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-slate-900">
+                Lista de Pré-Pedidos
+              </CardTitle>
+              <CardDescription>
+                {filteredPreOrders.length} pré-pedido{filteredPreOrders.length !== 1 ? "s" : ""} encontrado{filteredPreOrders.length !== 1 ? "s" : ""}
+                {searchTerm.trim() ? ` de ${allPreOrders.length}` : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <SkeletonTable rows={5} columns={5} hasActions />
+              ) : error ? (
+                <EmptyState
+                  icon={XCircle}
+                  title="Erro ao carregar pré-pedidos"
+                  description={error}
+                  action={{
+                    label: "Tentar novamente",
+                    onClick: loadPreOrders,
+                  }}
+                />
+              ) : filteredPreOrders.length === 0 ? (
+                <EmptyState
+                  icon={ShoppingCart}
+                  title="Nenhum pré-pedido encontrado"
+                  description={
+                    searchTerm.trim()
+                      ? "Tente ajustar os filtros de busca"
+                      : "Ainda não há pré-pedidos registrados"
+                  }
+                />
+              ) : (
+                <DataTable
+                  data={filteredPreOrders}
+                  columns={columns}
+                  rowKey="id"
+                  className="rounded-none border-0 shadow-none -mx-5 -mb-5"
+                  onRowClick={handleViewPreOrderDetails}
+                  pagination={{
+                    page: currentPage,
+                    pageSize: itemsPerPage,
+                    total: filteredPreOrders.length,
+                    onPageChange: setCurrentPage,
+                  }}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Modals */}
+      <PreOrderSummaryModal
+        open={preOrderSummaryModalOpen}
+        onOpenChange={setPreOrderSummaryModalOpen}
+        preOrder={selectedPreOrder}
+      />
+
+      <PreOrderDetailsModal
+        open={preOrderDetailsModalOpen}
+        onOpenChange={setPreOrderDetailsModalOpen}
+        preOrder={selectedPreOrder}
+        onPrint={printThermalReceipt}
+        onEdit={(id) => { setPreOrderDetailsModalOpen(false); openEditPreOrderDialog(id); }}
+        onConvert={(preOrder) => { setPreOrderDetailsModalOpen(false); convertToOrder(preOrder); }}
+        onTrack={(id) => { setPreOrderDetailsModalOpen(false); router.push(`/admin/pre-orders/${id}/tracking`); }}
+        onDelete={(id) => { setPreOrderDetailsModalOpen(false); openDeleteDialog(id); }}
+      />
+
+      <PreOrderFormDialog
+        open={isPreOrderDialogOpen}
         onOpenChange={setIsPreOrderDialogOpen}
         preOrderId={editingPreOrderId || undefined}
         onPreOrderSaved={loadPreOrders}
       />
-      
-      {/* Modal de Pagamento */}
+
       {selectedPreOrder && (
         <PreOrderPaymentDialog
           open={isPaymentDialogOpen}
@@ -889,8 +795,7 @@ export default function AdminPreOrdersPage() {
           isConverting={isConverting}
         />
       )}
-      
-      {/* Modal de Confirmação de Exclusão */}
+
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -904,9 +809,3 @@ export default function AdminPreOrdersPage() {
     </div>
   );
 }
-
-// Add this function to truncate text with ellipsis
-const truncateText = (text: string, maxLength: number) => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
