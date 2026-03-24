@@ -12,9 +12,10 @@ import {
   List,
   Plus,
   Receipt,
+  Truck,
   Wallet,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useExpenses } from "./hooks/useExpenses";
 import { ExpenseCalendarView } from "./components/ExpenseCalendarView";
 import { ExpenseFilters } from "./components/ExpenseFilters";
@@ -27,6 +28,7 @@ import { ExpenseSummaryModal } from "./components/ExpenseSummaryModal";
 import { ManageExpenseTypesDialog } from "./components/ManageExpenseTypesDialog";
 import { ManageExpensePaymentMethodsDialog } from "./components/ManageExpensePaymentMethodsDialog";
 import { ManageSupplierTypesDialog } from "./components/ManageSupplierTypesDialog";
+import { TeleDeliverySummaryModal } from "./components/TeleDeliverySummaryModal";
 import {
   ExpenseListSkeleton,
   ExpenseCalendarSkeleton,
@@ -35,6 +37,8 @@ import {
 export default function ExpensesPage() {
   const ex = useExpenses();
   const manageMenuRef = useRef<HTMLDivElement>(null);
+  const [teleDeliverySummaryOpen, setTeleDeliverySummaryOpen] = useState(false);
+
 
   if (!ex.mounted || (ex.loading && ex.expenses.length === 0)) {
     return (
@@ -159,6 +163,16 @@ export default function ExpensesPage() {
                     <FileText className="h-4 w-4 text-slate-400" />
                     Relatório de Despesas
                   </button>
+                  <button
+                    onClick={() => {
+                      setTeleDeliverySummaryOpen(true);
+                      ex.setIsManageMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <Truck className="h-4 w-4 text-slate-400" />
+                    Resumo de Tele Entrega
+                  </button>
                 </div>
               )}
             </div>
@@ -280,6 +294,11 @@ export default function ExpensesPage() {
         isOpen={ex.managePaymentMethodsOpen}
         onClose={() => ex.setManagePaymentMethodsOpen(false)}
         onChanged={ex.loadTypes}
+      />
+
+      <TeleDeliverySummaryModal
+        open={teleDeliverySummaryOpen}
+        onOpenChange={setTeleDeliverySummaryOpen}
       />
     </div>
   );
