@@ -1,21 +1,32 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
-    Barcode as BarcodeIcon,
-    Check,
-    FileText,
-    Lock,
-    Mail,
-    MapPin,
-    Phone,
-    Plus,
-    User,
-    X,
+  Barcode as BarcodeIcon,
+  Camera,
+  Check,
+  FileText,
+  Lock,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  User,
+  X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { CustomerPhotoModal } from "@/app/admin/customers/components/CustomerPhotoModal";
 
 interface CustomerFormData {
   name: string;
@@ -32,6 +43,7 @@ interface CustomerFormData {
   state: string;
   zip: string;
   active: boolean;
+  imageUrl: string;
 }
 
 interface CustomerFormDialogProps {
@@ -42,6 +54,17 @@ interface CustomerFormDialogProps {
   initialFormData: CustomerFormData;
 }
 
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
 export function CustomerFormDialog({
   open,
   onClose,
@@ -50,398 +73,473 @@ export function CustomerFormDialog({
   initialFormData,
 }: CustomerFormDialogProps) {
   const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (open) {
       setFormData(initialFormData);
+      setIsSubmitting(false);
+      setUploadingPhoto(false);
     }
   }, [open, initialFormData]);
 
-  if (!open) return null;
-
   const updateFormData = (field: keyof CustomerFormData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Função para aplicar máscara de telefone brasileiro
   const applyPhoneMask = (value: string) => {
-    // Remove tudo que não é número
-    const numbers = value.replace(/\D/g, '');
-    
-    // Aplica a máscara conforme o tamanho
-    if (numbers.length <= 2) {
-      return numbers;
-    } else if (numbers.length <= 6) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    } else if (numbers.length <= 10) {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 10)
       return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
-    } else {
-      // Formato para celular com 9 dígitos
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-    }
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const maskedValue = applyPhoneMask(e.target.value);
-    updateFormData("phone", maskedValue);
+    updateFormData("phone", applyPhoneMask(e.target.value));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const generateBarcode = () => {
+    const prefix = Math.floor(Math.random() * 3) + 1;
+    const suffix = Math.floor(Math.random() * 1000000000000);
+    updateFormData("barcode", (prefix * 1000000000000 + suffix).toString());
+  };
+
+  const handlePhotoSelected = async (file: File) => {
+    setUploadingPhoto(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      uploadFormData.append("prefix", "customer");
+      if (formData.imageUrl) {
+        uploadFormData.append("oldImageUrl", formData.imageUrl);
+      }
+      const res = await fetch("/api/upload", { method: "POST", body: uploadFormData });
+      if (res.ok) {
+        const { url } = await res.json();
+        updateFormData("imageUrl", url);
+      }
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoModalOpen = () => {
+    setPhotoModalOpen(true);
+  };
+
+  const handlePhotoModalClose = () => {
+    setPhotoModalOpen(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(e, formData);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(e, formData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
-      >
-        {/* Header with gradient and shadow */}
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-          <div className="relative flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
-              </h2>
-              <p className="text-gray-600 mt-1 text-sm">
-                {editingCustomer
-                  ? "Atualize as informações do cliente"
-                  : "Preencha os dados para cadastrar um novo cliente"}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105"
-            >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Scrollable form content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Personal Information Section */}
-              <div className="md:col-span-2">
-                <h3 className="text-base font-semibold text-orange-800 flex items-center gap-2">
-                  <User className="h-4 w-4 text-orange-600" />
-                  Informações Pessoais
-                </h3>
-                <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
+    <>
+      <Dialog open={open && !photoModalOpen} onOpenChange={(v) => !v && onClose()}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+                style={{
+                  background: "var(--modal-header-icon-bg)",
+                  outline: "1px solid var(--modal-header-icon-ring)",
+                }}
+              >
+                <User className="h-5 w-5 text-primary" />
               </div>
+              {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCustomer
+                ? "Atualize as informações do cliente abaixo"
+                : "Preencha os dados para cadastrar um novo cliente"}
+            </DialogDescription>
+          </DialogHeader>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Nome Completo <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="Nome completo do cliente"
-                    value={formData.name}
-                    onChange={(e) =>
-                      updateFormData("name", e.target.value)
-                    }
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    required
-                  />
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
+          <form
+            id="customer-form-modal"
+            onSubmit={handleSubmit}
+            className="flex flex-col flex-1 overflow-hidden"
+          >
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  Telefone <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="(00) 00000-0000"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    maxLength={15}
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    required
-                  />
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
+              {/* ── Foto do Cliente ── */}
+              <SectionDivider label="Foto do Cliente" />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="relative">
-                  <Input
-                    type="email"
-                    placeholder="cliente@email.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      updateFormData("email", e.target.value)
-                    }
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                  />
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                {/* Avatar preview */}
+                <div className="relative h-16 w-16 shrink-0">
+                  <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-slate-100 flex items-center justify-center">
+                    {uploadingPhoto ? (
+                      <Loader2 className="h-6 w-6 text-slate-400 animate-spin" />
+                    ) : formData.imageUrl ? (
+                      <img
+                        src={formData.imageUrl}
+                        alt="Foto do cliente"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-7 w-7 text-slate-400" />
+                    )}
+                  </div>
+                  {formData.imageUrl && !uploadingPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => updateFormData("imageUrl", "")}
+                      className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm hover:bg-red-600 transition-colors"
+                      title="Remover foto"
+                    >
+                      <X className="h-2.5 w-2.5 text-white" />
+                    </button>
+                  )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Documento (CPF/CNPJ)
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="000.000.000-00"
-                    value={formData.doc}
-                    onChange={(e) =>
-                      updateFormData("doc", e.target.value)
-                    }
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                  />
-                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Senha {editingCustomer ? "(deixe em branco para não alterar)" : ""}
-                </label>
-                <div className="relative">
-                  <Input
-                    type="password"
-                    placeholder={editingCustomer ? "Nova senha (opcional)" : "Senha para acesso ao app"}
-                    value={formData.password}
-                    onChange={(e) =>
-                      updateFormData("password", e.target.value)
-                    }
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                  />
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-                {!editingCustomer && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Senha para o cliente acessar o aplicativo mobile
+                {/* Info + button */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-700">
+                    {formData.imageUrl ? "Foto cadastrada" : "Sem foto"}
                   </p>
-                )}
-              </div>
-
-              {/* Barcode Section */}
-              <div className="md:col-span-2">
-                <h3 className="text-base font-semibold text-green-800 flex items-center gap-2 mt-4">
-                  <BarcodeIcon className="h-4 w-4 text-green-600" />
-                  Código de Barras
-                </h3>
-                <div className="mt-3 h-px bg-gradient-to-r from-green-100 via-green-300 to-green-100"></div>
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Código de Barras
-                </label>
-                <div className="flex gap-3">
-                  <div className="relative flex-1">
-                    <Input
-                      placeholder="0123456789012"
-                      value={formData.barcode}
-                      onChange={(e) =>
-                        updateFormData("barcode", e.target.value)
-                      }
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500/20 shadow-sm transition-all"
-                    />
-                    <BarcodeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      // Gerar código de barras no range 1-3 (iniciando com 1, 2 ou 3)
-                      const prefix = Math.floor(Math.random() * 3) + 1; // 1, 2 ou 3
-                      const randomSuffix = Math.floor(
-                        Math.random() * 1000000000000
-                      );
-                      const randomBarcode =
-                        prefix * 1000000000000 + randomSuffix;
-                      updateFormData("barcode", randomBarcode.toString());
-                    }}
-                    className="px-4 py-3 border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl transition-all flex items-center gap-2"
-                    title="Gerar código de barras aleatório"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">Gerar</span>
-                  </Button>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {formData.imageUrl
+                      ? "Clique no × para remover ou em Alterar para trocar"
+                      : "Adicione uma foto por webcam ou arquivo"}
+                  </p>
                 </div>
-              </div>
 
-              {/* Address Section */}
-              <div className="md:col-span-2">
-                <h3 className="text-base font-semibold text-amber-800 flex items-center gap-2 mt-6">
-                  <MapPin className="h-4 w-4 text-amber-600" />
-                  Endereço
-                </h3>
-                <div className="mt-3 h-px bg-gradient-to-r from-amber-100 via-amber-300 to-amber-100"></div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  CEP
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="00000-000"
-                    value={formData.zip}
-                    onChange={(e) =>
-                      updateFormData("zip", e.target.value)
-                    }
-                    className="pl-10 py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                  />
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Estado
-                </label>
-                <Input
-                  placeholder="UF"
-                  value={formData.state}
-                  onChange={(e) =>
-                    updateFormData("state", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Cidade
-                </label>
-                <Input
-                  placeholder="Cidade"
-                  value={formData.city}
-                  onChange={(e) =>
-                    updateFormData("city", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Bairro
-                </label>
-                <Input
-                  placeholder="Bairro"
-                  value={formData.neighborhood}
-                  onChange={(e) =>
-                    updateFormData("neighborhood", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Rua
-                </label>
-                <Input
-                  placeholder="Nome da rua"
-                  value={formData.street}
-                  onChange={(e) =>
-                    updateFormData("street", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Número
-                </label>
-                <Input
-                  placeholder="Número"
-                  value={formData.number}
-                  onChange={(e) =>
-                    updateFormData("number", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Complemento
-                </label>
-                <Input
-                  placeholder="Complemento"
-                  value={formData.complement}
-                  onChange={(e) =>
-                    updateFormData("complement", e.target.value)
-                  }
-                  className="py-3 rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500/20 shadow-sm transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Status Toggle */}
-            <div className="pt-4">
-              <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                    <Check className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">Status do Cliente</h4>
-                    <p className="text-sm text-gray-600">Ative ou desative o acesso do cliente</p>
-                  </div>
-                </div>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => updateFormData("active", !formData.active)}
-                  className={`relative h-6 w-11 rounded-full border-2 transition-colors ${
-                    formData.active 
-                      ? 'border-orange-500 bg-orange-500' 
-                      : 'border-gray-300 bg-white'
-                  }`}
+                  size="sm"
+                  onClick={handlePhotoModalOpen}
+                  disabled={uploadingPhoto}
+                  className="shrink-0"
                 >
-                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                    formData.active ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}></span>
+                  <Camera className="h-4 w-4 mr-1.5" />
+                  {formData.imageUrl ? "Alterar" : "Adicionar"}
                 </Button>
               </div>
-            </div>
-          </form>
-        </div>
 
-        {/* Footer with actions */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              onClick={handleSubmit}
-              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-            >
-              {editingCustomer ? "Atualizar Cliente" : "Cadastrar Cliente"}
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+              {/* ── Informações Pessoais ── */}
+              <SectionDivider label="Informações Pessoais" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Nome — 2/3 da largura */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Nome Completo <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="Nome completo do cliente"
+                      value={formData.name}
+                      onChange={(e) => updateFormData("name", e.target.value)}
+                      className="pl-9"
+                      required
+                    />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                {/* Telefone — 1/3 da largura */}
+                <div className="space-y-1.5 sm:col-span-1">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Telefone <span className="text-red-400">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="(00) 00000-0000"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      maxLength={15}
+                      className="pl-9"
+                      required
+                    />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                {/* Email — 2/3 da largura */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="email"
+                      placeholder="cliente@email.com"
+                      value={formData.email}
+                      onChange={(e) => updateFormData("email", e.target.value)}
+                      className="pl-9"
+                    />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                {/* Documento — 1/3 da largura */}
+                <div className="space-y-1.5 sm:col-span-1">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    CPF / CNPJ
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="000.000.000-00"
+                      value={formData.doc}
+                      onChange={(e) => updateFormData("doc", e.target.value)}
+                      className="pl-9"
+                    />
+                    <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Acesso & Identificação ── */}
+              <SectionDivider label="Acesso & Identificação" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Senha */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Senha{" "}
+                    {editingCustomer && (
+                      <span className="text-slate-300 font-normal normal-case tracking-normal">
+                        — deixe em branco para não alterar
+                      </span>
+                    )}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="password"
+                      placeholder={
+                        editingCustomer
+                          ? "Nova senha (opcional)"
+                          : "Senha para o app"
+                      }
+                      value={formData.password}
+                      onChange={(e) => updateFormData("password", e.target.value)}
+                      className="pl-9"
+                    />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                  {!editingCustomer && (
+                    <p className="text-xs text-slate-400">
+                      Permite acesso ao aplicativo mobile
+                    </p>
+                  )}
+                </div>
+
+                {/* Código de Barras */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Código de Barras
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        placeholder="0123456789012"
+                        value={formData.barcode}
+                        onChange={(e) => updateFormData("barcode", e.target.value)}
+                        className="pl-9"
+                      />
+                      <BarcodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={generateBarcode}
+                      className="px-3 flex-shrink-0"
+                      title="Gerar código de barras aleatório"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1.5">Gerar</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Endereço ── */}
+              <SectionDivider label="Endereço" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* CEP */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    CEP
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      placeholder="00000-000"
+                      value={formData.zip}
+                      onChange={(e) => updateFormData("zip", e.target.value)}
+                      className="pl-9"
+                    />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                {/* Estado */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Estado
+                  </Label>
+                  <Input
+                    placeholder="UF"
+                    value={formData.state}
+                    onChange={(e) => updateFormData("state", e.target.value)}
+                  />
+                </div>
+
+                {/* Cidade */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Cidade
+                  </Label>
+                  <Input
+                    placeholder="Cidade"
+                    value={formData.city}
+                    onChange={(e) => updateFormData("city", e.target.value)}
+                  />
+                </div>
+
+                {/* Bairro */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Bairro
+                  </Label>
+                  <Input
+                    placeholder="Bairro"
+                    value={formData.neighborhood}
+                    onChange={(e) => updateFormData("neighborhood", e.target.value)}
+                  />
+                </div>
+
+                {/* Rua — full width */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Rua
+                  </Label>
+                  <Input
+                    placeholder="Nome da rua"
+                    value={formData.street}
+                    onChange={(e) => updateFormData("street", e.target.value)}
+                  />
+                </div>
+
+                {/* Número */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Número
+                  </Label>
+                  <Input
+                    placeholder="Número"
+                    value={formData.number}
+                    onChange={(e) => updateFormData("number", e.target.value)}
+                  />
+                </div>
+
+                {/* Complemento */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Complemento
+                  </Label>
+                  <Input
+                    placeholder="Apto, bloco, etc."
+                    value={formData.complement}
+                    onChange={(e) => updateFormData("complement", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* ── Status ── */}
+              <SectionDivider label="Status" />
+
+              <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-9 w-9 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: "var(--modal-header-icon-bg)",
+                      outline: "1px solid var(--modal-header-icon-ring)",
+                    }}
+                  >
+                    <Check className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">Status do Cliente</p>
+                    <p className="text-xs text-slate-400">Ative ou desative o acesso do cliente</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateFormData("active", !formData.active)}
+                  className={`relative h-6 w-11 rounded-full transition-colors flex-shrink-0 ${
+                    formData.active ? "bg-primary" : "bg-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                      formData.active ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <p className="text-xs text-slate-400">
+                <span className="text-red-400">*</span> campos obrigatórios
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  form="customer-form-modal"
+                  disabled={isSubmitting || uploadingPhoto}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {editingCustomer ? "Atualizando..." : "Cadastrando..."}
+                    </>
+                  ) : (
+                    <>
+                      <User className="h-4 w-4 mr-2" />
+                      {editingCustomer ? "Atualizar Cliente" : "Cadastrar Cliente"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <CustomerPhotoModal
+        isOpen={photoModalOpen}
+        onClose={handlePhotoModalClose}
+        currentPhotoUrl={formData.imageUrl || undefined}
+        onPhotoSelected={handlePhotoSelected}
+        onRemovePhoto={() => updateFormData("imageUrl", "")}
+      />
+    </>
   );
 }

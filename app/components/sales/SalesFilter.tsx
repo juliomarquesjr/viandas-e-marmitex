@@ -113,7 +113,7 @@ export function SalesFilter({ onFilterChange, className }: SalesFilterProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={cn("bg-white rounded-2xl border border-border shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl", className)}
+      className={cn("bg-white rounded-xl border border-border shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg", className)}
     >
       <div className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">

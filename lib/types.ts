@@ -72,6 +72,8 @@ export interface Expense {
   amountCents: number;
   description: string;
   date: Date;
+  nfChaveAcesso?: string | null;
+  nfQrCodeUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
   type?: ExpenseType;
@@ -92,6 +94,8 @@ export interface ExpenseFormData {
   amountCents: number;
   description: string;
   date: string;
+  nfChaveAcesso?: string;
+  nfQrCodeUrl?: string;
 }
 
 export interface ExpensePaymentMethodFormData {

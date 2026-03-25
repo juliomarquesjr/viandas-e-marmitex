@@ -159,7 +159,9 @@ export async function PUT(
         paymentMethodId: body.paymentMethodId || null,
         amountCents: body.amountCents,
         description: (body.description || '').trim(),
-        date: new Date(body.date + 'T00:00:00.000Z')
+        date: new Date(body.date + 'T00:00:00.000Z'),
+        nfChaveAcesso: body.nfChaveAcesso !== undefined ? (body.nfChaveAcesso || null) : undefined,
+        nfQrCodeUrl: body.nfQrCodeUrl !== undefined ? (body.nfQrCodeUrl || null) : undefined,
       },
       include: {
         type: {

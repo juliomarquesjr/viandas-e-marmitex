@@ -24,11 +24,13 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceTotals {
+  // Todos os valores monetários da NF são mantidos em reais nesta estrutura.
   valorProdutos: number;
   valorDesconto?: number;
   valorFrete?: number;
   valorICMS?: number;
-  valorTotal: number;
+  valorTotal: number; // Valor final da nota (vNF), em reais
+  valorPago?: number; // Valor efetivamente pago informado na nota, em reais
 }
 
 export interface InvoiceData {

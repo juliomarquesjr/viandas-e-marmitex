@@ -1,151 +1,186 @@
 "use client";
 
-import { motion } from "framer-motion";
+import * as React from "react";
+import { useToast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
+import { CustomerFormDialog } from "../../components/CustomerFormDialog";
+import { PageHeader } from "../components/layout";
+import { DataTable, Column } from "../components/data-display";
+import { Button } from "../../components/ui/button";
+import { StatusBadge } from "../../components/ui/badge";
+import { Card, CardContent } from "../../components/ui/card";
 import {
-  Barcode as BarcodeIcon,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Edit,
-  Loader2,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../components/ui/popover";
+import {
+  Users,
+  Plus,
+  Phone,
+  Mail,
   MapPin,
   MoreVertical,
-  Phone,
-  Plus,
-  Search,
+  Edit,
   Trash2,
+  Barcode,
   User,
-  X
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { CustomerFormDialog } from "../../components/CustomerFormDialog";
-import { useToast } from "../../components/Toast";
-import { AnimatedCard } from "../../components/ui/animated-card";
-import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
-import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { CustomerStatsCards } from "./components/CustomerStatsCards";
+import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
+import { CustomerGridView } from "./components/CustomerGridView";
+import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
+import { CustomerFilterBar } from "./components/CustomerFilterBar";
 
-// Menu de opções por cliente
-function CustomerActionsMenu({
-  onEdit,
-  onDelete,
-  onDownload,
-  hasBarcode,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-  onDownload: () => void;
-  hasBarcode: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+// =============================================================================
+// TIPOS
+// =============================================================================
 
-  // Fecha o menu ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 p-0"
-        aria-label="Ações do cliente"
-        aria-expanded={open}
-        aria-haspopup="true"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <MoreVertical className="h-5 w-5 text-muted-foreground" />
-      </Button>
-      {open && (
-        <div 
-          role="menu"
-          className="absolute right-0 z-50 mt-2 w-36 bg-background border border-border rounded-lg shadow-lg py-1 animate-fade-in min-w-max sm:right-0 -right-4"
-        >
-          {hasBarcode && (
-            <button
-              role="menuitem"
-              className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
-              onClick={() => {
-                setOpen(false);
-                onDownload();
-              }}
-            >
-              <BarcodeIcon className="h-4 w-4 mr-2 text-blue-500" />
-              Código de Barras
-            </button>
-          )}
-          <div className="border-t border-border my-1"></div>
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-          >
-            <Edit className="h-4 w-4 mr-2 text-blue-500" /> Editar
-          </button>
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
-            onClick={() => {
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" /> Remover
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type Customer = {
+export type Customer = {
   id: string;
   name: string;
   phone: string;
   email?: string;
   doc?: string;
   barcode?: string;
-  address?: any;
+  imageUrl?: string;
+  address?: {
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+  };
   active: boolean;
   createdAt: string;
 };
 
+// =============================================================================
+// MENU DE AÇÕES
+// =============================================================================
+
+function CustomerActionsMenu({
+  customer,
+  onEdit,
+  onDelete,
+  onDownloadBarcode,
+}: {
+  customer: Customer;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDownloadBarcode: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label="Ações">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={4}
+        collisionPadding={12}
+        className="w-max max-w-[min(100vw-1.5rem,20rem)] p-1 bg-white text-slate-700 border-slate-200 shadow-lg"
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        {customer.barcode && (
+          <button
+            type="button"
+            className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+            onClick={() => {
+              setOpen(false);
+              onDownloadBarcode();
+            }}
+          >
+            <Barcode className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
+            Código de Barras
+          </button>
+        )}
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+          onClick={() => {
+            setOpen(false);
+            onEdit();
+          }}
+        >
+          <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
+          Editar
+        </button>
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-sm"
+          onClick={() => {
+            setOpen(false);
+            onDelete();
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-2 shrink-0" />
+          Remover
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
+
 export default function AdminCustomersPage() {
   const { showToast } = useToast();
+  const pageSizeOptions = React.useMemo(() => [10, 25, 50, 100], []);
 
   // Estados de dados
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // View mode (table | grid) — persiste em sessionStorage
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">(() => {
+    if (typeof window === "undefined") return "table";
+    return (sessionStorage.getItem("customers-view-mode") as "table" | "grid") ?? "table";
+  });
+
+  const handleViewModeChange = (mode: "table" | "grid") => {
+    setViewMode(mode);
+    sessionStorage.setItem("customers-view-mode", mode);
+  };
+
+  const handleItemsPerPageChange = React.useCallback(
+    (size: number) => {
+      const defaultPageSize = pageSizeOptions[0];
+      const normalizedSize = pageSizeOptions.includes(size) ? size : defaultPageSize;
+      setItemsPerPage(normalizedSize);
+      setCurrentPage(1);
+      sessionStorage.setItem("customers-items-per-page", String(normalizedSize));
+    },
+    [pageSizeOptions]
+  );
+
+  // Estados de busca e filtros
+  const [searchInput, setSearchInput] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "inactive">("all");
+
+  // Estados de paginação
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [itemsPerPage, setItemsPerPage] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const defaultPageSize = pageSizeOptions[0];
+    const savedValue = Number(sessionStorage.getItem("customers-items-per-page"));
+    if (Number.isNaN(savedValue)) return defaultPageSize;
+    return pageSizeOptions.includes(savedValue) ? savedValue : defaultPageSize;
+  });
 
   // Estados do formulário
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [formData, setFormData] = useState({
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingCustomer, setEditingCustomer] = React.useState<Customer | null>(null);
+  const [formData, setFormData] = React.useState({
     name: "",
     phone: "",
     email: "",
@@ -160,75 +195,51 @@ export default function AdminCustomersPage() {
     state: "",
     zip: "",
     active: true,
+    imageUrl: "",
   });
 
-  // Estados de alerta
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState("");
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-
-  // Estados de filtros e busca
-  const [searchInput, setSearchInput] = useState(""); // Valor do input (atualizado imediatamente)
-  const [searchTerm, setSearchTerm] = useState(""); // Termo de busca efetivo (com debounce)
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "inactive"
-  >("all");
-
-  // Estados de paginação
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const itemsPerPageOptions = [5, 10, 20, 50];
+  // Estado do modal de resumo
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
 
   // Estados de confirmação
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
+  const [confirmMessage, setConfirmMessage] = React.useState("");
+  const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = React.useState<string | null>(null);
+  const [isDeletingCustomer, setIsDeletingCustomer] = React.useState(false);
 
-  // Debounce do termo de busca (1 segundo)
-  useEffect(() => {
+  // Debounce da busca
+  React.useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
-    }, 1000);
-
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
   // Carregar clientes
-  const loadCustomers = useCallback(async () => {
+  const loadCustomers = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/customers?q=${searchTerm}&status=${statusFilter}`,
-        {
-          cache: 'no-store', // Força não usar cache
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
-        }
-      );
-      if (!response.ok) throw new Error("Failed to fetch customers");
+      setError(null);
+      const response = await fetch("/api/customers", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!response.ok) throw new Error("Falha ao carregar clientes");
       const result = await response.json();
-      setCustomers(result.data);
+      setCustomers(result.data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load customers");
+      setError(err instanceof Error ? err.message : "Erro ao carregar clientes");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, []);
 
-  // Carregar clientes na montagem e quando filtros mudarem
-  useEffect(() => {
+  React.useEffect(() => {
     loadCustomers();
-    // Resetar para a primeira página quando filtros mudarem
-    setCurrentPage(1);
   }, [loadCustomers]);
 
-  // Resetar para a primeira página quando mudar itens por página
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [itemsPerPage]);
-
-  // Funções auxiliares
+  // Funções do formulário
   const resetForm = () => {
     setFormData({
       name: "",
@@ -245,6 +256,7 @@ export default function AdminCustomersPage() {
       state: "",
       zip: "",
       active: true,
+      imageUrl: "",
     });
   };
 
@@ -258,15 +270,16 @@ export default function AdminCustomersPage() {
         email: customer.email || "",
         doc: customer.doc || "",
         barcode: customer.barcode || "",
-        password: "", // Não preencher senha ao editar por segurança
+        password: "",
         street: address.street || "",
         number: address.number || "",
-        complement: address.complement || "",
+        complement: "",
         neighborhood: address.neighborhood || "",
         city: address.city || "",
-        state: address.state || "",
-        zip: address.zip || "",
+        state: "",
+        zip: "",
         active: customer.active,
+        imageUrl: customer.imageUrl || "",
       });
     } else {
       setEditingCustomer(null);
@@ -284,19 +297,17 @@ export default function AdminCustomersPage() {
   const handleFormSubmit = async (e: React.FormEvent, formData: any) => {
     e.preventDefault();
 
-    // Validação básica
     if (!formData.name.trim()) {
-      alert("Por favor, informe o nome do cliente.");
+      showToast("Por favor, informe o nome do cliente.", "error");
       return;
     }
 
     if (!formData.phone.trim()) {
-      alert("Por favor, informe o telefone do cliente.");
+      showToast("Por favor, informe o telefone do cliente.", "error");
       return;
     }
 
     try {
-      // Monta o objeto de endereço
       const address = {
         street: formData.street,
         number: formData.number,
@@ -307,27 +318,23 @@ export default function AdminCustomersPage() {
         zip: formData.zip,
       };
 
-      // Converter email vazio para null (banco não aceita string vazia)
-      const emailValue = formData.email?.trim() || null;
-      
       const customerData: any = {
         name: formData.name,
         phone: formData.phone,
-        email: emailValue,
+        email: formData.email?.trim() || null,
         doc: formData.doc || undefined,
         barcode: formData.barcode || undefined,
         address: Object.values(address).some((v) => v) ? address : undefined,
         active: formData.active,
+        imageUrl: formData.imageUrl || null,
       };
 
-      // Incluir senha apenas se fornecida e não vazia
-      if (formData.password && formData.password.trim()) {
+      if (formData.password?.trim()) {
         customerData.password = formData.password.trim();
       }
 
       if (editingCustomer) {
-        // Editar cliente existente
-        const response = await fetch(`/api/customers`, {
+        const response = await fetch("/api/customers", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: editingCustomer.id, ...customerData }),
@@ -335,37 +342,17 @@ export default function AdminCustomersPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Failed to update customer");
+          throw new Error(errorData.error || "Falha ao atualizar cliente");
         }
-        const updatedCustomer = await response.json();
 
-        // Verificar se o código de barras foi alterado
-        if (
-          editingCustomer.barcode !== updatedCustomer.barcode &&
-          updatedCustomer.barcode
-        ) {
-          setConfirmMessage(
-            `Atenção: O código de barras do cliente será alterado para ${updatedCustomer.barcode}. Certifique-se de atualizar qualquer etiqueta física associada.`
-          );
-          setPendingAction(() => () => {
-            setCustomers((prev) =>
-              prev.map((c) =>
-                c.id === updatedCustomer.id ? updatedCustomer : c
-              )
-            );
-            showToast("Cliente atualizado com sucesso!", "success");
-          });
-          setIsConfirmOpen(true);
-        } else {
-          setCustomers((prev) =>
-            prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
-          );
-          showToast("Cliente atualizado com sucesso!", "success");
-          closeForm();
-        }
+        const updatedCustomer = await response.json();
+        setCustomers((prev) =>
+          prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+        );
+        showToast("Cliente atualizado com sucesso!", "success");
+        closeForm();
       } else {
-        // Criar novo cliente
-        const response = await fetch(`/api/customers`, {
+        const response = await fetch("/api/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(customerData),
@@ -373,29 +360,17 @@ export default function AdminCustomersPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Failed to create customer");
+          throw new Error(errorData.error || "Falha ao criar cliente");
         }
-        const newCustomer = await response.json();
 
-        // Verificar se o código de barras foi definido
-        if (newCustomer.barcode) {
-          setConfirmMessage(
-            `Atenção: O código de barras do cliente será definido como ${newCustomer.barcode}.`
-          );
-          setPendingAction(() => () => {
-            setCustomers((prev) => [...prev, newCustomer]);
-            showToast("Cliente cadastrado com sucesso!", "success");
-          });
-          setIsConfirmOpen(true);
-        } else {
-          setCustomers((prev) => [...prev, newCustomer]);
-          showToast("Cliente cadastrado com sucesso!", "success");
-          closeForm();
-        }
+        const newCustomer = await response.json();
+        setCustomers((prev) => [...prev, newCustomer]);
+        showToast("Cliente cadastrado com sucesso!", "success");
+        closeForm();
       }
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : "Failed to save customer",
+        err instanceof Error ? err.message : "Falha ao salvar cliente",
         "error"
       );
     }
@@ -408,111 +383,50 @@ export default function AdminCustomersPage() {
         method: "DELETE",
       });
 
-      const result = await response.json();
-      
       if (!response.ok) {
-        // Se houver um erro específico da API, mostramos a mensagem
-        throw new Error(result.error || "Failed to delete customer");
+        const result = await response.json();
+        throw new Error(result.error || "Falha ao excluir cliente");
       }
-      
-      // Se a exclusão for bem-sucedida, atualizamos a lista
+
       setCustomers((prev) => prev.filter((c) => c.id !== id));
       setDeleteConfirm(null);
-      setDeleteError(null);
       showToast("Cliente excluído com sucesso!", "success");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete customer";
-      setDeleteError(errorMessage);
-      showToast(errorMessage, "error");
+      showToast(
+        err instanceof Error ? err.message : "Falha ao excluir cliente",
+        "error"
+      );
     } finally {
       setIsDeletingCustomer(false);
     }
   };
 
-  const getStatusInfo = (active: boolean) => {
-    return active
-      ? {
-          label: "Ativo",
-          color: "bg-green-100 text-green-700 border-green-200",
-        }
-      : { label: "Inativo", color: "bg-red-100 text-red-700 border-red-200" };
-  };
-
-  const handleConfirmAction = () => {
-    if (pendingAction) {
-      pendingAction();
-      setPendingAction(null);
-    }
-    setIsConfirmOpen(false);
-    closeForm();
-  };
-
-  // Funções de paginação
-  const totalPages = Math.ceil(customers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentCustomers = customers.slice(startIndex, endIndex);
-
-  
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const goToNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  // Função para gerar e baixar o código de barras
   const downloadBarcode = async (customer: Customer) => {
     if (!customer.barcode) {
-      alert("Este cliente não possui um código de barras definido.");
+      showToast("Este cliente não possui código de barras.", "error");
       return;
     }
 
     try {
-      // Usar uma API online para gerar o código de barras
       const barcodeUrl = `https://barcodeapi.org/api/code128/${customer.barcode}`;
-
-      // Criar um elemento de imagem
       const img = new Image();
       img.crossOrigin = "Anonymous";
 
       img.onload = () => {
-        // Criar um canvas para desenhar a imagem
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
+        if (!ctx) return;
 
-        if (!ctx) {
-          alert("Não foi possível gerar o código de barras.");
-          return;
-        }
-
-        // Definir o tamanho do canvas
         canvas.width = img.width;
         canvas.height = img.height;
-
-        // Desenhar a imagem no canvas
         ctx.drawImage(img, 0, 0);
 
-        // Converter o canvas para blob e baixar
         canvas.toBlob((blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `barcode-${customer.name.replace(/\s+/g, "-")}-${
-              customer.barcode
-            }.png`;
+            a.download = `barcode-${customer.name.replace(/\s+/g, "-")}-${customer.barcode}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -521,478 +435,222 @@ export default function AdminCustomersPage() {
         });
       };
 
-      img.onerror = () => {
-        alert("Erro ao gerar o código de barras.");
-      };
-
-      // Iniciar o carregamento da imagem
       img.src = barcodeUrl;
     } catch (error) {
-      alert("Erro ao gerar o código de barras.");
-      console.error(error);
+      showToast("Erro ao gerar código de barras.", "error");
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Gerenciamento de Clientes
-          </h1>
-          <p className="text-muted-foreground">
-            Cadastre e gerencie os clientes do estabelecimento
-          </p>
-        </div>
-        <Button
-          onClick={() => openForm()}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Cliente
-        </Button>
-      </div>
+  const filteredCustomers = React.useMemo(() => {
+    const rawSearch = searchTerm.trim();
+    const normalizedSearch = rawSearch.toLowerCase();
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AnimatedCard delay={0.1}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">
-                  Total de Clientes
-                </p>
-                <p className="text-3xl font-bold text-blue-900">
-                  {customers.length}
-                </p>
-              </div>
-              <User className="h-12 w-12 text-blue-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+    return customers.filter((customer) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        customer.name.toLowerCase().includes(normalizedSearch) ||
+        customer.phone.includes(rawSearch) ||
+        customer.email?.toLowerCase().includes(normalizedSearch) ||
+        customer.doc?.includes(rawSearch) ||
+        customer.barcode?.includes(rawSearch);
 
-        <AnimatedCard delay={0.2}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">
-                  Clientes Ativos
-                </p>
-                <p className="text-3xl font-bold text-green-900">
-                  {customers.filter((c) => c.active).length}
-                </p>
-              </div>
-              <Check className="h-12 w-12 text-green-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && customer.active) ||
+        (statusFilter === "inactive" && !customer.active);
 
-        <AnimatedCard delay={0.3}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-600">
-                  Clientes Inativos
-                </p>
-                <p className="text-3xl font-bold text-amber-900">
-                  {customers.filter((c) => !c.active).length}
-                </p>
-              </div>
-              <X className="h-12 w-12 text-amber-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
+      return matchesSearch && matchesStatus;
+    });
+  }, [customers, searchTerm, statusFilter]);
 
-        <AnimatedCard delay={0.4}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600">
-                  Com Email
-                </p>
-                <p className="text-3xl font-bold text-purple-900">
-                  {customers.filter((c) => c.email).length}
-                </p>
-              </div>
-              <User className="h-12 w-12 text-purple-600" />
-            </div>
-          </CardContent>
-        </AnimatedCard>
-      </div>
+  const totalFilteredPages = Math.max(
+    1,
+    Math.ceil(filteredCustomers.length / itemsPerPage) || 1
+  );
 
-      {/* Barra de Busca e Filtros */}
-      <AnimatedCard>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            {/* Busca Principal */}
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar clientes..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-10 pr-4 py-2 text-sm"
+  const paginatedCustomers = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredCustomers.slice(start, start + itemsPerPage);
+  }, [filteredCustomers, currentPage, itemsPerPage]);
+
+  React.useEffect(() => {
+    if (currentPage > totalFilteredPages) {
+      setCurrentPage(totalFilteredPages);
+    }
+  }, [currentPage, totalFilteredPages]);
+
+  // Colunas da tabela
+  const columns: Column<Customer>[] = [
+    {
+      key: "name",
+      header: "Cliente",
+      render: (_, customer) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+            {customer.imageUrl ? (
+              <img
+                src={customer.imageUrl}
+                alt={customer.name}
+                className="h-full w-full object-cover"
               />
-              {searchInput && (
-                <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5">
-                  {customers.length}
-                </Badge>
-              )}
-            </div>
-
-            {/* Filtros e Ações */}
-            <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-              {/* Seletor de itens por página */}
-              <div className="relative">
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-32"
-                >
-                  {itemsPerPageOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option} por página
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={statusFilter}
-                  onChange={(e) =>
-                    setStatusFilter(e.target.value as "all" | "active" | "inactive")
-                  }
-                  className="appearance-none bg-background border border-input rounded-lg py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all w-full md:w-32"
-                >
-                  <option value="all">Todos os Status</option>
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                  <svg className="h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchInput("");
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                }}
-                className="h-9 px-3 text-sm"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Limpar
-              </Button>
-            </div>
+            ) : (
+              <User className="h-5 w-5 text-slate-400" />
+            )}
           </div>
-        </CardContent>
-      </AnimatedCard>
-
-      {/* Tabela de Clientes */}
-      <AnimatedCard>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-foreground">
-            Lista de Clientes
-          </CardTitle>
-          <CardDescription>
-            {customers.length} cliente{customers.length !== 1 ? "s" : ""} encontrado
-            {customers.length !== 1 ? "s" : ""} • Página {currentPage} de {totalPages}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-              <p className="mt-4 text-muted-foreground">Carregando clientes...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <X className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                Erro ao carregar clientes
-              </h3>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button
-                onClick={loadCustomers}
-                className="bg-primary hover:bg-primary/90"
-              >
-                Tentar novamente
-              </Button>
-            </div>
-          ) : (
-            <div className="w-full">
-              <table className="w-full table-auto">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Cliente
-                    </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Contato
-                    </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Endereço
-                    </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Status
-                    </th>
-                    <th className="text-left py-4 px-4 font-semibold text-foreground">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentCustomers.map((customer, index) => (
-                    <motion.tr
-                      key={customer.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="border-b border-border hover:bg-accent/50 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-foreground">
-                              <a
-                                href={`/admin/customers/${customer.id}`}
-                                className="hover:underline"
-                              >
-                                {customer.name}
-                              </a>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Cadastrado em{" "}
-                              {new Date(customer.createdAt).toLocaleDateString(
-                                "pt-BR"
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-sm text-foreground">
-                            <Phone className="h-4 w-4" />
-                            {customer.phone}
-                          </div>
-                          {customer.email && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
-                              {customer.email}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="text-sm text-foreground">
-                          {customer.address && customer.address.street ? (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span>
-                                {customer.address.street && customer.address.number 
-                                  ? `${customer.address.street}, ${customer.address.number}`
-                                  : customer.address.street || customer.address.number || "-"
-                                }
-                              </span>
-                            </div>
-                          ) : (
-                            <Badge
-                              className="bg-yellow-50 text-yellow-700 border-yellow-200 border px-3 py-1.5 rounded-full text-xs font-medium"
-                            >
-                              Não possui
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        {(() => {
-                          const statusInfo = getStatusInfo(customer.active);
-                          return (
-                            <Badge
-                              className={`${statusInfo.color} border px-3 py-1.5 rounded-full text-xs font-medium`}
-                            >
-                              {statusInfo.label}
-                            </Badge>
-                          );
-                        })()}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <CustomerActionsMenu
-                          onEdit={() => openForm(customer)}
-                          onDelete={() => setDeleteConfirm(customer.id)}
-                          onDownload={() => downloadBarcode(customer)}
-                          hasBarcode={!!customer.barcode}
-                        />
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {currentCustomers.length === 0 && customers.length === 0 && (
-                <div className="text-center py-12">
-                  <User className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    Nenhum cliente encontrado
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {searchTerm || statusFilter !== "all"
-                      ? "Tente ajustar os filtros de busca"
-                      : "Comece cadastrando o primeiro cliente"}
-                  </p>
-                  {!searchTerm && statusFilter === "all" && (
-                    <Button
-                      onClick={() => openForm()}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Cadastrar Cliente
-                    </Button>
-                  )}
-                </div>
-              )}
+          <div className="min-w-0">
+            <span className="font-medium text-slate-900 truncate block">
+              {customer.name}
+            </span>
+            <p className="text-xs text-slate-500">
+              {new Date(customer.createdAt).toLocaleDateString("pt-BR")}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "phone",
+      header: "Contato",
+      render: (_, customer) => (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-sm text-slate-700">
+            <Phone className="h-3.5 w-3.5 text-slate-400" />
+            {customer.phone}
+          </div>
+          {customer.email && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Mail className="h-3 w-3" />
+              <span className="truncate max-w-[200px]">{customer.email}</span>
             </div>
           )}
-        </CardContent>
-      </AnimatedCard>
+        </div>
+      ),
+    },
+    {
+      key: "address",
+      header: "Endereço",
+      render: (_, customer) => {
+        const address = customer.address;
+        if (!address?.street) {
+          return <span className="text-slate-400 text-sm">Não informado</span>;
+        }
+        return (
+          <div className="flex items-start gap-1.5 text-sm text-slate-600 max-w-[200px]">
+            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+            <span className="truncate">
+              {address.street}, {address.number}
+              {address.neighborhood && ` - ${address.neighborhood}`}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "active",
+      header: "Status",
+      align: "center",
+      render: (_, customer) => (
+        <StatusBadge status={customer.active ? "active" : "inactive"} size="sm" />
+      ),
+    },
+  ];
 
-      {/* Componente de Paginação */}
-      {customers.length > 0 && totalPages > 1 && (
-        <AnimatedCard>
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              {/* Informações da paginação */}
-              <div className="text-sm text-muted-foreground">
-                Mostrando {startIndex + 1} a {Math.min(endIndex, customers.length)} de {customers.length} clientes
-              </div>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        title="Clientes"
+        description="Gerencie os clientes do estabelecimento"
+        icon={Users}
+        actions={
+          <Button size="sm" onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Novo Cliente
+          </Button>
+        }
+      />
 
-              {/* Navegação de páginas */}
-              <div className="flex items-center gap-2">
-                {/* Botão Anterior */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToPreviousPage}
-                  disabled={currentPage === 1}
-                  className="h-9 w-9 p-0"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+      {loading && customers.length === 0 ? (
+        <CustomerPageSkeleton />
+      ) : (
+        <>
+          {/* Estatísticas */}
+          <CustomerStatsCards customers={customers} />
 
-                {/* Números das páginas */}
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages = [];
-                    const maxVisiblePages = 5;
-                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+          {/* Filtros */}
+          <CustomerFilterBar
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            totalCount={customers.length}
+            filteredCount={filteredCustomers.length}
+          />
 
-                    // Ajustar se estivermos no final
-                    if (endPage - startPage + 1 < maxVisiblePages) {
-                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                    }
-
-                    // Primeira página e reticências
-                    if (startPage > 1) {
-                      pages.push(
-                        <Button
-                          key={1}
-                          variant={currentPage === 1 ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => goToPage(1)}
-                          className="h-9 w-9 p-0"
-                        >
-                          1
-                        </Button>
-                      );
-                      if (startPage > 2) {
-                        pages.push(
-                          <span key="ellipsis1" className="px-2 text-muted-foreground">
-                            ...
-                          </span>
-                        );
-                      }
-                    }
-
-                    // Páginas do meio
-                    for (let i = startPage; i <= endPage; i++) {
-                      pages.push(
-                        <Button
-                          key={i}
-                          variant={currentPage === i ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => goToPage(i)}
-                          className="h-9 w-9 p-0"
-                        >
-                          {i}
-                        </Button>
-                      );
-                    }
-
-                    // Última página e reticências
-                    if (endPage < totalPages) {
-                      if (endPage < totalPages - 1) {
-                        pages.push(
-                          <span key="ellipsis2" className="px-2 text-muted-foreground">
-                            ...
-                          </span>
-                        );
-                      }
-                      pages.push(
-                        <Button
-                          key={totalPages}
-                          variant={currentPage === totalPages ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => goToPage(totalPages)}
-                          className="h-9 w-9 p-0"
-                        >
-                          {totalPages}
-                        </Button>
-                      );
-                    }
-
-                    return pages;
-                  })()}
-                </div>
-
-                {/* Botão Próximo */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToNextPage}
-                  disabled={currentPage === totalPages}
-                  className="h-9 w-9 p-0"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </AnimatedCard>
+          {/* Listagem */}
+          {error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <Button onClick={loadCustomers}>Tentar novamente</Button>
+              </CardContent>
+            </Card>
+          ) : viewMode === "table" ? (
+            <DataTable
+              data={filteredCustomers}
+              columns={columns}
+              rowKey="id"
+              emptyMessage="Nenhum cliente encontrado"
+              onRowClick={(customer) => setSelectedCustomer(customer)}
+              rowActions={(customer) => (
+                <CustomerActionsMenu
+                  customer={customer}
+                  onEdit={() => openForm(customer)}
+                  onDelete={() => setDeleteConfirm(customer.id)}
+                  onDownloadBarcode={() => downloadBarcode(customer)}
+                />
+              )}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: filteredCustomers.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: handleItemsPerPageChange,
+              }}
+            />
+          ) : (
+            <CustomerGridView
+              customers={paginatedCustomers}
+              onEdit={openForm}
+              onDelete={(id) => setDeleteConfirm(id)}
+              onDownloadBarcode={downloadBarcode}
+              onCardClick={(customer) => setSelectedCustomer(customer)}
+              pagination={{
+                page: currentPage,
+                pageSize: itemsPerPage,
+                total: filteredCustomers.length,
+                onPageChange: setCurrentPage,
+                onPageSizeChange: handleItemsPerPageChange,
+              }}
+            />
+          )}
+        </>
       )}
 
-      {/* Modal de Formulário */}
+      {/* Modal de Resumo do Cliente */}
+      <CustomerSummaryModal
+        open={selectedCustomer !== null}
+        customer={selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        onEdit={() => {
+          openForm(selectedCustomer!);
+          setSelectedCustomer(null);
+        }}
+      />
+
+      {/* Dialog de Formulário */}
       <CustomerFormDialog
         open={isFormOpen}
         onClose={closeForm}
@@ -1001,73 +659,27 @@ export default function AdminCustomersPage() {
         initialFormData={formData}
       />
 
-      {/* Modal de Confirmação de Exclusão */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-background shadow-2xl border border-border rounded-lg">
-            <div className="text-center border-b border-border p-6">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <X className="h-6 w-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground">
-                Confirmar Exclusão
-              </h3>
-              <p className="text-muted-foreground">
-                Tem certeza que deseja remover este cliente? Esta ação não pode
-                ser desfeita.
-              </p>
-              {deleteError && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                  {deleteError}
-                </div>
-              )}
-            </div>
+      {/* Dialog de Confirmação de Exclusão */}
+      <DeleteConfirmDialog
+        open={deleteConfirm !== null}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Excluir Cliente"
+        description="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
+        onConfirm={() => deleteConfirm && deleteCustomer(deleteConfirm)}
+        isLoading={isDeletingCustomer}
+      />
 
-            <div className="p-6">
-              <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDeleteConfirm(null);
-                    setDeleteError(null);
-                  }}
-                  className="px-6 py-2 rounded-lg border-input hover:bg-accent"
-                  disabled={isDeletingCustomer}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={() => deleteCustomer(deleteConfirm)}
-                  className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-white disabled:opacity-50"
-                  disabled={isDeletingCustomer}
-                >
-                  {isDeletingCustomer ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Diálogo de Confirmação */}
+      {/* Dialog de Confirmação Genérico */}
       <ConfirmDialog
         open={isConfirmOpen}
-        onOpenChange={setIsConfirmOpen}
-        title="Confirmação"
+        onOpenChange={(open) => !open && setIsConfirmOpen(false)}
+        title="Atenção"
         description={confirmMessage}
-        onConfirm={handleConfirmAction}
         confirmText="OK"
-        cancelText="Cancelar"
+        onConfirm={() => {
+          pendingAction?.();
+          setIsConfirmOpen(false);
+        }}
       />
     </div>
   );

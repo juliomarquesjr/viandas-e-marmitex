@@ -1,20 +1,39 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
-import { AlertCircle, Camera, ChefHat, Eye, EyeOff, Mail, Utensils } from "lucide-react";
+import { useToast } from "@/app/components/Toast";
+import { BarChart3, Camera, Eye, EyeOff, Mail, Receipt, Shield, Truck } from "lucide-react";
+import { motion } from "framer-motion";
 import { signIn, useSession } from "next-auth/react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FacialLogin } from "../components/FacialLogin";
 
+const features = [
+  {
+    icon: Receipt,
+    title: "Gestão completa de pedidos",
+    description: "Controle todos os pedidos em tempo real, do recebimento à entrega.",
+  },
+  {
+    icon: BarChart3,
+    title: "Controle financeiro integrado",
+    description: "Relatórios de vendas, despesas e lucros sempre atualizados.",
+  },
+  {
+    icon: Truck,
+    title: "Entregas e pré-vendas",
+    description: "Organize rotas, pré-vendas e pagamentos em um único lugar.",
+  },
+];
+
 export default function LoginPage() {
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<"traditional" | "facial">("traditional");
   const router = useRouter();
@@ -22,7 +41,6 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/admin";
 
-  // Redirect if already logged in
   useEffect(() => {
     if (status === "authenticated") {
       if (session?.user?.role === "pdv") {
@@ -36,7 +54,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     try {
       const result = await signIn("credentials", {
@@ -46,270 +63,356 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Credenciais inválidas. Verifique seu email e senha.");
+        showToast("Credenciais inválidas. Verifique seu email e senha.", "error", "Acesso negado");
       } else {
-        // Get the user's role to redirect appropriately
         const sessionResponse = await fetch("/api/auth/session");
         const sessionData = await sessionResponse.json();
-        
-        // Determine redirect URL based on user role
+
         let redirectUrl = callbackUrl;
         if (sessionData?.user?.role === "pdv") {
-          // If user is PDV, redirect to PDV even if callbackUrl says otherwise
           redirectUrl = "/pdv";
         } else if (!redirectUrl || redirectUrl === "/auth/login") {
-          // Default redirect for admin users
           redirectUrl = "/admin";
         }
-        
-        // Use window.location for full page redirect to avoid blank page issue
+
         window.location.href = redirectUrl;
       }
     } catch (err) {
-      setError("Ocorreu um erro ao fazer login. Tente novamente.");
+      showToast("Ocorreu um erro ao fazer login. Tente novamente.", "error", "Erro de autenticação");
     } finally {
       setLoading(false);
     }
   };
 
-  // Don't show the login form if we're checking the session or redirecting
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
-      </div>
-    );
-  }
-
-  // If already authenticated, don't show the login form
   if (status === "authenticated") {
     return null;
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background com gradiente e padrões */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(251,146,60,0.1),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(245,158,11,0.1),transparent_50%)]" />
-      
-      {/* Elementos decorativos */}
-      <div className="absolute top-10 left-10 opacity-20">
-        <Utensils className="h-16 w-16 text-orange-400 rotate-12" />
-      </div>
-      <div className="absolute bottom-20 right-16 opacity-20">
-        <ChefHat className="h-20 w-20 text-amber-400 -rotate-12" />
-      </div>
-      <div className="absolute top-1/3 right-1/4 opacity-10">
-        <Utensils className="h-24 w-24 text-orange-300 rotate-45" />
-      </div>
-      
-      {/* Conteúdo principal */}
-      <div className="relative min-h-screen flex items-center justify-center p-6 overflow-visible">
-        <div className="w-full max-w-md relative z-10">
-          {/* Logo e título */}
-          <div className="flex items-center justify-center gap-5 mb-8">
-            <div className="relative flex-shrink-0">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-xl ring-2 ring-orange-200/50">
-                <ChefHat className="h-10 w-10 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-green-400 border-2 border-white shadow-md animate-pulse" />
-            </div>
-            <div className="text-center">
-              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent leading-tight tracking-tight">
-                Comida Caseira
-              </h1>
-              <p className="text-gray-600 text-base font-semibold mt-1.5 tracking-wide">
-                Sabor que aquece o coração
-              </p>
-            </div>
-          </div>
-          
-          {/* Container flex para card e balão */}
-          <div className="relative flex items-center justify-center">
-            {/* Balão flutuante com dicas - aparece apenas no modo facial */}
-            {loginMode === "facial" && (
-              <div className="absolute right-full mr-8 hidden lg:block animate-float z-20">
-                {/* Balão de fala melhorado */}
-                <div className="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-2xl border-2 border-orange-200/80 p-6 w-80 relative z-10 animate-pulse-slow backdrop-blur-sm">
-                  {/* Ponta do balão apontando para o card */}
-                  <div className="absolute -right-4 top-10 w-0 h-0 border-t-[18px] border-t-transparent border-l-[24px] border-l-white border-b-[18px] border-b-transparent drop-shadow-lg"></div>
-                  <div className="absolute -right-5 top-9 w-0 h-0 border-t-[19px] border-t-transparent border-l-[26px] border-l-orange-200/80 border-b-[19px] border-b-transparent"></div>
-                  
-                  {/* Conteúdo do balão */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-400 flex items-center justify-center shadow-md">
-                        <span className="text-lg">💡</span>
-                      </div>
-                      <p className="text-sm font-bold text-orange-700">
-                        Dicas para melhor resultado
-                      </p>
-                    </div>
-                    <ul className="space-y-2.5">
-                      <li className="flex items-start gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
-                        <span className="text-xs text-gray-700 leading-relaxed">Mantenha boa iluminação</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
-                        <span className="text-xs text-gray-700 leading-relaxed">Olhe diretamente para a câmera</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
-                        <span className="text-xs text-gray-700 leading-relaxed">Mantenha o rosto centralizado</span>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
-                        <span className="text-xs text-gray-700 leading-relaxed">Remova óculos se possível</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Card de login */}
-            <Card className="backdrop-blur-xl bg-white/80 border-0 shadow-2xl w-full max-w-md">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">
-                Bem-vindo de volta!
-              </CardTitle>
-              <CardDescription className="text-gray-600">
-                Faça login para gerenciar seu restaurante
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 min-h-[450px] max-h-[600px] flex flex-col">
-              {/* Seleção de modo de login */}
-              <div className="flex gap-2 mb-4">
-                <Button
-                  type="button"
-                  variant={loginMode === "traditional" ? "default" : "outline"}
-                  onClick={() => setLoginMode("traditional")}
-                  className={`flex-1 h-12 rounded-xl font-semibold transition-all duration-200 ${
-                    loginMode === "traditional"
-                      ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl"
-                      : "border-2 hover:bg-gray-50"
-                  }`}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Email/Senha
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginMode === "facial" ? "default" : "outline"}
-                  onClick={() => setLoginMode("facial")}
-                  className={`flex-1 h-12 rounded-xl font-semibold transition-all duration-200 ${
-                    loginMode === "facial"
-                      ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl"
-                      : "border-2 hover:bg-gray-50"
-                  }`}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  Reconhecimento Facial
-                </Button>
-              </div>
+    <div className="min-h-screen flex overflow-hidden">
+      {/* ── PAINEL ESQUERDO (brand) ── */}
+      <motion.div
+        initial={{ x: -40, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="hidden lg:flex lg:w-[58%] relative flex-col items-center justify-center overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%)",
+        }}
+      >
+        {/* Blobs decorativos animados */}
+        <div
+          className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-[0.07] animate-blob"
+          style={{
+            background:
+              "radial-gradient(circle, var(--auth-brand-glow-1-from), var(--auth-brand-glow-1-to))",
+          }}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-[480px] h-[480px] rounded-full opacity-[0.06] animate-blob animation-delay-4000"
+          style={{
+            background:
+              "radial-gradient(circle, var(--auth-brand-glow-2-from), var(--auth-brand-glow-2-to))",
+          }}
+        />
+        <div
+          className="absolute top-1/2 left-1/4 w-64 h-64 rounded-full opacity-[0.05] animate-blob animation-delay-2000"
+          style={{
+            background:
+              "radial-gradient(circle, var(--auth-brand-glow-3-from), var(--auth-brand-glow-3-to))",
+          }}
+        />
 
-              {loginMode === "facial" ? (
-                <>
-                  <FacialLogin onCancel={() => setLoginMode("traditional")} />
-                </>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-5 flex-1 flex flex-col">
-                {error && (
-                  <Alert variant="destructive" className="border-red-200 bg-red-50">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-red-700">{error}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {/* Campo de email */}
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-orange-500" />
+        {/* Padrão de grade sutil */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        {/* Conteúdo do painel */}
+        <div className="relative z-10 flex flex-col items-center text-center px-12 max-w-lg w-full">
+          {/* Logo */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+            className="mb-8"
+          >
+            <div className="relative inline-block">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl opacity-40"
+                style={{
+                  background:
+                    "radial-gradient(circle, var(--auth-brand-logo-halo-from), var(--auth-brand-logo-halo-to))",
+                }}
+              />
+              <Image
+                src="/img/icon.png"
+                alt="Comida Caseira"
+                width={112}
+                height={112}
+                className="relative rounded-full shadow-2xl"
+                priority
+              />
+            </div>
+          </motion.div>
+
+          {/* Nome e tagline */}
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            <h1
+              className="text-4xl font-extrabold tracking-tight mb-3"
+              style={{
+                background: `linear-gradient(90deg, #ffffff 0%, var(--auth-brand-title-mid) 55%, var(--auth-brand-title-end) 100%)`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Comida Caseira
+            </h1>
+            <p className="text-white/60 text-base italic font-medium tracking-wide">
+              Sabor que aquece o coração
+            </p>
+          </motion.div>
+
+          {/* Divisor */}
+          <motion.div
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="my-8 w-full h-px"
+            style={{
+              background: "linear-gradient(90deg, transparent, var(--auth-brand-divider), transparent)",
+            }}
+          />
+
+          {/* Features */}
+          <div className="space-y-5 w-full text-left">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ y: 16, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.6 + index * 0.1 }}
+                className="flex items-start gap-4"
+              >
+                <div
+                  className="flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center"
+                  style={{
+                    background: "var(--auth-brand-feature-bg)",
+                    border: "1px solid var(--auth-brand-feature-border)",
+                  }}
+                >
+                  <feature.icon className="h-5 w-5 text-sky-300" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm leading-snug">{feature.title}</p>
+                  <p className="text-white/50 text-xs mt-0.5 leading-relaxed">{feature.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Rodapé do painel */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 1 }}
+            className="mt-10 flex items-center gap-2 text-white/30 text-xs"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            <span>Sistema seguro e confiável</span>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* ── PAINEL DIREITO (formulário) ── */}
+      <motion.div
+        initial={{ x: 40, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+        className="flex-1 flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/90 px-4 sm:px-6 py-12"
+      >
+        <div className="w-full max-w-md">
+          {/* Header mobile (visível apenas em telas menores que lg) */}
+          <div className="flex flex-col items-center mb-8 lg:hidden">
+            <Image
+              src="/img/icon.png"
+              alt="Comida Caseira"
+              width={64}
+              height={64}
+              className="rounded-full shadow-lg mb-3"
+              priority
+            />
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Comida Caseira</h2>
+            <p className="text-slate-500 text-sm mt-1">Sistema de gestão</p>
+          </div>
+
+          {/* Card: cabeçalho, abas e conteúdo */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/50 backdrop-blur-sm p-6 sm:p-8">
+            {/* Cabeçalho do form */}
+            <motion.div
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.25 }}
+              className="mb-6"
+            >
+              <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                Bem-vindo de volta!
+              </h2>
+              <p className="text-slate-500 text-sm mt-1.5">
+                Faça login para gerenciar seu restaurante
+              </p>
+            </motion.div>
+
+            {/* Login mode tabs */}
+            <motion.div
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.32 }}
+              className="flex gap-1.5 p-1 bg-slate-100/80 rounded-xl mb-6 ring-1 ring-slate-200/80"
+            >
+              <button
+                type="button"
+                onClick={() => setLoginMode("traditional")}
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  loginMode === "traditional"
+                    ? "bg-white text-blue-600 shadow-md shadow-slate-200/60 border border-slate-200/90"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="truncate">Email / Senha</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMode("facial")}
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  loginMode === "facial"
+                    ? "bg-white text-blue-600 shadow-md shadow-slate-200/60 border border-slate-200/90"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Camera className="h-4 w-4 shrink-0" />
+                Reconhecimento Facial
+              </button>
+            </motion.div>
+
+            {/* Formulário */}
+            {loginMode === "facial" ? (
+              <FacialLogin onCancel={() => setLoginMode("traditional")} />
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <div className="space-y-5">
+                {/* Campo email */}
+                <motion.div
+                  initial={{ y: 12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.38 }}
+                  className="space-y-1.5"
+                >
+                  <label
+                    htmlFor="email"
+                    className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
                     Email
                   </label>
-                  <div className="relative group">
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 pl-4 pr-4 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 bg-white/70"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                {/* Campo de senha */}
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <ChefHat className="h-4 w-4 text-orange-500" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-12 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white text-slate-900 placeholder:text-slate-400"
+                    required
+                  />
+                </motion.div>
+
+                {/* Campo senha */}
+                <motion.div
+                  initial={{ y: 12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.44 }}
+                  className="space-y-1.5"
+                >
+                  <label
+                    htmlFor="password"
+                    className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5"
+                  >
+                    <Shield className="h-3.5 w-3.5" />
                     Senha
                   </label>
-                  <div className="relative group">
+                  <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-12 pl-4 pr-12 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 bg-white/70"
+                      className="h-12 pr-12 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white text-slate-900"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-orange-500 transition-colors duration-200 p-1 rounded-lg hover:bg-orange-50"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors duration-150 p-1 rounded-lg"
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                </div>
-                
-                {/* Botão de login */}
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]" 
-                  disabled={loading}
+                </motion.div>
+
+                {/* Botão submit */}
+                <motion.div
+                  initial={{ y: 12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.5 }}
                 >
-                  {loading ? (
-                    <div className="flex items-center gap-3">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                      Entrando...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <ChefHat className="h-5 w-5" />
-                      Entrar no Sistema
-                    </div>
-                  )}
-                </Button>
-              </form>
-              )}
-              
-              {/* Footer */}
-              <div className="pt-6 border-t border-gray-200">
-                <div className="text-center space-y-3">
-                  <p className="text-sm text-gray-500">
-                    Dúvidas? Contate o administrador do sistema
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-                    <div className="h-2 w-2 rounded-full bg-green-400"></div>
-                    Sistema seguro e confiável
-                  </div>
-                </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Entrando...
+                      </div>
+                    ) : (
+                      "Entrar no Sistema"
+                    )}
+                  </Button>
+                </motion.div>
               </div>
-            </CardContent>
-          </Card>
+            </form>
+            )}
           </div>
+
+          {/* Footer — fora do card */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+            className="mt-6 text-center space-y-1.5"
+          >
+            <p className="text-[11px] sm:text-xs text-slate-400">
+              Dúvidas? Contate o administrador do sistema
+            </p>
+            <div className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-slate-400">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+              Sistema online
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

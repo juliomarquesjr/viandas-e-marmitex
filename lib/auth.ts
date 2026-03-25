@@ -16,6 +16,7 @@ declare module "next-auth" {
   interface User {
     role: string;
     id: string;
+    image?: string | null;
   }
 }
 
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    image?: string | null;
   }
 }
 
@@ -78,7 +80,8 @@ export const authOptions: AuthOptions = {
               id: user.id,
               name: user.name,
               email: user.email,
-              role: user.role
+              role: user.role,
+              image: user.imageUrl ?? null,
             };
           } catch (error) {
             console.error('[AUTH] Erro ao verificar token facial:', error);
@@ -115,23 +118,48 @@ export const authOptions: AuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          image: user.imageUrl ?? null,
         };
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.image = user.image ?? null;
+        token.picture = user.image ?? null;
       }
+
+      if (trigger === "update" && session?.user) {
+        if (session.user.name !== undefined) {
+          token.name = session.user.name;
+        }
+        if (session.user.email !== undefined) {
+          token.email = session.user.email;
+        }
+        if (session.user.image !== undefined) {
+          token.image = session.user.image;
+          // NextAuth usa `picture` em alguns fluxos internos; manter alinhado evita sessão sem foto no cliente.
+          token.picture = session.user.image;
+        }
+        if (session.user.role !== undefined) {
+          token.role = session.user.role;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        const img =
+          (token.image as string | null | undefined) ??
+          (token.picture as string | null | undefined);
+        session.user.image = img ?? null;
       }
       return session;
     }

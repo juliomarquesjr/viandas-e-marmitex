@@ -1,25 +1,94 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted-foreground: #6b7280; /* gray-500 */
+/* =============================================================================
+   DESIGN SYSTEM - CRM Viandas e Marmitex
+   Inspirado em HubSpot/Salesforce
+   ============================================================================= */
 
-  /* Paleta principal (laranja escuro) */
-  --primary: #c2410c; /* orange-700 */
+:root {
+  /* Backgrounds */
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  --muted-foreground: #64748b; /* slate-500 */
+
+  /* Paleta principal (azul profissional) */
+  --primary: #2563eb; /* blue-600 */
+  --primary-hover: #1d4ed8; /* blue-700 */
+  --primary-light: #dbeafe; /* blue-100 */
+  --primary-lighter: #eff6ff; /* blue-50 */
   --primary-foreground: #ffffff;
 
   /* Superfícies e elementos */
   --card: #ffffff;
   --card-foreground: var(--foreground);
-  --muted: #f5f5f4; /* stone-100 */
-  --accent: #fff4e6; /* leve tom de laranja para hover/acento */
-  --accent-foreground: #7a2c0c; /* marrom/laranja escuro para texto sobre accent */
+  --muted: #f1f5f9; /* slate-100 */
+  --accent: #eff6ff; /* blue-50 */
+  --accent-foreground: #1e40af; /* blue-800 */
 
   /* Bordas, inputs e foco */
-  --border: #e5e7eb; /* gray-200 */
-  --input: #e5e7eb;
-  --ring: #ea580c; /* orange-600 */
+  --border: #e2e8f0; /* slate-200 */
+  --border-dark: #cbd5e1; /* slate-300 */
+  --input: #e2e8f0;
+  --ring: #2563eb; /* blue-600 */
+
+  /* Cores de status */
+  --success: #10b981; /* emerald-500 */
+  --success-light: #d1fae5; /* emerald-100 */
+  --warning: #f59e0b; /* amber-500 */
+  --warning-light: #fef3c7; /* amber-100 */
+  --error: #ef4444; /* red-500 */
+  --error-light: #fee2e2; /* red-100 */
+  --info: #3b82f6; /* blue-500 */
+  --info-light: #dbeafe; /* blue-100 */
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+
+  /* Border radius */
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
+
+  /* Transições */
+  --transition-fast: 150ms ease;
+  --transition-default: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* Sidebar */
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 72px;
+
+  /* Header */
+  --header-height: 64px;
+
+  /* Modal header */
+  --modal-header-bg: #e8efff;
+  --modal-header-text: #1e293b;
+  --modal-header-description: #64748b;
+  --modal-header-icon-bg: rgba(37, 99, 235, 0.10);
+  --modal-header-icon-ring: rgba(37, 99, 235, 0.18);
+  --modal-header-close: #94a3b8;
+  --modal-header-close-hover: rgba(37, 99, 235, 0.08);
+
+  /* Login — painel de marca (gradientes decorativos, alinhado ao azul do sistema) */
+  --auth-brand-glow-1-from: #3b82f6;
+  --auth-brand-glow-1-to: #38bdf8;
+  --auth-brand-glow-2-from: #38bdf8;
+  --auth-brand-glow-2-to: #60a5fa;
+  --auth-brand-glow-3-from: #60a5fa;
+  --auth-brand-glow-3-to: #818cf8;
+  --auth-brand-logo-halo-from: #3b82f6;
+  --auth-brand-logo-halo-to: #6366f1;
+  --auth-brand-title-mid: #7dd3fc;
+  --auth-brand-title-end: #93c5fd;
+  --auth-brand-divider: rgba(59, 130, 246, 0.4);
+  --auth-brand-feature-bg: rgba(59, 130, 246, 0.15);
+  --auth-brand-feature-border: rgba(59, 130, 246, 0.25);
 }
 
 @theme inline {
@@ -36,27 +105,44 @@
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-modal-header-bg: var(--modal-header-bg);
+  --color-modal-header-text: var(--modal-header-text);
+  --color-modal-header-description: var(--modal-header-description);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode - mantido para compatibilidade, mas não recomendado para este CRM */
 .dark :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --muted-foreground: #a3a3a3; /* neutral-400 */
+  --background: #0f172a; /* slate-900 */
+  --foreground: #f1f5f9; /* slate-100 */
+  --muted-foreground: #94a3b8; /* slate-400 */
 
-  --primary: #f97316; /* orange-500 para melhor contraste no dark */
-  --primary-foreground: #0a0a0a;
+  --primary: #3b82f6; /* blue-500 */
+  --primary-hover: #2563eb; /* blue-600 */
+  --primary-light: #1e3a5f;
+  --primary-lighter: #1e293b;
+  --primary-foreground: #ffffff;
 
-  --card: #0f0f0f;
+  --card: #1e293b; /* slate-800 */
   --card-foreground: var(--foreground);
-  --muted: #111111;
-  --accent: #1a120a; /* laranja bem escuro para hover no dark */
-  --accent-foreground: #f5d0b5;
+  --muted: #334155; /* slate-700 */
+  --accent: #1e3a5f;
+  --accent-foreground: #93c5fd;
 
-  --border: #262626;
-  --input: #262626;
-  --ring: #fb923c; /* orange-400 */
+  --border: #334155; /* slate-700 */
+  --border-dark: #475569; /* slate-600 */
+  --input: #334155;
+  --ring: #3b82f6;
+
+  /* Modal header */
+  --modal-header-bg: #1e2d4a;
+  --modal-header-text: #f1f5f9;
+  --modal-header-description: rgba(241, 245, 249, 0.60);
+  --modal-header-icon-bg: rgba(255, 255, 255, 0.10);
+  --modal-header-icon-ring: rgba(255, 255, 255, 0.15);
+  --modal-header-close: rgba(241, 245, 249, 0.55);
+  --modal-header-close-hover: rgba(255, 255, 255, 0.10);
 }
 
 body {

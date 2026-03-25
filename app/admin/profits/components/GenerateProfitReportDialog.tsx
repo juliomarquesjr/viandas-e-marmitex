@@ -1,16 +1,35 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { BarChart3, Calendar, X } from "lucide-react";
+import { BarChart3, Calendar, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../../components/ui/dialog";
 
 interface GenerateProfitReportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onGenerate: (startDate: string, endDate: string) => void;
   isLoading?: boolean;
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
 }
 
 export function GenerateProfitReportDialog({
@@ -21,6 +40,7 @@ export function GenerateProfitReportDialog({
 }: GenerateProfitReportDialogProps) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState<"current" | "last" | "30days" | "custom">("current");
 
   // Inicializar com o mês atual
   useEffect(() => {
@@ -28,9 +48,10 @@ export function GenerateProfitReportDialog({
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
+
       setStartDate(firstDay.toISOString().split("T")[0]);
       setEndDate(lastDay.toISOString().split("T")[0]);
+      setSelectedPeriod("current");
     }
   }, [isOpen]);
 
@@ -45,193 +66,190 @@ export function GenerateProfitReportDialog({
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
+
     setStartDate(firstDay.toISOString().split("T")[0]);
     setEndDate(lastDay.toISOString().split("T")[0]);
+    setSelectedPeriod("current");
   };
 
   const setLastMonth = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-    
+
     setStartDate(firstDay.toISOString().split("T")[0]);
     setEndDate(lastDay.toISOString().split("T")[0]);
+    setSelectedPeriod("last");
   };
 
   const setLast30Days = () => {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
+
     setStartDate(thirtyDaysAgo.toISOString().split("T")[0]);
     setEndDate(today.toISOString().split("T")[0]);
+    setSelectedPeriod("30days");
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl max-h-[95vh] overflow-hidden bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col"
-      >
-        {/* Header with gradient and shadow */}
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200 p-6 relative">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0iI2M1YzVjNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-5"></div>
-          <div className="relative flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-orange-600" />
-                Gerar Relatório de Lucros
-              </h2>
-              <p className="text-gray-600 mt-1 text-sm">
-                Selecione o período para análise de receitas, despesas e lucros
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              disabled={isLoading}
-              className="h-12 w-12 rounded-full bg-white/60 hover:bg-white shadow-md border border-gray-200 text-gray-600 hover:text-gray-800 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+              style={{
+                background: "var(--modal-header-icon-bg)",
+                outline: "1px solid var(--modal-header-icon-ring)",
+              }}
             >
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
+              <BarChart3 className="h-5 w-5 text-primary" />
+            </div>
+            Gerar Relatório de Lucros
+          </DialogTitle>
+          <DialogDescription>
+            Selecione o período para análise de receitas, despesas e lucros.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Scrollable form content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <form id="profit-report-form" onSubmit={handleSubmit} className="space-y-6">
-            {/* Seção de Atalhos */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2">
-                <Calendar className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">
-                  Atalhos de Período
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
-              
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={setCurrentMonth}
-                  disabled={isLoading}
-                  className="border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl transition-all"
-                >
-                  Este Mês
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={setLastMonth}
-                  disabled={isLoading}
-                  className="border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl transition-all"
-                >
-                  Mês Passado
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={setLast30Days}
-                  disabled={isLoading}
-                  className="border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl transition-all"
-                >
-                  Últimos 30 Dias
-                </Button>
-              </div>
+        <form id="profit-report-form" onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
+            {/* ── Períodos Predefinidos ── */}
+            <SectionDivider label="Períodos Predefinidos" />
+
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                type="button"
+                variant={selectedPeriod === "current" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setCurrentMonth();
+                }}
+                disabled={isLoading}
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "current" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Este Mês
+              </Button>
+              <Button
+                type="button"
+                variant={selectedPeriod === "last" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setLastMonth();
+                }}
+                disabled={isLoading}
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "last" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Mês Passado
+              </Button>
+              <Button
+                type="button"
+                variant={selectedPeriod === "30days" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setLast30Days();
+                }}
+                disabled={isLoading}
+                className={`w-full text-xs font-normal ${
+                  selectedPeriod === "30days" 
+                    ? "text-white" 
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Últimos 30 Dias
+              </Button>
             </div>
 
-            {/* Seção de Período Personalizado */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 mt-6">
-                <Calendar className="h-4 w-4 text-orange-600" />
-                <h3 className="text-base font-semibold text-orange-800">
-                  Período Personalizado
-                </h3>
-              </div>
-              <div className="mt-3 h-px bg-gradient-to-r from-orange-100 via-orange-300 to-orange-100"></div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Data Inicial <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      required
-                      disabled={isLoading}
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    />
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
+            {/* ── Período Personalizado ── */}
+            <SectionDivider label="Período Personalizado" />
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                    Data Final <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      required
-                      disabled={isLoading}
-                      className="pl-10 py-3 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 shadow-sm transition-all"
-                    />
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Data Inicial <span className="text-red-400">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setSelectedPeriod("custom");
+                    }}
+                    required
+                    disabled={isLoading}
+                    className="pl-9"
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Data Final <span className="text-red-400">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setSelectedPeriod("custom");
+                    }}
+                    required
+                    disabled={isLoading}
+                    className="pl-9"
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
               </div>
             </div>
-          </form>
-        </div>
-
-        {/* Footer with actions */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50/50">
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-              className="px-6 py-3 rounded-xl border-gray-300 hover:bg-gray-100 text-gray-700 font-medium transition-all"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form="profit-report-form"
-              disabled={isLoading}
-              className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Gerar Relatório
-                </>
-              )}
-            </Button>
           </div>
-        </div>
-      </motion.div>
-    </div>
+
+          <DialogFooter>
+            <p className="text-xs text-slate-400">
+              <span className="text-red-400">*</span> campos obrigatórios
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="profit-report-form"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Gerar Relatório
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
-

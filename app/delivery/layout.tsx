@@ -157,9 +157,17 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
           <div className="flex items-center gap-4">
             {session?.user && (
               <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-white/80 border border-white/30">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <ChefHat className="h-4 w-4 text-primary" />
-                </div>
+                {session.user.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name || "Entregador"}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <ChefHat className="h-4 w-4 text-primary" />
+                  </div>
+                )}
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold">{session.user.name}</span>
                   <span className="text-xs text-gray-500">Entregador</span>

@@ -2,8 +2,30 @@
 
 import { Button } from "@/app/components/ui/button";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+} from "@/app/components/ui/dialog";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
-import { Camera, Upload, X, AlertCircle, Check, Trash2, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui";
+import {
+  Camera,
+  Upload,
+  AlertCircle,
+  Check,
+  Trash2,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import {
   loadModels,
@@ -22,6 +44,18 @@ interface FacialCaptureModalProps {
 }
 
 type Step = "capture" | "review";
+
+// Componente auxiliar para divisor de seção
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
 
 export function FacialCaptureModal({
   isOpen,
@@ -45,6 +79,10 @@ export function FacialCaptureModal({
   const [isRemoving, setIsRemoving] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [faceValidated, setFaceValidated] = useState(false);
+  
+  // Estados para seleção de câmera
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,6 +100,13 @@ export function FacialCaptureModal({
     }
   }, [isOpen, modelsLoaded]);
 
+  // Carregar lista de dispositivos de vídeo quando o modal abrir
+  useEffect(() => {
+    if (isOpen) {
+      loadVideoDevices();
+    }
+  }, [isOpen]);
+
   // Reset ao abrir
   useEffect(() => {
     if (isOpen) {
@@ -74,18 +119,41 @@ export function FacialCaptureModal({
     }
   }, [isOpen]);
 
+  // Carregar lista de dispositivos de vídeo
+  const loadVideoDevices = async () => {
+    try {
+      // Primeiro solicitar permissão para acessar dispositivos
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      
+      // Enumerar dispositivos
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevicesList = devices.filter(device => device.kind === 'videoinput');
+      setVideoDevices(videoDevicesList);
+      
+      // Selecionar a primeira câmera por padrão
+      if (videoDevicesList.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoDevicesList[0].deviceId);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar dispositivos de vídeo:", err);
+    }
+  };
+
   // Iniciar webcam
   const startWebcam = async () => {
     try {
       setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
+      const constraints: MediaStreamConstraints = {
+        video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
-          facingMode: "user"
+          facingMode: "user",
+          ...(selectedDeviceId && { deviceId: { exact: selectedDeviceId } })
         },
         audio: false
-      });
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       
       setTimeout(() => {
@@ -377,14 +445,11 @@ export function FacialCaptureModal({
     }
   }, [step, capturedCanvas, modelsLoaded]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50/50">
-          <div className="flex items-center justify-between">
+    <>
+      <Dialog open={isOpen} onOpenChange={(v) => !v && handleClose()}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               {step === "review" && (
                 <Button
@@ -402,320 +467,363 @@ export function FacialCaptureModal({
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               )}
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-sm">
-                <Camera className="h-5 w-5 text-white" />
+              <div
+                className="h-9 w-9 rounded-lg flex items-center justify-center shadow-sm"
+                style={{ background: "var(--modal-header-icon-bg)" }}
+              >
+                <Camera className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {step === "capture" 
-                    ? (currentFacialImageUrl ? "Atualizar Foto Facial" : "Cadastrar Foto Facial")
-                    : "Revisar Foto"
-                  }
+                <h2 className="text-base font-semibold text-gray-900">
+                  {step === "capture"
+                    ? currentFacialImageUrl
+                      ? "Atualizar Foto Facial"
+                      : "Cadastrar Foto Facial"
+                    : "Confirmar Foto"}
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">{userName}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {step === "capture"
+                    ? "Tire uma foto ou envie um arquivo"
+                    : userName}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Indicador de progresso */}
-              <div className="flex items-center gap-1.5 mr-2">
-                <div className={`h-1.5 w-1.5 rounded-full transition-all ${step === "capture" ? "bg-orange-500" : "bg-gray-300"}`} />
-                <div className={`h-1.5 w-1.5 rounded-full transition-all ${step === "review" ? "bg-orange-500" : "bg-gray-300"}`} />
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="h-8 w-8 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+          </DialogHeader>
 
-        {/* Conteúdo */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {step === "capture" ? (
-            <div className="space-y-6">
-              {/* Foto atual (se existir) */}
-              {currentFacialImageUrl && (
-                <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <img
-                        src={currentFacialImageUrl}
-                        alt="Foto facial atual"
-                        className="w-24 h-24 object-cover rounded-xl border-2 border-white shadow-md"
-                      />
-                      <div className="absolute -top-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                        <CheckCircle2 className="h-3 w-3 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">Foto Facial Cadastrada</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Você pode atualizar ou remover esta foto
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowRemoveConfirm(true)}
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1.5" />
-                      Remover
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Seleção de modo */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant={mode === "webcam" ? "default" : "outline"}
-                  onClick={() => {
-                    setMode("webcam");
-                    setError(null);
-                  }}
-                  className="h-12 relative"
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  Câmera
-                  {mode === "webcam" && (
-                    <div className="absolute inset-0 bg-orange-500/10 rounded-md" />
-                  )}
-                </Button>
-                <Button
-                  variant={mode === "upload" ? "default" : "outline"}
-                  onClick={() => {
-                    setMode("upload");
-                    stopWebcam();
-                    setError(null);
-                  }}
-                  className="h-12 relative"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload
-                  {mode === "upload" && (
-                    <div className="absolute inset-0 bg-orange-500/10 rounded-md" />
-                  )}
-                </Button>
-              </div>
-
-              {/* Mensagens de erro */}
-              {error && (
-                <Alert variant="destructive" className="border-red-200 bg-red-50">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Webcam */}
-              {mode === "webcam" && (
-                <div className="space-y-4">
-                  {!stream ? (
-                    <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center">
-                      <div className="text-center space-y-3">
-                        <div className="h-16 w-16 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg">
-                          <Camera className="h-8 w-8 text-gray-400" />
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            {step === "capture" ? (
+              <>
+                {/* Foto atual (se existir) */}
+                {currentFacialImageUrl && (
+                  <>
+                    <SectionDivider label="Foto Atual" />
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-4">
+                      <div className="relative">
+                        <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0">
+                          <img
+                            src={currentFacialImageUrl}
+                            alt="Foto facial atual"
+                            className="h-full w-full object-cover"
+                          />
                         </div>
-                        <Button 
-                          onClick={startWebcam} 
-                          disabled={!modelsLoaded}
-                          className="bg-orange-600 hover:bg-orange-700 text-white"
-                        >
-                          {!modelsLoaded ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Carregando...
-                            </>
-                          ) : (
-                            <>
-                              <Camera className="h-4 w-4 mr-2" />
-                              Iniciar Câmera
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="relative bg-gray-900 rounded-xl overflow-hidden aspect-video shadow-xl">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                          style={{ transform: 'scaleX(-1)' }}
-                        />
-                        <canvas ref={canvasRef} className="hidden" />
-                        {/* Overlay de guia */}
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                          <div className="border-2 border-white/30 rounded-full w-48 h-48" />
+                        <div className="absolute -top-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <CheckCircle2 className="h-3 w-3 text-white" />
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={capturePhoto}
-                          disabled={loading}
-                          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white h-11"
-                        >
-                          <Camera className="h-4 w-4 mr-2" />
-                          Capturar Foto
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={stopWebcam}
-                          disabled={loading}
-                          className="h-11"
-                        >
-                          Cancelar
-                        </Button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900">Foto Facial Cadastrada</p>
+                        <p className="text-xs text-slate-500">Selecione uma nova para substituir ou remova</p>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRemoveConfirm(true)}
+                        className="border-red-200 text-red-600 hover:bg-red-50 shrink-0 text-xs h-8"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Remover
+                      </Button>
                     </div>
-                  )}
-                </div>
-              )}
+                  </>
+                )}
 
-              {/* Upload */}
-              {mode === "upload" && (
-                <div className="space-y-4">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
+                {/* Seleção de modo */}
+                <SectionDivider label="Método de Captura" />
+                <div className="relative bg-slate-100 rounded-lg p-1">
+                  <div
+                    className={`absolute top-1 bottom-1 rounded-md bg-white shadow-sm transition-all duration-200 ease-in-out ${
+                      mode === "webcam" ? "left-1 right-[calc(50%-4px)]" : "left-[calc(50%-4px)] right-1"
+                    }`}
                   />
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50/50 transition-all cursor-pointer flex items-center justify-center group"
-                  >
-                    <div className="text-center space-y-3">
-                      <div className="h-16 w-16 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        <Upload className="h-8 w-8 text-gray-400 group-hover:text-orange-500 transition-colors" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 group-hover:text-orange-600 transition-colors">
-                          Clique para selecionar uma imagem
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          PNG, JPG ou JPEG
-                        </p>
-                      </div>
-                    </div>
+                  <div className="relative grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => {
+                        setMode("webcam");
+                        setError(null);
+                      }}
+                      className={`relative z-10 h-9 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
+                        mode === "webcam"
+                          ? "text-primary font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      Webcam
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMode("upload");
+                        stopWebcam();
+                        setError(null);
+                      }}
+                      className={`relative z-10 h-9 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
+                        mode === "upload"
+                          ? "text-primary font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Arquivo
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Dicas */}
-              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-blue-900 mb-2">💡 Dicas para melhor resultado</p>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• Certifique-se de que há apenas um rosto visível</li>
-                  <li>• Mantenha boa iluminação e olhe diretamente para a câmera</li>
-                  <li>• Remova óculos ou acessórios que cubram o rosto</li>
-                </ul>
-              </div>
-            </div>
-          ) : (
-            /* Etapa de Review */
-            <div className="space-y-6">
-              {capturedImage && (
-                <div className="space-y-4">
-                  {/* Preview da imagem */}
-                  <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden border-2 border-gray-200">
-                    <img
-                      src={capturedImage}
-                      alt="Preview"
-                      className="w-full h-auto max-h-96 object-contain"
-                    />
-                    {faceValidated && (
-                      <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span className="text-xs font-medium">Rosto validado</span>
+                {/* Mensagens de erro */}
+                {error && (
+                  <Alert variant="destructive" className="border-red-200 bg-red-50">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Webcam */}
+                {mode === "webcam" && (
+                  <div className="space-y-4">
+                    {/* Seletor de Câmera */}
+                    {videoDevices.length > 1 && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Câmera
+                        </label>
+                        <Select
+                          value={selectedDeviceId}
+                          onValueChange={(value) => {
+                            setSelectedDeviceId(value);
+                            if (stream) {
+                              stopWebcam();
+                              setTimeout(() => startWebcam(), 100);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione uma câmera" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                            {videoDevices.map((device) => (
+                              <SelectItem key={device.deviceId} value={device.deviceId}>
+                                {device.label || `Câmera ${videoDevices.indexOf(device) + 1}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {!stream ? (
+                      <div
+                        className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer"
+                        onClick={startWebcam}
+                      >
+                        <div className="text-center space-y-3">
+                          <div className="h-14 w-14 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg">
+                            <Camera className="h-7 w-7 text-slate-400" />
+                          </div>
+                          <Button
+                            onClick={(e) => { e.stopPropagation(); startWebcam(); }}
+                            variant="default"
+                            size="sm"
+                            disabled={!modelsLoaded}
+                            className="text-xs h-8"
+                          >
+                            {!modelsLoaded ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                Carregando...
+                              </>
+                            ) : (
+                              <>
+                                <Camera className="h-3.5 w-3.5 mr-1.5" />
+                                Iniciar Câmera
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="relative bg-gray-900 rounded-xl overflow-hidden aspect-video shadow-lg">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                            style={{ transform: 'scaleX(-1)' }}
+                          />
+                          <canvas ref={canvasRef} className="hidden" />
+                          {/* Overlay de guia */}
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div className="border-2 border-white/40 rounded-full w-40 h-40" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={capturePhoto}
+                            disabled={loading}
+                            className="flex-1 h-8 text-xs"
+                          >
+                            <Camera className="h-3.5 w-3.5 mr-1.5" />
+                            Capturar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={stopWebcam}
+                            disabled={loading}
+                            className="h-8 text-xs"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Status de validação */}
-                  {validating && (
-                    <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                      <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Validando rosto...</p>
-                        <p className="text-xs text-blue-700">Aguarde enquanto analisamos a imagem</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!validating && !faceValidated && error && (
-                    <Alert variant="destructive" className="border-red-200 bg-red-50">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-sm">{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {!validating && faceValidated && (
-                    <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
-                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-green-900">Rosto detectado com sucesso!</p>
-                        <p className="text-xs text-green-700">A imagem está pronta para ser salva</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Botão para revalidar */}
-                  {!validating && !faceValidated && (
-                    <Button
-                      onClick={validateFace}
-                      variant="outline"
-                      className="w-full"
+                {/* Upload */}
+                {mode === "upload" && (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-video bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border-2 border-dashed border-slate-300 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer flex items-center justify-center group"
                     >
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      Tentar Validar Novamente
-                    </Button>
-                  )}
+                      <div className="text-center space-y-3">
+                        <div className="h-14 w-14 mx-auto bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Upload className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-700 group-hover:text-primary transition-colors">
+                            Clique para selecionar
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            PNG, JPG ou JPEG
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dicas */}
+                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3">
+                  <p className="text-[10px] font-semibold text-blue-900 mb-1.5">💡 Dicas</p>
+                  <ul className="text-[10px] text-blue-800 space-y-0.5">
+                    <li>• Certifique-se de que há apenas um rosto visível</li>
+                    <li>• Mantenha boa iluminação e olhe diretamente para a câmera</li>
+                    <li>• Remova óculos ou acessórios que cubram o rosto</li>
+                  </ul>
                 </div>
-              )}
+              </>
+            ) : (
+              /* Etapa de Review */
+              <>
+                {capturedImage && (
+                  <div className="space-y-4">
+                    {/* Preview da imagem */}
+                    <SectionDivider label="Preview da Foto" />
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl overflow-hidden border-2 border-slate-200 max-w-full">
+                        <img
+                          src={capturedImage}
+                          alt="Preview"
+                          className="max-h-64 object-contain"
+                        />
+                        {faceValidated && (
+                          <div className="absolute top-3 right-3 bg-emerald-500 text-white px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span className="text-[10px] font-medium">Validado</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Mensagem de sucesso */}
-              {success && (
-                <Alert className="bg-green-50 border-green-200">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700">
-                    {isRemoving ? "Reconhecimento facial removido com sucesso!" : "Foto facial cadastrada com sucesso!"}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          )}
-        </div>
+                    {/* Status de validação */}
+                    {validating && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                        <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                        <div>
+                          <p className="text-xs font-medium text-blue-900">Validando rosto...</p>
+                          <p className="text-[10px] text-blue-700">Aguarde enquanto analisamos a imagem</p>
+                        </div>
+                      </div>
+                    )}
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30">
-          <div className="flex justify-between items-center gap-3">
+                    {!validating && !faceValidated && error && (
+                      <Alert variant="destructive" className="border-red-200 bg-red-50">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {!validating && faceValidated && (
+                      <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-emerald-900">Rosto detectado com sucesso!</p>
+                          <p className="text-[10px] text-emerald-700">A imagem está pronta para ser salva</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Botão para revalidar */}
+                    {!validating && !faceValidated && (
+                      <Button
+                        onClick={validateFace}
+                        variant="outline"
+                        className="w-full h-8 text-xs"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+                        Tentar Validar Novamente
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Mensagem de sucesso */}
+                {success && (
+                  <Alert className="bg-emerald-50 border-emerald-200">
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    <AlertDescription className="text-emerald-700">
+                      {isRemoving ? "Reconhecimento facial removido com sucesso!" : "Foto facial cadastrada com sucesso!"}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
             {step === "review" && currentFacialImageUrl && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowRemoveConfirm(true)}
                 disabled={loading || isRemoving || success}
-                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                 Remover
               </Button>
             )}
             <div className="flex gap-2 ml-auto">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
-                onClick={step === "capture" ? handleClose : () => setStep("capture")}
+                onClick={step === "capture" ? handleClose : () => {
+                  setStep("capture");
+                  setCapturedImage(null);
+                  setCapturedCanvas(null);
+                  setFaceValidated(false);
+                  setError(null);
+                }}
                 disabled={loading || isRemoving || success}
+                className="text-xs h-8"
               >
                 {step === "capture" ? "Cancelar" : "Voltar"}
               </Button>
@@ -724,25 +832,25 @@ export function FacialCaptureModal({
                   size="sm"
                   onClick={saveFacialImage}
                   disabled={loading || !faceValidated}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  className="text-xs h-8"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                       Salvando...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                       Salvar Foto
                     </>
                   )}
                 </Button>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de confirmação de remoção */}
       <DeleteConfirmDialog
@@ -755,6 +863,6 @@ export function FacialCaptureModal({
         cancelText="Cancelar"
         isLoading={isRemoving}
       />
-    </div>
+    </>
   );
 }

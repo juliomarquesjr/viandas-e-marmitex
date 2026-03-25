@@ -1,20 +1,50 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ChartLoading } from "../../components/ChartLoading";
-import { RangeSelector } from "./RangeSelector";
-import type { RangeOption, SalesPoint, StatusTotals } from "../types";
+import type { SalesPoint, StatusTotals } from "../types";
+
+function shortCurrency(value: number): string {
+    if (value >= 1000) return `${(value / 1000).toFixed(1).replace(".", ",")}k`;
+    return String(Math.round(value));
+}
+
+type StatusTooltipProps = {
+    active?: boolean;
+    payload?: { dataKey: string; value: number; color: string }[];
+    label?: string;
+    formatCurrency: (value: number) => string;
+};
+
+function StatusTooltip({ active, payload, label, formatCurrency }: StatusTooltipProps) {
+    if (!active || !payload?.length) return null;
+
+    const labelMap: Record<string, string> = {
+        confirmed: "Confirmadas",
+        pending: "Pendentes",
+    };
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-md text-sm">
+            <p className="font-medium text-slate-700 mb-2">{label}</p>
+            {payload.map((entry) => (
+                <div key={entry.dataKey} className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-slate-500">{labelMap[entry.dataKey] ?? entry.dataKey}:</span>
+                    <span className="font-semibold text-slate-900">{formatCurrency(entry.value)}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 type StatusComparisonCardProps = {
     loading: boolean;
     error: string | null;
     chartData: SalesPoint[];
     totalsByStatus: StatusTotals;
-    rangeOptions: RangeOption[];
-    currentRange: number;
-    onRangeChange: (value: number) => void;
     formatCurrency: (value: number) => string;
 };
 
@@ -23,68 +53,58 @@ export function StatusComparisonCard({
     error,
     chartData,
     totalsByStatus,
-    rangeOptions,
-    currentRange,
-    onRangeChange,
     formatCurrency,
 }: StatusComparisonCardProps) {
     return (
-        <Card className="relative overflow-hidden border border-slate-200/40 bg-white/98 shadow-sm hover:shadow-md transition-all duration-300 h-[600px] flex flex-col">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-green-50/40" />
-            <CardHeader className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-1">
-                    <CardTitle className="text-xl font-bold text-slate-800">Status das Vendas</CardTitle>
-                    <p className="text-sm text-slate-600">Comparação entre vendas pendentes e confirmadas</p>
+        <Card>
+            <CardHeader className="flex flex-col gap-3">
+                <div className="space-y-0.5">
+                    <CardTitle>Status das Vendas</CardTitle>
+                    <p className="text-sm text-slate-500">Comparação entre vendas pendentes e confirmadas</p>
                 </div>
-                <RangeSelector options={rangeOptions} currentValue={currentRange} onSelect={onRangeChange} />
+                <div className="flex items-center gap-4 text-sm">
+                    <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+                        <span className="text-slate-600">
+                            Confirmadas: <strong className="text-slate-800">{formatCurrency(totalsByStatus.confirmed)}</strong>
+                        </span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-amber-500" />
+                        <span className="text-slate-600">
+                            Pendentes: <strong className="text-slate-800">{formatCurrency(totalsByStatus.pending)}</strong>
+                        </span>
+                    </span>
+                </div>
             </CardHeader>
-            <CardContent className="relative space-y-6 flex-1 flex flex-col">
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 p-4 border border-orange-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-orange-700">Pendentes</p>
-                                <p className="text-xl font-bold text-orange-900">{formatCurrency(totalsByStatus.pending)}</p>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-orange-400 flex items-center justify-center shadow-sm">
-                                <div className="h-3 w-3 rounded-full bg-white" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="rounded-lg bg-gradient-to-r from-green-50 to-green-100 p-4 border border-green-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-green-700">Confirmadas</p>
-                                <p className="text-xl font-bold text-green-900">{formatCurrency(totalsByStatus.confirmed)}</p>
-                            </div>
-                            <div className="h-8 w-8 rounded-full bg-green-400 flex items-center justify-center shadow-sm">
-                                <div className="h-3 w-3 rounded-full bg-white" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <CardContent className="space-y-3">
                 {error && <p className="text-sm text-red-500">{error}</p>}
-                <div className="flex-1 w-full min-h-0">
+                <div className="h-72 w-full">
                     {loading ? (
                         <ChartLoading />
                     ) : (
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                                <XAxis dataKey="day" tickLine={false} axisLine={false} />
+                            <BarChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                <XAxis
+                                    dataKey="day"
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fontSize: 11, fill: "#94a3b8" }}
+                                />
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
-                                    tickFormatter={(value: number) => formatCurrency(value).replace("R$", "").trim()}
+                                    tickFormatter={shortCurrency}
+                                    tick={{ fontSize: 11, fill: "#94a3b8" }}
+                                    width={50}
                                 />
                                 <Tooltip
-                                    cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
-                                    formatter={(value: number) => formatCurrency(Number(value))}
-                                    labelStyle={{ color: "#0f172a", fontWeight: 500 }}
+                                    content={<StatusTooltip formatCurrency={formatCurrency} />}
+                                    cursor={{ fill: "rgba(148, 163, 184, 0.1)" }}
                                 />
-                                <Legend formatter={(value: string) => (value === "pending" ? "Pendentes" : "Confirmadas")} />
-                                <Bar dataKey="pending" name="Pendentes" fill="#F97316" radius={[6, 6, 0, 0]} />
-                                <Bar dataKey="confirmed" name="Confirmadas" fill="#22C55E" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="confirmed" name="Confirmadas" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="pending" name="Pendentes" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     )}

@@ -1,13 +1,16 @@
 import prisma from '@/lib/prisma';
 import bcrypt from "bcryptjs";
+import { del } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const size = parseInt(searchParams.get('size') || '10');
+    const pageParam = searchParams.get('page');
+    const sizeParam = searchParams.get('size');
+    const page = pageParam ? parseInt(pageParam) : null;
+    const size = sizeParam ? parseInt(sizeParam) : null;
     const role = searchParams.get('role') || 'all';
     const status = searchParams.get('status') || 'all';
     
@@ -31,11 +34,15 @@ export async function GET(request: Request) {
       where.active = status === 'active';
     }
     
+    const shouldPaginate = page !== null && size !== null;
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip: (page - 1) * size,
-        take: size,
+        ...(shouldPaginate && {
+          skip: (page - 1) * size,
+          take: size,
+        }),
         orderBy: { createdAt: 'desc' }
       }),
       prisma.user.count({ where })
@@ -48,12 +55,14 @@ export async function GET(request: Request) {
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       })),
-      pagination: {
-        page,
-        size,
-        total,
-        pages: Math.ceil(total / size)
-      }
+      ...(shouldPaginate && {
+        pagination: {
+          page,
+          size,
+          total,
+          pages: Math.ceil(total / size)
+        }
+      })
     });
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -100,6 +109,7 @@ export async function POST(request: Request) {
         password: hashedPassword,
         role: body.role || 'pdv',
         active: body.status === 'active',
+        imageUrl: body.imageUrl || null,
         facialImageUrl: body.facialImageUrl || undefined,
         facialDescriptor: body.facialDescriptor || undefined
       }
@@ -174,7 +184,19 @@ export async function PUT(request: Request) {
     
     // Preparar dados de atualização
     let updateData: any = {};
-    
+
+    // Limpar imagem de perfil antiga do Vercel Blob se uma nova URL foi enviada
+    if (data.imageUrl !== undefined) {
+      if (
+        existingUser.imageUrl &&
+        existingUser.imageUrl !== data.imageUrl &&
+        existingUser.imageUrl.includes('blob.vercel-storage.com')
+      ) {
+        try { await del(existingUser.imageUrl); } catch {}
+      }
+      updateData.imageUrl = data.imageUrl || null;
+    }
+
     // Se não for atualização apenas facial, incluir campos básicos
     if (!isFacialOnlyUpdate) {
       updateData.name = data.name;
@@ -233,10 +255,24 @@ export async function DELETE(request: Request) {
       );
     }
     
+    // Buscar imagens antes de deletar para limpeza no Vercel Blob
+    const userToDelete = await prisma.user.findUnique({
+      where: { id },
+      select: { imageUrl: true, facialImageUrl: true }
+    });
+
     await prisma.user.delete({
       where: { id }
     });
-    
+
+    // Remover imagens do Vercel Blob
+    if (userToDelete?.imageUrl?.includes('blob.vercel-storage.com')) {
+      try { await del(userToDelete.imageUrl); } catch {}
+    }
+    if (userToDelete?.facialImageUrl?.includes('blob.vercel-storage.com')) {
+      try { await del(userToDelete.facialImageUrl); } catch {}
+    }
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
