@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import QrScanner from "qr-scanner";
+QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 import { Button } from "@/app/components/ui/button";
 import {
   Camera,
@@ -27,7 +28,7 @@ export default function ScanPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shouldStartScanner, setShouldStartScanner] = useState(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
   const isScanningRef = useRef(false);
 
   // Verificar se há sessão aguardando
@@ -59,26 +60,16 @@ export default function ScanPage() {
   // Parar scanner
   const stopScanner = useCallback(async () => {
     isScanningRef.current = false;
-    
+
     if (scannerRef.current) {
       try {
-        // Verificar se o scanner está realmente rodando
-        const isRunning = scannerRef.current.isScanning;
-        if (isRunning) {
-          await scannerRef.current.stop();
-        }
-        scannerRef.current.clear();
+        scannerRef.current.stop();
+        scannerRef.current.destroy();
       } catch (error) {
         console.error("Erro ao parar scanner:", error);
-        // Forçar limpeza mesmo com erro
-        try {
-          scannerRef.current.clear();
-        } catch {
-          // Ignorar erros de limpeza
-        }
       }
+      scannerRef.current = null;
     }
-    scannerRef.current = null;
   }, []);
 
   // Enviar QR Code escaneado
@@ -134,72 +125,51 @@ export default function ScanPage() {
 
       // Garantir que qualquer scanner anterior foi completamente parado
       await stopScanner();
-      
+
       // Aguardar um pouco para garantir que a câmera foi liberada
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       if (!mounted) return;
 
       isScanningRef.current = true;
 
       try {
-        // Aguardar um pouco para garantir que o elemento está no DOM
+        // Aguardar para garantir que o elemento está no DOM
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (!mounted) return;
 
-        // Verificar se o elemento existe
-        const scannerElement = document.getElementById("qr-reader");
-        if (!scannerElement) {
-          throw new Error("Elemento do scanner não encontrado");
+        const videoEl = document.getElementById("qr-video") as HTMLVideoElement | null;
+        if (!videoEl) {
+          throw new Error("Elemento de vídeo do scanner não encontrado");
         }
 
-        // Inicializar scanner
-        scannerRef.current = new Html5Qrcode("qr-reader");
+        scannerRef.current = new QrScanner(
+          videoEl,
+          async (result) => {
+            if (!isScanningRef.current || !mounted) return;
+            await stopScanner();
+            await submitQRCode(result.data);
+          },
+          {
+            preferredCamera: "environment",
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            maxScansPerSecond: 10,
+          }
+        );
 
-        // Configuração simplificada para melhor compatibilidade mobile
-        const config = {
-          fps: 10,
-          qrbox: { width: 200, height: 200 },
-        };
-
-        // Tentar abrir câmera traseira primeiro
-        try {
-          await scannerRef.current.start(
-            { facingMode: "environment" },
-            config,
-            async (decodedText) => {
-              if (!isScanningRef.current || !mounted) return;
-              await stopScanner();
-              await submitQRCode(decodedText);
-            },
-            () => {}
-          );
-        } catch (envError) {
-          console.log("Câmera traseira falhou, tentando frontal...", envError);
-          // Fallback para câmera frontal
-          if (!mounted) return;
-          await scannerRef.current.start(
-            { facingMode: "user" },
-            config,
-            async (decodedText) => {
-              if (!isScanningRef.current || !mounted) return;
-              await stopScanner();
-              await submitQRCode(decodedText);
-            },
-            () => {}
-          );
-        }
+        await scannerRef.current.start();
       } catch (error) {
         console.error("Erro ao iniciar scanner:", error);
-        
+
         if (!mounted) return;
-        
+
         let errorMsg = "Erro ao acessar câmera. Verifique as permissões.";
-        
+
         if (error instanceof Error) {
           const msg = error.message.toLowerCase();
-          
+
           if (msg.includes("notreadableerror") || msg.includes("device in use") || msg.includes("track start failed")) {
             errorMsg = "A câmera está sendo usada por outro aplicativo. Feche outros apps que usam a câmera e tente novamente.";
           } else if (msg.includes("notallowederror") || msg.includes("permission") || msg.includes("denied")) {
@@ -214,7 +184,7 @@ export default function ScanPage() {
             errorMsg = error.message;
           }
         }
-        
+
         setErrorMessage(errorMsg);
         setScanState("error");
         isScanningRef.current = false;
@@ -270,7 +240,6 @@ export default function ScanPage() {
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          // Sessão expirou
           stopScanner();
           setScanState("no-session");
           setSessionInfo(null);
@@ -371,10 +340,13 @@ export default function ScanPage() {
           {/* Estado: Escaneando */}
           {scanState === "scanning" && (
             <div className="space-y-4">
-              <div
-                id="qr-reader"
-                className="rounded-xl overflow-hidden bg-slate-800 min-h-[300px]"
-              />
+              <div className="rounded-xl overflow-hidden bg-slate-800 relative">
+                <video
+                  id="qr-video"
+                  className="w-full"
+                  style={{ minHeight: "300px" }}
+                />
+              </div>
               <p className="text-center text-slate-400 text-sm">
                 Aponte a câmera para o QR Code da nota fiscal
               </p>
