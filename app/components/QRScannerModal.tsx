@@ -326,7 +326,10 @@ export function QRScannerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && !processing && handleClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent
+        overlayClassName="z-[100]"
+        className="z-[101] sm:max-w-xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle>
             <div

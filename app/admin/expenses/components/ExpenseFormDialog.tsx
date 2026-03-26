@@ -151,13 +151,6 @@ export function ExpenseFormDialog({
     return valid;
   };
 
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = e.target.value ? formatCurrencyInput(e.target.value) : "";
-    setDisplayPrice(formatted);
-    setFormData((f) => ({ ...f, amountCents: formatted ? convertToCents(formatted) : 0 }));
-    if (touched.amountCents) setErrors((er) => ({ ...er, amountCents: undefined }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -233,7 +226,8 @@ export function ExpenseFormDialog({
                 <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                   Valor <span className="text-red-400">*</span>
                 </Label>
-                <div className={`flex items-center border rounded-xl overflow-hidden transition-all ${
+                <div
+                  className={`flex items-center border rounded-xl overflow-hidden transition-all ${
                   isAmountLocked
                     ? "border-slate-200 bg-slate-50"
                     : touched.amountCents && errors.amountCents
@@ -254,7 +248,6 @@ export function ExpenseFormDialog({
                       setFormData((f) => ({ ...f, amountCents: formatted ? convertToCents(formatted) : 0 }));
                       if (touched.amountCents) setErrors((er) => ({ ...er, amountCents: undefined }));
                     }}
-                    onBlur={() => !isAmountLocked && handleBlur("amountCents")}
                     readOnly={isAmountLocked}
                     className={`flex-1 px-3 py-3 text-xl font-bold outline-none placeholder:text-slate-300 placeholder:font-normal placeholder:text-base ${
                       isAmountLocked
@@ -267,7 +260,9 @@ export function ExpenseFormDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => !isAmountLocked && setIsQRScannerOpen(true)}
+                    onClick={() => {
+                      if (!isAmountLocked) setIsQRScannerOpen(true);
+                    }}
                     disabled={isAmountLocked}
                     className="mx-2 text-xs h-7 px-2 gap-1.5 text-slate-400 hover:text-primary flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
