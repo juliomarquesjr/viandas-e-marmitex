@@ -71,30 +71,78 @@ async function processQRCode(qrData: string): Promise<InvoiceData> {
   if (qrData.startsWith('http://') || qrData.startsWith('https://')) {
     // Consultar diretamente pela URL
     console.log('[ScanSession API] Consultando URL diretamente...');
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
+
     try {
       const response = await fetch(qrData, {
         method: 'GET',
         headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Referer': 'https://www.sefaz.rs.gov.br/',
         },
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         throw new Error(`Erro ao consultar URL: ${response.status}`);
       }
-      
+
       const html = await response.text();
-      xmlString = extractXMLFromHTML(html);
-      
+
+      // Erro 902: parâmetros inválidos — tenta sem os parâmetros de pipe (|versao|tipo|...)
+      if (html.includes('902') || html.includes('Parâmetros informados inválidos')) {
+        console.warn('[ScanSession API] Erro 902 detectado, tentando sem parâmetros de pipe...');
+        const urlWithoutPipe = qrData.split('|')[0];
+        try {
+          const retryResponse = await fetch(urlWithoutPipe, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/xml, text/xml, text/html, */*',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': 'pt-BR,pt;q=0.9',
+              'Referer': 'https://www.sefaz.rs.gov.br/',
+            },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (retryResponse.ok) {
+            const retryText = await retryResponse.text();
+            if (!retryText.includes('902') && !retryText.includes('Parâmetros informados inválidos')) {
+              xmlString = extractXMLFromHTML(retryText);
+              if (!xmlString && (qrData.includes('sefaz.rs.gov.br') || qrData.includes('svrs.rs.gov.br'))) {
+                const { parseRSHTML } = await import('@/lib/nf-scanner/html-parser');
+                const rsData = parseRSHTML(retryText, chaveAcesso);
+                if (rsData) {
+                  rsData.urlConsulta = qrData;
+                  invoiceCache.set(getCacheKey(chaveAcesso), { data: rsData, timestamp: Date.now() });
+                  return rsData;
+                }
+              }
+            }
+          }
+        } catch (retryError) {
+          console.warn('[ScanSession API] Erro no retry sem pipe:', retryError);
+        }
+      } else {
+        xmlString = extractXMLFromHTML(html);
+
+        // Fallback: tenta parsear HTML do RS diretamente
+        if (!xmlString && (qrData.includes('sefaz.rs.gov.br') || qrData.includes('svrs.rs.gov.br'))) {
+          const { parseRSHTML } = await import('@/lib/nf-scanner/html-parser');
+          const rsData = parseRSHTML(html, chaveAcesso);
+          if (rsData) {
+            rsData.urlConsulta = qrData;
+            invoiceCache.set(getCacheKey(chaveAcesso), { data: rsData, timestamp: Date.now() });
+            return rsData;
+          }
+        }
+      }
+
     } catch (error) {
       clearTimeout(timeoutId);
       // Tentar via SEFAZ como fallback
