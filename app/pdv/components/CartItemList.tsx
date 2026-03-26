@@ -10,6 +10,7 @@ interface CartItemListProps {
   selectedIndex: number | null;
   setSelectedIndex: (index: number) => void;
   setCart: Dispatch<SetStateAction<CartItem[]>>;
+  onRequestRemoveItem: (index: number) => void;
 }
 
 export function CartItemList({
@@ -17,6 +18,7 @@ export function CartItemList({
   selectedIndex,
   setSelectedIndex,
   setCart,
+  onRequestRemoveItem,
 }: CartItemListProps) {
   if (cart.length === 0) {
     return (
@@ -42,7 +44,7 @@ export function CartItemList({
           item={item}
           index={idx}
           isSelected={idx === selectedIndex}
-          onMouseEnter={() => setSelectedIndex(idx)}
+          onClick={() => setSelectedIndex(idx)}
           onDecrement={() =>
             setCart((prev) =>
               prev.map((it, i) =>
@@ -58,7 +60,7 @@ export function CartItemList({
             )
           }
           onRemove={() =>
-            setCart((prev) => prev.filter((_, i) => i !== idx))
+            onRequestRemoveItem(idx)
           }
         />
       ))}

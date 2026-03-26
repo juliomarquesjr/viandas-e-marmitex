@@ -51,6 +51,7 @@ model Customer {
   orders     Order[]
   presets    CustomerProductPreset[] // Presets de produtos para este cliente
   preOrders  PreOrder[]
+  budgets    CustomerBudget[] // Orçamentos salvos para este cliente
 }
 
 // Modelo de Categoria de Produto
@@ -303,6 +304,25 @@ model Expense {
   @@index([paymentMethodId])
   @@index([date])
   @@index([nfChaveAcesso])
+}
+
+// Modelo de Orçamento Salvo do Cliente
+model CustomerBudget {
+  id          String   @id @default(uuid())
+  customerId  String
+  title       String
+  startDate   String   // "YYYY-MM-DD"
+  endDate     String   // "YYYY-MM-DD"
+  totalCents  Int      @default(0)
+  budgetData  Json     // Snapshot completo: BudgetDate[] serializado
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 // Modelo de Rastreamento de Entrega

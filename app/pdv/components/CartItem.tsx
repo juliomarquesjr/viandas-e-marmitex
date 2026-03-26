@@ -8,7 +8,7 @@ interface CartItemRowProps {
   item: CartItem;
   index: number;
   isSelected: boolean;
-  onMouseEnter: () => void;
+  onClick: () => void;
   onDecrement: () => void;
   onIncrement: () => void;
   onRemove: () => void;
@@ -18,7 +18,7 @@ export function CartItemRow({
   item,
   index,
   isSelected,
-  onMouseEnter,
+  onClick,
   onDecrement,
   onIncrement,
   onRemove,
@@ -30,7 +30,7 @@ export function CartItemRow({
           ? "bg-gradient-to-r from-primary/8 to-primary/5 ring-1 ring-primary/20 shadow-sm"
           : "hover:bg-slate-50/80"
       }`}
-      onMouseEnter={onMouseEnter}
+      onClick={onClick}
     >
       {/* Barra de acento lateral */}
       <div

@@ -8,17 +8,19 @@ import {
     Clock,
     ExternalLink,
     FileText,
+    FolderOpen,
     Loader2,
     Minus,
     Package,
     Plus,
-    Printer,
+    Save,
     Search,
     Tag,
     X,
     Check
 } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
+import { useCustomerBudgets } from "@/app/admin/customers/[id]/hooks/useCustomerBudgets";
 import { useToast } from "./Toast";
 import { Button } from "./ui/button";
 import {
@@ -32,6 +34,8 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { DateSummaryModal } from "./DateSummaryModal";
+import { SavedBudgetsPickerDialog, type SavedBudgetLoadData } from "./SavedBudgetsPickerDialog";
+import { SaveBudgetDialog } from "./SaveBudgetDialog";
 
 type Product = {
     id: string;
@@ -81,9 +85,10 @@ export function BudgetModal({
     isOpen,
     onClose,
     customerId,
-    customerName
+    customerName,
 }: BudgetModalProps) {
     const { showToast } = useToast();
+    const { loadBudgets } = useCustomerBudgets(customerId);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
     const [budgetDates, setBudgetDates] = useState<Map<string, BudgetDate>>(new Map());
@@ -100,6 +105,9 @@ export function BudgetModal({
     const [bulkApplyMode, setBulkApplyMode] = useState<'all' | 'empty'>('all');
     const [tempDateData, setTempDateData] = useState<BudgetDate | null>(null);
     const [applyDiscountToAllDays, setApplyDiscountToAllDays] = useState(false);
+    const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showSavedBudgetsPicker, setShowSavedBudgetsPicker] = useState(false);
 
     const fetchProducts = async () => {
         try {
@@ -120,6 +128,19 @@ export function BudgetModal({
         }
     };
 
+    const applyLoadedBudget = (budget: SavedBudgetLoadData) => {
+        setStartDate(budget.startDate);
+        setEndDate(budget.endDate);
+        setBudgetDates(new Map<string, BudgetDate>(
+            budget.budgetData.map((budgetDate) => [budgetDate.date, budgetDate as BudgetDate])
+        ));
+        setCurrentMonth(new Date(budget.startDate + 'T00:00:00'));
+        setSelectedDate(null);
+        setShowDateSummary(false);
+        setShowProductList(false);
+        setTempDateData(null);
+    };
+
     useEffect(() => {
         if (isOpen) {
             fetchProducts();
@@ -133,7 +154,9 @@ export function BudgetModal({
             setBudgetDates(new Map());
             setSelectedDate(null);
             setShowProductList(false);
+            setShowDateSummary(false);
             setShowBulkAddModal(false);
+            setShowSavedBudgetsPicker(false);
             setSelectedProductsForBulk(new Set());
             setBulkQuantity({});
             setTempDateData(null);
@@ -351,6 +374,38 @@ export function BudgetModal({
         return total;
     };
 
+    const defaultBudgetTitle = useMemo(() => {
+        if (!startDate) return "";
+        const d = new Date(startDate + 'T00:00:00');
+        return `Orçamento ${d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
+    }, [startDate]);
+
+    const handleSaveBudget = async (title: string) => {
+        setIsSaving(true);
+        try {
+            const budgetDataArray = Array.from(budgetDates.values());
+            const res = await fetch(`/api/customers/${customerId}/budgets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title,
+                    startDate,
+                    endDate,
+                    totalCents: calculateBudgetTotal(),
+                    budgetData: budgetDataArray,
+                }),
+            });
+            if (!res.ok) throw new Error("Falha ao salvar");
+            showToast("Orçamento salvo com sucesso!", "success");
+            setIsSaveDialogOpen(false);
+            await loadBudgets();
+        } catch {
+            showToast("Erro ao salvar orçamento", "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const calculateDateTotal = (date: string) => {
         const budgetDate = budgetDates.get(date);
         if (!budgetDate) return 0;
@@ -432,6 +487,7 @@ export function BudgetModal({
     const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
                 <DialogHeader>
@@ -710,6 +766,21 @@ export function BudgetModal({
                     </p>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowSavedBudgetsPicker(true)}
+                        >
+                            <FolderOpen className="h-4 w-4 mr-2" />
+                            Orçamentos Salvos
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsSaveDialogOpen(true)}
+                            disabled={!startDate || !endDate || enabledDatesCount === 0}
+                        >
+                            <Save className="h-4 w-4 mr-2" />
+                            Salvar Orçamento
+                        </Button>
                         <Button
                             onClick={generateFullBudget}
                             disabled={!startDate || !endDate || enabledDatesCount === 0}
@@ -1232,5 +1303,21 @@ export function BudgetModal({
                 )}
             </DialogContent>
         </Dialog>
+
+        <SavedBudgetsPickerDialog
+            customerId={customerId}
+            open={showSavedBudgetsPicker}
+            onOpenChange={setShowSavedBudgetsPicker}
+            onLoaded={applyLoadedBudget}
+        />
+
+        <SaveBudgetDialog
+            open={isSaveDialogOpen}
+            onOpenChange={setIsSaveDialogOpen}
+            defaultTitle={defaultBudgetTitle}
+            onConfirm={handleSaveBudget}
+            isSaving={isSaving}
+        />
+        </>
     );
 }

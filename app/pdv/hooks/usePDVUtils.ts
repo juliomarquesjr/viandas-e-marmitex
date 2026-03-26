@@ -10,6 +10,7 @@ interface UsePDVUtilsProps {
   selectedIndex: number | null;
   setSelectedIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  requestRemoveCartItem: (index: number) => void;
   setPaymentOpen: (open: boolean) => void;
   setDiscountOpen: (open: boolean) => void;
   setNewSaleConfirmOpen: (open: boolean) => void;
@@ -25,6 +26,7 @@ export function usePDVUtils({
   selectedIndex,
   setSelectedIndex,
   setCart,
+  requestRemoveCartItem,
   setPaymentOpen,
   setDiscountOpen,
   setNewSaleConfirmOpen,
@@ -81,8 +83,7 @@ export function usePDVUtils({
         return;
       }
       if (e.key === "Delete" && selectedIndex !== null) {
-        setCart((prev) => prev.filter((_, idx) => idx !== selectedIndex));
-        setSelectedIndex(null);
+        requestRemoveCartItem(selectedIndex);
         return;
       }
       if ((e.key === "+" || e.key === "=") && selectedIndex !== null) {
@@ -137,6 +138,7 @@ export function usePDVUtils({
       cartLength,
       selectedIndex,
       setCart,
+      requestRemoveCartItem,
       setSelectedIndex,
       setPaymentOpen,
       setDiscountOpen,
