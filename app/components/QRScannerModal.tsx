@@ -1,5 +1,7 @@
 "use client";
 
+import QrScanner from "qr-scanner";
+QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -210,7 +212,7 @@ export function QRScannerModal({
     }
   };
 
-  // Processar arquivo uploadado
+  // Processar arquivo uploadado — decodifica o QR no client-side e envia apenas o texto para a API
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -219,8 +221,17 @@ export function QRScannerModal({
     setProcessing(true);
 
     try {
+      // Decodifica o QR code no browser (evita usar APIs de browser no servidor)
+      let qrData: string;
+      try {
+        const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
+        qrData = result.data;
+      } catch {
+        throw new Error("Não foi possível detectar um QR code na imagem. Verifique se a imagem contém um QR code válido e nítido.");
+      }
+
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("qrData", qrData);
 
       const response = await fetch("/api/nf-scanner/process-qr", {
         method: "POST",
@@ -242,7 +253,6 @@ export function QRScannerModal({
       setError(err instanceof Error ? err.message : "Erro ao processar imagem");
     } finally {
       setProcessing(false);
-      // Limpar input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
