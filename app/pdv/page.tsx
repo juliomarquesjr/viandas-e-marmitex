@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DeleteConfirmDialog } from "../components/DeleteConfirmDialog";
 import { CalculatorModal } from "../components/CalculatorModal";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { useToast } from "../components/Toast";
@@ -28,6 +29,9 @@ export default function PDVPage() {
   const { showToast } = useToast();
   const [query, setQuery] = useState("");
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [isRemoveItemConfirmOpen, setRemoveItemConfirmOpen] = useState(false);
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  const [isClearCartConfirmOpen, setClearCartConfirmOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -70,6 +74,27 @@ export default function PDVPage() {
     inputRef.current?.focus();
   }, [customerHook.handleRemoveCustomer]);
 
+  const requestRemoveCartItem = useCallback((index: number) => {
+    setPendingRemoveIndex(index);
+    setRemoveItemConfirmOpen(true);
+  }, []);
+
+  const handleConfirmRemoveCartItem = useCallback(() => {
+    if (pendingRemoveIndex === null) return;
+
+    cartHook.setCart((prev) => prev.filter((_, idx) => idx !== pendingRemoveIndex));
+    cartHook.setSelectedIndex(null);
+    setPendingRemoveIndex(null);
+    setRemoveItemConfirmOpen(false);
+  }, [pendingRemoveIndex, cartHook.setCart, cartHook.setSelectedIndex]);
+
+  const handleRemoveItemDialogChange = useCallback((open: boolean) => {
+    setRemoveItemConfirmOpen(open);
+    if (!open) {
+      setPendingRemoveIndex(null);
+    }
+  }, []);
+
   // --- Ações (pagamento, finalização, nova venda) ---
   const actionsHook = usePDVActions({
     cart: cartHook.cart,
@@ -96,6 +121,7 @@ export default function PDVPage() {
     selectedIndex: cartHook.selectedIndex,
     setSelectedIndex: cartHook.setSelectedIndex,
     setCart: cartHook.setCart,
+    requestRemoveCartItem,
     setPaymentOpen: actionsHook.setPaymentOpen,
     setDiscountOpen: discountHook.setDiscountOpen,
     setNewSaleConfirmOpen: actionsHook.setNewSaleConfirmOpen,
@@ -137,6 +163,15 @@ export default function PDVPage() {
     actionsHook.setChange(0);
   }
 
+  function handleRequestClearCart() {
+    setClearCartConfirmOpen(true);
+  }
+
+  function handleConfirmClearCart() {
+    cartHook.clearCart();
+    setClearCartConfirmOpen(false);
+  }
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground grid grid-rows-[auto_minmax(0,1fr)]">
       <audio ref={audioRef} src="/audio/beep.mp3" preload="auto" />
@@ -171,7 +206,7 @@ export default function PDVPage() {
           setCart={cartHook.setCart}
           selectedIndex={cartHook.selectedIndex}
           setSelectedIndex={(i: number) => cartHook.setSelectedIndex(i)}
-          clearCart={cartHook.clearCart}
+          onRequestClearCart={handleRequestClearCart}
           subtotal={cartHook.subtotal}
           discountAmount={discountHook.discountAmount}
           discount={discountHook.discount}
@@ -182,12 +217,13 @@ export default function PDVPage() {
           onRemoveCustomer={customerHook.handleRemoveCustomer}
           onPaymentOpen={() => actionsHook.setPaymentOpen(true)}
           onDiscountOpen={() => discountHook.setDiscountOpen(true)}
+          onRequestRemoveItem={requestRemoveCartItem}
         />
       </main>
 
       {/* Hint de atalhos — visível quando carrinho vazio */}
       {cartHook.cart.length === 0 && (
-        <div className="fixed bottom-3 left-3 z-10 flex flex-col gap-1 bg-white/90 border border-slate-200 rounded-xl px-3 py-2.5 shadow-md text-xs text-muted-foreground backdrop-blur-sm">
+        <div className="fixed bottom-3 right-3 z-10 flex flex-col gap-1 bg-white/90 border border-slate-200 rounded-xl px-3 py-2.5 shadow-md text-xs text-muted-foreground backdrop-blur-sm">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">
             Atalhos
           </span>
@@ -265,6 +301,26 @@ export default function PDVPage() {
         onConfirm={customerHook.handleConfirmCustomerChange}
         confirmText="Alterar cliente"
         cancelText="Manter atual"
+      />
+
+      <DeleteConfirmDialog
+        open={isRemoveItemConfirmOpen}
+        onOpenChange={handleRemoveItemDialogChange}
+        title="Remover item do carrinho?"
+        description="Deseja remover o item selecionado do carrinho?"
+        onConfirm={handleConfirmRemoveCartItem}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+      />
+
+      <DeleteConfirmDialog
+        open={isClearCartConfirmOpen}
+        onOpenChange={setClearCartConfirmOpen}
+        title="Limpar carrinho?"
+        description="Deseja remover todos os itens do carrinho?"
+        onConfirm={handleConfirmClearCart}
+        confirmText="Limpar carrinho"
+        cancelText="Cancelar"
       />
 
       <ReceiptModal

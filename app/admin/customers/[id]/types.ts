@@ -19,6 +19,15 @@ export type Customer = {
   createdAt: string;
 };
 
+export type SavedBudgetSummary = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  totalCents: number;
+  createdAt: string;
+};
+
 export type Order = {
   id: string;
   status: string;

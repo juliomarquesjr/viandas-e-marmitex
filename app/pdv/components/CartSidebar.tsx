@@ -14,7 +14,7 @@ interface CartSidebarProps {
   setCart: Dispatch<SetStateAction<CartItem[]>>;
   selectedIndex: number | null;
   setSelectedIndex: (index: number) => void;
-  clearCart: () => void;
+  onRequestClearCart: () => void;
   subtotal: number;
   discountAmount: number;
   discount: DiscountState;
@@ -25,6 +25,7 @@ interface CartSidebarProps {
   onRemoveCustomer: () => void;
   onPaymentOpen: () => void;
   onDiscountOpen: () => void;
+  onRequestRemoveItem: (index: number) => void;
 }
 
 export function CartSidebar({
@@ -32,7 +33,7 @@ export function CartSidebar({
   setCart,
   selectedIndex,
   setSelectedIndex,
-  clearCart,
+  onRequestClearCart,
   subtotal,
   discountAmount,
   discount,
@@ -43,6 +44,7 @@ export function CartSidebar({
   onRemoveCustomer,
   onPaymentOpen,
   onDiscountOpen,
+  onRequestRemoveItem,
 }: CartSidebarProps) {
   return (
     <aside className="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] h-full max-h-full bg-white border border-slate-200 shadow-card rounded-xl overflow-hidden">
@@ -57,7 +59,7 @@ export function CartSidebar({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={clearCart}
+            onClick={onRequestClearCart}
             title="Limpar carrinho"
             className="text-slate-400 hover:text-red-500 hover:bg-red-50"
           >
@@ -82,6 +84,7 @@ export function CartSidebar({
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
         setCart={setCart}
+        onRequestRemoveItem={onRequestRemoveItem}
       />
 
       {/* Totais e CTAs */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -32,6 +33,35 @@ export function DeleteConfirmDialog({
   cancelText = "Cancelar",
   isLoading = false,
 }: DeleteConfirmDialogProps) {
+  const alertAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/deletealert.mp3");
+    audio.preload = "auto";
+    alertAudioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      alertAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const audio = alertAudioRef.current;
+    if (!audio) return;
+
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      // Fallback para alguns navegadores mais restritivos.
+      const fallbackAudio = new Audio("/audio/deletealert.mp3");
+      fallbackAudio.play().catch(() => {
+        // Ignora bloqueios de autoplay do navegador.
+      });
+    });
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col">
