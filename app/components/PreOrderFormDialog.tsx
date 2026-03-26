@@ -611,8 +611,9 @@ export function PreOrderFormDialog({
       {showProductModal && (
         <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
           <DialogContent
-            className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden z-[51]"
-            overlayClassName="z-[50]"
+            /* Garante que o modal de produtos fique acima do modal principal */
+            className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden z-[80]"
+            overlayClassName="z-[79]"
           >
             {/* ── HEADER ── */}
             <DialogHeader>
