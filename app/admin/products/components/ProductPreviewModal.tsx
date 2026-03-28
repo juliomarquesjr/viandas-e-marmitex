@@ -221,15 +221,30 @@ export function ProductPreviewModal({
                 gradient="bg-gradient-to-br from-emerald-50/80 to-green-50/40"
                 border="border-emerald-100/70"
               >
-                <div className="text-2xl font-extrabold text-emerald-700 tabular-nums">
-                  {formatPrice(product.priceCents)}
-                </div>
-                {product.pricePerKgCents ? (
-                  <div className="flex items-center gap-1 mt-1 text-sm text-emerald-600">
-                    <Weight className="h-3.5 w-3.5 shrink-0" />
-                    {formatPrice(product.pricePerKgCents)}/kg
-                  </div>
-                ) : null}
+                {product.pricePerKgCents && product.pricePerKgCents > 0 ? (
+                  <>
+                    <div className="text-2xl font-extrabold text-emerald-700 tabular-nums">
+                      {formatPrice(product.pricePerKgCents!)}/kg
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 text-sm text-emerald-600">
+                      <Weight className="h-3.5 w-3.5 shrink-0" />
+                      Preço por kilo
+                    </div>
+                    <div className="text-sm text-emerald-600/80 mt-0.5">
+                      Unit: {formatPrice(product.priceCents)}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-extrabold text-emerald-700 tabular-nums">
+                      {formatPrice(product.priceCents)}
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 text-sm text-emerald-600">
+                      <DollarSign className="h-3.5 w-3.5 shrink-0" />
+                      Preço unitário
+                    </div>
+                  </>
+                )}
               </InfoSection>
 
               <InfoSection
