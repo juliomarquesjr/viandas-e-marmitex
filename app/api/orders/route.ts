@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { decrementStockForItems, restoreStockForItems } from '@/lib/stock/orderStock';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -275,28 +276,7 @@ export async function POST(request: Request) {
         }
       });
       
-      // Atualizar estoque dos produtos
-      for (const item of body.items) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { 
-            id: true, 
-            stockEnabled: true, 
-            stock: true 
-          }
-        });
-        
-        if (product && product.stockEnabled && product.stock !== null) {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        }
-      }
+      await decrementStockForItems(prisma, body.items);
       
       return newOrder;
     });
@@ -404,7 +384,16 @@ export async function DELETE(request: Request) {
     
     // Verificar se o pedido existe
     const order = await prisma.order.findUnique({
-      where: { id }
+      where: { id },
+      select: {
+        id: true,
+        items: {
+          select: {
+            productId: true,
+            quantity: true,
+          },
+        },
+      },
     });
     
     if (!order) {
@@ -414,14 +403,18 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Excluir itens primeiro (devido à restrições de chave estrangeira)
-    await prisma.orderItem.deleteMany({
-      where: { orderId: id }
-    });
-    
-    // Excluir pedido
-    await prisma.order.delete({
-      where: { id }
+    await prisma.$transaction(async (tx) => {
+      await restoreStockForItems(tx, order.items);
+
+      // Excluir itens primeiro (devido à restrições de chave estrangeira)
+      await tx.orderItem.deleteMany({
+        where: { orderId: id }
+      });
+
+      // Excluir pedido
+      await tx.order.delete({
+        where: { id }
+      });
     });
     
     return NextResponse.json({ message: 'Order deleted successfully' });

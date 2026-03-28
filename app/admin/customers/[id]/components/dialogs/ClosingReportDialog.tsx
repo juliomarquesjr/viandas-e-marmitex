@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ExternalLink, Printer } from "lucide-react";
+import { ExternalLink, Loader2, Printer, Search } from "lucide-react";
 import { Button } from "../../../../../components/ui/button";
 import {
   Dialog,
@@ -30,6 +30,8 @@ interface ClosingReportDialogProps {
   setDefaultDates: () => void;
   generateReport: (isThermal: boolean) => boolean;
   onSendEmailSuccess: () => void;
+  isLoadingLastEntry: boolean;
+  fetchLastEntryDate: () => void;
 }
 
 export function ClosingReportDialog({
@@ -45,6 +47,8 @@ export function ClosingReportDialog({
   setDefaultDates,
   generateReport,
   onSendEmailSuccess,
+  isLoadingLastEntry,
+  fetchLastEntryDate,
 }: ClosingReportDialogProps) {
   useEffect(() => {
     if (isOpen && !config.startDate && !config.endDate) {
@@ -102,6 +106,20 @@ export function ClosingReportDialog({
                 max={config.endDate || undefined}
                 className="w-full"
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLastEntryDate}
+                disabled={isLoadingLastEntry}
+                className="text-xs h-7 w-full"
+              >
+                {isLoadingLastEntry ? (
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                ) : (
+                  <Search className="h-3 w-3 mr-1.5" />
+                )}
+                Buscar última entrada
+              </Button>
             </div>
             <div className="space-y-1.5">
               <label htmlFor="endDate" className="text-xs font-medium text-slate-500 uppercase tracking-wide">

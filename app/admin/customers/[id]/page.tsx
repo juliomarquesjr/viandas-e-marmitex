@@ -75,6 +75,8 @@ export default function CustomerDetailPage() {
     setShowPaymentsTotal,
     setDefaultDates,
     handleGenerateReport,
+    isLoadingLastEntry,
+    fetchLastEntryDate,
   } = useClosingReport(customer);
 
   useEffect(() => {
@@ -180,6 +182,8 @@ export default function CustomerDetailPage() {
         setDefaultDates={setDefaultDates}
         generateReport={handleGenerateReport}
         onSendEmailSuccess={() => setIsReportDialogOpen(false)}
+        isLoadingLastEntry={isLoadingLastEntry}
+        fetchLastEntryDate={fetchLastEntryDate}
       />
 
       {isBudgetModalOpen && (
