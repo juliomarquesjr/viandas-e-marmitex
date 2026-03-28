@@ -15,12 +15,14 @@ import {
   Edit,
   Trash2,
   Barcode,
+  Tag,
   ChevronsLeft,
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import type { Product } from "../page";
+import type { Product, Category } from "../page";
+import { DynamicCategoryIcon } from "./CategoryIconPicker";
 
 // =============================================================================
 // MENU DE AÇÕES DO CARD
@@ -109,14 +111,14 @@ function CardActionsMenu({
 
 function ProductCard({
   product,
-  getCategoryName,
+  getCategory,
   formatPrice,
   onEdit,
   onDelete,
   onDownloadBarcode,
 }: {
   product: Product;
-  getCategoryName: (id?: string) => string;
+  getCategory: (id?: string) => Category | undefined;
   formatPrice: (cents: number) => string;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
@@ -164,9 +166,19 @@ function ProductCard({
         </p>
 
         {/* Categoria */}
-        <p className="text-xs text-slate-400 truncate">
-          {getCategoryName(product.categoryId)}
-        </p>
+        {(() => {
+          const cat = getCategory(product.categoryId);
+          return (
+            <div className="flex items-center gap-1 text-xs text-slate-400">
+              {cat?.icon ? (
+                <DynamicCategoryIcon name={cat.icon} className="h-3 w-3 shrink-0" />
+              ) : (
+                <Tag className="h-3 w-3 shrink-0" />
+              )}
+              <span className="truncate">{cat?.name ?? "Sem categoria"}</span>
+            </div>
+          );
+        })()}
 
         {/* Preço */}
         <p className="font-semibold text-slate-900 text-sm">
@@ -204,7 +216,7 @@ function ProductCard({
 
 export interface ProductGridViewProps {
   products: Product[];
-  getCategoryName: (id?: string) => string;
+  getCategory: (id?: string) => Category | undefined;
   formatPrice: (cents: number) => string;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
@@ -222,7 +234,7 @@ export interface ProductGridViewProps {
 
 export function ProductGridView({
   products,
-  getCategoryName,
+  getCategory,
   formatPrice,
   onEdit,
   onDelete,
@@ -259,7 +271,7 @@ export function ProductGridView({
           >
             <ProductCard
               product={product}
-              getCategoryName={getCategoryName}
+              getCategory={getCategory}
               formatPrice={formatPrice}
               onEdit={onEdit}
               onDelete={onDelete}

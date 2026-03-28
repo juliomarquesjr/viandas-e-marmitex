@@ -58,6 +58,7 @@ model Customer {
 model Category {
   id        String   @id @default(uuid())
   name      String   @unique
+  icon      String?  // Emoji ou caractere visual (ex: "🍱", "🥗")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

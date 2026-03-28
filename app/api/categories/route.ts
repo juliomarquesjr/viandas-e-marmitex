@@ -4,10 +4,11 @@ import prisma from '@/lib/prisma';
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { products: true } } },
     });
-    
-    return NextResponse.json(categories);
+
+    return NextResponse.json({ data: categories });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return NextResponse.json(
@@ -20,33 +21,32 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
-    // Validação básica
+
     if (!body.name) {
       return NextResponse.json(
         { error: 'Name is required' },
         { status: 400 }
       );
     }
-    
-    // Verificar se a categoria já existe
+
     const existingCategory = await prisma.category.findFirst({
       where: { name: { mode: 'insensitive', equals: body.name } }
     });
-    
+
     if (existingCategory) {
       return NextResponse.json(
-        { error: 'Category with this name already exists' },
+        { error: 'Já existe uma categoria com este nome' },
         { status: 400 }
       );
     }
-    
+
     const category = await prisma.category.create({
       data: {
-        name: body.name
+        name: body.name,
+        icon: body.icon || null,
       }
     });
-    
+
     return NextResponse.json(category);
   } catch (error) {
     console.error('Error creating category:', error);
