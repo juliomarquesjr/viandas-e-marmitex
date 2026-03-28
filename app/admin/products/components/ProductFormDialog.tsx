@@ -8,6 +8,8 @@ import {
     Image,
     Loader2,
     Package,
+    Plus,
+    Shapes,
     Tag,
     Trash2,
     Upload,
@@ -30,6 +32,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import { SectionDivider } from "@/app/components/ui/section-divider";
+import { CategoryIconPicker, DynamicCategoryIcon } from "./CategoryIconPicker";
 
 interface ProductFormDialogProps {
   open: boolean;
@@ -41,6 +44,7 @@ interface ProductFormDialogProps {
   categories: Category[];
   editingProduct: Product | null;
   formatPriceToReais: (cents: number) => string;
+  onCategoryAdded?: (newCategory: Category) => void;
 }
 
 type FormErrors = Partial<Record<"name" | "barcode" | "priceCents" | "pricePerKgCents" | "productType" | "stock", string>>;
@@ -56,6 +60,7 @@ export function ProductFormDialog({
   categories,
   editingProduct,
   formatPriceToReais,
+  onCategoryAdded,
 }: ProductFormDialogProps) {
   const { showToast } = useToast();
   const [displayPrice, setDisplayPrice] = useState("");
@@ -69,6 +74,12 @@ export function ProductFormDialog({
   const [oldImageUrl, setOldImageUrl] = useState<string | null>(null);
   const hasInitializedPriceType = useRef(false);
   const previousOpenState = useRef(false);
+
+  // Quick-add de categoria
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAddIcon, setQuickAddIcon] = useState<string | null>(null);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   // Determinar tipo de preço apenas quando o modal abre pela primeira vez
   useEffect(() => {
@@ -177,6 +188,30 @@ export function ProductFormDialog({
 
   const err = (field: keyof FormErrors) =>
     touched[field] && errors[field] ? "border-red-400 focus:ring-red-400/20" : "";
+
+  const saveQuickCategory = async () => {
+    if (!quickAddName.trim()) return;
+    try {
+      setIsSavingCategory(true);
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: quickAddName.trim(), icon: quickAddIcon || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Falha ao criar categoria");
+      onCategoryAdded?.(data);
+      updateFormData("category_id", data.id);
+      setIsQuickAddOpen(false);
+      setQuickAddName("");
+      setQuickAddIcon(null);
+      showToast("Categoria criada", "success");
+    } catch (e: any) {
+      showToast(e?.message || "Erro ao criar categoria", "error");
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
 
   const errText = (field: keyof FormErrors) =>
     touched[field] && errors[field] ? errors[field] : null;
@@ -425,21 +460,37 @@ export function ProductFormDialog({
                   <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                     Categoria
                   </Label>
-                  <div className="relative">
-                    <select
-                      id="category"
-                      value={formData.category_id || ""}
-                      onChange={(e) => updateFormData("category_id", e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/15 focus:outline-none text-sm bg-white appearance-none"
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <select
+                        id="category"
+                        value={formData.category_id || ""}
+                        onChange={(e) => updateFormData("category_id", e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/15 focus:outline-none text-sm bg-white appearance-none"
+                      >
+                        <option value="">Selecione uma categoria</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      title="Adicionar categoria"
+                      onClick={() => {
+                        setQuickAddName("");
+                        setQuickAddIcon(null);
+                        setIsQuickAddOpen(true);
+                      }}
+                      className="flex-shrink-0 h-9 w-9"
                     >
-                      <option value="">Selecione uma categoria</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
 
@@ -748,6 +799,74 @@ export function ProductFormDialog({
         onPhotoSelected={handlePhotoSelected}
         onRemovePhoto={removeImage}
       />
+
+      {/* ── Quick-add de categoria ── */}
+      <Dialog open={isQuickAddOpen} onOpenChange={(v) => !v && setIsQuickAddOpen(false)}>
+        <DialogContent className="sm:max-w-sm" higherZIndex>
+          <DialogHeader>
+            <DialogTitle>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
+                style={{
+                  background: "var(--modal-header-icon-bg)",
+                  outline: "1px solid var(--modal-header-icon-ring)",
+                }}
+              >
+                <Shapes className="h-5 w-5 text-primary" />
+              </div>
+              Nova Categoria
+            </DialogTitle>
+            <DialogDescription>
+              Crie uma categoria rapidamente para este produto
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 py-5 space-y-4">
+            {/* Nome */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Nome <span className="text-red-400">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  value={quickAddName}
+                  onChange={(e) => setQuickAddName(e.target.value)}
+                  className="pl-9"
+                  placeholder="Ex: Marmitas"
+                  autoFocus
+                />
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              </div>
+            </div>
+
+            {/* Ícone */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Ícone
+              </Label>
+              <CategoryIconPicker value={quickAddIcon} onChange={setQuickAddIcon} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <div className="flex items-center gap-2 w-full justify-end">
+              <Button variant="outline" onClick={() => setIsQuickAddOpen(false)} disabled={isSavingCategory}>
+                Cancelar
+              </Button>
+              <Button onClick={saveQuickCategory} disabled={isSavingCategory || !quickAddName.trim()}>
+                {isSavingCategory ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+                    Salvando...
+                  </span>
+                ) : (
+                  "Criar"
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

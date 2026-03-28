@@ -26,12 +26,15 @@ import {
   Image as ImageIcon,
   CheckCircle,
   XCircle,
+  Shapes,
 } from "lucide-react";
 import { ProductStatsCards } from "./components/ProductStatsCards";
 import { ProductPageSkeleton } from "./components/ProductSkeletonLoader";
 import { ProductGridView } from "./components/ProductGridView";
 import { ProductPreviewModal } from "./components/ProductPreviewModal";
 import { ProductFilterBar } from "./components/ProductFilterBar";
+import { ManageCategoriesDialog } from "./components/ManageCategoriesDialog";
+import { DynamicCategoryIcon } from "./components/CategoryIconPicker";
 
 // =============================================================================
 // TIPOS
@@ -56,6 +59,7 @@ export type Product = {
 export type Category = {
   id: string;
   name: string;
+  icon?: string | null;
 };
 
 // =============================================================================
@@ -149,6 +153,7 @@ export default function AdminProductsPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "inactive">("all");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "sellable" | "addon">("all");
+  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
 
   // Estados de paginação
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -206,6 +211,9 @@ export default function AdminProductsPage() {
   // Estado do preview
   const [previewProduct, setPreviewProduct] = React.useState<Product | null>(null);
 
+  // Estado do modal de categorias
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = React.useState(false);
+
   // Debounce da busca
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -246,6 +254,20 @@ export default function AdminProductsPage() {
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleCategoriesChanged = React.useCallback(async () => {
+    const res = await fetch("/api/categories");
+    if (res.ok) {
+      const result = await res.json();
+      setCategories(result.data || []);
+    }
+  }, []);
+
+  const handleCategoryAdded = React.useCallback((newCategory: Category) => {
+    setCategories((prev) =>
+      [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name))
+    );
+  }, []);
 
   // Funções do formulário
   const resetForm = () => {
@@ -448,12 +470,14 @@ export default function AdminProductsPage() {
     }).format(cents / 100);
   };
 
-  // Obter nome da categoria
-  const getCategoryName = (categoryId?: string) => {
-    if (!categoryId) return "Sem categoria";
-    const category = categories.find((c) => c.id === categoryId);
-    return category?.name || "Sem categoria";
-  };
+  // Obter categoria completa (com ícone)
+  const getCategory = React.useCallback(
+    (categoryId?: string): Category | undefined => {
+      if (!categoryId) return undefined;
+      return categories.find((c) => c.id === categoryId);
+    },
+    [categories]
+  );
 
   // Colunas da tabela
   const columns: Column<Product>[] = [
@@ -485,11 +509,24 @@ export default function AdminProductsPage() {
     {
       key: "category",
       header: "Categoria",
-      render: (_, product) => (
-        <span className="text-sm text-slate-600">
-          {getCategoryName(product.categoryId)}
-        </span>
-      ),
+      render: (_, product) => {
+        const cat = getCategory(product.categoryId);
+        if (!cat) {
+          return <span className="text-sm text-slate-400">Sem categoria</span>;
+        }
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 shrink-0">
+              {cat.icon ? (
+                <DynamicCategoryIcon name={cat.icon} className="h-3 w-3 text-primary" />
+              ) : (
+                <Shapes className="h-3 w-3 text-primary" />
+              )}
+            </span>
+            <span className="text-sm text-slate-700">{cat.name}</span>
+          </div>
+        );
+      },
     },
     {
       key: "price",
@@ -555,9 +592,13 @@ export default function AdminProductsPage() {
         (statusFilter === "inactive" && !product.active);
       const matchesType =
         typeFilter === "all" || product.productType === typeFilter;
-      return matchesSearch && matchesStatus && matchesType;
+      const matchesCategory =
+        categoryFilter === "all" ||
+        (categoryFilter === "none" && !product.categoryId) ||
+        product.categoryId === categoryFilter;
+      return matchesSearch && matchesStatus && matchesType && matchesCategory;
     });
-  }, [products, searchTerm, statusFilter, typeFilter]);
+  }, [products, searchTerm, statusFilter, typeFilter, categoryFilter]);
 
   const totalFilteredPages = Math.max(
     1,
@@ -583,10 +624,16 @@ export default function AdminProductsPage() {
         description="Gerencie os produtos do estabelecimento"
         icon={Package}
         actions={
-          <Button size="sm" onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Novo Produto
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsManageCategoriesOpen(true)}>
+              <Shapes className="h-4 w-4 mr-1.5" />
+              Categorias
+            </Button>
+            <Button size="sm" onClick={() => openForm()}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Novo Produto
+            </Button>
+          </div>
         }
       />
 
@@ -605,6 +652,9 @@ export default function AdminProductsPage() {
             onStatusChange={setStatusFilter}
             typeFilter={typeFilter}
             onTypeChange={setTypeFilter}
+            categories={categories}
+            categoryFilter={categoryFilter}
+            onCategoryChange={setCategoryFilter}
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
             totalCount={products.length}
@@ -645,7 +695,7 @@ export default function AdminProductsPage() {
           ) : (
             <ProductGridView
               products={paginatedProducts}
-              getCategoryName={getCategoryName}
+              getCategory={getCategory}
               formatPrice={formatPrice}
               onEdit={openForm}
               onDelete={(id) => setDeleteConfirm(id)}
@@ -688,6 +738,14 @@ export default function AdminProductsPage() {
         categories={categories}
         editingProduct={editingProduct}
         formatPriceToReais={(cents) => formatPrice(cents)}
+        onCategoryAdded={handleCategoryAdded}
+      />
+
+      {/* Modal de Gerenciamento de Categorias */}
+      <ManageCategoriesDialog
+        isOpen={isManageCategoriesOpen}
+        onClose={() => setIsManageCategoriesOpen(false)}
+        onChanged={handleCategoriesChanged}
       />
 
       {/* Dialog de Confirmação de Exclusão */}

@@ -19,8 +19,11 @@ import {
   SlidersHorizontal,
   CircleDot,
   Tag,
+  Shapes,
 } from "lucide-react";
 import { Label } from "@/app/components/ui/label";
+import type { Category } from "../page";
+import { DynamicCategoryIcon } from "./CategoryIconPicker";
 
 // =============================================================================
 // TIPOS
@@ -33,6 +36,9 @@ interface ProductFilterBarProps {
   onStatusChange: (value: "all" | "active" | "inactive") => void;
   typeFilter: "all" | "sellable" | "addon";
   onTypeChange: (value: "all" | "sellable" | "addon") => void;
+  categories: Category[];
+  categoryFilter: string;
+  onCategoryChange: (value: string) => void;
   viewMode: "table" | "grid";
   onViewModeChange: (mode: "table" | "grid") => void;
   totalCount?: number;
@@ -64,6 +70,9 @@ export function ProductFilterBar({
   onStatusChange,
   typeFilter,
   onTypeChange,
+  categories,
+  categoryFilter,
+  onCategoryChange,
   viewMode,
   onViewModeChange,
   totalCount,
@@ -71,8 +80,16 @@ export function ProductFilterBar({
 }: ProductFilterBarProps) {
   const hasStatusFilter = statusFilter !== "all";
   const hasTypeFilter = typeFilter !== "all";
-  const hasAnyFilter = hasStatusFilter || hasTypeFilter;
-  const activeFilterCount = (hasStatusFilter ? 1 : 0) + (hasTypeFilter ? 1 : 0);
+  const hasCategoryFilter = categoryFilter !== "all";
+  const hasAnyFilter = hasStatusFilter || hasTypeFilter || hasCategoryFilter;
+  const activeFilterCount = (hasStatusFilter ? 1 : 0) + (hasTypeFilter ? 1 : 0) + (hasCategoryFilter ? 1 : 0);
+
+  const activeCategoryLabel = categoryFilter === "none"
+    ? "Sem categoria"
+    : categories.find((c) => c.id === categoryFilter)?.name ?? categoryFilter;
+  const activeCategoryIcon = categoryFilter !== "none"
+    ? categories.find((c) => c.id === categoryFilter)?.icon
+    : undefined;
 
   // Contagem a exibir: filtrada quando há filtros, total caso contrário
   const displayCount = hasAnyFilter ? filteredCount : totalCount;
@@ -194,6 +211,42 @@ export function ProductFilterBar({
           </div>
         </div>
 
+        {/* Filtro de Categoria */}
+        {categories.length > 0 && (
+          <div className="space-y-1.5 shrink-0 w-full sm:w-[180px]">
+            <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Categoria
+            </Label>
+            <div className="relative">
+              <Select
+                value={categoryFilter}
+                onValueChange={onCategoryChange}
+              >
+                <SelectTrigger className="pl-9">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent className="z-[9999] bg-white border border-slate-200 shadow-lg" position="popper" side="bottom" align="start">
+                  <SelectItem value="all">Todas as Categorias</SelectItem>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <span className="flex items-center gap-2">
+                        {cat.icon ? (
+                          <DynamicCategoryIcon name={cat.icon} className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                        ) : (
+                          <Tag className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        )}
+                        {cat.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Shapes className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        )}
+
         {/* Separador vertical (só desktop) */}
         <div className="hidden sm:block w-px h-10 bg-slate-200 shrink-0" />
 
@@ -266,6 +319,24 @@ export function ProductFilterBar({
                 onClick={() => onTypeChange("all")}
                 className="rounded hover:bg-blue-200 transition-colors p-0.5 cursor-pointer"
                 aria-label={`Remover filtro ${TYPE_LABELS[typeFilter]}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {hasCategoryFilter && (
+            <Badge variant="info" size="sm" className="pl-2 pr-1 gap-1.5 flex items-center">
+              {activeCategoryIcon ? (
+                <DynamicCategoryIcon name={activeCategoryIcon} className="h-3 w-3 shrink-0" />
+              ) : (
+                <Tag className="h-3 w-3 shrink-0" />
+              )}
+              {activeCategoryLabel}
+              <button
+                type="button"
+                onClick={() => onCategoryChange("all")}
+                className="rounded hover:bg-blue-200 transition-colors p-0.5 cursor-pointer"
+                aria-label={`Remover filtro ${activeCategoryLabel}`}
               >
                 <X className="h-3 w-3" />
               </button>
