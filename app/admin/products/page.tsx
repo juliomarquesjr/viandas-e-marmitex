@@ -297,7 +297,7 @@ export default function AdminProductsPage() {
     resetForm();
   };
 
-  const handleFormSubmit = async (e: React.FormEvent, formData: any) => {
+  const handleFormSubmit = async (e: React.FormEvent, formData: any, finalImageUrl?: string) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -308,6 +308,10 @@ export default function AdminProductsPage() {
     try {
       const priceCents = parseInt(String(formData.priceCents || "0"), 10);
       const pricePerKgParsed = parseInt(String(formData.pricePerKgCents || "0"), 10);
+      
+      // Usa a finalImageUrl se fornecida (do upload), caso contrário usa a URL do formData
+      const imageUrlToSave = finalImageUrl || formData.imageUrl;
+      
       const productData = {
         name: formData.name,
         barcode: formData.barcode || undefined,
@@ -324,7 +328,7 @@ export default function AdminProductsPage() {
         stockEnabled: formData.stockEnabled,
         stock: formData.stockEnabled ? parseInt(formData.stock || "0") : undefined,
         active: formData.active,
-        imageUrl: formData.imageUrl || undefined,
+        imageUrl: imageUrlToSave || undefined,
         productType: formData.productType,
       };
 
@@ -670,34 +674,19 @@ export default function AdminProductsPage() {
           setPreviewProduct(null);
           openForm(product);
         }}
+        onDownloadBarcode={downloadBarcode}
       />
 
       {/* Dialog de Formulário */}
       <ProductFormDialog
         open={isFormOpen}
         onClose={closeForm}
-        onSubmit={(e) => handleFormSubmit(e, formData)}
+        onSubmit={(e, finalImageUrl) => handleFormSubmit(e, formData, finalImageUrl)}
         formData={formData}
         setFormData={setFormData}
         isUploading={false}
         categories={categories}
         editingProduct={editingProduct}
-        handleFileUpload={async (file) => {
-          // Upload simples
-          const uploadFormData = new FormData();
-          uploadFormData.append("file", file);
-          if (formData.imageUrl) {
-            uploadFormData.append("oldImageUrl", formData.imageUrl);
-          }
-          const response = await fetch("/api/upload", {
-            method: "POST",
-            body: uploadFormData,
-          });
-          if (response.ok) {
-            const { url } = await response.json();
-            setFormData((prev) => ({ ...prev, imageUrl: url }));
-          }
-        }}
         formatPriceToReais={(cents) => formatPrice(cents)}
       />
 

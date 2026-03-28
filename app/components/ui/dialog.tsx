@@ -12,12 +12,13 @@ export const DialogPortal = DialogPrimitive.Portal;
 
 export const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & { higherZIndex?: boolean }
+>(({ className, higherZIndex, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      higherZIndex ? "z-[70]" : "z-[60]",
       className
     )}
     {...props}
@@ -28,18 +29,21 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   /** Classes extras para o overlay (ex.: z-index maior que outro modal) */
   overlayClassName?: string;
+  /** Usar z-index mais alto para modais sobrepostos */
+  higherZIndex?: boolean;
 };
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, overlayClassName, children, ...props }, ref) => (
+>(({ className, overlayClassName, higherZIndex, children, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay className={overlayClassName} />
+    <DialogOverlay higherZIndex={higherZIndex} className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-[61] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "fixed left-1/2 top-1/2 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        higherZIndex ? "z-[71]" : "z-[61]",
         className
       )}
       {...props}

@@ -2,7 +2,6 @@
 
 import { Button } from "@/app/components/ui/button";
 import {
-  FileText,
   MoreVertical,
   Package,
   Printer,
@@ -12,15 +11,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 export function OrderActionsMenu({
-  onViewDetails,
-  onViewSummary,
   onPrint,
   onViewCustomer,
   onDelete,
   hasCustomer,
 }: {
-  onViewDetails: () => void;
-  onViewSummary: () => void;
   onPrint: () => void;
   onViewCustomer: () => void;
   onDelete: () => void;
@@ -46,7 +41,10 @@ export function OrderActionsMenu({
       <Button
         variant="ghost"
         size="icon-sm"
-        onClick={() => setOpen(!open)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
         aria-label="Ações"
       >
         <MoreVertical className="h-4 w-4" />
@@ -57,29 +55,8 @@ export function OrderActionsMenu({
           <button
             role="menuitem"
             className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onViewSummary();
-            }}
-          >
-            <Package className="h-4 w-4 mr-2 text-slate-400" />
-            Ver resumo
-          </button>
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              setOpen(false);
-              onViewDetails();
-            }}
-          >
-            <FileText className="h-4 w-4 mr-2 text-slate-400" />
-            Ver detalhes
-          </button>
-          <button
-            role="menuitem"
-            className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setOpen(false);
               onPrint();
             }}
@@ -91,7 +68,8 @@ export function OrderActionsMenu({
             <button
               role="menuitem"
               className="flex items-center w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setOpen(false);
                 onViewCustomer();
               }}
@@ -104,7 +82,8 @@ export function OrderActionsMenu({
           <button
             role="menuitem"
             className="flex items-center w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setOpen(false);
               onDelete();
             }}

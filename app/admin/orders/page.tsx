@@ -2,8 +2,7 @@
 
 import { DailySalesPrintModal } from "@/app/components/DailySalesPrintModal";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
-import { OrderDetailsModal } from "@/app/components/OrderDetailsModal";
-import { OrderSummaryModal } from "@/app/components/OrderSummaryModal";
+import { OrderModal } from "@/app/components/OrderModal";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
@@ -214,9 +213,8 @@ export default function AdminOrdersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [dailySalesPrintModalOpen, setDailySalesPrintModalOpen] = useState(false);
-  const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [orderSummaryModalOpen, setOrderSummaryModalOpen] = useState(false);
   const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
 
   // Load product summary state from session storage on mount
@@ -349,14 +347,9 @@ export default function AdminOrdersPage() {
     window.open(receiptUrl, '_blank');
   };
 
-  const handleViewOrderDetails = (order: Order) => {
+  const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
-    setOrderDetailsModalOpen(true);
-  };
-
-  const handleViewOrderSummary = (order: Order) => {
-    setSelectedOrder(order);
-    setOrderSummaryModalOpen(true);
+    setOrderModalOpen(true);
   };
 
   const handleViewCustomer = (customerId: string) => {
@@ -558,10 +551,8 @@ export default function AdminOrdersPage() {
       width: "60px",
       render: (_value, order) => (
         <OrderActionsMenu
-          onViewDetails={() => handleViewOrderDetails(order)}
-          onViewSummary={() => handleViewOrderSummary(order)}
           onPrint={() => printThermalReceipt(order.id)}
-          onViewCustomer={() => handleViewCustomer(order.customer!.id)}
+          onViewCustomer={() => order.customer && handleViewCustomer(order.customer.id)}
           onDelete={() => openDeleteDialog(order.id)}
           hasCustomer={!!order.customer}
         />
@@ -722,6 +713,7 @@ export default function AdminOrdersPage() {
                   columns={columns}
                   rowKey="id"
                   className="rounded-none border-0 shadow-none -mx-5 -mb-5"
+                  onRowClick={handleViewOrder}
                   pagination={{
                     page: currentPage,
                     pageSize: itemsPerPage,
@@ -736,17 +728,19 @@ export default function AdminOrdersPage() {
       )}
 
       {/* Modals */}
-      <OrderSummaryModal
-        open={orderSummaryModalOpen}
-        onOpenChange={setOrderSummaryModalOpen}
-        order={selectedOrder}
-      />
-
-      <OrderDetailsModal
-        open={orderDetailsModalOpen}
-        onOpenChange={setOrderDetailsModalOpen}
+      <OrderModal
+        open={orderModalOpen}
+        onOpenChange={setOrderModalOpen}
         order={selectedOrder}
         onPrint={printThermalReceipt}
+        onViewCustomer={handleViewCustomer}
+        onDelete={() => {
+          if (selectedOrder) {
+            setOrderToDelete(selectedOrder.id);
+            setDeleteDialogOpen(true);
+          }
+        }}
+        hasCustomer={!!selectedOrder?.customer}
       />
 
       <DeleteConfirmDialog
