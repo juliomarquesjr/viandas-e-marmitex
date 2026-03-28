@@ -181,14 +181,28 @@ function ProductCard({
         })()}
 
         {/* Preço */}
-        <p className="font-semibold text-slate-900 text-sm">
-          {formatPrice(product.priceCents)}
-        </p>
-        {product.pricePerKgCents && (
-          <p className="text-xs text-slate-500 -mt-1">
-            {formatPrice(product.pricePerKgCents)}/kg
-          </p>
-        )}
+        {(() => {
+          const isPricePerKg = product.pricePerKgCents && product.pricePerKgCents > 0;
+          return (
+            <>
+              {isPricePerKg ? (
+                <>
+                  <p className="font-semibold text-emerald-700 text-sm">
+                    {formatPrice(product.pricePerKgCents!)}/kg
+                  </p>
+                  <p className="text-xs text-slate-400 -mt-0.5">Preço por kilo</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-slate-900 text-sm">
+                    {formatPrice(product.priceCents)}
+                  </p>
+                  <p className="text-xs text-slate-400 -mt-0.5">Preço unitário</p>
+                </>
+              )}
+            </>
+          );
+        })()}
 
         {/* Estoque (sempre presente para padronizar altura do card) */}
         <p className={`text-xs font-medium ${stockColor}`}>

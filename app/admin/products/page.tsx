@@ -531,18 +531,28 @@ export default function AdminProductsPage() {
     {
       key: "price",
       header: "Preço",
-      render: (_, product) => (
-        <div className="text-left">
-          <p className="font-medium text-slate-900">
-            {formatPrice(product.priceCents)}
-          </p>
-          {product.pricePerKgCents && (
-            <p className="text-xs text-slate-500">
-              {formatPrice(product.pricePerKgCents)}/kg
-            </p>
-          )}
-        </div>
-      ),
+      render: (_, product) => {
+        const isPricePerKg = product.pricePerKgCents && product.pricePerKgCents > 0;
+        return (
+          <div className="text-left">
+            {isPricePerKg ? (
+              <>
+                <p className="font-medium text-emerald-700">
+                  {formatPrice(product.pricePerKgCents!)}/kg
+                </p>
+                <p className="text-xs text-slate-400">Preço por kilo</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-slate-900">
+                  {formatPrice(product.priceCents)}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">Preço unitário</p>
+              </>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "stock",
@@ -579,9 +589,9 @@ export default function AdminProductsPage() {
     },
   ];
 
-  // Filtrar produtos
+  // Filtrar e ordenar produtos
   const filteredProducts = React.useMemo(() => {
-    return products.filter((product) => {
+    const filtered = products.filter((product) => {
       const matchesSearch =
         !searchTerm ||
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -598,6 +608,9 @@ export default function AdminProductsPage() {
         product.categoryId === categoryFilter;
       return matchesSearch && matchesStatus && matchesType && matchesCategory;
     });
+
+    // Ordenar alfabeticamente (A-Z)
+    return filtered.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [products, searchTerm, statusFilter, typeFilter, categoryFilter]);
 
   const totalFilteredPages = Math.max(

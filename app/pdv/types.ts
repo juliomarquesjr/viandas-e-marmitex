@@ -34,6 +34,8 @@ export type Product = {
   productType: "sellable" | "addon";
   stockEnabled?: boolean;
   stock?: number;
+  categoryId?: string | null;
+  category?: { id: string; name: string; icon?: string | null } | null;
 };
 
 export type PaymentData = {
