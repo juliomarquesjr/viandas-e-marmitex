@@ -21,6 +21,7 @@ import {
   Layers,
   Weight,
   Archive,
+  Download,
 } from "lucide-react";
 import type { Product, Category } from "../page";
 
@@ -94,6 +95,7 @@ export interface ProductPreviewModalProps {
   open: boolean;
   onClose: () => void;
   onEdit: (product: Product) => void;
+  onDownloadBarcode?: (product: Product) => void | Promise<void>;
 }
 
 export function ProductPreviewModal({
@@ -102,6 +104,7 @@ export function ProductPreviewModal({
   open,
   onClose,
   onEdit,
+  onDownloadBarcode,
 }: ProductPreviewModalProps) {
   if (!product) return null;
 
@@ -329,10 +332,21 @@ export function ProductPreviewModal({
           </div>
 
           {/* Footer */}
-          <div className="border-t-2 border-slate-200 bg-slate-100 px-5 py-4 flex items-center justify-end gap-3 shrink-0">
+          <div className="border-t-2 border-slate-200 bg-slate-100 px-5 py-4 flex flex-wrap items-center justify-end gap-3 shrink-0">
             <Button variant="outline" onClick={onClose}>
               Fechar
             </Button>
+            {product.barcode && onDownloadBarcode ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => void onDownloadBarcode(product)}
+              >
+                <Download className="h-4 w-4" />
+                Baixar código de barras
+              </Button>
+            ) : null}
             <Button
               onClick={() => {
                 onClose();

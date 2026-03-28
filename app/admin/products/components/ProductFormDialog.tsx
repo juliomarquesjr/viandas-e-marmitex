@@ -16,7 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { Category, Product } from "../page";
 import { useToast } from "@/app/components/Toast";
-import { ImageCropModal } from "@/app/components/ImageCropModal";
+import { ProductPhotoModal } from "./ProductPhotoModal";
 import { Button } from "@/app/components/ui/button";
 import {
     Dialog,
@@ -29,30 +29,22 @@ import {
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
+import { SectionDivider } from "@/app/components/ui/section-divider";
 
 interface ProductFormDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (e: React.FormEvent) => Promise<void> | void;
+  onSubmit: (e: React.FormEvent, finalImageUrl?: string) => Promise<void> | void;
   formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   isUploading: boolean;
   categories: Category[];
   editingProduct: Product | null;
-  handleFileUpload: (file: File) => void;
   formatPriceToReais: (cents: number) => string;
 }
 
-function SectionDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 pt-1">
-      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
-        {label}
-      </span>
-      <div className="flex-1 h-px bg-slate-100" />
-    </div>
-  );
-}
+type FormErrors = Partial<Record<"name" | "barcode" | "priceCents" | "pricePerKgCents" | "productType" | "stock", string>>;
+type FormTouched = Partial<Record<"name" | "barcode" | "priceCents" | "pricePerKgCents" | "productType" | "stock", boolean>>;
 
 export function ProductFormDialog({
   open,
@@ -63,15 +55,18 @@ export function ProductFormDialog({
   isUploading,
   categories,
   editingProduct,
-  handleFileUpload,
   formatPriceToReais,
 }: ProductFormDialogProps) {
   const { showToast } = useToast();
   const [displayPrice, setDisplayPrice] = useState("");
-  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceType, setPriceType] = useState<"unit" | "perKg">("unit");
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<FormTouched>({});
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [oldImageUrl, setOldImageUrl] = useState<string | null>(null);
   const hasInitializedPriceType = useRef(false);
   const previousOpenState = useRef(false);
 
@@ -83,6 +78,18 @@ export function ProductFormDialog({
         setDisplayPrice("");
         hasInitializedPriceType.current = false;
         setIsSubmitting(false);
+        setErrors({});
+        setTouched({});
+        
+        // Limpa imagem pendente e revoga URL temporária
+        if (pendingImageFile) {
+          setPendingImageFile(null);
+        }
+        if (formData.imageUrl && formData.imageUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(formData.imageUrl);
+        }
+        // Limpa oldImageUrl
+        setOldImageUrl(null);
       }
       previousOpenState.current = false;
       return;
@@ -107,7 +114,72 @@ export function ProductFormDialog({
         hasInitializedPriceType.current = true;
       }
     }
+  }, [open, formatPriceToReais, formData.priceCents, formData.pricePerKgCents]);
+
+  // Inicializar productType vazio ao abrir o modal
+  useEffect(() => {
+    if (open && !formData.productType) {
+      updateFormData("productType", "");
+    }
   }, [open]);
+
+  const validateField = (field: keyof FormErrors, value: any): string | undefined => {
+    switch (field) {
+      case "name":
+        return !value || value.trim() === "" ? "Obrigatório" : undefined;
+      case "barcode":
+        return !value || value.trim() === "" ? "Obrigatório" : undefined;
+      case "priceCents":
+        return (!value || value <= 0) ? "Informe um valor maior que zero" : undefined;
+      case "pricePerKgCents":
+        return (!value || value <= 0) ? "Informe um valor maior que zero" : undefined;
+      case "productType":
+        return !value || value === "" ? "Obrigatório" : undefined;
+      case "stock":
+        // Stock é obrigatório apenas se o controle de estoque estiver ativo
+        if (formData.stockEnabled) {
+          return (!value || value < 0) ? "Informe a quantidade em estoque" : undefined;
+        }
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const fields: Array<keyof FormErrors> = [
+      "name",
+      "barcode",
+      "productType",
+      priceType === "perKg" ? "pricePerKgCents" : "priceCents"
+    ];
+    
+    // Adiciona stock apenas se o controle de estoque estiver ativo
+    if (formData.stockEnabled) {
+      fields.push("stock");
+    }
+    
+    const newErrors: FormErrors = {};
+    let valid = true;
+    
+    fields.forEach((field) => {
+      const err = validateField(field, formData[field]);
+      if (err) {
+        newErrors[field] = err;
+        valid = false;
+      }
+    });
+    
+    setErrors(newErrors);
+    setTouched({ name: true, barcode: true, priceCents: true, pricePerKgCents: true, productType: true, stock: true });
+    return valid;
+  };
+
+  const err = (field: keyof FormErrors) =>
+    touched[field] && errors[field] ? "border-red-400 focus:ring-red-400/20" : "";
+
+  const errText = (field: keyof FormErrors) =>
+    touched[field] && errors[field] ? errors[field] : null;
 
   const updateFormData = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -163,37 +235,97 @@ export function ProductFormDialog({
     updateFormData("barcode", randomBarcode.toString());
   };
 
-  const handleCroppedImageUpload = async (croppedImageFile: File) => {
-    setIsUploadingImage(true);
-    try {
-      await handleFileUpload(croppedImageFile);
-    } catch (error) {
-      showToast("Não foi possível fazer o upload da imagem. Tente novamente.", "error", "Erro no upload");
-    } finally {
-      setIsUploadingImage(false);
+  const handlePhotoSelected = (photoFile: File) => {
+    // Armazena a URL da imagem antiga antes de substituir (para deleção posterior)
+    if (formData.imageUrl && !formData.imageUrl.startsWith('blob:')) {
+      setOldImageUrl(formData.imageUrl);
     }
+    
+    // Apenas armazena o arquivo em memória temporariamente
+    // O upload será feito apenas no submit do formulário
+    setPendingImageFile(photoFile);
+    
+    // Cria uma URL temporária para preview
+    const tempUrl = URL.createObjectURL(photoFile);
+    updateFormData("imageUrl", tempUrl);
   };
 
-  const removeImage = async () => {
+  const removeImage = () => {
     const imageUrl = formData.imageUrl;
+    
+    // Se a imagem atual é do storage (não temporária), armazena para possível deleção futura
+    // ou marca que queremos remover a imagem existente
+    if (imageUrl && !imageUrl.startsWith('blob:')) {
+      // Se já havia uma imagem antiga pendente de deleção, mantém
+      // A imagem será removida do produto, mas não do storage ainda
+      // (a deleção do storage só ocorre quando há substituição)
+      setOldImageUrl(imageUrl);
+    }
+    
     updateFormData("imageUrl", "");
-    if (imageUrl) {
-      try {
-        await fetch("/api/upload", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl }),
-        });
-      } catch (error) {
-        console.warn("Could not delete image from storage:", error);
-      }
+    setPendingImageFile(null);
+
+    // Revoga URL temporária se existir
+    if (imageUrl && imageUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrl);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      showToast("Por favor, preencha todos os campos obrigatórios", "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await onSubmit(e);
+      let finalImageUrl = formData.imageUrl;
+      
+      // Se houver uma imagem pendente, faz o upload agora
+      if (pendingImageFile) {
+        setIsUploadingImage(true);
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", pendingImageFile);
+
+          // Envia a URL da imagem antiga para deleção (se existir)
+          if (oldImageUrl) {
+            uploadFormData.append("oldImageUrl", oldImageUrl);
+          }
+
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: uploadFormData,
+          });
+
+          if (response.ok) {
+            const { url } = await response.json();
+            
+            // Revoga URL temporária
+            if (formData.imageUrl && formData.imageUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(formData.imageUrl);
+            }
+            // Atualiza com URL real do storage
+            finalImageUrl = url;
+            updateFormData("imageUrl", url);
+            setPendingImageFile(null);
+            setOldImageUrl(null);
+          } else {
+            showToast("Não foi possível fazer o upload da imagem. Tente novamente.", "error", "Erro no upload");
+            return; // Interrompe o submit se falhar upload da imagem
+          }
+        } catch (error) {
+          showToast("Não foi possível fazer o upload da imagem. Tente novamente.", "error", "Erro no upload");
+          return; // Interrompe o submit se falhar upload da imagem
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+
+      // Agora prossegue com o submit do formulário, passando a URL final garantida
+      await onSubmit(e, finalImageUrl);
     } finally {
       setIsSubmitting(false);
     }
@@ -245,17 +377,19 @@ export function ProductFormDialog({
                       placeholder="Digite o nome do produto"
                       value={formData.name || ""}
                       onChange={(e) => updateFormData("name", e.target.value)}
-                      className="pl-9"
-                      required
+                      className={`pl-9 ${err("name")}`}
                     />
                     <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   </div>
+                  {errText("name") && (
+                    <p className="text-xs text-red-500 mt-0.5">{errText("name")}</p>
+                  )}
                 </div>
 
                 {/* Código de Barras */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    Código de Barras
+                    Código de Barras <span className="text-red-400">*</span>
                   </Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -264,7 +398,7 @@ export function ProductFormDialog({
                         placeholder="7891234567890"
                         value={formData.barcode || ""}
                         onChange={(e) => updateFormData("barcode", e.target.value)}
-                        className="pl-9"
+                        className={`pl-9 ${err("barcode")}`}
                       />
                       <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     </div>
@@ -279,6 +413,9 @@ export function ProductFormDialog({
                       <span className="hidden sm:inline ml-1.5">Gerar</span>
                     </Button>
                   </div>
+                  {errText("barcode") && (
+                    <p className="text-xs text-red-500 mt-0.5">{errText("barcode")}</p>
+                  )}
                 </div>
               </div>
 
@@ -334,7 +471,13 @@ export function ProductFormDialog({
                       <span className="text-xs font-medium text-slate-600">Por Quilo</span>
                     </label>
                   </div>
-                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                  <div
+                    className={`flex items-center border rounded-xl overflow-hidden transition-all ${
+                      touched.priceCents && errors.priceCents
+                        ? "border-red-400 ring-2 ring-red-400/15"
+                        : "border-slate-200 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
+                    }`}
+                  >
                     <div className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-50 border-r border-slate-200 flex-shrink-0">
                       <Wallet className="h-4 w-4 text-slate-400" />
                       <span className="text-sm font-medium text-slate-500">R$</span>
@@ -358,6 +501,11 @@ export function ProductFormDialog({
                       placeholder={priceType === "perKg" ? "0,00/kg" : "0,00"}
                     />
                   </div>
+                  {(errText("priceCents") || errText("pricePerKgCents")) && (
+                    <p className="text-xs text-red-500 mt-0.5">
+                      {errText("pricePerKgCents") || errText("priceCents")}
+                    </p>
+                  )}
                   {priceType === "perKg" && (
                     <span className="inline-flex items-center text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-0.5">
                       Por Quilo
@@ -378,21 +526,27 @@ export function ProductFormDialog({
                   <div className="relative">
                     <select
                       id="productType"
-                      value={formData.productType || "sellable"}
+                      value={formData.productType || ""}
                       onChange={(e) => updateFormData("productType", e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/15 focus:outline-none text-sm bg-white appearance-none"
+                      className={`w-full pl-9 pr-4 py-2 rounded-lg border focus:ring-2 focus:ring-primary/15 focus:outline-none text-sm bg-white appearance-none ${
+                        err("productType") || "border-slate-200 focus:border-primary"
+                      }`}
                     >
+                      <option value="">Selecione um tipo</option>
                       <option value="sellable">Produto Vendável</option>
                       <option value="addon">Adicional/Complemento</option>
                     </select>
                     <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                   </div>
+                  {errText("productType") && (
+                    <p className="text-xs text-red-500 mt-0.5">{errText("productType")}</p>
+                  )}
                 </div>
 
                 {/* Quantidade em Estoque */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                    Quantidade em Estoque
+                    Quantidade em Estoque {formData.stockEnabled && <span className="text-red-400">*</span>}
                   </Label>
                   <div className="relative">
                     <Input
@@ -400,13 +554,16 @@ export function ProductFormDialog({
                       type="number"
                       min="0"
                       disabled={!formData.stockEnabled}
-                      placeholder="0"
+                      placeholder={formData.stockEnabled ? "Digite a quantidade" : "0"}
                       value={formData.stock || ""}
                       onChange={(e) => updateFormData("stock", e.target.value)}
-                      className="pl-9 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`pl-9 disabled:opacity-50 disabled:cursor-not-allowed ${err("stock")}`}
                     />
                     <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   </div>
+                  {errText("stock") && (
+                    <p className="text-xs text-red-500 mt-0.5">{errText("stock")}</p>
+                  )}
                 </div>
               </div>
 
@@ -456,7 +613,7 @@ export function ProductFormDialog({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsCropModalOpen(true)}
+                        onClick={() => setIsPhotoModalOpen(true)}
                         className="flex items-center gap-1.5"
                       >
                         <Edit3 className="h-3.5 w-3.5" />
@@ -486,7 +643,7 @@ export function ProductFormDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setIsCropModalOpen(true)}
+                    onClick={() => setIsPhotoModalOpen(true)}
                     disabled={isUploadingImage || isUploading}
                     className="gap-2"
                   >
@@ -584,20 +741,12 @@ export function ProductFormDialog({
         </DialogContent>
       </Dialog>
 
-      <ImageCropModal
-        isOpen={isCropModalOpen}
-        onClose={() => setIsCropModalOpen(false)}
-        onCropComplete={handleCroppedImageUpload}
-        onUploadStart={() => setIsUploadingImage(true)}
-        aspectRatio={1}
-        maxWidth={800}
-        maxHeight={800}
-        title="Editar Imagem do Produto"
-        description="Ajuste e faça o crop da imagem para garantir que ela fique perfeita"
-        selectImageTitle="Selecione uma imagem"
-        selectImageDescription="Escolha uma imagem para editar e fazer o crop"
-        cropButtonText="Aplicar e Salvar Imagem"
-        selectAnotherButtonText="Escolher Outra Imagem"
+      <ProductPhotoModal
+        isOpen={isPhotoModalOpen}
+        onClose={() => setIsPhotoModalOpen(false)}
+        currentPhotoUrl={formData.imageUrl}
+        onPhotoSelected={handlePhotoSelected}
+        onRemovePhoto={removeImage}
       />
     </>
   );
