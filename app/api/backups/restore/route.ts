@@ -254,10 +254,48 @@ export async function POST(req: Request) {
           }
         }
         
+        // --- Fase 1: Executar DROP TYPE e CREATE TYPE em transação própria e comitada ---
+        // Isso garante que os ENUMs estejam disponíveis mesmo se a transação principal
+        // sofrer ROLLBACK parcial e for reiniciada.
+        const typeCommands = commands.filter(cmd => {
+          const up = cmd.trim().toUpperCase();
+          return up.startsWith('DROP TYPE') || up.startsWith('CREATE TYPE');
+        });
+
+        if (typeCommands.length > 0) {
+          await client.query('COMMIT'); // fechar o BEGIN aberto acima
+          await client.query('BEGIN');
+          await client.query('SET search_path TO public;');
+          for (const typeCmd of typeCommands) {
+            const savepointName = `sp_type_${typeCommands.indexOf(typeCmd)}`;
+            try {
+              await client.query(`SAVEPOINT ${savepointName}`);
+              await client.query(typeCmd.trim().replace(/;+$/, ''));
+              await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+            } catch (err: any) {
+              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+              // "already exists" é ignorável para tipos
+              if (!err.message.toLowerCase().includes('already exists')) {
+                console.warn('[RESTORE] Aviso ao criar tipo:', err.message);
+              }
+            }
+          }
+          await client.query('COMMIT');
+          // Reiniciar transação para o restante dos comandos
+          await client.query('BEGIN');
+          await client.query('SET search_path TO public;');
+        }
+
+        // --- Fase 2: Executar todos os demais comandos ---
+        const nonTypeCommands = commands.filter(cmd => {
+          const up = cmd.trim().toUpperCase();
+          return !up.startsWith('DROP TYPE') && !up.startsWith('CREATE TYPE');
+        });
+
         // Executar cada comando usando SAVEPOINT para permitir rollback parcial
         let savepointCounter = 0;
-        
-        for (const command of commands) {
+
+        for (const command of nonTypeCommands) {
           if (!command || command.length === 0) continue;
           
           // Criar um savepoint antes de cada comando
