@@ -2,13 +2,18 @@
 
 import { Boxes } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { Product } from "../types";
+import type { CartItem, Product } from "../types";
 import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {
   products: Product[];
   loadingProducts: boolean;
-  canAddProductToCart: (product: Product) => boolean;
+  cart: CartItem[];
+  canAddProductUnits: (
+    product: Product,
+    cart: CartItem[],
+    additionalUnits: number
+  ) => boolean;
   onAddProduct: (product: Product) => void;
 }
 
@@ -19,7 +24,8 @@ type PricingValue = "all" | "unit" | "kg";
 export function ProductGrid({
   products,
   loadingProducts,
-  canAddProductToCart,
+  cart,
+  canAddProductUnits,
   onAddProduct,
 }: ProductGridProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>("type");
@@ -198,7 +204,7 @@ export function ProductGrid({
             <ProductCard
               key={product.id}
               product={product}
-              canAdd={canAddProductToCart(product)}
+              canAdd={canAddProductUnits(product, cart, 1)}
               onAdd={onAddProduct}
             />
           ))}

@@ -1,24 +1,32 @@
 "use client";
 
+import {
+  canSatisfyStock,
+  totalQtyInCartForProduct,
+} from "@/lib/pdv/stockQuantity";
 import { ShoppingCart } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import type { CartItem } from "../types";
+import type { CartItem, Product } from "../types";
 import { CartItemRow } from "./CartItem";
 
 interface CartItemListProps {
   cart: CartItem[];
+  products: Product[];
   selectedIndex: number | null;
   setSelectedIndex: (index: number) => void;
   setCart: Dispatch<SetStateAction<CartItem[]>>;
   onRequestRemoveItem: (index: number) => void;
+  onStockBlocked: (message: string) => void;
 }
 
 export function CartItemList({
   cart,
+  products,
   selectedIndex,
   setSelectedIndex,
   setCart,
   onRequestRemoveItem,
+  onStockBlocked,
 }: CartItemListProps) {
   if (cart.length === 0) {
     return (
@@ -38,32 +46,57 @@ export function CartItemList({
 
   return (
     <div className="min-h-0 h-full max-h-full overflow-y-auto overflow-x-hidden px-2 py-1">
-      {cart.map((item, idx) => (
-        <CartItemRow
-          key={item.id}
-          item={item}
-          index={idx}
-          isSelected={idx === selectedIndex}
-          onClick={() => setSelectedIndex(idx)}
-          onDecrement={() =>
-            setCart((prev) =>
-              prev.map((it, i) =>
-                i === idx ? { ...it, qty: Math.max(1, it.qty - 1) } : it
+      {cart.map((item, idx) => {
+        const product = products.find((p) => p.id === item.id);
+        const totalInCart = totalQtyInCartForProduct(cart, item.id);
+        const atStockLimit =
+          !item.isWeightBased &&
+          !!product &&
+          product.stockEnabled &&
+          product.stock != null &&
+          !canSatisfyStock(product, totalInCart + 1);
+
+        return (
+          <CartItemRow
+            key={`${item.id}-${idx}-${item.isWeightBased ? item.weightKg : "u"}`}
+            item={item}
+            index={idx}
+            isSelected={idx === selectedIndex}
+            onClick={() => setSelectedIndex(idx)}
+            incrementDisabled={atStockLimit}
+            onDecrement={() =>
+              setCart((prev) =>
+                prev.map((it, i) =>
+                  i === idx ? { ...it, qty: Math.max(1, it.qty - 1) } : it
+                )
               )
-            )
-          }
-          onIncrement={() =>
-            setCart((prev) =>
-              prev.map((it, i) =>
-                i === idx ? { ...it, qty: it.qty + 1 } : it
-              )
-            )
-          }
-          onRemove={() =>
-            onRequestRemoveItem(idx)
-          }
-        />
-      ))}
+            }
+            onIncrement={() =>
+              setCart((prev) => {
+                const line = prev[idx];
+                if (!line || line.isWeightBased) return prev;
+                const p = products.find((x) => x.id === line.id);
+                if (!p) {
+                  return prev.map((it, i) =>
+                    i === idx ? { ...it, qty: it.qty + 1 } : it
+                  );
+                }
+                const total = totalQtyInCartForProduct(prev, line.id);
+                if (!canSatisfyStock(p, total + 1)) {
+                  queueMicrotask(() =>
+                    onStockBlocked(`Estoque insuficiente para ${p.name}`)
+                  );
+                  return prev;
+                }
+                return prev.map((it, i) =>
+                  i === idx ? { ...it, qty: it.qty + 1 } : it
+                );
+              })
+            }
+            onRemove={() => onRequestRemoveItem(idx)}
+          />
+        );
+      })}
     </div>
   );
 }

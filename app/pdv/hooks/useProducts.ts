@@ -1,5 +1,6 @@
+import { canAddUnits } from "@/lib/pdv/stockQuantity";
 import { useCallback, useState } from "react";
-import type { Product } from "../types";
+import type { CartItem, Product } from "../types";
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,18 +20,9 @@ export function useProducts() {
     }
   }, []);
 
-  const canAddProductToCart = useCallback((product: Product): boolean => {
-    if (!product.stockEnabled) return true;
-    if (product.stock === undefined) return false;
-    return product.stock > 0;
-  }, []);
-
-  const canAddProductToPreset = useCallback(
-    (product: Product, quantity: number): boolean => {
-      if (!product.stockEnabled) return true;
-      if (product.stock === undefined) return false;
-      return product.stock >= quantity;
-    },
+  const canAddProductUnits = useCallback(
+    (product: Product, cart: CartItem[], additionalUnits: number) =>
+      canAddUnits(product, cart, additionalUnits),
     []
   );
 
@@ -47,8 +39,7 @@ export function useProducts() {
     products,
     loadingProducts,
     fetchProducts,
-    canAddProductToCart,
-    canAddProductToPreset,
+    canAddProductUnits,
     formatPriceToReais,
   };
 }
