@@ -283,7 +283,7 @@ export async function POST(req: Request) {
               colDef += ` DEFAULT ${defaultVal}`;
             }
             return colDef;
-          }).join(', ');
+          });
 
           const columnDefs = [...columns];
 
