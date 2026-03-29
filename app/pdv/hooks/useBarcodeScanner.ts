@@ -1,10 +1,13 @@
+import {
+  canSatisfyStock,
+  totalQtyInCartForProduct,
+} from "@/lib/pdv/stockQuantity";
 import { useEffect } from "react";
 import type { CartItem, Customer, Product } from "../types";
 
 interface UseBarcodeScannerProps {
   query: string;
   products: Product[];
-  canAddProductToCart: (product: Product) => boolean;
   handleSelectCustomer: (customer: Customer) => void;
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   setSelectedIndex: React.Dispatch<React.SetStateAction<number | null>>;
@@ -17,7 +20,6 @@ interface UseBarcodeScannerProps {
 export function useBarcodeScanner({
   query,
   products,
-  canAddProductToCart,
   handleSelectCustomer,
   setCart,
   setSelectedIndex,
@@ -71,37 +73,46 @@ export function useBarcodeScanner({
       );
 
       if (product) {
-        if (canAddProductToCart(product)) {
-          setCart((prev) => {
-            const existingIndex = prev.findIndex(
-              (item) => item.id === product.id
+        let didUpdate = false;
+        setCart((prev) => {
+          const total = totalQtyInCartForProduct(prev, product.id);
+          if (!canSatisfyStock(product, total + 1)) {
+            queueMicrotask(() =>
+              showErrorToast(
+                `Estoque insuficiente para ${product.name}`
+              )
             );
-            if (existingIndex >= 0) {
-              const updated = [...prev];
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                qty: updated[existingIndex].qty + 1,
-              };
-              setSelectedIndex(existingIndex);
-              return updated;
-            }
-            const item: CartItem = {
-              id: product.id,
-              name: product.name,
-              price: product.priceCents / 100,
-              qty: 1,
-            };
-            setSelectedIndex(prev.length);
-            return [...prev, item];
-          });
+            return prev;
+          }
 
+          const existingIndex = prev.findIndex(
+            (item) => item.id === product.id && !item.isWeightBased
+          );
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              qty: updated[existingIndex].qty + 1,
+            };
+            setSelectedIndex(existingIndex);
+            didUpdate = true;
+            return updated;
+          }
+          const item: CartItem = {
+            id: product.id,
+            name: product.name,
+            price: product.priceCents / 100,
+            qty: 1,
+            isWeightBased: false,
+          };
+          setSelectedIndex(prev.length);
+          didUpdate = true;
+          return [...prev, item];
+        });
+
+        if (didUpdate) {
           playBeepSound();
           clearQueryField();
-        } else {
-          showErrorToast(
-            `Produto ${product.name} não pode ser adicionado - estoque insuficiente`
-          );
-          if (validateBarcode(trimmedQuery)) clearQueryField();
         }
       } else {
         showErrorToast("Produto não encontrado com este código de barras");
@@ -111,7 +122,6 @@ export function useBarcodeScanner({
   }, [
     query,
     products,
-    canAddProductToCart,
     handleSelectCustomer,
     setCart,
     setSelectedIndex,

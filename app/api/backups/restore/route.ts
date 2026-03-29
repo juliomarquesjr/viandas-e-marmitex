@@ -295,14 +295,7 @@ export async function POST(req: Request) {
             
             // Verificar se é um erro que podemos ignorar
             const errorMsg = error.message.toLowerCase();
-            const isIgnorableError = 
-              errorMsg.includes('already exists') || 
-              errorMsg.includes('does not exist') ||
-              (errorMsg.includes('relation') && !errorMsg.includes('syntax')) ||
-              (errorMsg.includes('constraint') && !errorMsg.includes('syntax')) ||
-              errorMsg.includes('duplicate') ||
-              errorMsg.includes('no schema has been selected');
-            
+
             // Erros de sintaxe são CRÍTICOS e não devem ser ignorados
             if (errorMsg.includes('syntax error')) {
               console.error('[RESTORE] ERRO CRÍTICO: Erro de sintaxe no SQL:', command.substring(0, 200));
@@ -310,8 +303,10 @@ export async function POST(req: Request) {
               await client.query('ROLLBACK');
               throw new Error(`Erro de sintaxe SQL ao restaurar backup: ${error.message}. Comando: ${command.substring(0, 200)}`);
             }
-            
-            if (isIgnorableError) {
+
+            const shouldIgnore = isIgnorableRestoreError(command, errorMsg);
+
+            if (shouldIgnore) {
               // Log de avisos que são ignorados
               if (errorMsg.includes('current transaction is aborted')) {
                 console.warn('[RESTORE] Aviso: Transação abortada, reiniciando transação');
@@ -428,15 +423,15 @@ export async function POST(req: Request) {
 // Função auxiliar para gerar conteúdo de backup
 async function generateBackupContent(client: Client): Promise<string> {
   let backupContent = '';
-  
+
   const now = new Date();
   backupContent += `-- PostgreSQL database dump\n`;
   backupContent += `-- Dump date: ${now.toISOString()}\n\n`;
 
   // Obter todas as tabelas
   const tablesResult = await client.query(`
-    SELECT tablename 
-    FROM pg_tables 
+    SELECT tablename
+    FROM pg_tables
     WHERE schemaname = 'public'
     ORDER BY tablename
   `);
@@ -470,15 +465,12 @@ async function generateBackupContent(client: Client): Promise<string> {
   // Criar mapa de dependências
   const dependencies = new Map<string, Set<string>>();
   const allTables = new Set(tables);
-  
+
   for (const row of fkResult.rows) {
     const table = row.table_name;
     const dependsOn = row.foreign_table_name;
-    
     if (allTables.has(table) && allTables.has(dependsOn) && table !== dependsOn) {
-      if (!dependencies.has(table)) {
-        dependencies.set(table, new Set());
-      }
+      if (!dependencies.has(table)) dependencies.set(table, new Set());
       dependencies.get(table)!.add(dependsOn);
     }
   }
@@ -497,10 +489,46 @@ async function generateBackupContent(client: Client): Promise<string> {
     updateRule: row.update_rule,
   }));
 
+  // Obter PRIMARY KEY e UNIQUE constraints para incluir no CREATE TABLE
+  const constraintsResult = await client.query(`
+    SELECT
+      tc.table_name,
+      tc.constraint_name,
+      tc.constraint_type,
+      kcu.column_name,
+      kcu.ordinal_position
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    WHERE tc.table_schema = 'public'
+      AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+    ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position
+  `);
+
+  const pkColumns = new Map<string, string[]>();
+  const uniqueConstraints = new Map<string, Array<{ constraintName: string; columns: string[] }>>();
+
+  for (const row of constraintsResult.rows) {
+    if (row.constraint_type === 'PRIMARY KEY') {
+      if (!pkColumns.has(row.table_name)) pkColumns.set(row.table_name, []);
+      pkColumns.get(row.table_name)!.push(row.column_name);
+    } else if (row.constraint_type === 'UNIQUE') {
+      if (!uniqueConstraints.has(row.table_name)) uniqueConstraints.set(row.table_name, []);
+      const existing = uniqueConstraints.get(row.table_name)!;
+      const found = existing.find(uq => uq.constraintName === row.constraint_name);
+      if (found) {
+        found.columns.push(row.column_name);
+      } else {
+        existing.push({ constraintName: row.constraint_name, columns: [row.column_name] });
+      }
+    }
+  }
+
   // Exportar tipos ENUM antes de criar tabelas
   backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
   const enumTypesResult = await client.query(`
-    SELECT 
+    SELECT
       t.typname as enum_name,
       string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
     FROM pg_type t
@@ -518,40 +546,82 @@ async function generateBackupContent(client: Client): Promise<string> {
   }
 
   for (const tableName of tables) {
-
-    backupContent += `\n-- Table: ${tableName}\n`;
+    backupContent += `\n--\n-- Table: ${tableName}\n--\n\n`;
     backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
 
-    // CREATE TABLE
-    // Para tipos USER-DEFINED (ENUMs), usar udt_name em vez de data_type
-    const createResult = await client.query(`
-      SELECT 
-        'CREATE TABLE "' || $1 || '" (' || 
-        string_agg(
-          '"' || column_name || '" ' || 
-          CASE 
-            WHEN data_type = 'USER-DEFINED' THEN udt_name
-            WHEN data_type = 'character varying' THEN 'VARCHAR(' || COALESCE(character_maximum_length::text, '') || ')'
-            WHEN data_type = 'integer' THEN 'INTEGER'
-            WHEN data_type = 'bigint' THEN 'BIGINT'
-            WHEN data_type = 'boolean' THEN 'BOOLEAN'
-            WHEN data_type = 'text' THEN 'TEXT'
-            WHEN data_type = 'timestamp without time zone' THEN 'TIMESTAMP'
-            WHEN data_type = 'jsonb' THEN 'JSONB'
-            WHEN data_type = 'uuid' THEN 'UUID'
-            ELSE UPPER(data_type)
-          END ||
-          CASE WHEN is_nullable = 'NO' THEN ' NOT NULL' ELSE '' END ||
-          CASE WHEN column_default IS NOT NULL THEN ' DEFAULT ' || column_default ELSE '' END,
-          ', '
-        ) || 
-        ');' as create_sql
+    // CREATE TABLE — colunas via JS (mesma abordagem de create/route.ts)
+    const columnsResult = await client.query(`
+      SELECT
+        column_name,
+        data_type,
+        udt_name,
+        character_maximum_length,
+        numeric_precision,
+        numeric_scale,
+        is_nullable,
+        column_default
       FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = $1
+      ORDER BY ordinal_position
     `, [tableName]);
 
-    if (createResult.rows.length > 0 && createResult.rows[0].create_sql) {
-      backupContent += createResult.rows[0].create_sql + '\n\n';
+    if (columnsResult.rows.length > 0) {
+      const columnDefs = columnsResult.rows.map((col: any) => {
+        let typeDef = '';
+        if (col.data_type === 'USER-DEFINED') {
+          typeDef = col.udt_name;
+        } else {
+          switch (col.data_type) {
+            case 'character varying':
+              typeDef = col.character_maximum_length
+                ? `VARCHAR(${col.character_maximum_length})`
+                : 'VARCHAR';
+              break;
+            case 'character':
+              typeDef = col.character_maximum_length
+                ? `CHAR(${col.character_maximum_length})`
+                : 'CHAR';
+              break;
+            case 'numeric':
+              if (col.numeric_precision != null && col.numeric_scale != null) {
+                typeDef = `NUMERIC(${col.numeric_precision},${col.numeric_scale})`;
+              } else if (col.numeric_precision != null) {
+                typeDef = `NUMERIC(${col.numeric_precision})`;
+              } else {
+                typeDef = 'NUMERIC';
+              }
+              break;
+            case 'integer': typeDef = 'INTEGER'; break;
+            case 'bigint': typeDef = 'BIGINT'; break;
+            case 'boolean': typeDef = 'BOOLEAN'; break;
+            case 'text': typeDef = 'TEXT'; break;
+            case 'timestamp without time zone': typeDef = 'TIMESTAMP'; break;
+            case 'timestamp with time zone': typeDef = 'TIMESTAMPTZ'; break;
+            case 'jsonb': typeDef = 'JSONB'; break;
+            case 'json': typeDef = 'JSON'; break;
+            case 'uuid': typeDef = 'UUID'; break;
+            default: typeDef = col.data_type.toUpperCase();
+          }
+        }
+
+        let colDef = `"${col.column_name}" ${typeDef}`;
+        if (col.is_nullable === 'NO') colDef += ' NOT NULL';
+        if (col.column_default) colDef += ` DEFAULT ${col.column_default.trim()}`;
+        return colDef;
+      });
+
+      // Adicionar PRIMARY KEY e UNIQUE constraints
+      const pks = pkColumns.get(tableName);
+      if (pks && pks.length > 0) {
+        columnDefs.push(`PRIMARY KEY (${pks.map(c => `"${c}"`).join(', ')})`);
+      }
+
+      const uqs = uniqueConstraints.get(tableName) ?? [];
+      for (const uq of uqs) {
+        columnDefs.push(`CONSTRAINT "${uq.constraintName}" UNIQUE (${uq.columns.map(c => `"${c}"`).join(', ')})`);
+      }
+
+      backupContent += `CREATE TABLE "${tableName}" (${columnDefs.join(', ')});\n\n`;
     }
 
     // Dados
@@ -559,9 +629,11 @@ async function generateBackupContent(client: Client): Promise<string> {
     const rowCount = parseInt(countResult.rows[0].count);
 
     if (rowCount > 0) {
+      backupContent += `--\n-- Data for table ${tableName}\n--\n\n`;
+
       const colsResult = await client.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
+        SELECT column_name
+        FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = $1
         ORDER BY ordinal_position
       `, [tableName]);
@@ -608,32 +680,27 @@ async function generateBackupContent(client: Client): Promise<string> {
 
   // Foreign Keys (após criar todas as tabelas)
   backupContent += `\n--\n-- Foreign Keys\n--\n\n`;
-  
-  // Agrupar foreign keys por constraint name (pois uma FK pode ter múltiplas colunas)
+
   const fkByConstraint = new Map<string, any[]>();
   for (const fk of foreignKeysInfo) {
-    if (!fkByConstraint.has(fk.constraintName)) {
-      fkByConstraint.set(fk.constraintName, []);
-    }
+    if (!fkByConstraint.has(fk.constraintName)) fkByConstraint.set(fk.constraintName, []);
     fkByConstraint.get(fk.constraintName)!.push(fk);
   }
 
-  // Exportar foreign keys
-  for (const [constraintName, fkColumns] of fkByConstraint.entries()) {
-    const firstFk = fkColumns[0];
-    const columns = fkColumns.map((fk: any) => `"${fk.columnName}"`).join(', ');
-    const foreignColumns = fkColumns.map((fk: any) => `"${fk.foreignColumnName}"`).join(', ');
+  for (const [constraintName, fkCols] of fkByConstraint.entries()) {
+    const firstFk = fkCols[0];
+    const cols = fkCols.map((fk: any) => `"${fk.columnName}"`).join(', ');
+    const foreignCols = fkCols.map((fk: any) => `"${fk.foreignColumnName}"`).join(', ');
     const deleteRule = firstFk.deleteRule ? ` ON DELETE ${firstFk.deleteRule}` : '';
     const updateRule = firstFk.updateRule ? ` ON UPDATE ${firstFk.updateRule}` : '';
-    
-    backupContent += `ALTER TABLE "${firstFk.tableName}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY (${columns}) REFERENCES "${firstFk.foreignTableName}" (${foreignColumns})${deleteRule}${updateRule};\n`;
+    backupContent += `ALTER TABLE "${firstFk.tableName}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY (${cols}) REFERENCES "${firstFk.foreignTableName}" (${foreignCols})${deleteRule}${updateRule};\n`;
   }
 
   // Índices (exceto primary keys que já foram criados)
   backupContent += `\n--\n-- Indexes\n--\n\n`;
   const indexesResult = await client.query(`
-    SELECT indexdef 
-    FROM pg_indexes 
+    SELECT indexdef
+    FROM pg_indexes
     WHERE schemaname = 'public'
     AND indexname NOT LIKE '%_pkey'
   `);
@@ -645,6 +712,48 @@ async function generateBackupContent(client: Client): Promise<string> {
   }
 
   return backupContent;
+}
+
+// Função auxiliar para determinar se um erro de restore pode ser ignorado
+// A decisão é baseada no TIPO do comando SQL, não apenas na mensagem de erro
+function isIgnorableRestoreError(command: string, errorMsg: string): boolean {
+  const upper = command.trim().toUpperCase();
+
+  // DROP: sempre ignorável (tabela/tipo pode não existir)
+  if (upper.startsWith('DROP ')) return true;
+
+  // CREATE TYPE: apenas "already exists" é ignorável
+  if (upper.startsWith('CREATE TYPE')) return errorMsg.includes('already exists');
+
+  // CREATE TABLE: apenas "already exists" é ignorável
+  // "does not exist" aqui significa problema estrutural (ex: sequência ou tipo faltando)
+  if (upper.startsWith('CREATE TABLE')) return errorMsg.includes('already exists');
+
+  // CREATE INDEX / CREATE UNIQUE INDEX: "already exists" é ignorável
+  if (upper.startsWith('CREATE INDEX') || upper.startsWith('CREATE UNIQUE INDEX')) {
+    return errorMsg.includes('already exists');
+  }
+
+  // ALTER TABLE ... ADD CONSTRAINT (foreign keys):
+  // "already exists" — constraint já foi adicionada (re-run idempotente)
+  // "does not exist" — tabela referenciada estava faltando, aceitável pular FK
+  if (upper.startsWith('ALTER TABLE') && upper.includes('ADD CONSTRAINT')) {
+    return errorMsg.includes('already exists') || errorMsg.includes('does not exist');
+  }
+
+  // INSERT INTO: violação de chave duplicada é ignorável (re-run idempotente)
+  if (upper.startsWith('INSERT INTO')) {
+    return (
+      errorMsg.includes('duplicate key') ||
+      errorMsg.includes('already exists') ||
+      errorMsg.includes('unique constraint')
+    );
+  }
+
+  // Comandos de sessão (SET, SELECT pg_catalog.*): ignoráveis
+  if (upper.startsWith('SET ') || upper.startsWith('SELECT PG_CATALOG')) return true;
+
+  return false;
 }
 
 // Função auxiliar para ordenação topológica (respeitando dependências)

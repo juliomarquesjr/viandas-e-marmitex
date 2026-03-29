@@ -1,20 +1,27 @@
+import {
+  canSatisfyStock,
+  totalQtyInCartForProduct,
+} from "@/lib/pdv/stockQuantity";
 import { useCallback, useEffect } from "react";
-import type { CartItem } from "../types";
+import type { CartItem, Product } from "../types";
 
 interface UsePDVUtilsProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
   audioRef: React.RefObject<HTMLAudioElement | null>;
   setQuery: (q: string) => void;
   calculatorOpen: boolean;
+  cart: CartItem[];
   cartLength: number;
   selectedIndex: number | null;
   setSelectedIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  products: Product[];
   requestRemoveCartItem: (index: number) => void;
   setPaymentOpen: (open: boolean) => void;
   setDiscountOpen: (open: boolean) => void;
   setNewSaleConfirmOpen: (open: boolean) => void;
   resetPDVAndRefreshProducts: () => Promise<void>;
+  showErrorToast: (message: string) => void;
 }
 
 export function usePDVUtils({
@@ -22,15 +29,18 @@ export function usePDVUtils({
   audioRef,
   setQuery,
   calculatorOpen,
+  cart,
   cartLength,
   selectedIndex,
   setSelectedIndex,
   setCart,
+  products,
   requestRemoveCartItem,
   setPaymentOpen,
   setDiscountOpen,
   setNewSaleConfirmOpen,
   resetPDVAndRefreshProducts,
+  showErrorToast,
 }: UsePDVUtilsProps) {
   const playBeepSound = useCallback(() => {
     if (audioRef.current) {
@@ -87,11 +97,22 @@ export function usePDVUtils({
         return;
       }
       if ((e.key === "+" || e.key === "=") && selectedIndex !== null) {
-        setCart((prev) =>
-          prev.map((it, idx) =>
+        const line = cart[selectedIndex];
+        if (!line || line.isWeightBased) return;
+        const product = products.find((p) => p.id === line.id);
+        if (!product) return;
+        setCart((prev) => {
+          const total = totalQtyInCartForProduct(prev, line.id);
+          if (!canSatisfyStock(product, total + 1)) {
+            queueMicrotask(() =>
+              showErrorToast(`Estoque insuficiente para ${product.name}`)
+            );
+            return prev;
+          }
+          return prev.map((it, idx) =>
             idx === selectedIndex ? { ...it, qty: it.qty + 1 } : it
-          )
-        );
+          );
+        });
         return;
       }
       if ((e.key === "-" || e.key === "_") && selectedIndex !== null) {
@@ -135,15 +156,18 @@ export function usePDVUtils({
     },
     [
       calculatorOpen,
+      cart,
       cartLength,
       selectedIndex,
       setCart,
+      products,
       requestRemoveCartItem,
       setSelectedIndex,
       setPaymentOpen,
       setDiscountOpen,
       setNewSaleConfirmOpen,
       resetPDVAndRefreshProducts,
+      showErrorToast,
     ]
   );
 

@@ -12,6 +12,7 @@ interface CartItemRowProps {
   onDecrement: () => void;
   onIncrement: () => void;
   onRemove: () => void;
+  incrementDisabled?: boolean;
 }
 
 export function CartItemRow({
@@ -22,6 +23,7 @@ export function CartItemRow({
   onDecrement,
   onIncrement,
   onRemove,
+  incrementDisabled = false,
 }: CartItemRowProps) {
   return (
     <div
@@ -86,8 +88,14 @@ export function CartItemRow({
                   {item.qty}
                 </span>
                 <button
+                  type="button"
                   onClick={onIncrement}
-                  className="h-5 w-6 flex items-center justify-center hover:bg-primary/10 hover:text-primary text-slate-500 transition-colors"
+                  disabled={incrementDisabled}
+                  className={`h-5 w-6 flex items-center justify-center transition-colors ${
+                    incrementDisabled
+                      ? "text-slate-300 cursor-not-allowed"
+                      : "hover:bg-primary/10 hover:text-primary text-slate-500"
+                  }`}
                   aria-label="Aumentar quantidade"
                 >
                   <Plus className="h-2.5 w-2.5" />

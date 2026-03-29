@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Customer } from "../types";
 
+
 export interface ClosingReportConfig {
   startDate: string;
   endDate: string;
@@ -17,6 +18,21 @@ export function useClosingReport(customer: Customer | null) {
   const [showDebtBalance, setShowDebtBalance] = useState(true);
   const [showPeriodBalance, setShowPeriodBalance] = useState(true);
   const [showPaymentsTotal, setShowPaymentsTotal] = useState(true);
+  const [isLoadingLastEntry, setIsLoadingLastEntry] = useState(false);
+
+  const fetchLastEntryDate = async () => {
+    if (!customer) return;
+    setIsLoadingLastEntry(true);
+    try {
+      const res = await fetch(`/api/customers/${customer.id}/last-entry-date`);
+      const data = await res.json();
+      if (data.lastEntryDate) {
+        setStartDate(data.lastEntryDate);
+      }
+    } finally {
+      setIsLoadingLastEntry(false);
+    }
+  };
 
   const setDefaultDates = () => {
     const today = new Date();
@@ -56,5 +72,7 @@ export function useClosingReport(customer: Customer | null) {
     setShowPaymentsTotal,
     setDefaultDates,
     handleGenerateReport,
+    isLoadingLastEntry,
+    fetchLastEntryDate,
   };
 }

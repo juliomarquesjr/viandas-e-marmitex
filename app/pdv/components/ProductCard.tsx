@@ -73,6 +73,15 @@ export function ProductCard({ product, canAdd, onAdd }: ProductCardProps) {
           </span>
         )}
 
+        {!canAdd &&
+          product.stockEnabled &&
+          product.stock !== undefined &&
+          product.stock > 0 && (
+          <span className="text-[11px] text-amber-700 font-medium leading-none">
+            Limite do estoque no carrinho
+          </span>
+        )}
+
         {!canAdd && !product.stockEnabled && (
           <Badge variant="error" size="sm" icon={<AlertCircle className="h-3 w-3" />}>
             Indisp.

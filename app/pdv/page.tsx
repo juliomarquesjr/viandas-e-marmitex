@@ -46,8 +46,7 @@ export default function PDVPage() {
     products,
     loadingProducts,
     fetchProducts,
-    canAddProductToCart,
-    canAddProductToPreset,
+    canAddProductUnits,
     formatPriceToReais,
   } = useProducts();
 
@@ -56,7 +55,13 @@ export default function PDVPage() {
   }, [fetchProducts]);
 
   // --- Carrinho ---
-  const cartHook = useCart(canAddProductToCart, audioRef, inputRef, setQuery);
+  const cartHook = useCart(
+    products,
+    showErrorToast,
+    audioRef,
+    inputRef,
+    setQuery
+  );
 
   // --- Desconto ---
   const discountHook = useDiscount(cartHook.subtotal, showToast);
@@ -65,7 +70,7 @@ export default function PDVPage() {
   const total = Math.max(0, cartHook.subtotal - discountHook.discountAmount);
 
   // --- Cliente ---
-  const customerHook = useCustomer(cartHook.mergeCartItems, canAddProductToPreset);
+  const customerHook = useCustomer(cartHook.mergeCartItems, cartHook.cart);
 
   // --- Reset ---
   const onReset = useCallback(() => {
@@ -117,15 +122,18 @@ export default function PDVPage() {
     audioRef,
     setQuery,
     calculatorOpen,
+    cart: cartHook.cart,
     cartLength: cartHook.cart.length,
     selectedIndex: cartHook.selectedIndex,
     setSelectedIndex: cartHook.setSelectedIndex,
     setCart: cartHook.setCart,
+    products,
     requestRemoveCartItem,
     setPaymentOpen: actionsHook.setPaymentOpen,
     setDiscountOpen: discountHook.setDiscountOpen,
     setNewSaleConfirmOpen: actionsHook.setNewSaleConfirmOpen,
     resetPDVAndRefreshProducts: actionsHook.resetPDVAndRefreshProducts,
+    showErrorToast,
   });
 
   useEffect(() => {
@@ -136,7 +144,6 @@ export default function PDVPage() {
   useBarcodeScanner({
     query,
     products,
-    canAddProductToCart,
     handleSelectCustomer: customerHook.handleSelectCustomer,
     setCart: cartHook.setCart,
     setSelectedIndex: cartHook.setSelectedIndex,
@@ -196,7 +203,8 @@ export default function PDVPage() {
           setQuery={setQuery}
           products={products}
           loadingProducts={loadingProducts}
-          canAddProductToCart={canAddProductToCart}
+          cart={cartHook.cart}
+          canAddProductUnits={canAddProductUnits}
           onAddProduct={cartHook.handleAddProductToCart}
         />
 
@@ -218,6 +226,8 @@ export default function PDVPage() {
           onPaymentOpen={() => actionsHook.setPaymentOpen(true)}
           onDiscountOpen={() => discountHook.setDiscountOpen(true)}
           onRequestRemoveItem={requestRemoveCartItem}
+          products={products}
+          onStockBlocked={showErrorToast}
         />
       </main>
 

@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { decrementStockForItems } from '@/lib/stock/orderStock';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -384,28 +385,7 @@ async function convertPreOrderToOrder(request: Request) {
         }
       });
       
-      // Atualizar estoque dos produtos
-      for (const item of preOrder.items) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { 
-            id: true, 
-            stockEnabled: true, 
-            stock: true 
-          }
-        });
-        
-        if (product && product.stockEnabled && product.stock !== null) {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        }
-      }
+      await decrementStockForItems(prisma, preOrder.items);
       
       // Excluir o pré-pedido após a conversão
       await prisma.preOrderItem.deleteMany({

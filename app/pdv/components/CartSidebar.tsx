@@ -5,7 +5,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { CustomerSelector } from "../../components/CustomerSelector";
 import { Button } from "../../components/ui/button";
 import { CountBadge } from "../../components/ui/badge";
-import type { CartItem, Customer, DiscountState } from "../types";
+import type { CartItem, Customer, DiscountState, Product } from "../types";
 import { CartItemList } from "./CartItemList";
 import { CartTotals } from "./CartTotals";
 
@@ -26,6 +26,8 @@ interface CartSidebarProps {
   onPaymentOpen: () => void;
   onDiscountOpen: () => void;
   onRequestRemoveItem: (index: number) => void;
+  products: Product[];
+  onStockBlocked: (message: string) => void;
 }
 
 export function CartSidebar({
@@ -45,6 +47,8 @@ export function CartSidebar({
   onPaymentOpen,
   onDiscountOpen,
   onRequestRemoveItem,
+  products,
+  onStockBlocked,
 }: CartSidebarProps) {
   return (
     <aside className="grid min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] h-full max-h-full bg-white border border-slate-200 shadow-card rounded-xl overflow-hidden">
@@ -81,10 +85,12 @@ export function CartSidebar({
       {/* Lista de itens */}
       <CartItemList
         cart={cart}
+        products={products}
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
         setCart={setCart}
         onRequestRemoveItem={onRequestRemoveItem}
+        onStockBlocked={onStockBlocked}
       />
 
       {/* Totais e CTAs */}

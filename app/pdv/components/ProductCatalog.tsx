@@ -3,7 +3,7 @@
 import { Search } from "lucide-react";
 import type { RefObject } from "react";
 import { Input } from "../../components/ui/input";
-import type { Product } from "../types";
+import type { CartItem, Product } from "../types";
 import { ProductGrid } from "./ProductGrid";
 
 interface ProductCatalogProps {
@@ -12,7 +12,12 @@ interface ProductCatalogProps {
   setQuery: (q: string) => void;
   products: Product[];
   loadingProducts: boolean;
-  canAddProductToCart: (product: Product) => boolean;
+  cart: CartItem[];
+  canAddProductUnits: (
+    product: Product,
+    cart: CartItem[],
+    additionalUnits: number
+  ) => boolean;
   onAddProduct: (product: Product) => void;
 }
 
@@ -22,7 +27,8 @@ export function ProductCatalog({
   setQuery,
   products,
   loadingProducts,
-  canAddProductToCart,
+  cart,
+  canAddProductUnits,
   onAddProduct,
 }: ProductCatalogProps) {
   return (
@@ -53,7 +59,8 @@ export function ProductCatalog({
       <ProductGrid
         products={products}
         loadingProducts={loadingProducts}
-        canAddProductToCart={canAddProductToCart}
+        cart={cart}
+        canAddProductUnits={canAddProductUnits}
         onAddProduct={onAddProduct}
       />
     </section>

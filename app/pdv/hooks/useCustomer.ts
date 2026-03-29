@@ -1,9 +1,13 @@
+import {
+  canSatisfyStock,
+  totalQtyInCartForProduct,
+} from "@/lib/pdv/stockQuantity";
 import { useCallback, useState } from "react";
 import type { CartItem, Customer, Product } from "../types";
 
 export function useCustomer(
   mergeCartItems: (items: CartItem[]) => void,
-  canAddProductToPreset: (product: Product, quantity: number) => boolean
+  cart: CartItem[]
 ) {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
@@ -24,10 +28,12 @@ export function useCustomer(
           if (presets.length > 0) {
             const newItems: CartItem[] = [];
 
-            presets.forEach((preset: any) => {
+            presets.forEach((preset: { product: Product; quantity: number }) => {
               const product = preset.product;
               if (product && product.active) {
-                if (canAddProductToPreset(product, preset.quantity)) {
+                const already = totalQtyInCartForProduct(cart, product.id);
+                const desired = already + preset.quantity;
+                if (canSatisfyStock(product, desired)) {
                   newItems.push({
                     id: product.id,
                     name: product.name,
@@ -53,7 +59,7 @@ export function useCustomer(
         setPresetProductsLoaded(false);
       }
     },
-    [canAddProductToPreset, mergeCartItems]
+    [cart, mergeCartItems]
   );
 
   const handleSelectCustomer = useCallback(
