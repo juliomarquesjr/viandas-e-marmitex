@@ -121,6 +121,42 @@ export async function POST(req: Request) {
       // Ordenar tabelas por dependências (topological sort)
       tables = topologicalSort(tables, dependencies);
 
+      // Obter PRIMARY KEY e UNIQUE constraints para incluir no CREATE TABLE
+      const constraintsResult = await client.query(`
+        SELECT
+          tc.table_name,
+          tc.constraint_name,
+          tc.constraint_type,
+          kcu.column_name,
+          kcu.ordinal_position
+        FROM information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        WHERE tc.table_schema = 'public'
+          AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+        ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position
+      `);
+
+      const pkColumns = new Map<string, string[]>();
+      const uniqueConstraints = new Map<string, Array<{ constraintName: string; columns: string[] }>>();
+
+      for (const row of constraintsResult.rows) {
+        if (row.constraint_type === 'PRIMARY KEY') {
+          if (!pkColumns.has(row.table_name)) pkColumns.set(row.table_name, []);
+          pkColumns.get(row.table_name)!.push(row.column_name);
+        } else if (row.constraint_type === 'UNIQUE') {
+          if (!uniqueConstraints.has(row.table_name)) uniqueConstraints.set(row.table_name, []);
+          const existing = uniqueConstraints.get(row.table_name)!;
+          const found = existing.find(uq => uq.constraintName === row.constraint_name);
+          if (found) {
+            found.columns.push(row.column_name);
+          } else {
+            existing.push({ constraintName: row.constraint_name, columns: [row.column_name] });
+          }
+        }
+      }
+
       // Obter informações de foreign keys para exportação posterior
       const foreignKeysInfo = fkResult.rows.map((row: any) => ({
         tableName: row.table_name,
@@ -185,13 +221,23 @@ export async function POST(req: Request) {
             } else {
               switch (col.data_type) {
                 case 'character varying':
-                  typeDef = `VARCHAR(${col.character_maximum_length || ''})`;
+                  typeDef = col.character_maximum_length
+                    ? `VARCHAR(${col.character_maximum_length})`
+                    : 'VARCHAR';
                   break;
                 case 'character':
-                  typeDef = `CHAR(${col.character_maximum_length || ''})`;
+                  typeDef = col.character_maximum_length
+                    ? `CHAR(${col.character_maximum_length})`
+                    : 'CHAR';
                   break;
                 case 'numeric':
-                  typeDef = `NUMERIC(${col.numeric_precision || ''},${col.numeric_scale || '0'})`;
+                  if (col.numeric_precision != null && col.numeric_scale != null) {
+                    typeDef = `NUMERIC(${col.numeric_precision},${col.numeric_scale})`;
+                  } else if (col.numeric_precision != null) {
+                    typeDef = `NUMERIC(${col.numeric_precision})`;
+                  } else {
+                    typeDef = 'NUMERIC';
+                  }
                   break;
                 case 'integer':
                   typeDef = 'INTEGER';
@@ -239,7 +285,19 @@ export async function POST(req: Request) {
             return colDef;
           }).join(', ');
 
-          backupContent += `CREATE TABLE "${tableName}" (${columns});\n\n`;
+          const columnDefs = [...columns];
+
+          const pks = pkColumns.get(tableName);
+          if (pks && pks.length > 0) {
+            columnDefs.push(`PRIMARY KEY (${pks.map(c => `"${c}"`).join(', ')})`);
+          }
+
+          const uqs = uniqueConstraints.get(tableName) ?? [];
+          for (const uq of uqs) {
+            columnDefs.push(`CONSTRAINT "${uq.constraintName}" UNIQUE (${uq.columns.map(c => `"${c}"`).join(', ')})`);
+          }
+
+          backupContent += `CREATE TABLE "${tableName}" (${columnDefs.join(', ')});\n\n`;
         }
 
         // Dados (usando COPY para melhor performance)
