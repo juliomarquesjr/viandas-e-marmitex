@@ -27,6 +27,7 @@ const routeLabels: Record<string, string> = {
   backups: "Backups",
   delivery: "Entregas",
   dashboard: "Dashboard",
+  kanban: "Kanban",
 };
 
 // Componente de Breadcrumb

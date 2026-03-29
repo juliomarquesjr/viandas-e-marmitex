@@ -29,7 +29,17 @@ model User {
   updatedAt         DateTime @updatedAt
 
   // Relacionamentos
-  deliveryPreOrders PreOrder[] // Pré-pedidos atribuídos para entrega
+  deliveryPreOrders   PreOrder[] // Pré-pedidos atribuídos para entrega
+
+  // Kanban
+  ownedBoards         KanbanBoard[]          @relation("OwnedBoards")
+  boardMemberships    KanbanBoardMember[]    @relation("BoardMemberships")
+  createdCards        KanbanCard[]           @relation("CreatedCards")
+  cardAssignments     KanbanCardAssignment[] @relation("CardAssignments")
+  cardComments        KanbanComment[]        @relation("CardComments")
+  cardAttachments     KanbanAttachment[]     @relation("CardAttachments")
+  cardActivities      KanbanActivity[]       @relation("CardActivities")
+  kanbanNotifications KanbanNotification[]   @relation("KanbanNotifications")
 }
 
 // Modelo de Cliente
@@ -342,4 +352,241 @@ model DeliveryTracking {
 
   @@index([preOrderId])
   @@index([timestamp])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KANBAN
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KanbanBoard {
+  id          String   @id @default(uuid())
+  ownerId     String
+  title       String
+  description String?
+  // JSON discriminated union:
+  // { type: "gradient", value: "linear-gradient(...)" }
+  // { type: "solid",    value: "#2563eb" }
+  // { type: "image",    value: "https://..." }
+  background  Json     @default("{\"type\":\"gradient\",\"value\":\"linear-gradient(135deg, #1e293b 0%, #334155 100%)\"}")
+  isArchived  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner         User                @relation("OwnedBoards",    fields: [ownerId], references: [id])
+  columns       KanbanColumn[]
+  members       KanbanBoardMember[]
+  labels        KanbanLabel[]
+  notifications KanbanNotification[]
+
+  @@index([ownerId])
+}
+
+model KanbanBoardMember {
+  id        String   @id @default(uuid())
+  boardId   String
+  userId    String
+  role      String   @default("member") // "owner" | "member" | "viewer"
+  createdAt DateTime @default(now())
+
+  board KanbanBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User        @relation("BoardMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
+}
+
+model KanbanColumn {
+  id         String   @id @default(uuid())
+  boardId    String
+  title      String
+  sortOrder  Int      @default(0)
+  color      String?
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  board KanbanBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards KanbanCard[]
+
+  @@index([boardId])
+}
+
+model KanbanCard {
+  id            String    @id @default(uuid())
+  columnId      String
+  title         String
+  description   String?   // plain-text preview extraído do TipTap JSON
+  content       Json?     // TipTap JSON document completo
+  sortOrder     Int       @default(0)
+  priority      String    @default("none") // "none" | "low" | "medium" | "high" | "urgent"
+  dueDate       DateTime?
+  coverColor    String?
+  coverImageUrl String?
+  isArchived    Boolean   @default(false)
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  column      KanbanColumn           @relation(fields: [columnId],    references: [id], onDelete: Cascade)
+  createdBy   User                   @relation("CreatedCards",        fields: [createdById], references: [id])
+  labels      KanbanCardLabel[]
+  assignments KanbanCardAssignment[]
+  checklists  KanbanChecklist[]
+  comments    KanbanComment[]
+  attachments KanbanAttachment[]
+  activities  KanbanActivity[]
+  mentions    KanbanMention[]
+
+  @@index([columnId])
+  @@index([createdById])
+  @@index([dueDate])
+}
+
+model KanbanLabel {
+  id      String @id @default(uuid())
+  boardId String
+  name    String
+  color   String
+
+  board KanbanBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards KanbanCardLabel[]
+
+  @@index([boardId])
+}
+
+model KanbanCardLabel {
+  cardId  String
+  labelId String
+
+  card  KanbanCard  @relation(fields: [cardId],  references: [id], onDelete: Cascade)
+  label KanbanLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, labelId])
+}
+
+model KanbanCardAssignment {
+  cardId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  card KanbanCard @relation(fields: [cardId],  references: [id], onDelete: Cascade)
+  user User       @relation("CardAssignments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
+  @@index([userId])
+}
+
+model KanbanChecklist {
+  id        String              @id @default(uuid())
+  cardId    String
+  title     String
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now())
+
+  card  KanbanCard            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  items KanbanChecklistItem[]
+
+  @@index([cardId])
+}
+
+model KanbanChecklistItem {
+  id          String          @id @default(uuid())
+  checklistId String
+  text        String
+  isChecked   Boolean         @default(false)
+  sortOrder   Int             @default(0)
+  dueDate     DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  checklist KanbanChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+}
+
+model KanbanComment {
+  id        String   @id @default(uuid())
+  cardId    String
+  authorId  String
+  content   Json     // TipTap JSON (suporta @mentions inline)
+  isEdited  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card   KanbanCard @relation(fields: [cardId],   references: [id], onDelete: Cascade)
+  author User       @relation("CardComments",     fields: [authorId], references: [id])
+
+  @@index([cardId])
+  @@index([authorId])
+}
+
+model KanbanAttachment {
+  id           String   @id @default(uuid())
+  cardId       String
+  uploadedById String
+  name         String
+  url          String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  card       KanbanCard @relation(fields: [cardId],       references: [id], onDelete: Cascade)
+  uploadedBy User       @relation("CardAttachments",      fields: [uploadedById], references: [id])
+
+  @@index([cardId])
+}
+
+model KanbanActivity {
+  id        String   @id @default(uuid())
+  cardId    String
+  userId    String
+  // tipos: card_created | card_moved | card_renamed | comment_added
+  //        due_date_set | label_added | member_assigned
+  //        checklist_item_checked | attachment_added | description_updated
+  type      String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  card KanbanCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User       @relation("CardActivities", fields: [userId], references: [id])
+
+  @@index([cardId])
+  @@index([createdAt])
+}
+
+model KanbanMention {
+  id              String   @id @default(uuid())
+  cardId          String
+  sourceType      String   // "description" | "comment"
+  sourceId        String?  // commentId quando sourceType == "comment"
+  mentionType     String   // "user" | "customer" | "product"
+  mentionTargetId String
+  createdAt       DateTime @default(now())
+
+  card KanbanCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([mentionTargetId])
+}
+
+model KanbanNotification {
+  id        String   @id @default(uuid())
+  boardId   String?
+  cardId    String?
+  userId    String
+  // tipos: mention | due_soon | overdue | card_assigned | comment_reply
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  board KanbanBoard? @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  user  User         @relation("KanbanNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
 }

@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Database,
   Gauge,
-  MapPin,
+  KanbanSquare,
   Package,
   Receipt,
   Settings,
@@ -49,6 +49,7 @@ const navigationConfig: NavSection[] = [
       { href: "/admin", label: "Dashboard", icon: Gauge },
       { href: "/admin/products", label: "Produtos", icon: Package },
       { href: "/admin/customers", label: "Clientes", icon: Users },
+      { href: "/admin/kanban", label: "Kanban", icon: KanbanSquare },
     ],
   },
   {

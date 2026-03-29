@@ -241,3 +241,167 @@ body {
 .safe-area-right {
   padding-right: env(safe-area-inset-right);
 }
+
+/* =============================================================================
+   KANBAN — Glassmorphism Design System
+   ============================================================================= */
+
+/* Cards sobre backgrounds escuros */
+.kanban-card-glass {
+  background: rgba(255, 255, 255, 0.11);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.14),
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.kanban-card-glass:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.22),
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Coluna Kanban */
+.kanban-column-glass {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(8px) saturate(160%);
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
+}
+
+/* Scrollbar customizada para as colunas Kanban */
+.kanban-column-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.kanban-column-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.kanban-column-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-column-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+/* Scrollbar horizontal do board */
+.kanban-board-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.20) transparent;
+}
+.kanban-board-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.kanban-board-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-board-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.20);
+  border-radius: 4px;
+}
+
+/* Cards sobre boards claros */
+.kanban-card-glass-light {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  color: #0f172a;
+}
+
+/* Animação de entrada do card */
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+.kanban-card-enter {
+  animation: cardSlideIn 200ms ease forwards;
+}
+
+/* Editor TipTap — reset de estilos dentro da área de edição */
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 120px;
+}
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgba(148, 163, 184, 0.8);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+.tiptap-editor .ProseMirror ul,
+.tiptap-editor .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap-editor .ProseMirror h1 { font-size: 1.5rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.tiptap-editor .ProseMirror h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0 0.25rem; }
+.tiptap-editor .ProseMirror h3 { font-size: 1.1rem;  font-weight: 600; margin: 0.5rem 0 0.25rem;  }
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid rgba(255,255,255,0.3);
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  opacity: 0.8;
+}
+.tiptap-editor .ProseMirror code {
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-family: var(--font-geist-mono);
+  font-size: 0.875em;
+}
+.tiptap-editor .ProseMirror pre {
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.tiptap-editor .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+}
+.tiptap-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li > label {
+  margin-top: 2px;
+}
+
+/* Mention chip dentro do editor */
+.tiptap-mention {
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-block;
+}
+.tiptap-mention[data-type="user"]     { background: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+.tiptap-mention[data-type="customer"] { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; }
+.tiptap-mention[data-type="product"]  { background: rgba(245, 158, 11, 0.25); color: #fcd34d; }
+
+/* Drop indicator entre cards */
+.kanban-drop-indicator {
+  height: 3px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 2px;
+  margin: 2px 0;
+  transition: opacity 150ms;
+}
