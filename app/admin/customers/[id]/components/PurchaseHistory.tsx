@@ -6,6 +6,8 @@ import { Input } from "../../../../components/ui/input";
 import { DataTable, Column } from "../../../components/data-display/DataTable";
 import { cn } from "@/lib/utils";
 import { Order } from "../types";
+import { OrderDetailsModal } from "./OrderDetailsModal";
+import { useState } from "react";
 
 interface PurchaseHistoryProps {
   orders: Order[];
@@ -130,6 +132,8 @@ export function PurchaseHistory({
   getPaymentMethodIcon,
   getPaymentMethodLabel,
 }: PurchaseHistoryProps) {
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
   const totalOrders = orders.filter(
     (o) => !(o.type === "ficha_payment" || o.paymentMethod === "ficha_payment")
   ).length;
@@ -324,6 +328,7 @@ export function PurchaseHistory({
           columns={columns}
           rowKey="id"
           className="border-0 shadow-none rounded-none"
+          onRowClick={(order) => setSelectedOrder(order)}
           emptyComponent={
             <div className="flex flex-col items-center gap-2 text-slate-500 py-4">
               <Package className="h-12 w-12 text-slate-200" />
@@ -358,6 +363,13 @@ export function PurchaseHistory({
           )}
         />
       </CardContent>
+
+      {/* Modal de Detalhes do Pedido */}
+      <OrderDetailsModal
+        open={selectedOrder !== null}
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+      />
     </Card>
   );
 }
