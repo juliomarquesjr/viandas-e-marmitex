@@ -10,9 +10,16 @@ function ExpensesReportA4Content() {
   const supplierTypeIds = searchParams.get('supplierTypeIds');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const paymentMethodIdsRaw = searchParams.get('paymentMethodIds');
+
+  const paymentMethodFilterIds = (paymentMethodIdsRaw ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
 
   const [expenses, setExpenses] = useState<ExpenseWithRelations[]>([]);
   const [systemTitle, setSystemTitle] = useState<string>('COMIDA CASEIRA');
+  const [paymentFilterDescription, setPaymentFilterDescription] = useState<string>('Todas as formas de pagamento');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +46,9 @@ function ExpensesReportA4Content() {
             endDate,
             limit: '10000', // Limite alto para pegar todas as despesas
           });
+          if (paymentMethodFilterIds.length > 0) {
+            params.set('paymentMethodIds', paymentMethodFilterIds.join(','));
+          }
 
           const response = await fetch(`/api/expenses?${params.toString()}`);
           if (!response.ok) {
@@ -62,6 +72,25 @@ function ExpensesReportA4Content() {
 
         setExpenses(uniqueExpenses);
 
+        if (paymentMethodFilterIds.length > 0) {
+          const pmRes = await fetch('/api/expense-payment-methods');
+          if (pmRes.ok) {
+            const methods = await pmRes.json();
+            const names = paymentMethodFilterIds
+              .map((id) => methods.find((m: { id: string; name: string }) => m.id === id)?.name)
+              .filter(Boolean) as string[];
+            if (names.length > 0) {
+              setPaymentFilterDescription(names.join(', '));
+            } else {
+              setPaymentFilterDescription('Filtro por formas de pagamento selecionadas');
+            }
+          } else {
+            setPaymentFilterDescription('Filtro por formas de pagamento selecionadas');
+          }
+        } else {
+          setPaymentFilterDescription('Todas as formas de pagamento');
+        }
+
         // Buscar título do sistema
         const configResponse = await fetch('/api/config');
         if (configResponse.ok) {
@@ -81,7 +110,7 @@ function ExpensesReportA4Content() {
     };
 
     loadData();
-  }, [supplierTypeIds, startDate, endDate]);
+  }, [supplierTypeIds, startDate, endDate, paymentMethodIdsRaw]);
 
   // Auto print when page loads
   useEffect(() => {
@@ -177,10 +206,16 @@ function ExpensesReportA4Content() {
         <div className="text-base text-gray-600 mb-2">
           {systemTitle}
         </div>
-        <div className="flex items-center gap-3 text-sm text-gray-500">
-          <span>Período: {formatDate(startDate!)} a {formatDate(endDate!)}</span>
-          <span>•</span>
-          <span>Gerado em: {formatDateTime(new Date().toISOString())}</span>
+        <div className="flex flex-col gap-1 text-sm text-gray-500">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>Período: {formatDate(startDate!)} a {formatDate(endDate!)}</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Gerado em: {formatDateTime(new Date().toISOString())}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Pagamentos: </span>
+            {paymentFilterDescription}
+          </div>
         </div>
       </div>
 
@@ -228,6 +263,7 @@ function ExpensesReportA4Content() {
                     <th className="p-2 text-left border-b border-gray-300">Data</th>
                     <th className="p-2 text-left border-b border-gray-300">Descrição</th>
                     <th className="p-2 text-left border-b border-gray-300">Tipo</th>
+                    <th className="p-2 text-left border-b border-gray-300">Pagamento</th>
                     <th className="p-2 text-right border-b border-gray-300">Valor</th>
                   </tr>
                 </thead>
@@ -237,6 +273,7 @@ function ExpensesReportA4Content() {
                       <td className="p-2">{formatDate(expense.date)}</td>
                       <td className="p-2">{expense.description}</td>
                       <td className="p-2">{expense.type.name}</td>
+                      <td className="p-2">{expense.paymentMethod?.name ?? '—'}</td>
                       <td className="p-2 text-right font-medium">
                         {formatCurrency(expense.amountCents)}
                       </td>
@@ -245,7 +282,7 @@ function ExpensesReportA4Content() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-100 font-bold">
-                    <td colSpan={3} className="p-2 text-right">
+                    <td colSpan={4} className="p-2 text-right">
                       TOTAL {supplierName.toUpperCase()}:
                     </td>
                     <td className="p-2 text-right text-lg">
@@ -277,6 +314,7 @@ function ExpensesReportA4Content() {
         <div className="mt-1">
           Período: {formatDate(startDate!)} a {formatDate(endDate!)}
         </div>
+        <div className="mt-1">Pagamentos: {paymentFilterDescription}</div>
         <div className="mt-1">
           Total de {expenses.length} despesa(s) de {groupedExpenses.length} fornecedor(es)
         </div>

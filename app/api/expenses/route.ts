@@ -3,6 +3,17 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
+const PAYMENT_METHOD_ID_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parsePaymentMethodIdsParam(raw: string | null): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((id) => PAYMENT_METHOD_ID_UUID_RE.test(id));
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,6 +24,9 @@ export async function GET(request: Request) {
     const typeId = searchParams.get('typeId');
     const supplierTypeId = searchParams.get('supplierTypeId');
     const paymentMethodId = searchParams.get('paymentMethodId');
+    const paymentMethodIds = parsePaymentMethodIdsParam(
+      searchParams.get('paymentMethodIds')
+    );
     const nfChaveAcesso = searchParams.get('nfChaveAcesso');
 
     // Construir filtros
@@ -45,7 +59,12 @@ export async function GET(request: Request) {
       where.supplierTypeId = supplierTypeId;
     }
 
-    if (paymentMethodId) {
+    if (paymentMethodIds.length > 0) {
+      where.paymentMethodId = { in: paymentMethodIds };
+    } else if (
+      paymentMethodId &&
+      PAYMENT_METHOD_ID_UUID_RE.test(paymentMethodId)
+    ) {
       where.paymentMethodId = paymentMethodId;
     }
 
@@ -78,8 +97,18 @@ export async function GET(request: Request) {
         conditions.push(`e."supplierTypeId" = '${supplierTypeId}'`);
       }
 
-      if (paymentMethodId) {
-        conditions.push(`e."paymentMethodId" = '${paymentMethodId}'`);
+      if (paymentMethodIds.length > 0) {
+        const list = paymentMethodIds
+          .map((id) => `'${id.replace(/'/g, "''")}'`)
+          .join(', ');
+        conditions.push(`e."paymentMethodId" IN (${list})`);
+      } else if (
+        paymentMethodId &&
+        PAYMENT_METHOD_ID_UUID_RE.test(paymentMethodId)
+      ) {
+        conditions.push(
+          `e."paymentMethodId" = '${paymentMethodId.replace(/'/g, "''")}'`
+        );
       }
 
       if (nfChaveAcesso) {

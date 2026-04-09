@@ -251,6 +251,7 @@ export default function ExpensesPage() {
         open={ex.isReportModalOpen}
         onClose={() => ex.setIsReportModalOpen(false)}
         supplierTypes={ex.supplierTypes}
+        paymentMethods={ex.paymentMethods}
       />
 
       <ExpenseInvoiceLookupDialog
