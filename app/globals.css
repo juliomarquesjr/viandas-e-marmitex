@@ -6,6 +6,8 @@
    ============================================================================= */
 
 :root {
+  --desktop-titlebar-height: 0px;
+
   /* Backgrounds */
   --background: #f8fafc; /* slate-50 */
   --foreground: #0f172a; /* slate-900 */
@@ -152,6 +154,97 @@ body {
   color-scheme: light; /* força renderização de elementos nativos no tema claro */
 }
 
+[data-admin-theme-scope] {
+  --primary: var(--admin-accent-primary, #2563eb);
+  --primary-hover: var(--admin-accent-hover, #1d4ed8);
+  --ring: var(--admin-accent-primary, #2563eb);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+[data-admin-theme-scope][data-admin-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --accent: rgb(var(--admin-accent-rgb, 37 99 235) / 0.08);
+  --accent-foreground: var(--primary-hover);
+  --border: #e2e8f0;
+  --border-dark: #cbd5e1;
+  --input: #e2e8f0;
+  --primary-light: rgb(var(--admin-accent-rgb, 37 99 235) / 0.14);
+  --primary-lighter: rgb(var(--admin-accent-rgb, 37 99 235) / 0.08);
+  --modal-header-bg: rgb(var(--admin-accent-rgb, 37 99 235) / 0.10);
+  --modal-header-text: #1e293b;
+  --modal-header-description: #64748b;
+  --modal-header-icon-bg: rgb(var(--admin-accent-rgb, 37 99 235) / 0.10);
+  --modal-header-icon-ring: rgb(var(--admin-accent-rgb, 37 99 235) / 0.18);
+  --modal-header-close: #94a3b8;
+  --modal-header-close-hover: rgb(var(--admin-accent-rgb, 37 99 235) / 0.08);
+  color-scheme: light;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] {
+  --background: #020617;
+  --foreground: #e2e8f0;
+  --muted-foreground: #94a3b8;
+  --card: #0f172a;
+  --card-foreground: #e2e8f0;
+  --muted: #172036;
+  --accent: rgb(var(--admin-accent-rgb, 37 99 235) / 0.16);
+  --accent-foreground: #dbeafe;
+  --border: #1e293b;
+  --border-dark: #334155;
+  --input: #1e293b;
+  --primary-light: rgb(var(--admin-accent-rgb, 37 99 235) / 0.24);
+  --primary-lighter: rgb(var(--admin-accent-rgb, 37 99 235) / 0.14);
+  --modal-header-bg: #101b30;
+  --modal-header-text: #f8fafc;
+  --modal-header-description: rgba(226, 232, 240, 0.72);
+  --modal-header-icon-bg: rgb(var(--admin-accent-rgb, 37 99 235) / 0.18);
+  --modal-header-icon-ring: rgb(var(--admin-accent-rgb, 37 99 235) / 0.28);
+  --modal-header-close: rgba(226, 232, 240, 0.72);
+  --modal-header-close-hover: rgb(var(--admin-accent-rgb, 37 99 235) / 0.10);
+  color-scheme: dark;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] .bg-white,
+[data-admin-theme-scope][data-admin-theme="dark"] .bg-slate-50,
+[data-admin-theme-scope][data-admin-theme="dark"] .bg-slate-100,
+[data-admin-theme-scope][data-admin-theme="dark"] .bg-slate-50\/80,
+[data-admin-theme-scope][data-admin-theme="dark"] .to-white,
+[data-admin-theme-scope][data-admin-theme="dark"] .from-white {
+  background-color: var(--card) !important;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] .border-slate-100,
+[data-admin-theme-scope][data-admin-theme="dark"] .border-slate-200,
+[data-admin-theme-scope][data-admin-theme="dark"] .border-slate-300,
+[data-admin-theme-scope][data-admin-theme="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-900,
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-800,
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-700,
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-600 {
+  color: var(--foreground) !important;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-500,
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-400,
+[data-admin-theme-scope][data-admin-theme="dark"] .text-slate-300 {
+  color: var(--muted-foreground) !important;
+}
+
+[data-admin-theme-scope][data-admin-theme="dark"] .hover\:bg-slate-50:hover,
+[data-admin-theme-scope][data-admin-theme="dark"] .hover\:bg-slate-100:hover,
+[data-admin-theme-scope][data-admin-theme="dark"] .hover\:bg-slate-200:hover {
+  background-color: var(--muted) !important;
+}
+
 /* Animações suaves para blobs decorativos */
 @keyframes blobFloat {
   0% { transform: translate(0px, 0px) scale(1); }
@@ -240,4 +333,93 @@ body {
 
 .safe-area-right {
   padding-right: env(safe-area-inset-right);
+}
+
+.desktop-window-frame {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.desktop-window-titlebar {
+  height: var(--desktop-titlebar-height);
+  min-height: var(--desktop-titlebar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 70;
+}
+
+.desktop-window-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.desktop-window-brand-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.desktop-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.desktop-window-titlebar-drag-area {
+  flex: 1;
+  min-width: 24px;
+  height: 100%;
+}
+
+.desktop-window-control-button {
+  width: 30px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+  cursor: pointer;
+}
+
+.desktop-window-control-button:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.desktop-window-control-button-close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.desktop-window-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.desktop-runtime,
+body.desktop-runtime {
+  height: 100%;
+  overflow: hidden;
 }

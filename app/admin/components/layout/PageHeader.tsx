@@ -75,7 +75,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
         <li>
           <Link
             href="/admin"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
           >
             <Home className="h-4 w-4" />
           </Link>
@@ -84,16 +84,16 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
         {/* Items */}
         {breadcrumbItems.map((item, index) => (
           <li key={index} className="flex items-center gap-1">
-            <ChevronRight className="h-4 w-4 text-slate-300" />
+            <ChevronRight className="h-4 w-4 text-[color:var(--border-dark)]" />
             {item.href ? (
               <Link
                 href={item.href}
-                className="text-slate-500 hover:text-slate-700 transition-colors"
+                className="text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
               >
                 {item.label}
               </Link>
             ) : (
-              <span className="text-slate-900 font-medium">{item.label}</span>
+              <span className="font-medium text-[color:var(--foreground)]">{item.label}</span>
             )}
           </li>
         ))}
@@ -123,7 +123,7 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <header className={cn("bg-white border-b border-slate-200", className)}>
+    <header className={cn("border-b border-[color:var(--border)] bg-[color:var(--card)]", className)}>
       <div className="px-6 py-5">
         {/* Breadcrumb */}
         <Breadcrumb items={breadcrumb} className="mb-3" />
@@ -137,9 +137,9 @@ export function PageHeader({
               </div>
             )}
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+              <h1 className="text-xl font-semibold text-[color:var(--foreground)]">{title}</h1>
               {description && (
-                <p className="text-sm text-slate-500 mt-0.5">{description}</p>
+                <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">{description}</p>
               )}
             </div>
           </div>
@@ -174,9 +174,9 @@ export function SimplePageHeader({
   return (
     <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6", className)}>
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
+        <h1 className="text-2xl font-semibold text-[color:var(--foreground)]">{title}</h1>
         {description && (
-          <p className="text-sm text-slate-500 mt-1">{description}</p>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">{description}</p>
         )}
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}
@@ -205,8 +205,8 @@ export function PageSection({
       {(title || actions) && (
         <div className="flex items-center justify-between mb-4">
           <div>
-            {title && <h2 className="text-lg font-semibold text-slate-900">{title}</h2>}
-            {description && <p className="text-sm text-slate-500 mt-0.5">{description}</p>}
+            {title && <h2 className="text-lg font-semibold text-[color:var(--foreground)]">{title}</h2>}
+            {description && <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">{description}</p>}
           </div>
           {actions}
         </div>

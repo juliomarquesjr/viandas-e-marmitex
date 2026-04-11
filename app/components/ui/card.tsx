@@ -10,15 +10,15 @@ import { cva, type VariantProps } from "class-variance-authority";
  */
 
 const cardVariants = cva(
-  "bg-white text-slate-900 transition-all duration-200",
+  "bg-[color:var(--card)] text-[color:var(--foreground)] transition-all duration-200",
   {
     variants: {
       variant: {
-        default: "border border-slate-200 rounded-xl shadow-card",
+        default: "border border-[color:var(--border)] rounded-xl shadow-card",
         elevated: "border-0 rounded-xl shadow-md hover:shadow-lg",
-        outline: "border border-slate-200 rounded-xl",
+        outline: "border border-[color:var(--border)] rounded-xl",
         ghost: "border-0 rounded-xl",
-        interactive: "border border-slate-200 rounded-xl shadow-card hover:shadow-md hover:border-slate-300 cursor-pointer",
+        interactive: "cursor-pointer rounded-xl border border-[color:var(--border)] shadow-card hover:border-[color:var(--border-dark)] hover:shadow-md",
       },
     },
     defaultVariants: {
@@ -36,15 +36,15 @@ export const Card = ({ className, variant, ...props }: CardProps) => (
 );
 
 export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 p-5 border-b border-slate-100", className)} {...props} />
+  <div className={cn("flex flex-col space-y-1.5 border-b border-[color:var(--border)] p-5", className)} {...props} />
 );
 
 export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn("text-lg font-semibold leading-none tracking-tight text-slate-900", className)} {...props} />
+  <h3 className={cn("text-lg font-semibold leading-none tracking-tight text-[color:var(--foreground)]", className)} {...props} />
 );
 
 export const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-  <p className={cn("text-sm text-slate-500", className)} {...props} />
+  <p className={cn("text-sm text-[color:var(--muted-foreground)]", className)} {...props} />
 );
 
 export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -52,14 +52,14 @@ export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDi
 );
 
 export const CardFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex items-center gap-3 p-5 pt-0 border-t border-slate-100 mt-auto", className)} {...props} />
+  <div className={cn("mt-auto flex items-center gap-3 border-t border-[color:var(--border)] p-5 pt-0", className)} {...props} />
 );
 
 // Componentes adicionais para casos específicos
 
 /** Card compacto para listas e grids densos */
 export const CardCompact = ({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("border border-slate-200 rounded-lg p-4 bg-white shadow-sm", className)} {...props}>
+  <div className={cn("rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-sm", className)} {...props}>
     {children}
   </div>
 );
@@ -82,7 +82,7 @@ export const CardHighlighted = ({
   return (
     <div 
       className={cn(
-        "border border-slate-200 rounded-xl bg-white shadow-card border-t-4",
+        "rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] border-t-4 shadow-card",
         highlightColors[highlightColor],
         className
       )} 
@@ -95,7 +95,7 @@ export const CardHighlighted = ({
 
 /** Seção dentro do card */
 export const CardSection = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("py-4 border-b border-slate-100 last:border-b-0", className)} {...props} />
+  <div className={cn("border-b border-[color:var(--border)] py-4 last:border-b-0", className)} {...props} />
 );
 
 

@@ -21,6 +21,8 @@
 /build
 /dist
 /mobile
+/src-tauri/target
+/src-tauri/resources/app
 
 # misc
 .DS_Store

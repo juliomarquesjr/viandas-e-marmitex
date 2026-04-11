@@ -141,7 +141,7 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
         collapsed ? "h-11 w-11 justify-center mx-auto" : "h-11 px-3",
         isActive
           ? "bg-primary/10 text-primary"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
       )}
       title={collapsed ? item.label : undefined}
     >
@@ -154,7 +154,7 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
         className={cn(
           "shrink-0 transition-colors duration-200",
           collapsed ? "h-5 w-5" : "h-5 w-5",
-          isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600"
+          isActive ? "text-primary" : "text-[color:var(--muted-foreground)] group-hover:text-[color:var(--foreground)]"
         )}
       />
 
@@ -182,7 +182,7 @@ function NavSectionComponent({ section, collapsed }: NavSectionProps) {
   return (
     <div className="space-y-1">
       {!collapsed && (
-        <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+        <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">
           {section.title}
         </h3>
       )}
@@ -216,7 +216,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out h-screen sticky top-0",
+        "sticky top-0 hidden h-screen flex-col border-r border-[color:var(--border)] bg-[color:var(--card)] transition-all duration-300 ease-in-out lg:flex",
         collapsed ? "w-[72px]" : "w-[260px]",
         className
       )}
@@ -224,7 +224,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       {/* Header da Sidebar */}
       <div
         className={cn(
-          "flex items-center border-b border-slate-200 h-16 shrink-0",
+          "flex h-16 shrink-0 items-center border-b border-[color:var(--border)]",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
@@ -234,8 +234,8 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
               <ChefHat className="h-5 w-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-slate-900 text-sm">Comida Caseira</span>
-              <span className="text-xs text-slate-500">CRM</span>
+              <span className="text-sm font-semibold text-[color:var(--foreground)]">Comida Caseira</span>
+              <span className="text-xs text-[color:var(--muted-foreground)]">CRM</span>
             </div>
           </Link>
         )}
@@ -253,8 +253,8 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
           size="icon"
           onClick={toggle}
           className={cn(
-            "shrink-0 text-slate-400 hover:text-slate-600 hover:bg-slate-100",
-            collapsed && "absolute -right-3 top-6 bg-white border border-slate-200 shadow-sm rounded-full h-6 w-6"
+            "shrink-0 text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+            collapsed && "absolute -right-3 top-6 h-6 w-6 rounded-full border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm"
           )}
         >
           {collapsed ? (
@@ -275,18 +275,18 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       {/* Footer da Sidebar */}
       <div
         className={cn(
-          "border-t border-slate-200 py-4 shrink-0",
+          "shrink-0 border-t border-[color:var(--border)] py-4",
           collapsed ? "px-2" : "px-4"
         )}
       >
         {!collapsed ? (
-          <div className="text-xs text-slate-400 text-center">
+          <div className="text-center text-xs text-[color:var(--muted-foreground)]">
             <span className="font-medium">Comida Caseira</span>
             <span className="mx-1">•</span>
             <span>v2.1.0</span>
           </div>
         ) : (
-          <div className="text-xs text-slate-400 text-center">v2.1</div>
+          <div className="text-center text-xs text-[color:var(--muted-foreground)]">v2.1</div>
         )}
       </div>
     </aside>
@@ -327,17 +327,17 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
       />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 left-0 z-50 w-[280px] bg-white shadow-xl lg:hidden transform transition-transform duration-300 ease-in-out">
+      <div className="fixed inset-y-0 left-0 z-50 w-[280px] transform bg-[color:var(--card)] shadow-xl transition-transform duration-300 ease-in-out lg:hidden">
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200">
+          <div className="flex h-16 items-center justify-between border-b border-[color:var(--border)] px-4">
             <Link href="/admin" className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
                 <ChefHat className="h-5 w-5 text-white" />
               </div>
               <div className="flex flex-col">
-                <span className="font-semibold text-slate-900 text-sm">Comida Caseira</span>
-                <span className="text-xs text-slate-500">CRM</span>
+                <span className="text-sm font-semibold text-[color:var(--foreground)]">Comida Caseira</span>
+                <span className="text-xs text-[color:var(--muted-foreground)]">CRM</span>
               </div>
             </Link>
             <Button variant="ghost" size="icon" onClick={onClose}>
@@ -353,8 +353,8 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
           </nav>
 
           {/* Footer */}
-          <div className="border-t border-slate-200 py-4 px-4">
-            <div className="text-xs text-slate-400 text-center">
+          <div className="border-t border-[color:var(--border)] px-4 py-4">
+            <div className="text-center text-xs text-[color:var(--muted-foreground)]">
               <span className="font-medium">Comida Caseira</span>
               <span className="mx-1">•</span>
               <span>v2.1.0</span>
