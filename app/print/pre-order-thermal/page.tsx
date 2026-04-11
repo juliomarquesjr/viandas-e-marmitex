@@ -51,6 +51,7 @@ type Customer = {
 function PreOrderThermalContent() {
   const searchParams = useSearchParams();
   const preOrderId = searchParams.get('preOrderId');
+  const printSessionId = searchParams.get('printSessionId');
 
   const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -64,6 +65,29 @@ function PreOrderThermalContent() {
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string | null>(null);
   const [pixChave, setPixChave] = useState<string | null>(null);
   const [generatingQr, setGeneratingQr] = useState(false);
+
+  const notifyPrintDialogOpening = () => {
+    const payload = {
+      type: 'desktop-print-dialog-opening',
+      printSessionId: printSessionId || null,
+    };
+
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    } catch (error) {
+      console.warn('Falha ao notificar parent da impressao:', error);
+    }
+
+    try {
+      if (window.opener) {
+        window.opener.postMessage(payload, window.location.origin);
+      }
+    } catch (error) {
+      console.warn('Falha ao notificar opener da impressao:', error);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -240,6 +264,7 @@ function PreOrderThermalContent() {
       // Se não houver chave PIX, imprimir após um pequeno delay
       if (!pixChave) {
         setTimeout(() => {
+          notifyPrintDialogOpening();
           window.print();
         }, 500);
         return;
@@ -250,12 +275,14 @@ function PreOrderThermalContent() {
       if (pixQrCodeUrl) {
         // QR Code já foi gerado, aguardar tempo suficiente para renderizar a imagem
         setTimeout(() => {
+          notifyPrintDialogOpening();
           window.print();
         }, 2000);
       } else if (!generatingQr && pixChave) {
         // Não está gerando e não tem QR Code - pode ser erro ou chave inválida
         // Aguardar um pouco e imprimir mesmo assim
         setTimeout(() => {
+          notifyPrintDialogOpening();
           window.print();
         }, 3000);
       }

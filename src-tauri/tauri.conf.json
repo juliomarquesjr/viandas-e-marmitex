@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Viandas e Marmitex Desktop",
+  "version": "0.1.0",
+  "identifier": "com.viandas.desktop",
+  "build": {
+    "beforeBuildCommand": "npm run desktop:next:build && npm run desktop:prepare",
+    "frontendDist": "../public"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Viandas e Marmitex",
+        "decorations": false,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1200,
+        "minHeight": 760,
+        "resizable": true,
+        "visible": false,
+        "url": "about:blank"
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "windows": {
+      "wix": {
+        "language": "pt-BR"
+      }
+    },
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": [
+      "resources/app"
+    ]
+  }
+}

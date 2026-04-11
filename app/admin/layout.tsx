@@ -4,6 +4,7 @@ import * as React from "react";
 import { useSession } from "next-auth/react";
 import { Menu } from "lucide-react";
 import { SidebarProvider, ModernSidebar, MobileSidebar, HeaderActions } from "./components/layout";
+import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
 
@@ -32,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-slate-50">
+      <AdminThemeProvider>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -48,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Header */}
-            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6 shrink-0">
+            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--card)] px-4 lg:px-6 shrink-0 transition-colors duration-200">
               {/* Left side - Mobile menu button */}
               <div className="flex items-center gap-4">
                 <Button
@@ -66,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </header>
 
             {/* Page Content */}
-            <main className="flex-1 overflow-auto" style={{ scrollbarGutter: 'stable' }}>
+            <main className="flex-1 overflow-auto bg-background" style={{ scrollbarGutter: "stable" }}>
               <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">
                 {children}
               </div>
@@ -76,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* RO Assistant */}
         <RoAssistant />
-      </div>
+      </AdminThemeProvider>
     </SidebarProvider>
   );
 }

@@ -19,11 +19,11 @@ export const buttonVariants = cva(
         // Primário - Ação principal
         default: "bg-primary text-white hover:bg-primary-hover shadow-sm hover:shadow-md active:scale-[0.98]",
         // Secundário - Ação secundária
-        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-sm",
+        secondary: "bg-[color:var(--muted)] text-[color:var(--foreground)] hover:bg-[color:var(--border)] shadow-sm",
         // Outline - Ação terciária
-        outline: "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-50 hover:border-slate-400",
+        outline: "border border-[color:var(--border-dark)] bg-transparent text-[color:var(--foreground)] hover:bg-[color:var(--muted)] hover:border-[color:var(--border-dark)]",
         // Ghost - Ação sutil
-        ghost: "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+        ghost: "bg-transparent text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]",
         // Destructive - Ação destrutiva
         destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-md",
         // Success - Ação de sucesso

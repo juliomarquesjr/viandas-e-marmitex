@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useToast } from "@/app/components/Toast";
-import { useCallback, useRef, useState } from "react";
+import { isDesktopRuntime, saveBlobWithNativeDialog } from "@/lib/runtime/capabilities";
+import { useState } from "react";
 
 export interface BackupActionsReturn {
   isCreating: boolean;
@@ -62,14 +63,22 @@ export function useBackupActions(): BackupActionsReturn {
         }
 
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+
+        if (isDesktopRuntime()) {
+          const savePath = await saveBlobWithNativeDialog(blob, filename);
+          if (!savePath) {
+            throw new Error("Salvamento cancelado pelo usuário");
+          }
+        } else {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
 
         setProgressMessage("Download concluído!");
         setTimeout(() => setShowProgressModal(false), 500);
@@ -125,14 +134,23 @@ export function useBackupActions(): BackupActionsReturn {
         try {
           const dlResponse = await fetch(data.autoBackup.data);
           const blob = await dlResponse.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = data.autoBackup.filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+
+          if (isDesktopRuntime()) {
+            const savePath = await saveBlobWithNativeDialog(blob, data.autoBackup.filename);
+            if (!savePath) {
+              throw new Error("Salvamento cancelado pelo usuário");
+            }
+          } else {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = data.autoBackup.filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          }
+
           setProgressMessage("Restauração concluída com sucesso!");
           setTimeout(() => setShowProgressModal(false), 1000);
           showToast("Backup restaurado com sucesso!", "success", "Backup automático baixado", "Um backup automático foi criado antes da restauração e foi baixado automaticamente.");
