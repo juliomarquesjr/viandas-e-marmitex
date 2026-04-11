@@ -167,6 +167,10 @@ scripts/
 - `npm run dev` - Iniciar servidor de desenvolvimento
 - `npm run build` - Build de produção
 - `npm run start` - Iniciar servidor de produção
+- `npm run desktop:dev` - Iniciar app desktop com Tauri (Windows)
+- `npm run desktop:next:build` - Build Next.js standalone para desktop
+- `npm run desktop:prepare` - Preparar artefatos standalone em `src-tauri/resources/app`
+- `npm run desktop:build:installer` - Gerar instalador desktop (MSI/NSIS)
 - `npm run lint` - Verificar linting
 - `npm run seed:all` - Popular todos os dados de exemplo
 - `npm run seed:users` - Popular apenas usuários
@@ -194,6 +198,7 @@ scripts/
 - [Documentação do NextAuth.js](https://next-auth.js.org/)
 - [Documentação do Prisma](https://www.prisma.io/docs/)
 - [Documentação do Tailwind CSS](https://tailwindcss.com/docs)
+- [Guia Desktop (Tauri)](./docs/desktop.md)
 
 ## Contribuição
 

@@ -25,6 +25,7 @@ import {
   User,
   Search,
   Plus,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,6 +34,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
 import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
 import { PreOrderActionsMenu } from "./components/PreOrderActionsMenu";
+import { isDesktopRuntime } from "@/lib/runtime/capabilities";
 
 // =============================================================================
 // TIPOS
@@ -189,6 +191,8 @@ export default function AdminPreOrdersPage() {
   const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
   const [preOrderDetailsModalOpen, setPreOrderDetailsModalOpen] = useState(false);
   const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
+  const [desktopPrintWaiting, setDesktopPrintWaiting] = useState(false);
+  const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
 
   // Load product summary state from session storage on mount
   useEffect(() => {
@@ -263,6 +267,26 @@ export default function AdminPreOrdersPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const onPrintMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
+      const data = event.data as { type?: string; printSessionId?: string | null } | null;
+      if (!data?.type) return;
+
+      if (data.type === "desktop-print-dialog-opening") {
+        if (activePrintSessionId && data.printSessionId && data.printSessionId !== activePrintSessionId) {
+          return;
+        }
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+      }
+    };
+
+    window.addEventListener("message", onPrintMessage);
+    return () => window.removeEventListener("message", onPrintMessage);
+  }, [activePrintSessionId]);
+
   const openDeleteDialog = (preOrderId: string) => {
     setPreOrderToDelete(preOrderId);
     setDeleteDialogOpen(true);
@@ -294,7 +318,40 @@ export default function AdminPreOrdersPage() {
   };
 
   const printThermalReceipt = (preOrderId: string) => {
-    const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}`;
+    const printSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}`;
+    if (isDesktopRuntime()) {
+      setActivePrintSessionId(printSessionId);
+      setDesktopPrintWaiting(true);
+
+      const existingFrame = document.getElementById("desktop-print-frame");
+      if (existingFrame) {
+        existingFrame.remove();
+      }
+
+      const iframe = document.createElement("iframe");
+      iframe.id = "desktop-print-frame";
+      iframe.src = receiptUrl;
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.position = "fixed";
+      iframe.style.width = "1px";
+      iframe.style.height = "1px";
+      iframe.style.right = "-9999px";
+      iframe.style.bottom = "-9999px";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.style.border = "0";
+
+      document.body.appendChild(iframe);
+
+      window.setTimeout(() => {
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+        iframe.remove();
+      }, 60000);
+      return;
+    }
+
     window.open(receiptUrl, '_blank');
   };
 
@@ -806,6 +863,24 @@ export default function AdminPreOrdersPage() {
         cancelText="Cancelar"
         isLoading={isDeleting}
       />
+
+      {desktopPrintWaiting && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Preparando impressao</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Aguarde um instante. A janela de escolha da impressora sera exibida em seguida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
