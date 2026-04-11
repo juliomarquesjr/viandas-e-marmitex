@@ -342,7 +342,7 @@ function PreOrderThermalContent() {
   }
 
   return (
-    <div className="thermal-receipt">
+    <div className="thermal-receipt preorder-thermal-receipt">
       {/* Header */}
       <div className="thermal-header">
         {/* Logo */}
@@ -765,6 +765,146 @@ function PreOrderThermalContent() {
           @page {
             size: 58mm auto;
             margin: 0;
+          }
+        }
+
+        /* Escopo do pré-pedido para evitar herança de outras telas térmicas */
+        .preorder-thermal-receipt {
+          font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 1.3;
+          max-width: 280px;
+          margin: 0 auto;
+          padding: 8px;
+          background: white;
+        }
+
+        .preorder-thermal-receipt .thermal-header {
+          text-align: center;
+          margin-bottom: 8px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 6px;
+        }
+
+        .preorder-thermal-receipt .thermal-logo {
+          margin-bottom: 6px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .preorder-thermal-receipt .thermal-logo-img {
+          max-width: 50px;
+          max-height: 50px;
+          width: auto;
+          height: auto;
+        }
+
+        .preorder-thermal-receipt .thermal-title {
+          font-size: 16px;
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+
+        .preorder-thermal-receipt .thermal-subtitle,
+        .preorder-thermal-receipt .thermal-section-title,
+        .preorder-thermal-receipt .thermal-item-name {
+          font-size: 13px;
+        }
+
+        .preorder-thermal-receipt .thermal-date,
+        .preorder-thermal-receipt .thermal-order-info,
+        .preorder-thermal-receipt .thermal-text,
+        .preorder-thermal-receipt .thermal-contact-info,
+        .preorder-thermal-receipt .thermal-separator {
+          font-size: 12px;
+        }
+
+        .preorder-thermal-receipt .thermal-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 14px;
+          font-weight: 500;
+          margin-bottom: 2px;
+        }
+
+        .preorder-thermal-receipt .thermal-section {
+          margin-bottom: 8px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 6px;
+        }
+
+        .preorder-thermal-receipt .thermal-item {
+          margin-bottom: 4px;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .preorder-thermal-receipt .thermal-item-details {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .preorder-thermal-receipt .thermal-divider {
+          border-bottom: 1px solid #333;
+          margin: 4px 0;
+        }
+
+        .preorder-thermal-receipt .thermal-footer {
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #333;
+          margin-top: 8px;
+          padding-top: 6px;
+          border-top: 3px solid #000;
+        }
+
+        .preorder-thermal-receipt .thermal-contact-section {
+          margin: 8px 0;
+          text-align: left;
+        }
+
+        .preorder-thermal-receipt .thermal-contact-title {
+          font-size: 13px;
+          font-weight: 500;
+          margin-bottom: 4px;
+          color: #000 !important;
+        }
+
+        .preorder-thermal-receipt .thermal-contact-info {
+          font-weight: 500;
+          margin-bottom: 10px;
+          color: #000 !important;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .preorder-thermal-receipt .thermal-icon {
+          width: 14px;
+          height: 14px;
+        }
+
+        .preorder-thermal-receipt .thermal-print-btn {
+          text-align: center;
+          margin-top: 16px;
+        }
+
+        .preorder-thermal-receipt .thermal-btn {
+          font-size: 14px;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        @media print {
+          .preorder-thermal-receipt {
+            max-width: none;
+            width: 58mm;
+            margin: 0;
+            padding: 2mm;
           }
         }
       `}</style>
