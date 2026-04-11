@@ -45,13 +45,23 @@ struct PrinterInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct ThermalAutoPrintModules {
+    sales: bool,
+    pre_orders: bool,
+    customer_report: bool,
+    expenses: bool,
+    pdv: bool,
+    budgets: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DesktopPrintPreferences {
     default_printer_id: Option<String>,
     default_printer_name: Option<String>,
     default_thermal_printer_id: Option<String>,
     default_thermal_printer_name: Option<String>,
-    auto_print_standard: bool,
-    auto_print_thermal: bool,
+    thermal_auto_print_modules: ThermalAutoPrintModules,
     updated_at: Option<String>,
 }
 
@@ -62,8 +72,7 @@ struct SavePrintPreferencesInput {
     default_printer_name: Option<String>,
     default_thermal_printer_id: Option<String>,
     default_thermal_printer_name: Option<String>,
-    auto_print_standard: bool,
-    auto_print_thermal: bool,
+    thermal_auto_print_modules: ThermalAutoPrintModules,
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,6 +85,19 @@ struct WindowsPrinterShellEntry {
     default: bool,
 }
 
+impl Default for ThermalAutoPrintModules {
+    fn default() -> Self {
+        Self {
+            sales: false,
+            pre_orders: false,
+            customer_report: false,
+            expenses: false,
+            pdv: false,
+            budgets: false,
+        }
+    }
+}
+
 impl Default for DesktopPrintPreferences {
     fn default() -> Self {
         Self {
@@ -83,8 +105,7 @@ impl Default for DesktopPrintPreferences {
             default_printer_name: None,
             default_thermal_printer_id: None,
             default_thermal_printer_name: None,
-            auto_print_standard: false,
-            auto_print_thermal: false,
+            thermal_auto_print_modules: ThermalAutoPrintModules::default(),
             updated_at: None,
         }
     }
@@ -112,8 +133,18 @@ fn current_timestamp_string() -> String {
         .unwrap_or_else(|_| "0".to_string())
 }
 
+fn normalize_thermal_auto_print_modules(
+    modules: ThermalAutoPrintModules,
+    has_thermal_printer: bool,
+) -> ThermalAutoPrintModules {
+    if has_thermal_printer {
+        modules
+    } else {
+        ThermalAutoPrintModules::default()
+    }
+}
+
 fn normalize_print_preferences(input: DesktopPrintPreferences) -> DesktopPrintPreferences {
-    let has_standard_printer = input.default_printer_id.is_some();
     let has_thermal_printer = input.default_thermal_printer_id.is_some();
 
     DesktopPrintPreferences {
@@ -121,8 +152,10 @@ fn normalize_print_preferences(input: DesktopPrintPreferences) -> DesktopPrintPr
         default_printer_name: input.default_printer_name,
         default_thermal_printer_id: input.default_thermal_printer_id,
         default_thermal_printer_name: input.default_thermal_printer_name,
-        auto_print_standard: input.auto_print_standard && has_standard_printer,
-        auto_print_thermal: input.auto_print_thermal && has_thermal_printer,
+        thermal_auto_print_modules: normalize_thermal_auto_print_modules(
+            input.thermal_auto_print_modules,
+            has_thermal_printer,
+        ),
         updated_at: input.updated_at,
     }
 }
@@ -237,8 +270,7 @@ fn save_print_preferences(
         default_printer_name: input.default_printer_name,
         default_thermal_printer_id: input.default_thermal_printer_id,
         default_thermal_printer_name: input.default_thermal_printer_name,
-        auto_print_standard: input.auto_print_standard,
-        auto_print_thermal: input.auto_print_thermal,
+        thermal_auto_print_modules: input.thermal_auto_print_modules,
         updated_at: Some(current_timestamp_string()),
     });
 

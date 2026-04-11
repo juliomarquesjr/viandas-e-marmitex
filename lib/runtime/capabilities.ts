@@ -5,7 +5,7 @@ import {
   DEFAULT_DESKTOP_PRINT_PREFERENCES,
   type DesktopPrintPreferences,
   type DesktopPrintPreferencesInput,
-  type PrintMode,
+  type ThermalAutoPrintModuleKey,
   type PrinterInfo,
 } from "@/lib/runtime/printing";
 
@@ -106,14 +106,13 @@ export async function saveDesktopPrintPreferences(
   });
 }
 
-export async function getAutoPrintDecision(printMode: PrintMode): Promise<boolean> {
+export async function getThermalAutoPrintDecision(
+  moduleKey: ThermalAutoPrintModuleKey,
+): Promise<boolean> {
   if (!isDesktopRuntime()) return false;
 
   const preferences = await getDesktopPrintPreferences();
-
-  if (printMode === "thermal") {
-    return Boolean(preferences.defaultThermalPrinterId && preferences.autoPrintThermal);
-  }
-
-  return Boolean(preferences.defaultPrinterId && preferences.autoPrintStandard);
+  return Boolean(
+    preferences.defaultThermalPrinterId && preferences.thermalAutoPrintModules[moduleKey],
+  );
 }
