@@ -1,4 +1,13 @@
-﻿"use client";
+"use client";
+
+import {
+  createDesktopPrintPreferencesInput,
+  DEFAULT_DESKTOP_PRINT_PREFERENCES,
+  type DesktopPrintPreferences,
+  type DesktopPrintPreferencesInput,
+  type PrintMode,
+  type PrinterInfo,
+} from "@/lib/runtime/printing";
 
 export type AppRuntime = "web" | "desktop";
 
@@ -73,4 +82,38 @@ export async function saveBlobWithNativeDialog(blob: Blob, defaultFilename: stri
     defaultFilename,
     bytes,
   });
+}
+
+export async function listDesktopPrinters(): Promise<PrinterInfo[]> {
+  if (!isDesktopRuntime()) return [];
+  return invoke<PrinterInfo[]>("list_printers");
+}
+
+export async function getDesktopPrintPreferences(): Promise<DesktopPrintPreferences> {
+  if (!isDesktopRuntime()) return DEFAULT_DESKTOP_PRINT_PREFERENCES;
+  return invoke<DesktopPrintPreferences>("get_print_preferences");
+}
+
+export async function saveDesktopPrintPreferences(
+  input: DesktopPrintPreferencesInput,
+): Promise<DesktopPrintPreferences> {
+  if (!isDesktopRuntime()) {
+    throw new Error("Preferências de impressão desktop só estão disponíveis no runtime desktop");
+  }
+
+  return invoke<DesktopPrintPreferences>("save_print_preferences", {
+    input: createDesktopPrintPreferencesInput(input),
+  });
+}
+
+export async function getAutoPrintDecision(printMode: PrintMode): Promise<boolean> {
+  if (!isDesktopRuntime()) return false;
+
+  const preferences = await getDesktopPrintPreferences();
+
+  if (printMode === "thermal") {
+    return Boolean(preferences.defaultThermalPrinterId && preferences.autoPrintThermal);
+  }
+
+  return Boolean(preferences.defaultPrinterId && preferences.autoPrintStandard);
 }

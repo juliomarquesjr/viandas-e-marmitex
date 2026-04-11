@@ -12,6 +12,7 @@ import {
   Construction,
   Info,
   LogOut,
+  Printer,
   ScanBarcode,
   ShoppingCart,
   User,
@@ -29,7 +30,9 @@ import { ExpenseInvoiceLookupDialog } from "@/app/admin/expenses/components/Expe
 import { CalculatorModal } from "@/app/components/CalculatorModal";
 import { UserFormDialog } from "@/app/components/UserFormDialog";
 import { useToast } from "@/app/components/Toast";
+import { isDesktopRuntime } from "@/lib/runtime/capabilities";
 import { AdminThemeSelector } from "./AdminThemeSelector";
+import { DesktopPrintManagerDialog } from "./DesktopPrintManagerDialog";
 
 /**
  * UserMenu - Design System
@@ -51,6 +54,8 @@ export function UserMenu() {
   const { showToast } = useToast();
   const [open, setOpen] = React.useState(false);
   const [profileOpen, setProfileOpen] = React.useState(false);
+  const [printManagerOpen, setPrintManagerOpen] = React.useState(false);
+  const [desktopRuntime, setDesktopRuntime] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   const user = session?.user as SessionUser | undefined;
@@ -89,9 +94,14 @@ export function UserMenu() {
     };
   }, [open]);
 
+  React.useEffect(() => {
+    setDesktopRuntime(isDesktopRuntime());
+  }, []);
+
   if (!user) return null;
 
   const roleLabel = user.role === "admin" ? "Administrador" : "PDV";
+  const canManageDesktopPrinting = user.role === "admin" && desktopRuntime;
 
   // Mapeia os dados da sessão para o formato esperado pelo UserFormDialog
   const sessionUserForForm = {
@@ -223,6 +233,20 @@ export function UserMenu() {
                 Meu Perfil
               </button>
 
+              {canManageDesktopPrinting && (
+                <button
+                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--muted)]"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setPrintManagerOpen(true);
+                  }}
+                >
+                  <Printer className="h-4 w-4 text-slate-400" />
+                  Gerenciar Impressão
+                </button>
+              )}
+
               <Link
                 href="/pdv"
                 className="flex items-center gap-3 px-4 py-2 text-sm text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--muted)]"
@@ -255,6 +279,11 @@ export function UserMenu() {
         onClose={() => setProfileOpen(false)}
         onSubmit={handleProfileSubmit}
         user={profileOpen ? sessionUserForForm : null}
+      />
+
+      <DesktopPrintManagerDialog
+        open={printManagerOpen}
+        onOpenChange={setPrintManagerOpen}
       />
     </>
   );
