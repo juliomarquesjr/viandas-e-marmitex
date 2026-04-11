@@ -28,9 +28,11 @@ import {
 import {
   createDesktopPrintPreferencesInput,
   DEFAULT_DESKTOP_PRINT_PREFERENCES,
+  DEFAULT_THERMAL_AUTO_PRINT_MODULES,
   type DesktopPrintPreferencesInput,
   type PrintMode,
   type PrinterInfo,
+  type ThermalAutoPrintModuleKey,
 } from "@/lib/runtime/printing";
 
 interface DesktopPrintManagerDialogProps {
@@ -39,6 +41,19 @@ interface DesktopPrintManagerDialogProps {
 }
 
 const EMPTY_PRINTER_VALUE = "__none__";
+
+const THERMAL_MODULE_SWITCHES: Array<{
+  key: ThermalAutoPrintModuleKey;
+  title: string;
+  description: string;
+}> = [
+  { key: "sales", title: "Vendas", description: "Impressão automática térmica nas vendas." },
+  { key: "preOrders", title: "Pré-pedidos", description: "Impressão automática térmica nos pré-pedidos." },
+  { key: "customerReport", title: "Ficha do cliente", description: "Impressão automática térmica na ficha do cliente." },
+  { key: "expenses", title: "Despesas", description: "Impressão automática térmica nas despesas." },
+  { key: "pdv", title: "PDV", description: "Impressão automática térmica no PDV." },
+  { key: "budgets", title: "Orçamentos", description: "Impressão automática térmica nos orçamentos." },
+];
 
 export function DesktopPrintManagerDialog({
   open,
@@ -75,7 +90,6 @@ export function DesktopPrintManagerDialog({
 
       setMissingStandardPrinter(nextMissingStandardPrinter);
       setMissingThermalPrinter(nextMissingThermalPrinter);
-
       setPrinters(availablePrinters);
       setForm(
         createDesktopPrintPreferencesInput({
@@ -84,8 +98,9 @@ export function DesktopPrintManagerDialog({
           defaultPrinterName: nextMissingStandardPrinter ? null : savedPreferences.defaultPrinterName,
           defaultThermalPrinterId: nextMissingThermalPrinter ? null : savedPreferences.defaultThermalPrinterId,
           defaultThermalPrinterName: nextMissingThermalPrinter ? null : savedPreferences.defaultThermalPrinterName,
-          autoPrintStandard: nextMissingStandardPrinter ? false : savedPreferences.autoPrintStandard,
-          autoPrintThermal: nextMissingThermalPrinter ? false : savedPreferences.autoPrintThermal,
+          thermalAutoPrintModules: nextMissingThermalPrinter
+            ? DEFAULT_THERMAL_AUTO_PRINT_MODULES
+            : savedPreferences.thermalAutoPrintModules,
         }),
       );
     } catch (error) {
@@ -104,7 +119,6 @@ export function DesktopPrintManagerDialog({
     loadData();
   }, [loadData, open]);
 
-  const hasStandardPrinter = Boolean(form.defaultPrinterId);
   const hasThermalPrinter = Boolean(form.defaultThermalPrinterId);
 
   const handlePrinterChange = React.useCallback(
@@ -127,7 +141,9 @@ export function DesktopPrintManagerDialog({
             ...current,
             defaultThermalPrinterId: nextPrinterId,
             defaultThermalPrinterName: selectedPrinter?.name ?? null,
-            autoPrintThermal: nextPrinterId ? current.autoPrintThermal : false,
+            thermalAutoPrintModules: nextPrinterId
+              ? current.thermalAutoPrintModules
+              : DEFAULT_THERMAL_AUTO_PRINT_MODULES,
           });
         }
 
@@ -135,24 +151,26 @@ export function DesktopPrintManagerDialog({
           ...current,
           defaultPrinterId: nextPrinterId,
           defaultPrinterName: selectedPrinter?.name ?? null,
-          autoPrintStandard: nextPrinterId ? current.autoPrintStandard : false,
         });
       });
     },
     [printers],
   );
 
-  const handleSwitchChange = React.useCallback((mode: PrintMode, checked: boolean) => {
-    setForm((current) =>
-      createDesktopPrintPreferencesInput({
-        ...current,
-        autoPrintThermal:
-          mode === "thermal" ? checked && Boolean(current.defaultThermalPrinterId) : current.autoPrintThermal,
-        autoPrintStandard:
-          mode === "standard" ? checked && Boolean(current.defaultPrinterId) : current.autoPrintStandard,
-      }),
-    );
-  }, []);
+  const handleThermalModuleToggle = React.useCallback(
+    (moduleKey: ThermalAutoPrintModuleKey, checked: boolean) => {
+      setForm((current) =>
+        createDesktopPrintPreferencesInput({
+          ...current,
+          thermalAutoPrintModules: {
+            ...current.thermalAutoPrintModules,
+            [moduleKey]: Boolean(current.defaultThermalPrinterId) && checked,
+          },
+        }),
+      );
+    },
+    [],
+  );
 
   const handleSave = async () => {
     setSaving(true);
@@ -178,10 +196,7 @@ export function DesktopPrintManagerDialog({
     missingPrinter: boolean,
   ) => (
     <div className="space-y-2">
-      <Select
-        value={value ?? EMPTY_PRINTER_VALUE}
-        onValueChange={(nextValue) => handlePrinterChange(mode, nextValue)}
-      >
+      <Select value={value ?? EMPTY_PRINTER_VALUE} onValueChange={(nextValue) => handlePrinterChange(mode, nextValue)}>
         <SelectTrigger className={missingPrinter ? "border-amber-400" : undefined}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
@@ -228,7 +243,7 @@ export function DesktopPrintManagerDialog({
             Gerenciador de Impressão
           </DialogTitle>
           <DialogDescription>
-            Defina as impressoras padrão do desktop e se o envio automático deve ser habilitado.
+            Defina as impressoras padrão do desktop e os módulos que poderão enviar impressão térmica automaticamente.
           </DialogDescription>
         </DialogHeader>
 
@@ -243,14 +258,14 @@ export function DesktopPrintManagerDialog({
           {!loadError && missingStandardPrinter && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               A impressora padrão comum salva anteriormente não está mais disponível no Windows. Selecione outra
-              impressora para continuar usando impressão automática comum.
+              impressora para continuar usando a configuração padrão comum.
             </div>
           )}
 
           {!loadError && missingThermalPrinter && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              A impressora térmica salva anteriormente não está mais disponível no Windows. Selecione outra
-              impressora para continuar usando impressão automática térmica.
+              A impressora térmica salva anteriormente não está mais disponível no Windows. Os switches térmicos foram
+              desligados e uma nova impressora deve ser selecionada.
             </div>
           )}
 
@@ -260,65 +275,70 @@ export function DesktopPrintManagerDialog({
             </div>
           )}
 
-          <section className="space-y-4 rounded-xl border border-[color:var(--border)] p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-[color:var(--foreground)]">Impressão comum</h3>
-              <p className="text-xs text-[color:var(--muted-foreground)]">
-                Usada futuramente para relatórios e impressões não térmicas.
-              </p>
-            </div>
-
-            {renderPrinterSelect(
-              "standard",
-              form.defaultPrinterId,
-              "Selecione a impressora padrão comum",
-              missingStandardPrinter,
-            )}
-
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-[color:var(--border)] p-3">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="space-y-4 rounded-xl border border-[color:var(--border)] p-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-[color:var(--foreground)]">Enviar automaticamente</p>
+                <h3 className="text-sm font-semibold text-[color:var(--foreground)]">Impressora padrão comum</h3>
                 <p className="text-xs text-[color:var(--muted-foreground)]">
-                  Quando ativo, as telas poderão pular a escolha manual do Windows para impressões comuns.
+                  Mantida para futuras impressões não térmicas.
                 </p>
               </div>
-              <Switch
-                checked={form.autoPrintStandard}
-                onCheckedChange={(checked) => handleSwitchChange("standard", checked)}
-                disabled={!hasStandardPrinter}
-                aria-label="Habilitar impressão automática comum"
-              />
-            </div>
-          </section>
 
-          <section className="space-y-4 rounded-xl border border-[color:var(--border)] p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-[color:var(--foreground)]">Impressão térmica</h3>
-              <p className="text-xs text-[color:var(--muted-foreground)]">
-                Usada futuramente para recibos e demais saídas térmicas.
-              </p>
-            </div>
+              {renderPrinterSelect(
+                "standard",
+                form.defaultPrinterId,
+                "Selecione a impressora padrão comum",
+                missingStandardPrinter,
+              )}
+            </section>
 
-            {renderPrinterSelect(
-              "thermal",
-              form.defaultThermalPrinterId,
-              "Selecione a impressora padrão térmica",
-              missingThermalPrinter,
-            )}
-
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-[color:var(--border)] p-3">
+            <section className="space-y-4 rounded-xl border border-[color:var(--border)] p-4">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-[color:var(--foreground)]">Enviar automaticamente</p>
+                <h3 className="text-sm font-semibold text-[color:var(--foreground)]">Impressora térmica</h3>
                 <p className="text-xs text-[color:var(--muted-foreground)]">
-                  Quando ativo, as telas poderão pular a escolha manual do Windows para impressões térmicas.
+                  Necessária para liberar os switches de impressão automática por módulo.
                 </p>
               </div>
-              <Switch
-                checked={form.autoPrintThermal}
-                onCheckedChange={(checked) => handleSwitchChange("thermal", checked)}
-                disabled={!hasThermalPrinter}
-                aria-label="Habilitar impressão automática térmica"
-              />
+
+              {renderPrinterSelect(
+                "thermal",
+                form.defaultThermalPrinterId,
+                "Selecione a impressora padrão térmica",
+                missingThermalPrinter,
+              )}
+            </section>
+          </div>
+
+          <section className="space-y-4 rounded-xl border border-[color:var(--border)] p-4">
+            <div className="rounded-lg border border-[color:var(--border)] p-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-[color:var(--foreground)]">Módulos com impressão automática</p>
+                <p className="text-xs text-[color:var(--muted-foreground)]">
+                  Os switches só podem ser ligados quando existir uma impressora térmica selecionada.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {THERMAL_MODULE_SWITCHES.map((moduleConfig) => (
+                  <div
+                    key={moduleConfig.key}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[color:var(--foreground)]">{moduleConfig.title}</p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-[color:var(--muted-foreground)]">
+                        {moduleConfig.description}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.thermalAutoPrintModules[moduleConfig.key]}
+                      onCheckedChange={(checked) => handleThermalModuleToggle(moduleConfig.key, checked)}
+                      disabled={!hasThermalPrinter}
+                      aria-label={`Habilitar impressão automática para ${moduleConfig.title}`}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </div>

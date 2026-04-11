@@ -73,6 +73,37 @@ export default function PrintLayout({
             .border { border-width: 0.5px !important; }
             .border-b { border-bottom-width: 0.5px !important; }
             .border-t { border-top-width: 0.5px !important; }
+
+            /* Ajuste global para impressões térmicas no runtime desktop/webview.
+               Reduz a largura útil e centraliza o conteúdo para evitar corte lateral. */
+            body:has(.thermal-receipt),
+            body:has(.thermal-report) {
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 58mm !important;
+              min-width: 58mm !important;
+              max-width: 58mm !important;
+              overflow: hidden !important;
+            }
+
+            .print-container:has(.thermal-receipt),
+            .print-container:has(.thermal-report) {
+              width: 58mm !important;
+              max-width: 58mm !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+
+            .thermal-receipt,
+            .thermal-report {
+              width: 54mm !important;
+              max-width: 54mm !important;
+              margin: 0 auto !important;
+              padding: 1.5mm 1mm !important;
+              box-sizing: border-box !important;
+            }
           }
           
           @media screen {
