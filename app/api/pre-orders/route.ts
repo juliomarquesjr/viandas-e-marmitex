@@ -17,6 +17,7 @@ const preOrderItemProductSelect = {
   name: true,
   imageUrl: true,
   pricePerKgCents: true,
+  productType: true,
 };
 
 // GET - Listar pré-pedidos com filtros

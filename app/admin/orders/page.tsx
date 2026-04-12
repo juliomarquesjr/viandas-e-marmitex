@@ -70,6 +70,8 @@ type Order = {
   }[];
 };
 
+const PRODUCT_SUMMARY_STORAGE_KEY = "admin-orders-product-summary-enabled";
+
 const statusMap = {
   pending: { label: "Pendente", icon: Clock, variant: "warning" as const },
   confirmed: { label: "Confirmado", icon: CheckCircle, variant: "info" as const },
@@ -216,19 +218,34 @@ export default function AdminOrdersPage() {
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
+  const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
 
-  // Load product summary state from session storage on mount
+  // Load product summary state from local storage on mount.
   useEffect(() => {
-    const saved = sessionStorage.getItem('productSummaryEnabled');
-    if (saved !== null) {
-      setProductSummaryEnabled(saved === 'true');
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(PRODUCT_SUMMARY_STORAGE_KEY);
+      if (saved !== null) {
+        setProductSummaryEnabled(saved === "true");
+      }
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    } finally {
+      setProductSummaryPreferenceLoaded(true);
     }
   }, []);
 
-  // Save product summary state to session storage when it changes
+  // Save product summary state only after the initial preference has been loaded.
   useEffect(() => {
-    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
-  }, [productSummaryEnabled]);
+    if (typeof window === "undefined" || !productSummaryPreferenceLoaded) return;
+
+    try {
+      window.localStorage.setItem(PRODUCT_SUMMARY_STORAGE_KEY, String(productSummaryEnabled));
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    }
+  }, [productSummaryEnabled, productSummaryPreferenceLoaded]);
 
   // Product summary
   const productSummary = useMemo(() => {

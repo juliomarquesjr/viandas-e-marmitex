@@ -101,11 +101,11 @@ export default function BackupsPage() {
 
       {/* Main Panel */}
       <div
-        className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex"
+        className="flex overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]"
         style={{ minHeight: 580 }}
       >
         {/* Sidebar */}
-        <nav className="w-52 flex-shrink-0 border-r border-slate-200 bg-slate-100/70 p-2 space-y-0.5">
+        <nav className="w-52 flex-shrink-0 space-y-0.5 border-r border-[color:var(--border)] bg-[color:var(--muted)]/60 p-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
@@ -115,30 +115,30 @@ export default function BackupsPage() {
                 onClick={() => setActiveSection(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
                   isActive
-                    ? "bg-white shadow-sm border border-slate-200"
-                    : "hover:bg-slate-200/50"
+                    ? "border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm"
+                    : "hover:bg-[color:var(--accent)]/70"
                 }`}
               >
                 <div
                   className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                    isActive ? "bg-primary/10" : "bg-slate-100"
+                    isActive ? "bg-primary/10" : "bg-[color:var(--card)]"
                   }`}
                 >
                   <Icon
                     className={`h-3.5 w-3.5 transition-colors ${
-                      isActive ? "text-primary" : "text-slate-400"
+                      isActive ? "text-primary" : "text-[color:var(--muted-foreground)]"
                     }`}
                   />
                 </div>
                 <div className="min-w-0">
                   <p
                     className={`text-sm font-semibold leading-tight ${
-                      isActive ? "text-slate-900" : "text-slate-500"
+                      isActive ? "text-[color:var(--foreground)]" : "text-[color:var(--muted-foreground)]"
                     }`}
                   >
                     {item.label}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5 leading-tight truncate">
+                  <p className="mt-0.5 truncate text-xs leading-tight text-[color:var(--muted-foreground)]">
                     {item.shortDescription}
                   </p>
                 </div>
@@ -150,14 +150,14 @@ export default function BackupsPage() {
         {/* Content area */}
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Section header — sticky */}
-          <div className="px-8 py-4 border-b border-slate-100 bg-white sticky top-0 z-10 flex-shrink-0">
+          <div className="sticky top-0 z-10 flex-shrink-0 border-b border-[color:var(--border)] bg-[color:var(--card)] px-8 py-4">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
                 <activeNavItem.icon className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">{activeNavItem.label}</h2>
-                <p className="text-xs text-slate-500 mt-0.5">{activeNavItem.fullDescription}</p>
+                <h2 className="text-sm font-semibold text-[color:var(--foreground)]">{activeNavItem.label}</h2>
+                <p className="mt-0.5 text-xs text-[color:var(--muted-foreground)]">{activeNavItem.fullDescription}</p>
               </div>
             </div>
           </div>

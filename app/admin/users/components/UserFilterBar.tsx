@@ -57,10 +57,12 @@ export function UserFilterBar({
   totalCount,
   filteredCount,
 }: UserFilterBarProps) {
+  const hasSearchFilter = searchValue.trim().length > 0;
   const hasRoleFilter = roleFilter !== "all";
   const hasStatusFilter = statusFilter !== "all";
-  const hasAnyFilter = hasRoleFilter || hasStatusFilter;
-  const activeFilterCount = (hasRoleFilter ? 1 : 0) + (hasStatusFilter ? 1 : 0);
+  const hasAnyFilter = hasSearchFilter || hasRoleFilter || hasStatusFilter;
+  const activeFilterCount =
+    (hasSearchFilter ? 1 : 0) + (hasRoleFilter ? 1 : 0) + (hasStatusFilter ? 1 : 0);
   const displayCount = hasAnyFilter ? filteredCount : totalCount;
 
   const [chipsVisible, setChipsVisible] = React.useState(hasAnyFilter);
@@ -70,13 +72,13 @@ export function UserFilterBar({
   }, [hasAnyFilter]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+    <div className="overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card">
+      <div className="flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--muted)] px-4 py-2.5">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-slate-700">Busca e filtros</span>
+          <span className="text-sm font-semibold text-[color:var(--foreground)]">Busca e filtros</span>
           {hasAnyFilter && (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full leading-none">
               {activeFilterCount} ativo{activeFilterCount !== 1 ? "s" : ""}
@@ -88,39 +90,40 @@ export function UserFilterBar({
           <div className="flex items-center gap-1.5">
             {hasAnyFilter ? (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">
+                <span className="text-sm font-bold tabular-nums text-[color:var(--foreground)]">
                   {filteredCount}
                 </span>
-                <span className="text-xs text-slate-400">de {totalCount} usuarios</span>
+                <span className="text-xs text-[color:var(--muted-foreground)]">de {totalCount} usuarios</span>
               </>
             ) : (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">
+                <span className="text-sm font-bold tabular-nums text-[color:var(--foreground)]">
                   {displayCount}
                 </span>
-                <span className="text-xs text-slate-400">usuarios</span>
+                <span className="text-xs text-[color:var(--muted-foreground)]">usuarios</span>
               </>
             )}
           </div>
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2.5 p-3">
+      <div className="flex flex-col items-stretch gap-2.5 p-3 sm:flex-row sm:items-end">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
             Buscar usuario
           </Label>
           <Input
             placeholder="Buscar por nome ou email..."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
+            className="border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] hover:border-[color:var(--border-dark)]"
             leftIcon={<Search className="h-4 w-4" />}
             rightIcon={
               searchValue ? (
                 <button
                   type="button"
                   onClick={() => onSearchChange("")}
-                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="cursor-pointer text-[color:var(--muted-foreground)] transition-colors hover:text-[color:var(--foreground)]"
                   aria-label="Limpar busca"
                 >
                   <X className="h-4 w-4" />
@@ -131,7 +134,7 @@ export function UserFilterBar({
         </div>
 
         <div className="space-y-1.5 shrink-0 w-full sm:w-[160px]">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
             Perfil
           </Label>
           <div className="relative">
@@ -139,11 +142,11 @@ export function UserFilterBar({
               value={roleFilter}
               onValueChange={(value) => onRoleChange(value as "all" | "admin" | "pdv")}
             >
-              <SelectTrigger className="pl-9">
+              <SelectTrigger className="border-[color:var(--border)] bg-[color:var(--card)] pl-9 text-[color:var(--foreground)] hover:border-[color:var(--border-dark)]">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent
-                className="z-[9999] bg-white border border-slate-200 shadow-lg"
+                className="z-[9999] border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--foreground)] shadow-lg"
                 position="popper"
                 side="bottom"
                 align="start"
@@ -153,12 +156,12 @@ export function UserFilterBar({
                 <SelectItem value="pdv">PDV</SelectItem>
               </SelectContent>
             </Select>
-            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
           </div>
         </div>
 
         <div className="space-y-1.5 shrink-0 w-full sm:w-[160px]">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
             Status
           </Label>
           <div className="relative">
@@ -166,11 +169,11 @@ export function UserFilterBar({
               value={statusFilter}
               onValueChange={(value) => onStatusChange(value as "all" | "active" | "inactive")}
             >
-              <SelectTrigger className="pl-9">
+              <SelectTrigger className="border-[color:var(--border)] bg-[color:var(--card)] pl-9 text-[color:var(--foreground)] hover:border-[color:var(--border-dark)]">
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent
-                className="z-[9999] bg-white border border-slate-200 shadow-lg"
+                className="z-[9999] border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--foreground)] shadow-lg"
                 position="popper"
                 side="bottom"
                 align="start"
@@ -180,28 +183,28 @@ export function UserFilterBar({
                 <SelectItem value="inactive">Inativo</SelectItem>
               </SelectContent>
             </Select>
-            <CircleDot className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <CircleDot className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
           </div>
         </div>
 
-        <div className="hidden sm:block w-px h-10 bg-slate-200 shrink-0" />
+        <div className="hidden h-10 w-px shrink-0 bg-[color:var(--border)] sm:block" />
 
         <div
-          className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0 self-center sm:self-auto"
+          className="flex items-center self-center overflow-hidden rounded-lg border border-[color:var(--border)] shrink-0 sm:self-auto"
           role="group"
-          aria-label="Modo de visualizacao"
+          aria-label="Modo de visualização"
         >
           <button
             type="button"
             onClick={() => onViewModeChange("table")}
             className={cn(
-              "flex items-center justify-center h-10 w-10 transition-colors duration-150",
+              "flex h-10 w-10 items-center justify-center transition-colors duration-150",
               viewMode === "table"
                 ? "bg-primary text-white"
-                : "bg-white text-slate-500 hover:bg-slate-50"
+                : "bg-[color:var(--card)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             )}
-            title="Visualizacao em tabela"
-            aria-label="Visualizacao em tabela"
+            title="Visualização em tabela"
+            aria-label="Visualização em tabela"
             aria-pressed={viewMode === "table"}
           >
             <LayoutList className="h-4 w-4" />
@@ -210,13 +213,13 @@ export function UserFilterBar({
             type="button"
             onClick={() => onViewModeChange("grid")}
             className={cn(
-              "flex items-center justify-center h-10 w-10 transition-colors duration-150",
+              "flex h-10 w-10 items-center justify-center transition-colors duration-150",
               viewMode === "grid"
                 ? "bg-primary text-white"
-                : "bg-white text-slate-500 hover:bg-slate-50"
+                : "bg-[color:var(--card)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
             )}
-            title="Visualizacao em mosaico"
-            aria-label="Visualizacao em mosaico"
+            title="Visualização em mosaico"
+            aria-label="Visualização em mosaico"
             aria-pressed={viewMode === "grid"}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -230,13 +233,26 @@ export function UserFilterBar({
           chipsVisible ? "max-h-16 opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pt-0 border-t border-slate-100">
-          <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+        <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--border)] px-4 pb-3 pt-0">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
             Filtros:
           </span>
+          {hasSearchFilter && (
+            <Badge variant="info" size="sm" dot className="gap-1.5 pl-2 pr-1">
+              Busca: {searchValue}
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="cursor-pointer rounded p-0.5 transition-colors hover:bg-blue-200"
+                aria-label="Remover filtro de busca"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
           {hasRoleFilter && (
             <Badge variant="info" size="sm" dot className="pl-2 pr-1 gap-1.5">
-              {ROLE_LABELS[roleFilter]}
+              Perfil: {ROLE_LABELS[roleFilter]}
               <button
                 type="button"
                 onClick={() => onRoleChange("all")}
@@ -249,7 +265,7 @@ export function UserFilterBar({
           )}
           {hasStatusFilter && (
             <Badge variant="info" size="sm" dot className="pl-2 pr-1 gap-1.5">
-              {STATUS_LABELS[statusFilter]}
+              Status: {STATUS_LABELS[statusFilter]}
               <button
                 type="button"
                 onClick={() => onStatusChange("all")}

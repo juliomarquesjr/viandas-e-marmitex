@@ -15,9 +15,9 @@ const badgeVariants = cva(
     variants: {
       variant: {
         // Variantes de cor
-        default: "bg-slate-100 text-slate-700",
-        primary: "bg-blue-100 text-blue-700",
-        secondary: "bg-slate-200 text-slate-800",
+        default: "bg-[color:var(--muted)] text-[color:var(--foreground)]",
+        primary: "bg-primary/15 text-primary",
+        secondary: "bg-[color:var(--accent)] text-[color:var(--foreground)]",
         
         // Status
         success: "bg-emerald-100 text-emerald-700",
@@ -32,8 +32,8 @@ const badgeVariants = cva(
         "info-dot": "bg-blue-50 text-blue-700 border border-blue-200",
         
         // Variantes de estilo
-        outline: "bg-transparent border border-slate-300 text-slate-700",
-        solid: "bg-slate-700 text-white",
+        outline: "border border-[color:var(--border)] bg-transparent text-[color:var(--foreground)]",
+        solid: "bg-[color:var(--foreground)] text-[color:var(--card)]",
         
         // Específicos para status de pedidos
         pending: "bg-amber-100 text-amber-800",

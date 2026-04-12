@@ -258,12 +258,17 @@ export function DataTable<T extends Record<string, any>>({
   const endItem = pagination ? Math.min(pagination.page * pagination.pageSize, pagination.total) : data.length;
 
   return (
-    <div className={cn("bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden", className)}>
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm",
+        className,
+      )}
+    >
       {/* Tabela */}
       <div className="overflow-x-auto">
         <table className={cn("w-full text-sm", tableClassName)}>
           {/* Header */}
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="border-b border-[color:var(--border)] bg-[color:var(--muted)]">
             <tr>
               {/* Checkbox de seleção */}
               {hasSelection && (
@@ -281,10 +286,10 @@ export function DataTable<T extends Record<string, any>>({
                 <th
                   key={column.key}
                   className={cn(
-                    "px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wider",
+                    "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--foreground)]",
                     column.align === "center" && "text-center",
                     column.align === "right" && "text-right",
-                    column.sortable && "cursor-pointer select-none hover:bg-slate-100 transition-colors",
+                    column.sortable && "cursor-pointer select-none transition-colors hover:bg-[color:var(--accent)]/70",
                     column.className
                   )}
                   style={{ width: column.width }}
@@ -313,7 +318,7 @@ export function DataTable<T extends Record<string, any>>({
           </thead>
 
           {/* Body */}
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="border-t border-[color:var(--border)]">
             {loading ? (
               <TableSkeleton columns={columns.length + (hasSelection ? 1 : 0) + (rowActions ? 1 : 0)} />
             ) : data.length === 0 ? (
@@ -323,9 +328,9 @@ export function DataTable<T extends Record<string, any>>({
                   className="px-4 py-12 text-center"
                 >
                   {emptyComponent || (
-                    <div className="flex flex-col items-center gap-2 text-slate-500">
+                    <div className="flex flex-col items-center gap-2 text-[color:var(--muted-foreground)]">
                       <svg
-                        className="h-12 w-12 text-slate-300"
+                        className="h-12 w-12 text-[color:var(--muted-foreground)]/40"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -352,11 +357,11 @@ export function DataTable<T extends Record<string, any>>({
                   <tr
                     key={key}
                     className={cn(
-                      "transition-colors",
+                      "border-b border-[color:var(--border)] transition-colors last:border-b-0",
                       isSelected && "bg-primary/5",
-                      isHighlighted && "bg-amber-50",
-                      onRowClick && "cursor-pointer hover:bg-slate-50",
-                      !isSelected && !isHighlighted && "hover:bg-slate-50"
+                      isHighlighted && "bg-amber-500/10",
+                      onRowClick && "cursor-pointer hover:bg-[color:var(--accent)]/60",
+                      !isSelected && !isHighlighted && "hover:bg-[color:var(--accent)]/60"
                     )}
                     onClick={() => onRowClick?.(row)}
                   >
@@ -377,7 +382,7 @@ export function DataTable<T extends Record<string, any>>({
                         <td
                           key={column.key}
                           className={cn(
-                            "px-4 py-3 text-slate-700",
+                            "px-4 py-3 text-[color:var(--foreground)]",
                             column.align === "center" && "text-center",
                             column.align === "right" && "text-right",
                             column.className
@@ -404,9 +409,9 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Paginação */}
       {pagination && pagination.total > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 bg-slate-50">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-[color:var(--border)] bg-[color:var(--muted)] px-4 py-3 sm:flex-row">
           {/* Info */}
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[color:var(--muted-foreground)]">
             Mostrando <span className="font-medium">{startItem}</span> a{" "}
             <span className="font-medium">{endItem}</span> de{" "}
             <span className="font-medium">{pagination.total}</span> registros
@@ -419,7 +424,7 @@ export function DataTable<T extends Record<string, any>>({
               <select
                 value={pagination.pageSize}
                 onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
-                className="h-8 rounded-md border border-slate-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 rounded-md border border-[color:var(--border)] bg-[color:var(--card)] px-2 text-sm text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -450,8 +455,8 @@ export function DataTable<T extends Record<string, any>>({
               {/* Números de página */}
               <div className="flex items-center gap-1 px-2">
                 <span className="text-sm font-medium">{pagination.page}</span>
-                <span className="text-slate-400">/</span>
-                <span className="text-sm text-slate-500">{totalPages}</span>
+                <span className="text-[color:var(--muted-foreground)]">/</span>
+                <span className="text-sm text-[color:var(--muted-foreground)]">{totalPages}</span>
               </div>
 
               <Button

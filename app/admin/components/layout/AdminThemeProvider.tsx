@@ -74,10 +74,64 @@ function readStoredPreferences(): AdminThemePreferences {
   }
 }
 
+function getAccentOption(accent: AdminThemeAccent): AdminThemeAccentOption {
+  return ADMIN_THEME_ACCENTS.find((option) => option.id === accent) ?? ADMIN_THEME_ACCENTS[0];
+}
+
+function applyPreferencesToRoot(
+  preferences: AdminThemePreferences,
+  accentOption: AdminThemeAccentOption,
+) {
+  const root = document.documentElement;
+
+  root.setAttribute("data-admin-theme-scope", "");
+  root.setAttribute("data-admin-theme", preferences.mode);
+  root.setAttribute("data-admin-accent", preferences.accent);
+  root.style.setProperty("--admin-accent-primary", accentOption.primary);
+  root.style.setProperty("--admin-accent-hover", accentOption.hover);
+  root.style.setProperty("--admin-accent-rgb", accentOption.rgb);
+}
+
+function removePreferencesFromRoot() {
+  const root = document.documentElement;
+
+  root.removeAttribute("data-admin-theme-scope");
+  root.removeAttribute("data-admin-theme");
+  root.removeAttribute("data-admin-accent");
+  root.style.removeProperty("--admin-accent-primary");
+  root.style.removeProperty("--admin-accent-hover");
+  root.style.removeProperty("--admin-accent-rgb");
+}
+
 export function AdminThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = React.useState<AdminThemePreferences>(() => readStoredPreferences());
+  const [preferences, setPreferences] = React.useState<AdminThemePreferences>(DEFAULT_PREFERENCES);
+  const hasHydratedPreferencesRef = React.useRef(false);
+  const shouldSkipNextPersistenceRef = React.useRef(true);
+
+  React.useLayoutEffect(() => {
+    const storedPreferences = readStoredPreferences();
+    const storedAccentOption = getAccentOption(storedPreferences.accent);
+
+    applyPreferencesToRoot(storedPreferences, storedAccentOption);
+    setPreferences(storedPreferences);
+    hasHydratedPreferencesRef.current = true;
+
+    return () => {
+      removePreferencesFromRoot();
+      hasHydratedPreferencesRef.current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
+    if (!hasHydratedPreferencesRef.current) {
+      return;
+    }
+
+    if (shouldSkipNextPersistenceRef.current) {
+      shouldSkipNextPersistenceRef.current = false;
+      return;
+    }
+
     try {
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
     } catch {
@@ -99,28 +153,15 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
 
   const accentOption = React.useMemo(
     () =>
-      ADMIN_THEME_ACCENTS.find((accent) => accent.id === preferences.accent) ??
-      ADMIN_THEME_ACCENTS[0],
+      getAccentOption(preferences.accent),
     [preferences.accent],
   );
 
-  React.useEffect(() => {
-    const root = document.documentElement;
-
-    root.setAttribute("data-admin-theme-scope", "");
-    root.setAttribute("data-admin-theme", preferences.mode);
-    root.setAttribute("data-admin-accent", preferences.accent);
-    root.style.setProperty("--admin-accent-primary", accentOption.primary);
-    root.style.setProperty("--admin-accent-hover", accentOption.hover);
-    root.style.setProperty("--admin-accent-rgb", accentOption.rgb);
+  React.useLayoutEffect(() => {
+    applyPreferencesToRoot(preferences, accentOption);
 
     return () => {
-      root.removeAttribute("data-admin-theme-scope");
-      root.removeAttribute("data-admin-theme");
-      root.removeAttribute("data-admin-accent");
-      root.style.removeProperty("--admin-accent-primary");
-      root.style.removeProperty("--admin-accent-hover");
-      root.style.removeProperty("--admin-accent-rgb");
+      removePreferencesFromRoot();
     };
   }, [accentOption.hover, accentOption.primary, accentOption.rgb, preferences.accent, preferences.mode]);
 

@@ -374,8 +374,8 @@ export default function AdminUsersPage() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="font-medium text-slate-900 truncate">{user.name}</p>
-            <p className="text-xs text-slate-500">
+            <p className="truncate text-base font-semibold text-[color:var(--foreground)]">{user.name}</p>
+            <p className="text-xs text-[color:var(--muted-foreground)]">
               {new Date(user.createdAt).toLocaleDateString("pt-BR")}
             </p>
           </div>
@@ -387,13 +387,13 @@ export default function AdminUsersPage() {
       header: "Contato",
       render: (_, user) => (
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-sm text-slate-700">
-            <Mail className="h-3.5 w-3.5 text-slate-400" />
-            <span className="truncate max-w-[200px]">{user.email}</span>
+          <div className="flex items-center gap-1.5 text-sm text-[color:var(--foreground)]">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-[color:var(--muted-foreground)]" />
+            <span className="break-all font-medium">{user.email}</span>
           </div>
           {user.phone && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              <Phone className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
+              <Phone className="h-3 w-3 shrink-0" />
               {user.phone}
             </div>
           )}
@@ -409,9 +409,9 @@ export default function AdminUsersPage() {
         const Icon = roleInfo.icon;
         return (
           <Badge
-            variant={user.role === "admin" ? "primary" : "default"}
+            variant={user.role === "admin" ? "primary" : "secondary"}
             size="sm"
-            className="flex items-center gap-1.5"
+            className="inline-flex min-w-[140px] items-center justify-center gap-1.5"
           >
             <Icon className="h-3.5 w-3.5" />
             {roleInfo.label}
@@ -425,10 +425,15 @@ export default function AdminUsersPage() {
       align: "center",
       render: (_, user) => {
         if (!user.facialImageUrl) {
-          return <span className="text-slate-400 text-sm">Não cadastrado</span>;
+          return (
+            <Badge variant="secondary" size="sm" className="inline-flex min-w-[160px] items-center justify-center gap-1.5">
+              <ScanFace className="h-3.5 w-3.5" />
+              Não cadastrado
+            </Badge>
+          );
         }
         return (
-          <Badge variant="secondary" size="sm" className="flex items-center gap-1.5">
+          <Badge variant="success" size="sm" className="inline-flex min-w-[160px] items-center justify-center gap-1.5">
             <ScanFace className="h-3.5 w-3.5" />
             Cadastrado
           </Badge>
@@ -495,8 +500,8 @@ export default function AdminUsersPage() {
           description="Gerencie os usuários do sistema"
           icon={Users}
           actions={
-            <Button onClick={() => openForm()}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={() => openForm()}>
+              <Plus className="h-4 w-4 mr-1.5" />
               Novo Usuário
             </Button>
           }

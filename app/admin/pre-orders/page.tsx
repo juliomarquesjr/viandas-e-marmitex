@@ -8,7 +8,6 @@ import { PreOrderDetailsModal } from "@/app/components/PreOrderDetailsModal";
 import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/components/ui/card";
 import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { DataTable, Column } from "@/app/admin/components/data-display/DataTable";
@@ -23,7 +22,6 @@ import {
   ListX,
   XCircle,
   User,
-  Search,
   Plus,
   Loader2,
 } from "lucide-react";
@@ -34,6 +32,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
 import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
 import { PreOrderActionsMenu } from "./components/PreOrderActionsMenu";
+import { PreOrderFilterBar } from "./components/PreOrderFilterBar";
 import { isDesktopRuntime } from "@/lib/runtime/capabilities";
 
 // =============================================================================
@@ -66,6 +65,7 @@ type PreOrder = {
       name: string;
       imageUrl?: string | null;
       pricePerKgCents?: number | null;
+      productType?: string | null;
     };
   }[];
 };
@@ -75,6 +75,8 @@ type ProductSummary = {
   productName: string;
   totalQuantity: number;
 };
+
+const PRODUCT_SUMMARY_STORAGE_KEY = "admin-pre-orders-product-summary-enabled";
 
 // =============================================================================
 // UTILITÁRIOS VISUAIS
@@ -179,6 +181,7 @@ export default function AdminPreOrdersPage() {
   const itemsPerPage = 10;
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   const [isPreOrderDialogOpen, setIsPreOrderDialogOpen] = useState(false);
   const [editingPreOrderId, setEditingPreOrderId] = useState<string | null>(null);
@@ -193,19 +196,34 @@ export default function AdminPreOrdersPage() {
   const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
   const [desktopPrintWaiting, setDesktopPrintWaiting] = useState(false);
   const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
+  const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
 
-  // Load product summary state from session storage on mount
+  // Load product summary state from local storage on mount.
   useEffect(() => {
-    const saved = sessionStorage.getItem('productSummaryEnabled');
-    if (saved !== null) {
-      setProductSummaryEnabled(saved === 'true');
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(PRODUCT_SUMMARY_STORAGE_KEY);
+      if (saved !== null) {
+        setProductSummaryEnabled(saved === "true");
+      }
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    } finally {
+      setProductSummaryPreferenceLoaded(true);
     }
   }, []);
 
-  // Save product summary state to session storage when it changes
+  // Save product summary state only after the initial preference has been loaded.
   useEffect(() => {
-    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
-  }, [productSummaryEnabled]);
+    if (typeof window === "undefined" || !productSummaryPreferenceLoaded) return;
+
+    try {
+      window.localStorage.setItem(PRODUCT_SUMMARY_STORAGE_KEY, String(productSummaryEnabled));
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    }
+  }, [productSummaryEnabled, productSummaryPreferenceLoaded]);
 
   // Product summary
   const productSummary = useMemo(() => {
@@ -221,6 +239,20 @@ export default function AdminPreOrdersPage() {
       }
     }
     return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [allPreOrders]);
+
+  const productFilterOptions = useMemo(() => {
+    const productsMap = new Map<string, string>();
+
+    for (const preOrder of allPreOrders) {
+      for (const item of preOrder.items) {
+        productsMap.set(item.product.id, item.product.name);
+      }
+    }
+
+    return Array.from(productsMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [allPreOrders]);
 
   const loadPreOrders = useCallback(async () => {
@@ -464,22 +496,24 @@ export default function AdminPreOrdersPage() {
   const filteredPreOrders = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
-    if (!normalizedSearch) {
-      return allPreOrders;
-    }
-
     return allPreOrders.filter((preOrder) => {
       const customerName = preOrder.customer?.name?.toLowerCase() ?? "";
       const customerPhone = preOrder.customer?.phone?.toLowerCase() ?? "";
-      const productNames = preOrder.items.map(item => item.product.name.toLowerCase()).join(" ");
+      const productNames = preOrder.items.map((item) => item.product.name.toLowerCase()).join(" ");
 
-      return (
+      const matchesSearch =
+        !normalizedSearch ||
         customerName.includes(normalizedSearch) ||
         customerPhone.includes(normalizedSearch) ||
-        productNames.includes(normalizedSearch)
-      );
+        productNames.includes(normalizedSearch);
+
+      const matchesSelectedProduct =
+        selectedProductIds.length === 0 ||
+        preOrder.items.some((item) => selectedProductIds.includes(item.product.id));
+
+      return matchesSearch && matchesSelectedProduct;
     });
-  }, [allPreOrders, searchTerm]);
+  }, [allPreOrders, searchTerm, selectedProductIds]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPreOrders.length / itemsPerPage));
 
@@ -676,33 +710,15 @@ export default function AdminPreOrdersPage() {
         <>
           <PreOrderStatsCards preOrders={allPreOrders} />
 
-          {/* Busca */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex gap-2">
-                <div className="flex-1 max-w-md">
-                  <Input
-                    placeholder="Buscar por cliente ou produto..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    leftIcon={<Search className="h-4 w-4" />}
-                    rightIcon={
-                      searchInput ? (
-                        <button
-                          type="button"
-                          onClick={() => setSearchInput("")}
-                          className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                          aria-label="Limpar busca"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </button>
-                      ) : undefined
-                    }
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PreOrderFilterBar
+            searchValue={searchInput}
+            onSearchChange={setSearchInput}
+            selectedProductIds={selectedProductIds}
+            onSelectedProductIdsChange={setSelectedProductIds}
+            productOptions={productFilterOptions}
+            totalCount={allPreOrders.length}
+            filteredCount={filteredPreOrders.length}
+          />
 
           {allPreOrders.length > 0 && productSummary.length > 0 && productSummaryEnabled && (
             <Card variant="outline">
