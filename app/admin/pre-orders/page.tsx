@@ -76,6 +76,8 @@ type ProductSummary = {
   totalQuantity: number;
 };
 
+const PRODUCT_SUMMARY_STORAGE_KEY = "admin-pre-orders-product-summary-enabled";
+
 // =============================================================================
 // UTILITÁRIOS VISUAIS
 // =============================================================================
@@ -193,19 +195,34 @@ export default function AdminPreOrdersPage() {
   const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
   const [desktopPrintWaiting, setDesktopPrintWaiting] = useState(false);
   const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
+  const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
 
-  // Load product summary state from session storage on mount
+  // Load product summary state from local storage on mount.
   useEffect(() => {
-    const saved = sessionStorage.getItem('productSummaryEnabled');
-    if (saved !== null) {
-      setProductSummaryEnabled(saved === 'true');
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(PRODUCT_SUMMARY_STORAGE_KEY);
+      if (saved !== null) {
+        setProductSummaryEnabled(saved === "true");
+      }
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    } finally {
+      setProductSummaryPreferenceLoaded(true);
     }
   }, []);
 
-  // Save product summary state to session storage when it changes
+  // Save product summary state only after the initial preference has been loaded.
   useEffect(() => {
-    sessionStorage.setItem('productSummaryEnabled', String(productSummaryEnabled));
-  }, [productSummaryEnabled]);
+    if (typeof window === "undefined" || !productSummaryPreferenceLoaded) return;
+
+    try {
+      window.localStorage.setItem(PRODUCT_SUMMARY_STORAGE_KEY, String(productSummaryEnabled));
+    } catch {
+      // Ignora indisponibilidade do storage sem quebrar a tela.
+    }
+  }, [productSummaryEnabled, productSummaryPreferenceLoaded]);
 
   // Product summary
   const productSummary = useMemo(() => {

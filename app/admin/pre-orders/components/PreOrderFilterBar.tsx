@@ -57,13 +57,13 @@ export function PreOrderFilterBar({
   }, [hasAnyFilter]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-card overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 dark:from-slate-800 dark:to-slate-900 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 dark:bg-primary/15">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-slate-700">Busca e filtros</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Busca e filtros</span>
           {hasAnyFilter && (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full leading-none">
               {activeFilterCount} ativo{activeFilterCount !== 1 ? "s" : ""}
@@ -75,12 +75,12 @@ export function PreOrderFilterBar({
           <div className="flex items-center gap-1.5">
             {hasAnyFilter ? (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">{filteredCount}</span>
+                <span className="text-sm font-bold text-slate-800 tabular-nums dark:text-slate-100">{filteredCount}</span>
                 <span className="text-xs text-slate-400">de {totalCount} pré-pedidos</span>
               </>
             ) : (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">{displayCount}</span>
+                <span className="text-sm font-bold text-slate-800 tabular-nums dark:text-slate-100">{displayCount}</span>
                 <span className="text-xs text-slate-400">pré-pedidos</span>
               </>
             )}

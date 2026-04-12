@@ -313,7 +313,7 @@ export function DataTable<T extends Record<string, any>>({
           </thead>
 
           {/* Body */}
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="border-t border-slate-200">
             {loading ? (
               <TableSkeleton columns={columns.length + (hasSelection ? 1 : 0) + (rowActions ? 1 : 0)} />
             ) : data.length === 0 ? (
@@ -352,7 +352,7 @@ export function DataTable<T extends Record<string, any>>({
                   <tr
                     key={key}
                     className={cn(
-                      "transition-colors",
+                      "border-b border-slate-100 transition-colors last:border-b-0",
                       isSelected && "bg-primary/5",
                       isHighlighted && "bg-amber-50",
                       onRowClick && "cursor-pointer hover:bg-slate-50",

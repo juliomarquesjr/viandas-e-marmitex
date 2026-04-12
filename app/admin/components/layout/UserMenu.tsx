@@ -98,6 +98,13 @@ export function UserMenu() {
     setDesktopRuntime(isDesktopRuntime());
   }, []);
 
+  const handleSignOut = React.useCallback(async () => {
+    setOpen(false);
+
+    await signOut({ redirect: false });
+    window.location.assign("/auth/login");
+  }, []);
+
   if (!user) return null;
 
   const roleLabel = user.role === "admin" ? "Administrador" : "PDV";
@@ -261,7 +268,7 @@ export function UserMenu() {
             {/* Footer */}
             <div className="border-t border-[color:var(--border)] py-1">
               <button
-                onClick={() => signOut()}
+                onClick={() => void handleSignOut()}
                 className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 role="menuitem"
               >

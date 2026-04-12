@@ -57,13 +57,13 @@ export function OrderFilterBar({
   }, [hasAnyFilter]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-card overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 dark:from-slate-800 dark:to-slate-900 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 dark:bg-primary/15">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-slate-700">Busca e filtros</span>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">Busca e filtros</span>
           {hasAnyFilter && (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full leading-none">
               {activeFilterCount} ativo{activeFilterCount !== 1 ? "s" : ""}
@@ -75,13 +75,13 @@ export function OrderFilterBar({
           <div className="flex items-center gap-1.5">
             {hasAnyFilter ? (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">{filteredCount}</span>
-                <span className="text-xs text-slate-400">de {totalCount} vendas</span>
+                <span className="text-sm font-bold text-slate-800 tabular-nums dark:text-slate-100">{filteredCount}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">de {totalCount} vendas</span>
               </>
             ) : (
               <>
-                <span className="text-sm font-bold text-slate-800 tabular-nums">{displayCount}</span>
-                <span className="text-xs text-slate-400">vendas</span>
+                <span className="text-sm font-bold text-slate-800 tabular-nums dark:text-slate-100">{displayCount}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">vendas</span>
               </>
             )}
           </div>
@@ -90,20 +90,21 @@ export function OrderFilterBar({
 
       <div className="flex flex-col lg:flex-row items-stretch lg:items-end gap-2.5 p-3">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">
             Buscar venda
           </Label>
           <Input
             placeholder="Buscar por cliente, telefone, pagamento ou ID..."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
+            className="dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-600"
             leftIcon={<Search className="h-4 w-4" />}
             rightIcon={
               searchValue ? (
                 <button
                   type="button"
                   onClick={() => onSearchChange("")}
-                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer dark:text-slate-500 dark:hover:text-slate-300"
                   aria-label="Limpar busca"
                 >
                   <X className="h-4 w-4" />
@@ -114,7 +115,7 @@ export function OrderFilterBar({
         </div>
 
         <div className="space-y-1.5 shrink-0 w-full lg:w-[180px]">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">
             Data inicial
           </Label>
           <div className="relative">
@@ -127,14 +128,14 @@ export function OrderFilterBar({
                   end: dateRange.end,
                 })
               }
-              className="pl-9"
+              className="pl-9 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 [color-scheme:light] dark:[color-scheme:dark]"
             />
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none dark:text-slate-500" />
           </div>
         </div>
 
         <div className="space-y-1.5 shrink-0 w-full lg:w-[180px]">
-          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">
             Data final
           </Label>
           <div className="relative">
@@ -147,20 +148,20 @@ export function OrderFilterBar({
                   end: e.target.value,
                 })
               }
-              className="pl-9"
+              className="pl-9 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 [color-scheme:light] dark:[color-scheme:dark]"
             />
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none dark:text-slate-500" />
           </div>
         </div>
 
-        <div className="hidden lg:block w-px h-10 bg-slate-200 shrink-0" />
+        <div className="hidden lg:block w-px h-10 bg-slate-200 shrink-0 dark:bg-slate-700" />
 
         <Button
           type="button"
           variant="outline"
           className={cn(
-            "h-10 shrink-0",
-            !hasAnyFilter && "text-slate-400"
+            "h-10 shrink-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800",
+            !hasAnyFilter && "text-slate-400 dark:text-slate-500"
           )}
           onClick={() => {
             onSearchChange("");
@@ -179,8 +180,8 @@ export function OrderFilterBar({
           chipsVisible ? "max-h-16 opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pt-0 border-t border-slate-100">
-          <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">Filtros:</span>
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pt-0 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide dark:text-slate-500">Filtros:</span>
 
           {hasSearchFilter && (
             <Badge variant="info" size="sm" dot className="pl-2 pr-1 gap-1.5">
