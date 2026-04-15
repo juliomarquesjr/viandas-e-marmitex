@@ -342,6 +342,205 @@ fn save_bytes_to_file(default_filename: String, bytes: Vec<u8>) -> Result<Option
     Ok(None)
 }
 
+#[cfg(target_os = "windows")]
+fn print_raw_to_windows_printer(
+    printer_name: &str,
+    bytes: &[u8],
+    document_name: Option<&str>,
+) -> Result<(), String> {
+    let temp_file_path = std::env::temp_dir().join(format!(
+        "viandas-print-{}-{}.bin",
+        std::process::id(),
+        current_timestamp_string()
+    ));
+
+    fs::write(&temp_file_path, bytes)
+        .map_err(|err| format!("Falha ao criar arquivo temporario de impressao: {err}"))?;
+
+    let script = r#"
+$printerName = $env:VIANDAS_PRINTER_NAME
+$documentName = $env:VIANDAS_PRINT_DOCUMENT_NAME
+$dataPath = $env:VIANDAS_PRINT_DATA_PATH
+
+if ([string]::IsNullOrWhiteSpace($printerName)) {
+  throw 'Nome da impressora nao informado.'
+}
+
+if ([string]::IsNullOrWhiteSpace($dataPath) -or -not (Test-Path -LiteralPath $dataPath)) {
+  throw 'Arquivo temporario da impressao nao encontrado.'
+}
+
+$source = @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class RawPrinterHelper
+{
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private class DOCINFO
+    {
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string pDocName;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string pOutputFile;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string pDataType;
+    }
+
+    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterW", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
+
+    [DllImport("winspool.Drv", SetLastError = true)]
+    private static extern bool ClosePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterW", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, DOCINFO di);
+
+    [DllImport("winspool.Drv", SetLastError = true)]
+    private static extern bool EndDocPrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", SetLastError = true)]
+    private static extern bool StartPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", SetLastError = true)]
+    private static extern bool EndPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.Drv", SetLastError = true)]
+    private static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+
+    public static bool SendBytesToPrinter(string printerName, byte[] bytes, string documentName, out int lastError)
+    {
+        lastError = 0;
+        IntPtr hPrinter = IntPtr.Zero;
+        IntPtr unmanagedBytes = IntPtr.Zero;
+
+        try
+        {
+            if (!OpenPrinter(printerName, out hPrinter, IntPtr.Zero))
+            {
+                lastError = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            DOCINFO docInfo = new DOCINFO
+            {
+                pDocName = string.IsNullOrWhiteSpace(documentName) ? "Viandas Thermal Print" : documentName,
+                pDataType = "RAW"
+            };
+
+            if (!StartDocPrinter(hPrinter, 1, docInfo))
+            {
+                lastError = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            if (!StartPagePrinter(hPrinter))
+            {
+                lastError = Marshal.GetLastWin32Error();
+                EndDocPrinter(hPrinter);
+                return false;
+            }
+
+            unmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
+            Marshal.Copy(bytes, 0, unmanagedBytes, bytes.Length);
+
+            int written;
+            bool success = WritePrinter(hPrinter, unmanagedBytes, bytes.Length, out written);
+            if (!success || written != bytes.Length)
+            {
+                lastError = Marshal.GetLastWin32Error();
+            }
+
+            EndPagePrinter(hPrinter);
+            EndDocPrinter(hPrinter);
+
+            return success && written == bytes.Length;
+        }
+        finally
+        {
+            if (unmanagedBytes != IntPtr.Zero)
+            {
+                Marshal.FreeCoTaskMem(unmanagedBytes);
+            }
+
+            if (hPrinter != IntPtr.Zero)
+            {
+                ClosePrinter(hPrinter);
+            }
+        }
+    }
+}
+"@
+
+Add-Type -TypeDefinition $source -Language CSharp
+
+$bytes = [System.IO.File]::ReadAllBytes($dataPath)
+$win32Error = 0
+$result = [RawPrinterHelper]::SendBytesToPrinter($printerName, $bytes, $documentName, [ref]$win32Error)
+
+if (-not $result) {
+  throw ("Falha ao enviar dados para a impressora. Codigo Win32: {0}" -f $win32Error)
+}
+"#;
+
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .env("VIANDAS_PRINTER_NAME", printer_name)
+        .env(
+            "VIANDAS_PRINT_DOCUMENT_NAME",
+            document_name.unwrap_or("Pre-pedido termico"),
+        )
+        .env(
+            "VIANDAS_PRINT_DATA_PATH",
+            temp_file_path.to_string_lossy().to_string(),
+        )
+        .output()
+        .map_err(|err| format!("Falha ao acionar impressao no Windows: {err}"))?;
+
+    let _ = fs::remove_file(&temp_file_path);
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let details = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        "Erro desconhecido ao imprimir".to_string()
+    };
+
+    Err(details)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn print_raw_to_windows_printer(
+    _printer_name: &str,
+    _bytes: &[u8],
+    _document_name: Option<&str>,
+) -> Result<(), String> {
+    Err("Impressao RAW esta disponivel apenas no Windows".to_string())
+}
+
+#[tauri::command]
+fn print_raw_to_printer(
+    printer_name: String,
+    bytes: Vec<u8>,
+    document_name: Option<String>,
+) -> Result<(), String> {
+    print_raw_to_windows_printer(&printer_name, &bytes, document_name.as_deref())
+}
+
 #[tauri::command]
 fn window_minimize(window: tauri::WebviewWindow) -> Result<(), String> {
     window
@@ -525,6 +724,7 @@ fn main() {
             select_file,
             open_path_in_file_explorer,
             save_bytes_to_file,
+            print_raw_to_printer,
             window_minimize,
             window_toggle_maximize,
             window_is_maximized,

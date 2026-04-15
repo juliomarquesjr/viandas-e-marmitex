@@ -106,6 +106,22 @@ export async function saveDesktopPrintPreferences(
   });
 }
 
+export async function printRawToDesktopPrinter(
+  printerName: string,
+  bytes: number[],
+  documentName?: string,
+): Promise<void> {
+  if (!isDesktopRuntime()) {
+    throw new Error("Impressao direta so esta disponivel no runtime desktop");
+  }
+
+  return invoke<void>("print_raw_to_printer", {
+    printerName,
+    bytes,
+    documentName: documentName ?? null,
+  });
+}
+
 export async function getThermalAutoPrintDecision(
   moduleKey: ThermalAutoPrintModuleKey,
 ): Promise<boolean> {

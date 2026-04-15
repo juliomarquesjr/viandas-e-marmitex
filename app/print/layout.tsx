@@ -16,7 +16,6 @@ export default function PrintLayout({
           @media print {
             @page {
               margin: 0.25in;
-              size: A4;
             }
             
             body {
@@ -24,6 +23,13 @@ export default function PrintLayout({
               print-color-adjust: exact;
               font-size: 10px;
               line-height: 1.2;
+            }
+
+            html.desktop-runtime,
+            body.desktop-runtime,
+            .desktop-window-content {
+              height: auto !important;
+              overflow: visible !important;
             }
             
             .no-print {
@@ -83,7 +89,9 @@ export default function PrintLayout({
               width: 58mm !important;
               min-width: 58mm !important;
               max-width: 58mm !important;
-              overflow: hidden !important;
+              min-height: auto !important;
+              height: auto !important;
+              overflow: visible !important;
             }
 
             .print-container:has(.thermal-receipt),
@@ -92,6 +100,9 @@ export default function PrintLayout({
               max-width: 58mm !important;
               margin: 0 auto !important;
               padding: 0 !important;
+              min-height: auto !important;
+              height: auto !important;
+              overflow: visible !important;
               box-shadow: none !important;
               border-radius: 0 !important;
             }

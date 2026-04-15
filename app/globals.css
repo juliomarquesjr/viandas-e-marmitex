@@ -350,21 +350,23 @@ body {
   justify-content: space-between;
   padding: 0 8px 0 12px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: linear-gradient(180deg, var(--card) 0%, var(--muted) 100%);
   user-select: none;
   position: sticky;
   top: 0;
   z-index: 70;
+  transition: background-color var(--transition-default), border-color var(--transition-default), color var(--transition-default);
 }
 
 .desktop-window-brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #334155;
+  color: var(--foreground);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
+  opacity: 0.9;
 }
 
 .desktop-window-brand-icon {
@@ -394,7 +396,7 @@ body {
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #475569;
+  color: var(--muted-foreground);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -403,8 +405,8 @@ body {
 }
 
 .desktop-window-control-button:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .desktop-window-control-button-close:hover {
