@@ -187,9 +187,43 @@ function CustomerReportThermalContent() {
       // Small delay to ensure content is rendered
       setTimeout(() => {
         window.print();
-      }, 500);
+      }, 1200);
     }
   }, [reportData, loading, error]);
+
+  // In desktop runtime, force scrollable print area to avoid clipping long thermal reports
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const desktopContent = document.querySelector('.desktop-window-content') as HTMLElement | null;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevHtmlHeight = html.style.height;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyHeight = body.style.height;
+    const prevDesktopOverflow = desktopContent?.style.overflow ?? '';
+    const prevDesktopHeight = desktopContent?.style.height ?? '';
+
+    html.style.overflow = 'auto';
+    html.style.height = 'auto';
+    body.style.overflow = 'auto';
+    body.style.height = 'auto';
+    if (desktopContent) {
+      desktopContent.style.overflow = 'auto';
+      desktopContent.style.height = 'auto';
+    }
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      html.style.height = prevHtmlHeight;
+      body.style.overflow = prevBodyOverflow;
+      body.style.height = prevBodyHeight;
+      if (desktopContent) {
+        desktopContent.style.overflow = prevDesktopOverflow;
+        desktopContent.style.height = prevDesktopHeight;
+      }
+    };
+  }, []);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -663,6 +697,17 @@ function CustomerReportThermalContent() {
         
         /* Estilos específicos para impressão */
         @media print {
+          html,
+          body {
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          .desktop-window-content {
+            height: auto !important;
+            overflow: visible !important;
+          }
+
           body {
             margin: 0;
             padding: 0;
@@ -682,10 +727,22 @@ function CustomerReportThermalContent() {
             width: 58mm;
             margin: 0;
             padding: 2mm;
+            min-height: auto;
+            height: auto;
+            overflow: visible;
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+
+          .thermal-section,
+          .thermal-transaction,
+          .thermal-footer {
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           
           @page {
-            size: 58mm auto;
+            size: 58mm 2000mm;
             margin: 0;
           }
         }

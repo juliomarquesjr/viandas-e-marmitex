@@ -33,7 +33,16 @@ import { PreOrderStatsCards } from "./components/PreOrderStatsCards";
 import { PreOrdersPageSkeleton } from "./components/PreOrdersSkeletonLoader";
 import { PreOrderActionsMenu } from "./components/PreOrderActionsMenu";
 import { PreOrderFilterBar } from "./components/PreOrderFilterBar";
-import { isDesktopRuntime } from "@/lib/runtime/capabilities";
+import {
+  getDesktopPrintPreferences,
+  isDesktopRuntime,
+  printRawToDesktopPrinter,
+} from "@/lib/runtime/capabilities";
+import {
+  buildPreOrderThermalPrintBytes,
+  type PreOrderThermalPrintData,
+  type PublicConfigEntry,
+} from "@/lib/runtime/pre-order-thermal-print";
 
 // =============================================================================
 // TIPOS
@@ -77,6 +86,7 @@ type ProductSummary = {
 };
 
 const PRODUCT_SUMMARY_STORAGE_KEY = "admin-pre-orders-product-summary-enabled";
+const DESKTOP_PRINT_FRAME_ID = "desktop-print-frame";
 
 // =============================================================================
 // UTILITÁRIOS VISUAIS
@@ -198,6 +208,13 @@ export default function AdminPreOrdersPage() {
   const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
   const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
 
+  const removeDesktopPrintFrame = useCallback(() => {
+    const existingFrame = document.getElementById(DESKTOP_PRINT_FRAME_ID);
+    if (existingFrame) {
+      existingFrame.remove();
+    }
+  }, []);
+
   // Load product summary state from local storage on mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -271,6 +288,56 @@ export default function AdminPreOrdersPage() {
     }
   }, []);
 
+  const loadPreOrderThermalPayload = useCallback(async (preOrderId: string) => {
+    const [preOrderResponse, configResponse] = await Promise.all([
+      fetch(`/api/pre-orders?id=${preOrderId}`),
+      fetch("/api/config/public"),
+    ]);
+
+    if (!preOrderResponse.ok) {
+      throw new Error("Nao foi possivel carregar o pre-pedido para impressao.");
+    }
+
+    if (!configResponse.ok) {
+      throw new Error("Nao foi possivel carregar as configuracoes publicas para impressao.");
+    }
+
+    const [preOrderData, configData] = await Promise.all([
+      preOrderResponse.json() as Promise<PreOrderThermalPrintData>,
+      configResponse.json() as Promise<PublicConfigEntry[]>,
+    ]);
+
+    return {
+      preOrder: preOrderData,
+      configs: configData,
+    };
+  }, []);
+
+  const tryDirectThermalPrint = useCallback(async (preOrderId: string) => {
+    const preferences = await getDesktopPrintPreferences();
+    const printerTarget =
+      preferences.defaultThermalPrinterName?.trim() || preferences.defaultThermalPrinterId?.trim() || null;
+
+    const autoPrintEnabled = Boolean(
+      printerTarget && preferences.thermalAutoPrintModules.preOrders,
+    );
+
+    if (!autoPrintEnabled || !printerTarget) {
+      return false;
+    }
+
+    const { preOrder, configs } = await loadPreOrderThermalPayload(preOrderId);
+    const bytes = buildPreOrderThermalPrintBytes(preOrder, configs);
+
+    await printRawToDesktopPrinter(
+      printerTarget,
+      bytes,
+      `Pre-pedido ${preOrder.id.slice(-8).toUpperCase()}`,
+    );
+
+    return true;
+  }, [loadPreOrderThermalPayload]);
+
   useEffect(() => {
     loadPreOrders();
   }, [loadPreOrders]);
@@ -312,12 +379,22 @@ export default function AdminPreOrdersPage() {
         }
         setDesktopPrintWaiting(false);
         setActivePrintSessionId(null);
+        return;
+      }
+
+      if (data.type === "desktop-print-finished") {
+        if (activePrintSessionId && data.printSessionId && data.printSessionId !== activePrintSessionId) {
+          return;
+        }
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+        removeDesktopPrintFrame();
       }
     };
 
     window.addEventListener("message", onPrintMessage);
     return () => window.removeEventListener("message", onPrintMessage);
-  }, [activePrintSessionId]);
+  }, [activePrintSessionId, removeDesktopPrintFrame]);
 
   const openDeleteDialog = (preOrderId: string) => {
     setPreOrderToDelete(preOrderId);
@@ -349,20 +426,32 @@ export default function AdminPreOrdersPage() {
     }
   };
 
-  const printThermalReceipt = (preOrderId: string) => {
+  const printThermalReceipt = async (preOrderId: string) => {
     const printSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}`;
     if (isDesktopRuntime()) {
-      setActivePrintSessionId(printSessionId);
-      setDesktopPrintWaiting(true);
+      const shouldWaitForDialog = true;
 
-      const existingFrame = document.getElementById("desktop-print-frame");
-      if (existingFrame) {
-        existingFrame.remove();
+      try {
+        const printedDirectly = await tryDirectThermalPrint(preOrderId);
+        if (printedDirectly) {
+          showToast("Pre-pedido enviado para a impressora termica configurada.", "success");
+          return;
+        }
+      } catch (error) {
+        console.warn("Falha ao carregar preferÃªncias de impressÃ£o tÃ©rmica dos prÃ©-pedidos:", error);
       }
 
+      setActivePrintSessionId(printSessionId);
+      setDesktopPrintWaiting(shouldWaitForDialog);
+
+      removeDesktopPrintFrame();
+
+      const receiptUrl =
+        `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}` +
+        `&autoPrint=${shouldWaitForDialog ? "0" : "1"}`;
+
       const iframe = document.createElement("iframe");
-      iframe.id = "desktop-print-frame";
+      iframe.id = DESKTOP_PRINT_FRAME_ID;
       iframe.src = receiptUrl;
       iframe.setAttribute("aria-hidden", "true");
       iframe.style.position = "fixed";
@@ -384,6 +473,7 @@ export default function AdminPreOrdersPage() {
       return;
     }
 
+    const receiptUrl = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}`;
     window.open(receiptUrl, '_blank');
   };
 

@@ -52,6 +52,7 @@ function PreOrderThermalContent() {
   const searchParams = useSearchParams();
   const preOrderId = searchParams.get('preOrderId');
   const printSessionId = searchParams.get('printSessionId');
+  const autoPrint = searchParams.get('autoPrint') === '1';
 
   const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -86,6 +87,29 @@ function PreOrderThermalContent() {
       }
     } catch (error) {
       console.warn('Falha ao notificar opener da impressao:', error);
+    }
+  };
+
+  const notifyPrintFinished = () => {
+    const payload = {
+      type: 'desktop-print-finished',
+      printSessionId: printSessionId || null,
+    };
+
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    } catch (error) {
+      console.warn('Falha ao notificar finalizacao da impressao no parent:', error);
+    }
+
+    try {
+      if (window.opener) {
+        window.opener.postMessage(payload, window.location.origin);
+      }
+    } catch (error) {
+      console.warn('Falha ao notificar finalizacao da impressao no opener:', error);
     }
   };
 
@@ -260,13 +284,19 @@ function PreOrderThermalContent() {
 
   // Auto print when page loads (aguardar QR code se necessário)
   useEffect(() => {
+    const startPrint = (delayMs: number) => {
+      setTimeout(() => {
+        if (!autoPrint) {
+          notifyPrintDialogOpening();
+        }
+        window.print();
+      }, delayMs);
+    };
+
     if (preOrder && !loading && !error) {
       // Se não houver chave PIX, imprimir após um pequeno delay
       if (!pixChave) {
-        setTimeout(() => {
-          notifyPrintDialogOpening();
-          window.print();
-        }, 500);
+        startPrint(500);
         return;
       }
       
@@ -274,21 +304,24 @@ function PreOrderThermalContent() {
       // Verificar se já foi gerado ou se não está mais gerando (erro ou sem chave válida)
       if (pixQrCodeUrl) {
         // QR Code já foi gerado, aguardar tempo suficiente para renderizar a imagem
-        setTimeout(() => {
-          notifyPrintDialogOpening();
-          window.print();
-        }, 2000);
+        startPrint(2000);
       } else if (!generatingQr && pixChave) {
         // Não está gerando e não tem QR Code - pode ser erro ou chave inválida
         // Aguardar um pouco e imprimir mesmo assim
-        setTimeout(() => {
-          notifyPrintDialogOpening();
-          window.print();
-        }, 3000);
+        startPrint(3000);
       }
       // Se estiver gerando, aguardar o próximo ciclo (quando generatingQr mudar)
     }
-  }, [preOrder, loading, error, pixQrCodeUrl, pixChave, generatingQr]);
+  }, [autoPrint, preOrder, loading, error, pixQrCodeUrl, pixChave, generatingQr]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      notifyPrintFinished();
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
