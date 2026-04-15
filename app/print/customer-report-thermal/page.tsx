@@ -388,7 +388,11 @@ function CustomerReportThermalContent() {
           </div>
           
           {reportData.monthlySummary.map((month, index) => (
-            <div key={month.month} style={{ marginBottom: '6px', borderBottom: index < reportData.monthlySummary!.length - 1 ? '1px solid #333' : 'none', paddingBottom: '4px' }}>
+            <div
+              key={month.month}
+              className="thermal-summary-block"
+              style={{ marginBottom: '6px', borderBottom: index < reportData.monthlySummary!.length - 1 ? '1px solid #333' : 'none', paddingBottom: '4px' }}
+            >
               <div className="thermal-row" style={{ fontSize: '11px' }}>
                 <span>Saldo Anterior:</span>
                 <span style={{ fontWeight: '600' }}>
@@ -734,7 +738,12 @@ function CustomerReportThermalContent() {
             break-inside: auto;
           }
 
-          .thermal-section,
+          .thermal-section {
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+
+          .thermal-summary-block,
           .thermal-transaction,
           .thermal-footer {
             page-break-inside: avoid;
@@ -742,7 +751,7 @@ function CustomerReportThermalContent() {
           }
           
           @page {
-            size: 58mm 2000mm;
+            size: 58mm auto;
             margin: 0;
           }
         }
