@@ -742,6 +742,18 @@ function CustomerReportThermalContent() {
             break-inside: auto;
           }
 
+          /* Cabeçalho nunca deve ser partido */
+          .thermal-header {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Título de seção nunca fica sozinho no final de uma página */
+          .thermal-section-title {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+
           .thermal-section {
             page-break-inside: auto;
             break-inside: auto;
