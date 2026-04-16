@@ -1,30 +1,22 @@
 /**
- * Mede a altura real do conteúdo térmico e injeta um @page com dimensões
- * explícitas antes de chamar window.print(). Resolve o corte de conteúdo
- * em impressoras térmicas com driver "normal" (CUPS / spooler do SO) que
- * ignoram `@page { size: 58mm auto; }` e usam a altura padrão configurada.
+ * Prepara e dispara a impressão de páginas térmicas.
+ *
+ * Estratégia: NÃO forçar um tamanho de página customizado via @page size.
+ * Drivers com papel fixo (ex: CUPS 58×210mm) ignoram a declaração CSS e
+ * cortam o conteúdo. A abordagem correta é deixar o browser usar o tamanho
+ * configurado na impressora e paginar o conteúdo naturalmente em múltiplos
+ * segmentos — o que garante que todo o conteúdo seja impresso.
+ *
+ * Apenas o margin do @page é sobrescrito (remove o 0.25in do layout global).
  */
 export function printThermalPage(): void {
-  const container =
-    document.querySelector<HTMLElement>('.thermal-report') ??
-    document.querySelector<HTMLElement>('.thermal-receipt');
-
-  if (!container) {
-    window.print();
-    return;
-  }
-
-  const heightPx = container.getBoundingClientRect().height;
-  // Converte px → mm (96 dpi padrão) e adiciona 8mm de buffer para rodapé
-  const heightMm = Math.ceil(heightPx * 25.4 / 96) + 8;
-
   const styleId = 'thermal-dynamic-page';
   document.getElementById(styleId)?.remove();
 
   const style = document.createElement('style');
   style.id = styleId;
-  // Inserido por último no <head>, sobrescreve qualquer @page anterior
-  style.textContent = `@page { size: 58mm ${heightMm}mm; margin: 0; }`;
+  // Sobrescreve apenas o margin; deixa o size para o driver da impressora
+  style.textContent = `@page { margin: 0; }`;
   document.head.appendChild(style);
 
   const cleanup = () => {
