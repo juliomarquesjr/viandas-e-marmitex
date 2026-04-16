@@ -27,6 +27,7 @@ export default function PrintLayout({
 
             html.desktop-runtime,
             body.desktop-runtime,
+            .desktop-window-frame,
             .desktop-window-content {
               height: auto !important;
               overflow: visible !important;
