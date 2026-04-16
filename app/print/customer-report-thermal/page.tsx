@@ -2,6 +2,7 @@
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { ReportLoading } from '@/app/components/ReportLoading';
+import { printThermalPage } from '@/lib/thermal-print-utils';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -184,9 +185,12 @@ function CustomerReportThermalContent() {
   // Auto print when page loads
   useEffect(() => {
     if (reportData && !loading && !error) {
-      // Small delay to ensure content is rendered
       setTimeout(() => {
-        window.print();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            printThermalPage();
+          });
+        });
       }, 1200);
     }
   }, [reportData, loading, error]);
@@ -492,7 +496,7 @@ function CustomerReportThermalContent() {
       {/* Print button for screen view */}
       <div className="no-print thermal-print-btn">
         <button
-          onClick={() => window.print()}
+          onClick={() => printThermalPage()}
           className="thermal-btn"
         >
           Imprimir Térmica
@@ -730,7 +734,7 @@ function CustomerReportThermalContent() {
             max-width: none;
             width: 58mm;
             margin: 0;
-            padding: 2mm;
+            padding: 2mm 2mm 6mm;
             min-height: auto;
             height: auto;
             overflow: visible;
@@ -748,11 +752,6 @@ function CustomerReportThermalContent() {
           .thermal-footer {
             page-break-inside: avoid;
             break-inside: avoid;
-          }
-          
-          @page {
-            size: 58mm auto;
-            margin: 0;
           }
         }
       `}</style>
