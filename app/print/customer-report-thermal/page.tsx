@@ -711,6 +711,7 @@ function CustomerReportThermalContent() {
             overflow: visible !important;
           }
 
+          .desktop-window-frame,
           .desktop-window-content {
             height: auto !important;
             overflow: visible !important;
