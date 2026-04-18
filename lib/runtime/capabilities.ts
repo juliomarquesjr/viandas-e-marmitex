@@ -122,6 +122,25 @@ export async function printRawToDesktopPrinter(
   });
 }
 
+export async function printBitmapToDesktopPrinter(
+  printerName: string,
+  imageBytes: number[],
+  width: number,
+  height: number,
+  documentName?: string,
+): Promise<void> {
+  if (!isDesktopRuntime()) {
+    throw new Error("Impressão bitmap só está disponível no runtime desktop");
+  }
+  return invoke<void>("print_bitmap_to_printer", {
+    printerName,
+    imageBytes,
+    width,
+    height,
+    documentName: documentName ?? null,
+  });
+}
+
 export async function getThermalAutoPrintDecision(
   moduleKey: ThermalAutoPrintModuleKey,
 ): Promise<boolean> {

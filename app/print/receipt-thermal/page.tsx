@@ -4,6 +4,7 @@ import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import html2canvas from 'html2canvas';
 
 type OrderItem = {
   id: string;
@@ -37,6 +38,9 @@ type Order = {
 function ThermalReceiptContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const captureMode = searchParams.get('captureMode') === 'true';
+  const autoPrint = searchParams.get('autoPrint') !== '0';
+  const printSessionId = searchParams.get('printSessionId') ?? null;
 
   const [order, setOrder] = useState<Order | null>(null);
   const [contactInfo, setContactInfo] = useState<{
@@ -129,14 +133,70 @@ function ThermalReceiptContent() {
     loadData();
   }, [orderId]);
   
+  const notifyParent = (type: string) => {
+    const payload = { type, printSessionId };
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    } catch (err) {
+      console.warn('Falha ao notificar parent:', err);
+    }
+    try {
+      if (window.opener) {
+        window.opener.postMessage(payload, window.location.origin);
+      }
+    } catch (err) {
+      console.warn('Falha ao notificar opener:', err);
+    }
+  };
+
+  const runBitmapCapture = async () => {
+    const el = document.querySelector('.thermal-receipt') as HTMLElement | null;
+    if (!el) return;
+    const canvas = await html2canvas(el, {
+      scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false,
+    });
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const payload = {
+      type: 'thermal-bitmap-capture',
+      printSessionId,
+      imageData: Array.from(data),
+      width: canvas.width,
+      height: canvas.height,
+    };
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    } catch (err) {
+      console.warn('Falha ao enviar bitmap para o parent:', err);
+    }
+  };
+
   // Auto print when page loads
   useEffect(() => {
     if (order && !loading && !error) {
       setTimeout(() => {
-        window.print();
+        if (captureMode) {
+          runBitmapCapture();
+        } else {
+          if (!autoPrint) notifyParent('desktop-print-dialog-opening');
+          window.print();
+        }
       }, 500);
     }
-  }, [order, loading, error]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint, captureMode, order, loading, error]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => notifyParent('desktop-print-finished');
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -187,7 +247,7 @@ function ThermalReceiptContent() {
   }
 
   return (
-    <div className="thermal-receipt">
+    <div className={`thermal-receipt${captureMode ? ' capture-mode' : ''}`}>
       {/* Header */}
       <div className="thermal-header">
         {/* Logo */}
@@ -351,6 +411,8 @@ function ThermalReceiptContent() {
 
       {/* Thermal receipt specific styles */}
       <style jsx global>{`
+        .capture-mode .no-print { display: none !important; }
+
         /* Estilos base para impressão térmica */
         .thermal-receipt {
           font-family: 'Consolas', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace;

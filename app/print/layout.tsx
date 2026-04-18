@@ -116,6 +116,12 @@ export default function PrintLayout({
               padding: 1.5mm 1mm !important;
               box-sizing: border-box !important;
             }
+
+            /* QR layout — desktop: reduz QR para caber nos 54mm úteis */
+            body.desktop-runtime .pix-qr-img {
+              width: 90px;
+              height: 90px;
+            }
           }
           
           @media screen {

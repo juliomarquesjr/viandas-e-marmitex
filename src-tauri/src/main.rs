@@ -532,6 +532,56 @@ fn print_raw_to_windows_printer(
     Err("Impressao RAW esta disponivel apenas no Windows".to_string())
 }
 
+fn rgba_to_escpos_raster(image_bytes: &[u8], width: u32, height: u32) -> Vec<u8> {
+    let bytes_per_row = ((width + 7) / 8) as usize;
+    let mut bitmap = Vec::with_capacity(bytes_per_row * height as usize);
+
+    for y in 0..height as usize {
+        for x_byte in 0..bytes_per_row {
+            let mut byte = 0u8;
+            for bit in 0..8u32 {
+                let x = (x_byte as u32) * 8 + bit;
+                if x < width {
+                    let idx = (y as u32 * width + x) as usize * 4;
+                    if idx + 2 < image_bytes.len() {
+                        let r = image_bytes[idx] as u32;
+                        let g = image_bytes[idx + 1] as u32;
+                        let b = image_bytes[idx + 2] as u32;
+                        let luminance = (r * 299 + g * 587 + b * 114) / 1000;
+                        if luminance < 128 {
+                            byte |= 0x80u8 >> bit;
+                        }
+                    }
+                }
+            }
+            bitmap.push(byte);
+        }
+    }
+
+    let x_l = (bytes_per_row & 0xFF) as u8;
+    let x_h = ((bytes_per_row >> 8) & 0xFF) as u8;
+    let y_l = (height & 0xFF) as u8;
+    let y_h = ((height >> 8) & 0xFF) as u8;
+
+    // ESC @ (reset) + GS v 0 m=0 (raster) + bitmap + 3× LF + GS V 0 (corte)
+    let mut cmd = vec![0x1B, 0x40, 0x1D, 0x76, 0x30, 0x00, x_l, x_h, y_l, y_h];
+    cmd.extend_from_slice(&bitmap);
+    cmd.extend_from_slice(&[0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x00]);
+    cmd
+}
+
+#[tauri::command]
+fn print_bitmap_to_printer(
+    printer_name: String,
+    image_bytes: Vec<u8>,
+    width: u32,
+    height: u32,
+    document_name: Option<String>,
+) -> Result<(), String> {
+    let escpos_bytes = rgba_to_escpos_raster(&image_bytes, width, height);
+    print_raw_to_windows_printer(&printer_name, &escpos_bytes, document_name.as_deref())
+}
+
 #[tauri::command]
 fn print_raw_to_printer(
     printer_name: String,
@@ -725,6 +775,7 @@ fn main() {
             open_path_in_file_explorer,
             save_bytes_to_file,
             print_raw_to_printer,
+            print_bitmap_to_printer,
             window_minimize,
             window_toggle_maximize,
             window_is_maximized,

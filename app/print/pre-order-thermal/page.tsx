@@ -4,6 +4,7 @@ import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { ReportLoading } from '@/app/components/ReportLoading';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import html2canvas from 'html2canvas';
 
 type PreOrderItem = {
   id: string;
@@ -53,6 +54,7 @@ function PreOrderThermalContent() {
   const preOrderId = searchParams.get('preOrderId');
   const printSessionId = searchParams.get('printSessionId');
   const autoPrint = searchParams.get('autoPrint') === '1';
+  const captureMode = searchParams.get('captureMode') === 'true';
 
   const [preOrder, setPreOrder] = useState<PreOrder | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -282,37 +284,60 @@ function PreOrderThermalContent() {
     return () => clearTimeout(timer);
   }, [preOrder, contactInfo, systemTitle, pixChave, pixQrCodeUrl, loading, generatingQr]);
 
+  const runBitmapCapture = async () => {
+    const el = document.querySelector('.preorder-thermal-receipt') as HTMLElement | null;
+    if (!el) return;
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const payload = {
+      type: 'thermal-bitmap-capture',
+      printSessionId: printSessionId ?? null,
+      imageData: Array.from(data),
+      width: canvas.width,
+      height: canvas.height,
+    };
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    } catch (err) {
+      console.warn('Falha ao enviar bitmap para o parent:', err);
+    }
+  };
+
   // Auto print when page loads (aguardar QR code se necessário)
   useEffect(() => {
-    const startPrint = (delayMs: number) => {
+    const startAction = (delayMs: number) => {
       setTimeout(() => {
-        if (!autoPrint) {
-          notifyPrintDialogOpening();
+        if (captureMode) {
+          runBitmapCapture();
+        } else {
+          if (!autoPrint) notifyPrintDialogOpening();
+          window.print();
         }
-        window.print();
       }, delayMs);
     };
 
     if (preOrder && !loading && !error) {
-      // Se não houver chave PIX, imprimir após um pequeno delay
       if (!pixChave) {
-        startPrint(500);
+        startAction(500);
         return;
       }
-      
-      // Se houver chave PIX, aguardar o QR Code ser gerado
-      // Verificar se já foi gerado ou se não está mais gerando (erro ou sem chave válida)
       if (pixQrCodeUrl) {
-        // QR Code já foi gerado, aguardar tempo suficiente para renderizar a imagem
-        startPrint(2000);
+        startAction(2000);
       } else if (!generatingQr && pixChave) {
-        // Não está gerando e não tem QR Code - pode ser erro ou chave inválida
-        // Aguardar um pouco e imprimir mesmo assim
-        startPrint(3000);
+        startAction(3000);
       }
-      // Se estiver gerando, aguardar o próximo ciclo (quando generatingQr mudar)
     }
-  }, [autoPrint, preOrder, loading, error, pixQrCodeUrl, pixChave, generatingQr]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint, captureMode, preOrder, loading, error, pixQrCodeUrl, pixChave, generatingQr]);
 
   useEffect(() => {
     const handleAfterPrint = () => {
@@ -375,7 +400,7 @@ function PreOrderThermalContent() {
   }
 
   return (
-    <div className="thermal-receipt preorder-thermal-receipt">
+    <div className={`thermal-receipt preorder-thermal-receipt${captureMode ? ' capture-mode' : ''}`}>
       {/* Header */}
       <div className="thermal-header">
         {/* Logo */}
@@ -507,42 +532,27 @@ function PreOrderThermalContent() {
 
       {/* QR Code PIX */}
       {pixChave && (
-        <div style={{marginTop: '8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        <div className="pix-qr-section">
           {generatingQr && !pixQrCodeUrl && (
-            <div className="thermal-text" style={{fontSize: '14px', marginBottom: '8px', fontWeight: 'bold'}}>
+            <div className="thermal-text" style={{fontSize: '14px', fontWeight: 'bold'}}>
               Gerando QR Code...
             </div>
           )}
           {pixQrCodeUrl ? (
             <>
-              <div className="thermal-text" style={{marginBottom: '6px', fontSize: '14px', fontWeight: 'bold'}}>
-                Escaneie o QR Code para pagar
-              </div>
-              <div style={{display: 'flex', justifyContent: 'center', width: '100%'}}>
-                <img 
-                  src={pixQrCodeUrl} 
-                  alt="QR Code PIX" 
-                  onError={(e) => {
-                    console.error('Erro ao carregar imagem do QR code:', e);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                  style={{
-                    width: '150px',
-                    height: '150px',
-                    maxWidth: '100%',
-                    border: '2px solid #000',
-                    padding: '4px',
-                    backgroundColor: '#fff',
-                    display: 'block',
-                    margin: '0 auto'
-                  }}
-                />
-              </div>
-              <div className="thermal-text" style={{marginTop: '6px', fontSize: '13px', fontWeight: 'bold'}}>
-                Valor: {formatCurrency(preOrder.totalCents)}
-              </div>
-              <div className="thermal-text" style={{marginTop: '4px', fontSize: '12px', color: '#000'}}>
-                (Valor já incluído no QR Code)
+              <img
+                src={pixQrCodeUrl}
+                alt="QR Code PIX"
+                className="pix-qr-img"
+                onError={(e) => {
+                  console.error('Erro ao carregar imagem do QR code:', e);
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div className="pix-qr-info">
+                <div className="thermal-text" style={{fontSize: '13px', fontWeight: 'bold'}}>
+                  Valor: {formatCurrency(preOrder.totalCents)}
+                </div>
               </div>
             </>
           ) : !generatingQr && (
@@ -932,6 +942,37 @@ function PreOrderThermalContent() {
           font-family: system-ui, -apple-system, sans-serif;
         }
 
+        .capture-mode .no-print {
+          display: none !important;
+        }
+
+        .pix-qr-section {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
+          width: 100%;
+        }
+
+        .pix-qr-img {
+          width: 100px;
+          height: 100px;
+          flex-shrink: 0;
+          border: 2px solid #000;
+          padding: 3px;
+          background-color: #fff;
+          display: block;
+        }
+
+        .pix-qr-info {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 4px;
+        }
+
         @media print {
           .preorder-thermal-receipt {
             max-width: none;
@@ -939,6 +980,7 @@ function PreOrderThermalContent() {
             margin: 0;
             padding: 2mm;
           }
+
         }
       `}</style>
     </div>
