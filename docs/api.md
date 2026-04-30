@@ -2,6 +2,10 @@
 
 Base URL: `/api`
 
+### Versão / deploy
+
+- GET `/api/version` — metadados públicos da build em execução (`app`, `version`, `commitSha`, `buildTime`, `environment`). Detalhes e variáveis de ambiente: [version-operacao.md](./version-operacao.md).
+
 ### Auth
 - POST `/auth/login` { email, password } → { token, user:{ id, name, role } }
 - POST `/auth/logout`
