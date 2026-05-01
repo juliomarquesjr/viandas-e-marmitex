@@ -36,13 +36,8 @@ import { PreOrderFilterBar } from "./components/PreOrderFilterBar";
 import {
   getDesktopPrintPreferences,
   isDesktopRuntime,
-  printRawToDesktopPrinter,
+  printBitmapToDesktopPrinter,
 } from "@/lib/runtime/capabilities";
-import {
-  buildPreOrderThermalPrintBytes,
-  type PreOrderThermalPrintData,
-  type PublicConfigEntry,
-} from "@/lib/runtime/pre-order-thermal-print";
 
 // =============================================================================
 // TIPOS
@@ -205,6 +200,7 @@ export default function AdminPreOrdersPage() {
   const [preOrderDetailsModalOpen, setPreOrderDetailsModalOpen] = useState(false);
   const [preOrderSummaryModalOpen, setPreOrderSummaryModalOpen] = useState(false);
   const [desktopPrintWaiting, setDesktopPrintWaiting] = useState(false);
+  const [isBitmapPrinting, setIsBitmapPrinting] = useState(false);
   const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
   const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
 
@@ -288,55 +284,57 @@ export default function AdminPreOrdersPage() {
     }
   }, []);
 
-  const loadPreOrderThermalPayload = useCallback(async (preOrderId: string) => {
-    const [preOrderResponse, configResponse] = await Promise.all([
-      fetch(`/api/pre-orders?id=${preOrderId}`),
-      fetch("/api/config/public"),
-    ]);
-
-    if (!preOrderResponse.ok) {
-      throw new Error("Nao foi possivel carregar o pre-pedido para impressao.");
-    }
-
-    if (!configResponse.ok) {
-      throw new Error("Nao foi possivel carregar as configuracoes publicas para impressao.");
-    }
-
-    const [preOrderData, configData] = await Promise.all([
-      preOrderResponse.json() as Promise<PreOrderThermalPrintData>,
-      configResponse.json() as Promise<PublicConfigEntry[]>,
-    ]);
-
-    return {
-      preOrder: preOrderData,
-      configs: configData,
-    };
-  }, []);
-
   const tryDirectThermalPrint = useCallback(async (preOrderId: string) => {
     const preferences = await getDesktopPrintPreferences();
     const printerTarget =
       preferences.defaultThermalPrinterName?.trim() || preferences.defaultThermalPrinterId?.trim() || null;
 
-    const autoPrintEnabled = Boolean(
-      printerTarget && preferences.thermalAutoPrintModules.preOrders,
-    );
-
-    if (!autoPrintEnabled || !printerTarget) {
+    if (!printerTarget || !preferences.thermalAutoPrintModules.preOrders) {
       return false;
     }
 
-    const { preOrder, configs } = await loadPreOrderThermalPayload(preOrderId);
-    const bytes = buildPreOrderThermalPrintBytes(preOrder, configs);
+    const printSessionId = crypto.randomUUID();
 
-    await printRawToDesktopPrinter(
-      printerTarget,
-      bytes,
-      `Pre-pedido ${preOrder.id.slice(-8).toUpperCase()}`,
-    );
+    setIsBitmapPrinting(true);
+    try {
+      const bitmapData = await new Promise<{ imageData: number[]; width: number; height: number }>(
+        (resolve, reject) => {
+          const iframe = document.createElement('iframe');
+          iframe.style.cssText =
+            'position:absolute;left:-9999px;top:-9999px;width:320px;height:1px;opacity:0;pointer-events:none;border:none;';
+          iframe.src = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}&captureMode=true`;
+          document.body.appendChild(iframe);
+
+          const timeout = setTimeout(() => {
+            document.body.removeChild(iframe);
+            reject(new Error('Timeout aguardando captura bitmap do pré-pedido'));
+          }, 30_000);
+
+          const handler = (e: MessageEvent) => {
+            if (e.data?.type === 'thermal-bitmap-capture' && e.data.printSessionId === printSessionId) {
+              clearTimeout(timeout);
+              window.removeEventListener('message', handler);
+              document.body.removeChild(iframe);
+              resolve({ imageData: e.data.imageData, width: e.data.width, height: e.data.height });
+            }
+          };
+          window.addEventListener('message', handler);
+        },
+      );
+
+      await printBitmapToDesktopPrinter(
+        printerTarget,
+        bitmapData.imageData,
+        bitmapData.width,
+        bitmapData.height,
+        `Pre-pedido ${preOrderId.slice(-8).toUpperCase()}`,
+      );
+    } finally {
+      setIsBitmapPrinting(false);
+    }
 
     return true;
-  }, [loadPreOrderThermalPayload]);
+  }, []);
 
   useEffect(() => {
     loadPreOrders();
@@ -981,6 +979,24 @@ export default function AdminPreOrdersPage() {
                 <h3 className="text-sm font-semibold text-slate-900">Preparando impressao</h3>
                 <p className="mt-1 text-sm text-slate-600">
                   Aguarde um instante. A janela de escolha da impressora sera exibida em seguida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBitmapPrinting && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-9 w-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Enviando para a impressora</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Aguarde enquanto o cupom e preparado e enviado para a impressora termica.
                 </p>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { generateBackupContent } from '@/lib/backup/generate';
 import { authOptions } from '@/lib/auth';
 import { readFile, unlink, writeFile } from 'fs/promises';
 import { getServerSession } from 'next-auth';
@@ -13,15 +14,11 @@ export async function POST(req: Request) {
 
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
-    // Verificar se é admin
     if (session.user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Acesso negado. Apenas administradores podem restaurar backups.' },
@@ -29,21 +26,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Obter dados do formulário
     const formData = await req.formData() as unknown as FormData;
     const fileEntry = formData.get('file');
     const file = fileEntry instanceof File ? fileEntry : null;
-    const confirmedEntry = formData.get('confirmed');
-    const confirmed = String(confirmedEntry) === 'true';
-    const autoBackupEntry = formData.get('autoBackup');
-    const autoBackupEnabled = String(autoBackupEntry) === 'true';
+    const confirmed = String(formData.get('confirmed')) === 'true';
+    const autoBackupEnabled = String(formData.get('autoBackup')) === 'true';
 
-    // Validações
     if (!file) {
-      return NextResponse.json(
-        { error: 'Arquivo de backup é obrigatório' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo de backup é obrigatório' }, { status: 400 });
     }
 
     if (!confirmed) {
@@ -53,145 +43,84 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validar tipo de arquivo
     if (!file.name.endsWith('.sql')) {
-      return NextResponse.json(
-        { error: 'Arquivo deve ser um arquivo SQL (.sql)' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo deve ser um arquivo SQL (.sql)' }, { status: 400 });
     }
 
-    // Validar tamanho (máximo 100MB)
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'Arquivo muito grande. Tamanho máximo: 100MB' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo muito grande. Tamanho máximo: 100MB' }, { status: 400 });
     }
 
     if (file.size === 0) {
-      return NextResponse.json(
-        { error: 'Arquivo vazio' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo vazio' }, { status: 400 });
     }
 
-    // Obter DATABASE_URL
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
-      return NextResponse.json(
-        { error: 'DATABASE_URL não configurada' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'DATABASE_URL não configurada' }, { status: 500 });
     }
 
-    // Extrair informações da URL de conexão
-    const url = new URL(databaseUrl);
-    const dbName = url.pathname.slice(1);
-    const dbUser = url.username;
-    const dbPassword = url.password;
-    const dbHost = url.hostname;
-    const dbPort = url.port || '5432';
-
-    // Criar backup automático antes de restaurar (se habilitado)
+    // Backup automático antes de restaurar
     let autoBackupFilename: string | undefined;
     if (autoBackupEnabled) {
       console.log('[RESTORE] Criando backup automático antes de restaurar...');
       const backupTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       autoBackupFilename = `auto-backup-before-restore-${backupTimestamp}.sql`;
-      
-      // Criar cliente para backup automático
-      let autoBackupClient: Client | null = null;
-      let autoBackupContent: string = '';
-      
-      try {
-        autoBackupClient = new Client({
-          connectionString: databaseUrl,
-        });
-        await autoBackupClient.connect();
 
-        // Gerar backup automático usando mesma lógica da criação
+      let autoBackupClient: Client | null = null;
+      let autoBackupContent = '';
+
+      try {
+        autoBackupClient = new Client({ connectionString: databaseUrl });
+        await autoBackupClient.connect();
         autoBackupContent = await generateBackupContent(autoBackupClient);
       } catch (error: any) {
         console.error('[RESTORE] Erro ao criar backup automático:', error);
-        // Continuar mesmo se o backup automático falhar (mas avisar)
-        autoBackupContent = '';
       } finally {
-        if (autoBackupClient) {
-          await autoBackupClient.end();
-        }
+        if (autoBackupClient) await autoBackupClient.end();
       }
 
-      // Salvar backup automático em arquivo temporário para retornar
-      if (autoBackupContent && autoBackupContent.length > 0) {
+      if (autoBackupContent) {
         autoBackupTempPath = join(tmpdir(), `auto-backup-${Date.now()}.sql`);
         await writeFile(autoBackupTempPath, autoBackupContent);
         console.log('[RESTORE] Backup automático salvo:', autoBackupTempPath);
       }
-    } else {
-      console.log('[RESTORE] Backup automático desabilitado pelo usuário.');
     }
 
-    // Salvar arquivo de backup recebido em arquivo temporário
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
     tempFilePath = join(tmpdir(), `restore-${Date.now()}-${file.name}`);
     await writeFile(tempFilePath, buffer);
 
-    console.log('[RESTORE] Arquivo salvo temporariamente:', tempFilePath);
-
-    // Validar conteúdo do arquivo SQL (verificar se não está vazio e tem conteúdo válido)
     const fileContent = buffer.toString('utf8');
     if (!fileContent || fileContent.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Arquivo SQL está vazio ou inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo SQL está vazio ou inválido' }, { status: 400 });
     }
 
-    // Verificar se contém comandos SQL básicos
     const sqlKeywords = ['CREATE', 'INSERT', 'COPY', 'ALTER', 'DROP'];
-    const hasSqlContent = sqlKeywords.some(keyword => 
-      fileContent.toUpperCase().includes(keyword)
-    );
-
-    if (!hasSqlContent) {
-      return NextResponse.json(
-        { error: 'Arquivo não parece ser um backup SQL válido' },
-        { status: 400 }
-      );
+    if (!sqlKeywords.some(kw => fileContent.toUpperCase().includes(kw))) {
+      return NextResponse.json({ error: 'Arquivo não parece ser um backup SQL válido' }, { status: 400 });
     }
 
-    // Executar restauração usando cliente PostgreSQL
     console.log('[RESTORE] Iniciando restauração do banco de dados...');
     const startTime = Date.now();
 
     try {
-      // Ler conteúdo do arquivo SQL
       const sqlContent = await readFile(tempFilePath, 'utf8');
-      
-      // Conectar ao banco e executar SQL
-      client = new Client({
-        connectionString: databaseUrl,
-      });
 
+      client = new Client({ connectionString: databaseUrl });
       await client.connect();
-      
-      // Configurar schema e search_path antes de restaurar
       await client.query('SET search_path TO public;');
-      
-      // Executar SQL em uma transação
       await client.query('BEGIN');
+
       try {
-        // Processar SQL linha por linha de forma mais robusta
-        // Primeiro, remover comandos SET problemáticos e comentários
+        // Filtrar apenas linhas vazias e comentários.
+        // SET standard_conforming_strings é mantido para garantir comportamento correto de strings.
         let processedSQL = sqlContent
           .split('\n')
           .filter(line => {
             const trimmed = line.trim();
-            // Remover linhas vazias, comentários e comandos SET problemáticos
             if (!trimmed) return false;
             if (trimmed.startsWith('--')) return false;
             if (trimmed.startsWith('/*')) return false;
@@ -199,230 +128,187 @@ export async function POST(req: Request) {
             if (trimmed.toUpperCase().startsWith('SET LOCK_TIMEOUT')) return false;
             if (trimmed.toUpperCase().startsWith('SET IDLE_IN_TRANSACTION')) return false;
             if (trimmed.toUpperCase().startsWith('SET CLIENT_ENCODING')) return false;
-            if (trimmed.toUpperCase().startsWith('SET STANDARD_CONFORMING')) return false;
-            if (trimmed.toUpperCase().includes('PG_CATALOG.SET_CONFIG')) return false;
             return true;
           })
           .join('\n');
-        
-        // Dividir em comandos por ponto e vírgula, mas de forma mais inteligente
-        // Não dividir se o ; está dentro de aspas ou parênteses aninhados
+
+        // Parser de comandos SQL: respeita aspas e parênteses aninhados
         const commands: string[] = [];
         let currentCommand = '';
-        let inQuotes = false;
-        let quoteChar = '';
+        let inSingleQuote = false;
+        let inDoubleQuote = false;
         let parenDepth = 0;
-        
+
         for (let i = 0; i < processedSQL.length; i++) {
           const char = processedSQL[i];
-          const nextChar = i < processedSQL.length - 1 ? processedSQL[i + 1] : '';
-          
-          // Detectar início/fim de strings
-          if ((char === '"' || char === "'") && (i === 0 || processedSQL[i - 1] !== '\\')) {
-            if (!inQuotes) {
-              inQuotes = true;
-              quoteChar = char;
-            } else if (char === quoteChar) {
-              inQuotes = false;
-              quoteChar = '';
+
+          if (char === "'" && !inDoubleQuote) {
+            // Detecta '' (aspas dobradas = escape de aspas simples em SQL)
+            if (inSingleQuote && processedSQL[i + 1] === "'") {
+              currentCommand += "''";
+              i++; // pula o próximo '
+              continue;
             }
+            inSingleQuote = !inSingleQuote;
+          } else if (char === '"' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
           }
-          
-          // Contar parênteses (mas não dentro de strings)
-          if (!inQuotes) {
+
+          if (!inSingleQuote && !inDoubleQuote) {
             if (char === '(') parenDepth++;
             if (char === ')') parenDepth--;
           }
-          
+
           currentCommand += char;
-          
-          // Se encontramos ; e não estamos em string e parênteses estão balanceados
-          if (char === ';' && !inQuotes && parenDepth === 0) {
+
+          if (char === ';' && !inSingleQuote && !inDoubleQuote && parenDepth === 0) {
             const cmd = currentCommand.trim();
-            if (cmd && cmd.length > 0 && !cmd.startsWith('--')) {
-              commands.push(cmd);
-            }
+            if (cmd && !cmd.startsWith('--')) commands.push(cmd);
             currentCommand = '';
           }
         }
-        
-        // Adicionar comando restante se houver
+
         if (currentCommand.trim()) {
           const cmd = currentCommand.trim();
-          if (cmd && cmd.length > 0 && !cmd.startsWith('--')) {
-            commands.push(cmd);
-          }
+          if (cmd && !cmd.startsWith('--')) commands.push(cmd);
         }
-        
-        // --- Fase 1: Executar DROP TYPE e CREATE TYPE em transação própria e comitada ---
-        // Isso garante que os ENUMs estejam disponíveis mesmo se a transação principal
-        // sofrer ROLLBACK parcial e for reiniciada.
+
+        // Fase 1: DROP TYPE / CREATE TYPE em transação própria
         const typeCommands = commands.filter(cmd => {
           const up = cmd.trim().toUpperCase();
           return up.startsWith('DROP TYPE') || up.startsWith('CREATE TYPE');
         });
 
         if (typeCommands.length > 0) {
-          await client.query('COMMIT'); // fechar o BEGIN aberto acima
+          await client.query('COMMIT');
           await client.query('BEGIN');
           await client.query('SET search_path TO public;');
-          for (const typeCmd of typeCommands) {
-            const savepointName = `sp_type_${typeCommands.indexOf(typeCmd)}`;
+
+          for (let idx = 0; idx < typeCommands.length; idx++) {
+            const typeCmd = typeCommands[idx];
+            const sp = `sp_type_${idx}`;
             try {
-              await client.query(`SAVEPOINT ${savepointName}`);
+              await client.query(`SAVEPOINT ${sp}`);
               await client.query(typeCmd.trim().replace(/;+$/, ''));
-              await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+              await client.query(`RELEASE SAVEPOINT ${sp}`);
             } catch (err: any) {
-              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
-              // "already exists" é ignorável para tipos
+              await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
               if (!err.message.toLowerCase().includes('already exists')) {
                 console.warn('[RESTORE] Aviso ao criar tipo:', err.message);
               }
             }
           }
+
           await client.query('COMMIT');
-          // Reiniciar transação para o restante dos comandos
           await client.query('BEGIN');
           await client.query('SET search_path TO public;');
         }
 
-        // --- Fase 2: Executar todos os demais comandos ---
+        // Fase 2: demais comandos
         const nonTypeCommands = commands.filter(cmd => {
           const up = cmd.trim().toUpperCase();
           return !up.startsWith('DROP TYPE') && !up.startsWith('CREATE TYPE');
         });
 
-        // Executar cada comando usando SAVEPOINT para permitir rollback parcial
         let savepointCounter = 0;
 
         for (const command of nonTypeCommands) {
-          if (!command || command.length === 0) continue;
-          
-          // Criar um savepoint antes de cada comando
-          const savepointName = `sp_${savepointCounter++}`;
-          
+          if (!command) continue;
+
+          const upperCommand = command.toUpperCase().trim();
+          if (upperCommand.startsWith('CREATE TABLE') || upperCommand.startsWith('DROP TABLE')) {
+            await client.query('SET search_path TO public;');
+          }
+
+          const sp = `sp_${savepointCounter++}`;
+
           try {
-            // Garantir que o schema está definido antes de cada CREATE TABLE ou DROP TABLE
-            const upperCommand = command.toUpperCase().trim();
-            if (upperCommand.startsWith('CREATE TABLE') || upperCommand.startsWith('DROP TABLE')) {
-              await client.query('SET search_path TO public;');
-            }
-            
-            // Criar savepoint
-            await client.query(`SAVEPOINT ${savepointName}`);
-            
-            // Remover ponto e vírgula final se já existir
-            const cleanCommand = command.trim().replace(/;+$/, '');
-            await client.query(cleanCommand);
-            
-            // Se chegou aqui, o comando foi executado com sucesso
-            // Liberar o savepoint
-            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+            await client.query(`SAVEPOINT ${sp}`);
+            await client.query(command.trim().replace(/;+$/, ''));
+            await client.query(`RELEASE SAVEPOINT ${sp}`);
           } catch (error: any) {
-            // Fazer rollback para o savepoint
             try {
-              await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
-            } catch (rollbackError) {
-              // Se o rollback falhar, pode ser que a transação já esteja abortada
-              // Nesse caso, precisamos fazer rollback completo e recomeçar
-              console.warn('[RESTORE] Erro ao fazer rollback para savepoint, fazendo rollback completo');
+              await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+            } catch {
+              console.warn('[RESTORE] Rollback para savepoint falhou, reiniciando transação');
               await client.query('ROLLBACK');
               await client.query('BEGIN');
               await client.query('SET search_path TO public;');
+              savepointCounter = 0;
             }
-            
-            // Verificar se é um erro que podemos ignorar
+
             const errorMsg = error.message.toLowerCase();
 
-            // Erros de sintaxe são CRÍTICOS e não devem ser ignorados
             if (errorMsg.includes('syntax error')) {
-              console.error('[RESTORE] ERRO CRÍTICO: Erro de sintaxe no SQL:', command.substring(0, 200));
-              console.error('[RESTORE] Erro completo:', error.message);
+              console.error('[RESTORE] ERRO CRÍTICO: Erro de sintaxe:', command.substring(0, 200));
               await client.query('ROLLBACK');
-              throw new Error(`Erro de sintaxe SQL ao restaurar backup: ${error.message}. Comando: ${command.substring(0, 200)}`);
+              throw new Error(`Erro de sintaxe SQL: ${error.message}. Comando: ${command.substring(0, 200)}`);
             }
 
-            const shouldIgnore = isIgnorableRestoreError(command, errorMsg);
-
-            if (shouldIgnore) {
-              // Log de avisos que são ignorados
+            if (isIgnorableRestoreError(command, errorMsg)) {
               if (errorMsg.includes('current transaction is aborted')) {
-                console.warn('[RESTORE] Aviso: Transação abortada, reiniciando transação');
-                // Reiniciar transação
                 await client.query('ROLLBACK');
                 await client.query('BEGIN');
                 await client.query('SET search_path TO public;');
-                savepointCounter = 0; // Resetar contador de savepoints
+                savepointCounter = 0;
               }
             } else {
-              // Erro crítico - fazer rollback completo e relançar
-              console.error('[RESTORE] Erro crítico ao executar comando:', command.substring(0, 200), error.message);
+              console.error('[RESTORE] Erro crítico:', command.substring(0, 200), error.message);
               await client.query('ROLLBACK');
               throw error;
             }
           }
         }
-        
+
         await client.query('COMMIT');
       } catch (error) {
-        try {
-          await client.query('ROLLBACK');
-        } catch (rollbackError) {
-          // Ignorar erro de rollback se transação já foi abortada
-        }
+        try { await client.query('ROLLBACK'); } catch { /* ignorar */ }
         throw error;
       } finally {
-        if (client) {
-          await client.end();
-        }
+        if (client) await client.end();
       }
 
       const elapsedTime = Date.now() - startTime;
       console.log(`[RESTORE] Restauração concluída com sucesso em ${elapsedTime}ms`);
 
-      // Se houver backup automático, ler e incluir no response
       let autoBackupBase64: string | null = null;
       if (autoBackupTempPath) {
         try {
-          const autoBackupBuffer = await readFile(autoBackupTempPath);
-          autoBackupBase64 = autoBackupBuffer.toString('base64');
-        } catch (error) {
-          console.warn('[RESTORE] Erro ao ler backup automático:', error);
+          autoBackupBase64 = (await readFile(autoBackupTempPath)).toString('base64');
+        } catch (e) {
+          console.warn('[RESTORE] Erro ao ler backup automático:', e);
         }
       }
 
       return NextResponse.json({
         success: true,
         message: 'Backup restaurado com sucesso!',
-        autoBackup: (autoBackupBase64 && autoBackupFilename) ? {
-          filename: autoBackupFilename,
-          data: `data:application/sql;base64,${autoBackupBase64}`,
-        } : null,
+        autoBackup: autoBackupBase64 && autoBackupFilename
+          ? { filename: autoBackupFilename, data: `data:application/sql;base64,${autoBackupBase64}` }
+          : null,
         elapsedTime,
       });
 
     } catch (error: any) {
-      console.error('[RESTORE] Erro ao executar psql:', error);
-      
-      // Se a restauração falhar, o backup automático pode ser usado para reverter
+      console.error('[RESTORE] Erro ao executar restauração:', error);
+
       let autoBackupBase64: string | null = null;
       if (autoBackupTempPath) {
         try {
-          const autoBackupBuffer = await readFile(autoBackupTempPath);
-          autoBackupBase64 = autoBackupBuffer.toString('base64');
-        } catch (error) {
-          console.warn('[RESTORE] Erro ao ler backup automático:', error);
-        }
+          autoBackupBase64 = (await readFile(autoBackupTempPath)).toString('base64');
+        } catch { /* ignorar */ }
       }
 
       return NextResponse.json(
-        { 
+        {
           error: `Erro ao restaurar backup: ${error.message}`,
-          autoBackup: (autoBackupBase64 && autoBackupFilename) ? {
-            filename: autoBackupFilename,
-            data: `data:application/sql;base64,${autoBackupBase64}`,
-            message: 'Um backup automático foi criado antes da restauração. Use-o para reverter se necessário.',
-          } : null,
+          autoBackup: autoBackupBase64 && autoBackupFilename
+            ? {
+                filename: autoBackupFilename,
+                data: `data:application/sql;base64,${autoBackupBase64}`,
+                message: 'Um backup automático foi criado antes da restauração. Use-o para reverter se necessário.',
+              }
+            : null,
         },
         { status: 500 }
       );
@@ -435,351 +321,35 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   } finally {
-    // Fechar conexão se ainda estiver aberta
     if (client) {
-      try {
-        await client.end();
-      } catch (error) {
-        console.warn('[RESTORE] Erro ao fechar conexão:', error);
-      }
+      try { await client.end(); } catch { /* ignorar */ }
     }
 
-    // Limpar arquivos temporários
-    const filesToClean = [tempFilePath, autoBackupTempPath].filter(Boolean) as string[];
-    
-    for (const filePath of filesToClean) {
+    for (const filePath of [tempFilePath, autoBackupTempPath].filter(Boolean) as string[]) {
       try {
         await unlink(filePath);
-        console.log('[RESTORE] Arquivo temporário removido:', filePath);
-      } catch (error) {
-        console.warn('[RESTORE] Erro ao remover arquivo temporário:', error);
-      }
+      } catch { /* ignorar */ }
     }
   }
 }
 
-// Função auxiliar para gerar conteúdo de backup
-async function generateBackupContent(client: Client): Promise<string> {
-  let backupContent = '';
-
-  const now = new Date();
-  backupContent += `-- PostgreSQL database dump\n`;
-  backupContent += `-- Dump date: ${now.toISOString()}\n\n`;
-
-  // Obter todas as tabelas
-  const tablesResult = await client.query(`
-    SELECT tablename
-    FROM pg_tables
-    WHERE schemaname = 'public'
-    ORDER BY tablename
-  `);
-
-  let tables = tablesResult.rows.map((r: any) => r.tablename).filter((t: string) => !t.startsWith('_prisma'));
-
-  // Obter dependências de foreign keys para ordenar tabelas corretamente
-  const fkResult = await client.query(`
-    SELECT
-      tc.table_name as table_name,
-      kcu.column_name as column_name,
-      ccu.table_name AS foreign_table_name,
-      ccu.column_name AS foreign_column_name,
-      tc.constraint_name,
-      rc.delete_rule,
-      rc.update_rule
-    FROM information_schema.table_constraints AS tc
-    JOIN information_schema.key_column_usage AS kcu
-      ON tc.constraint_name = kcu.constraint_name
-      AND tc.table_schema = kcu.table_schema
-    JOIN information_schema.constraint_column_usage AS ccu
-      ON ccu.constraint_name = tc.constraint_name
-      AND ccu.table_schema = tc.table_schema
-    JOIN information_schema.referential_constraints AS rc
-      ON rc.constraint_name = tc.constraint_name
-      AND rc.constraint_schema = tc.table_schema
-    WHERE tc.constraint_type = 'FOREIGN KEY'
-      AND tc.table_schema = 'public'
-  `);
-
-  // Criar mapa de dependências
-  const dependencies = new Map<string, Set<string>>();
-  const allTables = new Set(tables);
-
-  for (const row of fkResult.rows) {
-    const table = row.table_name;
-    const dependsOn = row.foreign_table_name;
-    if (allTables.has(table) && allTables.has(dependsOn) && table !== dependsOn) {
-      if (!dependencies.has(table)) dependencies.set(table, new Set());
-      dependencies.get(table)!.add(dependsOn);
-    }
-  }
-
-  // Ordenar tabelas por dependências (topological sort)
-  tables = topologicalSort(tables, dependencies);
-
-  // Obter informações de foreign keys para exportação posterior
-  const foreignKeysInfo = fkResult.rows.map((row: any) => ({
-    tableName: row.table_name,
-    constraintName: row.constraint_name,
-    columnName: row.column_name,
-    foreignTableName: row.foreign_table_name,
-    foreignColumnName: row.foreign_column_name,
-    deleteRule: row.delete_rule,
-    updateRule: row.update_rule,
-  }));
-
-  // Obter PRIMARY KEY e UNIQUE constraints para incluir no CREATE TABLE
-  const constraintsResult = await client.query(`
-    SELECT
-      tc.table_name,
-      tc.constraint_name,
-      tc.constraint_type,
-      kcu.column_name,
-      kcu.ordinal_position
-    FROM information_schema.table_constraints AS tc
-    JOIN information_schema.key_column_usage AS kcu
-      ON tc.constraint_name = kcu.constraint_name
-      AND tc.table_schema = kcu.table_schema
-    WHERE tc.table_schema = 'public'
-      AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
-    ORDER BY tc.table_name, tc.constraint_name, kcu.ordinal_position
-  `);
-
-  const pkColumns = new Map<string, string[]>();
-  const uniqueConstraints = new Map<string, Array<{ constraintName: string; columns: string[] }>>();
-
-  for (const row of constraintsResult.rows) {
-    if (row.constraint_type === 'PRIMARY KEY') {
-      if (!pkColumns.has(row.table_name)) pkColumns.set(row.table_name, []);
-      pkColumns.get(row.table_name)!.push(row.column_name);
-    } else if (row.constraint_type === 'UNIQUE') {
-      if (!uniqueConstraints.has(row.table_name)) uniqueConstraints.set(row.table_name, []);
-      const existing = uniqueConstraints.get(row.table_name)!;
-      const found = existing.find(uq => uq.constraintName === row.constraint_name);
-      if (found) {
-        found.columns.push(row.column_name);
-      } else {
-        existing.push({ constraintName: row.constraint_name, columns: [row.column_name] });
-      }
-    }
-  }
-
-  // Exportar tipos ENUM antes de criar tabelas
-  backupContent += `\n--\n-- Types (ENUMs)\n--\n\n`;
-  const enumTypesResult = await client.query(`
-    SELECT
-      t.typname as enum_name,
-      string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) as enum_values
-    FROM pg_type t
-    JOIN pg_enum e ON t.oid = e.enumtypid
-    JOIN pg_namespace n ON n.oid = t.typnamespace
-    WHERE n.nspname = 'public'
-    GROUP BY t.typname
-    ORDER BY t.typname
-  `);
-
-  for (const enumType of enumTypesResult.rows) {
-    const values = enumType.enum_values.split(',').map((v: string) => `'${v}'`).join(', ');
-    backupContent += `DROP TYPE IF EXISTS "${enumType.enum_name}" CASCADE;\n`;
-    backupContent += `CREATE TYPE "${enumType.enum_name}" AS ENUM (${values});\n\n`;
-  }
-
-  for (const tableName of tables) {
-    backupContent += `\n--\n-- Table: ${tableName}\n--\n\n`;
-    backupContent += `DROP TABLE IF EXISTS "${tableName}" CASCADE;\n\n`;
-
-    // CREATE TABLE — colunas via JS (mesma abordagem de create/route.ts)
-    const columnsResult = await client.query(`
-      SELECT
-        column_name,
-        data_type,
-        udt_name,
-        character_maximum_length,
-        numeric_precision,
-        numeric_scale,
-        is_nullable,
-        column_default
-      FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = $1
-      ORDER BY ordinal_position
-    `, [tableName]);
-
-    if (columnsResult.rows.length > 0) {
-      const columnDefs = columnsResult.rows.map((col: any) => {
-        let typeDef = '';
-        if (col.data_type === 'USER-DEFINED') {
-          typeDef = col.udt_name;
-        } else {
-          switch (col.data_type) {
-            case 'character varying':
-              typeDef = col.character_maximum_length
-                ? `VARCHAR(${col.character_maximum_length})`
-                : 'VARCHAR';
-              break;
-            case 'character':
-              typeDef = col.character_maximum_length
-                ? `CHAR(${col.character_maximum_length})`
-                : 'CHAR';
-              break;
-            case 'numeric':
-              if (col.numeric_precision != null && col.numeric_scale != null) {
-                typeDef = `NUMERIC(${col.numeric_precision},${col.numeric_scale})`;
-              } else if (col.numeric_precision != null) {
-                typeDef = `NUMERIC(${col.numeric_precision})`;
-              } else {
-                typeDef = 'NUMERIC';
-              }
-              break;
-            case 'integer': typeDef = 'INTEGER'; break;
-            case 'bigint': typeDef = 'BIGINT'; break;
-            case 'boolean': typeDef = 'BOOLEAN'; break;
-            case 'text': typeDef = 'TEXT'; break;
-            case 'timestamp without time zone': typeDef = 'TIMESTAMP'; break;
-            case 'timestamp with time zone': typeDef = 'TIMESTAMPTZ'; break;
-            case 'jsonb': typeDef = 'JSONB'; break;
-            case 'json': typeDef = 'JSON'; break;
-            case 'uuid': typeDef = 'UUID'; break;
-            default: typeDef = col.data_type.toUpperCase();
-          }
-        }
-
-        let colDef = `"${col.column_name}" ${typeDef}`;
-        if (col.is_nullable === 'NO') colDef += ' NOT NULL';
-        if (col.column_default) colDef += ` DEFAULT ${col.column_default.trim()}`;
-        return colDef;
-      });
-
-      // Adicionar PRIMARY KEY e UNIQUE constraints
-      const pks = pkColumns.get(tableName);
-      if (pks && pks.length > 0) {
-        columnDefs.push(`PRIMARY KEY (${pks.map(c => `"${c}"`).join(', ')})`);
-      }
-
-      const uqs = uniqueConstraints.get(tableName) ?? [];
-      for (const uq of uqs) {
-        columnDefs.push(`CONSTRAINT "${uq.constraintName}" UNIQUE (${uq.columns.map(c => `"${c}"`).join(', ')})`);
-      }
-
-      backupContent += `CREATE TABLE "${tableName}" (${columnDefs.join(', ')});\n\n`;
-    }
-
-    // Dados
-    const countResult = await client.query(`SELECT COUNT(*) as count FROM "${tableName}"`);
-    const rowCount = parseInt(countResult.rows[0].count);
-
-    if (rowCount > 0) {
-      backupContent += `--\n-- Data for table ${tableName}\n--\n\n`;
-
-      const colsResult = await client.query(`
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = $1
-        ORDER BY ordinal_position
-      `, [tableName]);
-
-      const columns = colsResult.rows.map((r: any) => r.column_name);
-      const columnNames = columns.map((c: string) => `"${c}"`).join(', ');
-
-      const batchSize = 500;
-      for (let offset = 0; offset < rowCount; offset += batchSize) {
-        const dataResult = await client.query(
-          `SELECT * FROM "${tableName}" LIMIT $1 OFFSET $2`,
-          [batchSize, offset]
-        );
-
-        if (dataResult.rows.length > 0) {
-          backupContent += `INSERT INTO "${tableName}" (${columnNames}) VALUES\n`;
-
-          const values = dataResult.rows.map((row: any, idx: number) => {
-            const rowValues = columns.map((col: string) => {
-              const value = row[col];
-              if (value === null) return 'NULL';
-              if (typeof value === 'string') {
-                return `'${value.replace(/'/g, "''").replace(/\\/g, '\\\\')}'`;
-              }
-              if (value instanceof Date) {
-                return `'${value.toISOString()}'`;
-              }
-              if (typeof value === 'object') {
-                return `'${JSON.stringify(value).replace(/'/g, "''").replace(/\\/g, '\\\\')}'`;
-              }
-              if (typeof value === 'boolean') {
-                return value ? 'TRUE' : 'FALSE';
-              }
-              return String(value);
-            }).join(', ');
-            return `(${rowValues})${idx < dataResult.rows.length - 1 ? ',' : ';'}`;
-          }).join('\n');
-
-          backupContent += values + '\n\n';
-        }
-      }
-    }
-  }
-
-  // Foreign Keys (após criar todas as tabelas)
-  backupContent += `\n--\n-- Foreign Keys\n--\n\n`;
-
-  const fkByConstraint = new Map<string, any[]>();
-  for (const fk of foreignKeysInfo) {
-    if (!fkByConstraint.has(fk.constraintName)) fkByConstraint.set(fk.constraintName, []);
-    fkByConstraint.get(fk.constraintName)!.push(fk);
-  }
-
-  for (const [constraintName, fkCols] of fkByConstraint.entries()) {
-    const firstFk = fkCols[0];
-    const cols = fkCols.map((fk: any) => `"${fk.columnName}"`).join(', ');
-    const foreignCols = fkCols.map((fk: any) => `"${fk.foreignColumnName}"`).join(', ');
-    const deleteRule = firstFk.deleteRule ? ` ON DELETE ${firstFk.deleteRule}` : '';
-    const updateRule = firstFk.updateRule ? ` ON UPDATE ${firstFk.updateRule}` : '';
-    backupContent += `ALTER TABLE "${firstFk.tableName}" ADD CONSTRAINT "${constraintName}" FOREIGN KEY (${cols}) REFERENCES "${firstFk.foreignTableName}" (${foreignCols})${deleteRule}${updateRule};\n`;
-  }
-
-  // Índices (exceto primary keys que já foram criados)
-  backupContent += `\n--\n-- Indexes\n--\n\n`;
-  const indexesResult = await client.query(`
-    SELECT indexdef
-    FROM pg_indexes
-    WHERE schemaname = 'public'
-    AND indexname NOT LIKE '%_pkey'
-  `);
-
-  for (const index of indexesResult.rows) {
-    if (index.indexdef) {
-      backupContent += index.indexdef + ';\n';
-    }
-  }
-
-  return backupContent;
-}
-
-// Função auxiliar para determinar se um erro de restore pode ser ignorado
-// A decisão é baseada no TIPO do comando SQL, não apenas na mensagem de erro
 function isIgnorableRestoreError(command: string, errorMsg: string): boolean {
   const upper = command.trim().toUpperCase();
 
-  // DROP: sempre ignorável (tabela/tipo pode não existir)
   if (upper.startsWith('DROP ')) return true;
 
-  // CREATE TYPE: apenas "already exists" é ignorável
   if (upper.startsWith('CREATE TYPE')) return errorMsg.includes('already exists');
 
-  // CREATE TABLE: apenas "already exists" é ignorável
-  // "does not exist" aqui significa problema estrutural (ex: sequência ou tipo faltando)
   if (upper.startsWith('CREATE TABLE')) return errorMsg.includes('already exists');
 
-  // CREATE INDEX / CREATE UNIQUE INDEX: "already exists" é ignorável
   if (upper.startsWith('CREATE INDEX') || upper.startsWith('CREATE UNIQUE INDEX')) {
     return errorMsg.includes('already exists');
   }
 
-  // ALTER TABLE ... ADD CONSTRAINT (foreign keys):
-  // "already exists" — constraint já foi adicionada (re-run idempotente)
-  // "does not exist" — tabela referenciada estava faltando, aceitável pular FK
   if (upper.startsWith('ALTER TABLE') && upper.includes('ADD CONSTRAINT')) {
     return errorMsg.includes('already exists') || errorMsg.includes('does not exist');
   }
 
-  // INSERT INTO: violação de chave duplicada é ignorável (re-run idempotente)
   if (upper.startsWith('INSERT INTO')) {
     return (
       errorMsg.includes('duplicate key') ||
@@ -788,49 +358,7 @@ function isIgnorableRestoreError(command: string, errorMsg: string): boolean {
     );
   }
 
-  // Comandos de sessão (SET, SELECT pg_catalog.*): ignoráveis
   if (upper.startsWith('SET ') || upper.startsWith('SELECT PG_CATALOG')) return true;
 
   return false;
 }
-
-// Função auxiliar para ordenação topológica (respeitando dependências)
-function topologicalSort(tables: string[], dependencies: Map<string, Set<string>>): string[] {
-  const sorted: string[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-
-  function visit(table: string) {
-    if (visiting.has(table)) {
-      // Ciclo detectado - retornar ordem original
-      return tables;
-    }
-    if (visited.has(table)) {
-      return;
-    }
-
-    visiting.add(table);
-    
-    const deps = dependencies.get(table);
-    if (deps) {
-      for (const dep of deps) {
-        if (tables.includes(dep)) {
-          visit(dep);
-        }
-      }
-    }
-
-    visiting.delete(table);
-    visited.add(table);
-    sorted.push(table);
-  }
-
-  for (const table of tables) {
-    if (!visited.has(table)) {
-      visit(table);
-    }
-  }
-
-  return sorted;
-}
-

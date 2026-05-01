@@ -18,6 +18,7 @@ import {
   Clock,
   CreditCard,
   IdCard,
+  Loader2,
   Package,
   Printer,
   QrCode,
@@ -29,6 +30,11 @@ import {
   List,
   ListX,
 } from "lucide-react";
+import {
+  getDesktopPrintPreferences,
+  isDesktopRuntime,
+  printBitmapToDesktopPrinter,
+} from "@/lib/runtime/capabilities";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -71,6 +77,7 @@ type Order = {
 };
 
 const PRODUCT_SUMMARY_STORAGE_KEY = "admin-orders-product-summary-enabled";
+const DESKTOP_PRINT_FRAME_ID = "desktop-order-print-frame";
 
 const statusMap = {
   pending: { label: "Pendente", icon: Clock, variant: "warning" as const },
@@ -219,6 +226,9 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [productSummaryEnabled, setProductSummaryEnabled] = useState(false);
   const [productSummaryPreferenceLoaded, setProductSummaryPreferenceLoaded] = useState(false);
+  const [isBitmapPrinting, setIsBitmapPrinting] = useState(false);
+  const [desktopPrintWaiting, setDesktopPrintWaiting] = useState(false);
+  const [activePrintSessionId, setActivePrintSessionId] = useState<string | null>(null);
 
   // Load product summary state from local storage on mount.
   useEffect(() => {
@@ -235,6 +245,36 @@ export default function AdminOrdersPage() {
       setProductSummaryPreferenceLoaded(true);
     }
   }, []);
+
+  const removeDesktopPrintFrame = useCallback(() => {
+    const existingFrame = document.getElementById(DESKTOP_PRINT_FRAME_ID);
+    if (existingFrame) existingFrame.remove();
+  }, []);
+
+  useEffect(() => {
+    const onPrintMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; printSessionId?: string | null } | null;
+      if (!data?.type) return;
+
+      if (data.type === "desktop-print-dialog-opening") {
+        if (activePrintSessionId && data.printSessionId && data.printSessionId !== activePrintSessionId) return;
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+        return;
+      }
+
+      if (data.type === "desktop-print-finished") {
+        if (activePrintSessionId && data.printSessionId && data.printSessionId !== activePrintSessionId) return;
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+        removeDesktopPrintFrame();
+      }
+    };
+
+    window.addEventListener("message", onPrintMessage);
+    return () => window.removeEventListener("message", onPrintMessage);
+  }, [activePrintSessionId, removeDesktopPrintFrame]);
 
   // Save product summary state only after the initial preference has been loaded.
   useEffect(() => {
@@ -359,8 +399,98 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const printThermalReceipt = (orderId: string) => {
-    const receiptUrl = `/print/receipt-thermal?orderId=${orderId}`;
+  const tryDirectThermalPrint = useCallback(async (orderId: string) => {
+    const preferences = await getDesktopPrintPreferences();
+    const printerTarget =
+      preferences.defaultThermalPrinterName?.trim() || preferences.defaultThermalPrinterId?.trim() || null;
+
+    if (!printerTarget || !preferences.thermalAutoPrintModules.sales) return false;
+
+    const printSessionId = crypto.randomUUID();
+
+    setIsBitmapPrinting(true);
+    try {
+      const bitmapData = await new Promise<{ imageData: number[]; width: number; height: number }>(
+        (resolve, reject) => {
+          const iframe = document.createElement('iframe');
+          iframe.style.cssText =
+            'position:absolute;left:-9999px;top:-9999px;width:320px;height:1px;opacity:0;pointer-events:none;border:none;';
+          iframe.src = `/print/receipt-thermal?orderId=${orderId}&printSessionId=${printSessionId}&captureMode=true`;
+          document.body.appendChild(iframe);
+
+          const timeout = setTimeout(() => {
+            document.body.removeChild(iframe);
+            reject(new Error('Timeout aguardando captura bitmap da venda'));
+          }, 30_000);
+
+          const handler = (e: MessageEvent) => {
+            if (e.data?.type === 'thermal-bitmap-capture' && e.data.printSessionId === printSessionId) {
+              clearTimeout(timeout);
+              window.removeEventListener('message', handler);
+              document.body.removeChild(iframe);
+              resolve({ imageData: e.data.imageData, width: e.data.width, height: e.data.height });
+            }
+          };
+          window.addEventListener('message', handler);
+        },
+      );
+
+      await printBitmapToDesktopPrinter(
+        printerTarget,
+        bitmapData.imageData,
+        bitmapData.width,
+        bitmapData.height,
+        `Venda ${orderId.slice(-8).toUpperCase()}`,
+      );
+    } finally {
+      setIsBitmapPrinting(false);
+    }
+
+    return true;
+  }, []);
+
+  const printThermalReceipt = async (orderId: string) => {
+    const printSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    if (isDesktopRuntime()) {
+      try {
+        const printedDirectly = await tryDirectThermalPrint(orderId);
+        if (printedDirectly) {
+          showToast("Venda enviada para a impressora térmica configurada.", "success");
+          return;
+        }
+      } catch (error) {
+        console.warn("Falha na impressão direta da venda:", error);
+      }
+
+      setActivePrintSessionId(printSessionId);
+      setDesktopPrintWaiting(true);
+      removeDesktopPrintFrame();
+
+      const receiptUrl = `/print/receipt-thermal?orderId=${orderId}&printSessionId=${printSessionId}&autoPrint=0`;
+      const iframe = document.createElement("iframe");
+      iframe.id = DESKTOP_PRINT_FRAME_ID;
+      iframe.src = receiptUrl;
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.position = "fixed";
+      iframe.style.width = "1px";
+      iframe.style.height = "1px";
+      iframe.style.right = "-9999px";
+      iframe.style.bottom = "-9999px";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      window.setTimeout(() => {
+        setDesktopPrintWaiting(false);
+        setActivePrintSessionId(null);
+        iframe.remove();
+      }, 60000);
+      return;
+    }
+
+    const receiptUrl = `/print/receipt-thermal?orderId=${orderId}&printSessionId=${printSessionId}`;
     window.open(receiptUrl, '_blank');
   };
 
@@ -774,6 +904,42 @@ export default function AdminOrdersPage() {
         open={dailySalesPrintModalOpen}
         onOpenChange={setDailySalesPrintModalOpen}
       />
+
+      {desktopPrintWaiting && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Preparando impressão</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Aguarde um instante. A janela de escolha da impressora será exibida em seguida.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBitmapPrinting && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/35 backdrop-blur-[1px] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-9 w-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Loader2 className="h-5 w-5 text-green-600 animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Enviando para a impressora</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Aguarde enquanto o cupom é preparado e enviado para a impressora térmica.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

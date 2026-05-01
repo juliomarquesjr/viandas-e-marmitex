@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
+import { AdminVersionFooter } from "./AdminVersionFooter";
 
 /**
  * ModernSidebar - Design System
@@ -279,15 +280,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
           collapsed ? "px-2" : "px-4"
         )}
       >
-        {!collapsed ? (
-          <div className="text-center text-xs text-[color:var(--muted-foreground)]">
-            <span className="font-medium">Comida Caseira</span>
-            <span className="mx-1">•</span>
-            <span>v2.1.0</span>
-          </div>
-        ) : (
-          <div className="text-center text-xs text-[color:var(--muted-foreground)]">v2.1</div>
-        )}
+        <AdminVersionFooter collapsed={collapsed} />
       </div>
     </aside>
   );
@@ -354,11 +347,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
 
           {/* Footer */}
           <div className="border-t border-[color:var(--border)] px-4 py-4">
-            <div className="text-center text-xs text-[color:var(--muted-foreground)]">
-              <span className="font-medium">Comida Caseira</span>
-              <span className="mx-1">•</span>
-              <span>v2.1.0</span>
-            </div>
+            <AdminVersionFooter />
           </div>
         </div>
       </div>
