@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import QrScanner from "qr-scanner";
-QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 import { Button } from "@/app/components/ui/button";
 import {
   Camera,

@@ -1,7 +1,6 @@
 "use client";
 
 import QrScanner from "qr-scanner";
-QrScanner.WORKER_PATH = "/qr-scanner-worker.min.js";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
