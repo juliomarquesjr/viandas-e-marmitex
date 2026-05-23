@@ -68,75 +68,6 @@ export async function extractFaceDescriptor(
 }
 
 /**
- * Compara dois descriptors faciais e retorna a distância euclidiana
- * @param descriptor1 - Primeiro descriptor facial
- * @param descriptor2 - Segundo descriptor facial
- * @returns Distância euclidiana (menor = mais similar)
- */
-export function compareDescriptors(
-  descriptor1: Float32Array | number[],
-  descriptor2: Float32Array | number[]
-): number {
-  if (descriptor1.length !== descriptor2.length) {
-    throw new Error('Descriptors devem ter o mesmo tamanho');
-  }
-
-  let sum = 0;
-  for (let i = 0; i < descriptor1.length; i++) {
-    const diff = descriptor1[i] - descriptor2[i];
-    sum += diff * diff;
-  }
-
-  return Math.sqrt(sum);
-}
-
-/**
- * Calcula a similaridade entre dois descriptors (0-1, onde 1 é idêntico)
- * @param descriptor1 - Primeiro descriptor facial
- * @param descriptor2 - Segundo descriptor facial
- * @returns Similaridade (0-1)
- */
-export function calculateSimilarity(
-  descriptor1: Float32Array | number[],
-  descriptor2: Float32Array | number[]
-): number {
-  const distance = compareDescriptors(descriptor1, descriptor2);
-  // Converter distância para similaridade (threshold de 0.6 é comum)
-  // Similaridade = 1 / (1 + distance)
-  return 1 / (1 + distance);
-}
-
-/**
- * Verifica se dois descriptors são do mesmo rosto
- * @param descriptor1 - Primeiro descriptor facial
- * @param descriptor2 - Segundo descriptor facial
- * @param threshold - Threshold de similaridade (padrão: 0.6)
- * @returns true se os descriptors correspondem ao mesmo rosto
- */
-export function isMatch(
-  descriptor1: Float32Array | number[],
-  descriptor2: Float32Array | number[],
-  threshold: number = 0.6
-): boolean {
-  const similarity = calculateSimilarity(descriptor1, descriptor2);
-  return similarity >= threshold;
-}
-
-/**
- * Converte descriptor Float32Array para array de números (para serialização JSON)
- */
-export function descriptorToArray(descriptor: Float32Array): number[] {
-  return Array.from(descriptor);
-}
-
-/**
- * Converte array de números para Float32Array
- */
-export function arrayToDescriptor(array: number[]): Float32Array {
-  return new Float32Array(array);
-}
-
-/**
  * Valida se uma imagem contém exatamente um rosto
  * @param image - Elemento HTMLImageElement, HTMLCanvasElement ou ImageData
  * @returns true se exatamente um rosto foi detectado
@@ -156,4 +87,6 @@ export async function validateSingleFace(
   
   return { valid: true, message: 'Rosto detectado com sucesso' };
 }
+
+export { descriptorToArray } from './facial-recognition-shared';
 

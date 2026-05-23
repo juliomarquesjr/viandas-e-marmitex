@@ -195,40 +195,6 @@ function CustomerReportThermalContent() {
     }
   }, [reportData, loading, error]);
 
-  // In desktop runtime, force scrollable print area to avoid clipping long thermal reports
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const desktopContent = document.querySelector('.desktop-window-content') as HTMLElement | null;
-
-    const prevHtmlOverflow = html.style.overflow;
-    const prevHtmlHeight = html.style.height;
-    const prevBodyOverflow = body.style.overflow;
-    const prevBodyHeight = body.style.height;
-    const prevDesktopOverflow = desktopContent?.style.overflow ?? '';
-    const prevDesktopHeight = desktopContent?.style.height ?? '';
-
-    html.style.overflow = 'auto';
-    html.style.height = 'auto';
-    body.style.overflow = 'auto';
-    body.style.height = 'auto';
-    if (desktopContent) {
-      desktopContent.style.overflow = 'auto';
-      desktopContent.style.height = 'auto';
-    }
-
-    return () => {
-      html.style.overflow = prevHtmlOverflow;
-      html.style.height = prevHtmlHeight;
-      body.style.overflow = prevBodyOverflow;
-      body.style.height = prevBodyHeight;
-      if (desktopContent) {
-        desktopContent.style.overflow = prevDesktopOverflow;
-        desktopContent.style.height = prevDesktopHeight;
-      }
-    };
-  }, []);
-
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',

@@ -321,7 +321,7 @@ function CustomerReportContent() {
 
       {/* Monthly Summary - Resumo Mensal */}
       {reportData.monthlySummary && reportData.monthlySummary.length > 0 && (
-        <div className="mb-4 avoid-break">
+        <div className="mb-4 allow-page-break">
           <h2 className="text-sm font-semibold mb-2 text-gray-800 border-b pb-1">
             Resumo Mensal
           </h2>
@@ -376,7 +376,7 @@ function CustomerReportContent() {
 
       {/* Complete Transaction History - Compact */}
       {allTransactions.length > 0 && (
-        <div className="mb-4 avoid-break">
+        <div className="mb-4 allow-page-break">
           <h2 className="text-sm font-semibold mb-2 text-gray-800 border-b pb-1">
             Movimentação do Período
           </h2>

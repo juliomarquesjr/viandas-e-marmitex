@@ -68,8 +68,6 @@ export function AdminVersionFooter({ collapsed }: { collapsed?: boolean }) {
       title={title}
     >
       <div>
-        <span className="font-medium">Comida Caseira</span>
-        <span className="mx-1">•</span>
         <span className="tabular-nums">{versionLabel}</span>
         {shortSha ? (
           <>

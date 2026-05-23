@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { arrayToDescriptor, isMatch } from '@/lib/facial-recognition';
+import { arrayToDescriptor, isMatch } from '@/lib/facial-recognition-shared';
 import { checkRateLimit, checkUserRateLimit, getClientIP } from '@/lib/rate-limit';
 import { generateFacialAuthToken } from '@/lib/facial-auth-token';
 

@@ -1,6 +1,6 @@
 {
   "name": "viandas",
-  "version": "2.5.3",
+  "version": "2.5.4",
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
@@ -46,6 +46,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "encoding": "^0.1.13",
     "face-api.js": "^0.22.2",
     "fast-xml-parser": "^4.3.5",
     "framer-motion": "^12.23.12",
