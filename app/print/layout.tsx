@@ -44,6 +44,17 @@ export default function PrintLayout({
             .avoid-break {
               page-break-inside: avoid;
             }
+
+            /* Seções longas (tabelas) podem quebrar entre páginas; linhas permanecem íntegras */
+            .allow-page-break {
+              page-break-inside: auto;
+              break-inside: auto;
+            }
+
+            .allow-page-break table tr {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
             
             /* Compact spacing for print */
             .mb-1 { margin-bottom: 0.125rem !important; }
@@ -125,6 +136,29 @@ export default function PrintLayout({
           }
           
           @media screen {
+            /* Permite rolagem completa na visualização antes de imprimir.
+               O DesktopWindowFrame usa height:100vh + overflow:hidden no app. */
+            html,
+            body,
+            html.desktop-runtime,
+            body.desktop-runtime {
+              height: auto !important;
+              min-height: 100%;
+              overflow: auto !important;
+            }
+
+            .desktop-window-frame {
+              height: auto !important;
+              min-height: 100vh;
+              overflow: visible !important;
+            }
+
+            .desktop-window-content {
+              height: auto !important;
+              min-height: auto !important;
+              overflow: visible !important;
+            }
+
             body {
               background-color: #f5f5f5;
               padding: 20px;
@@ -135,8 +169,19 @@ export default function PrintLayout({
               max-width: 8.5in;
               margin: 0 auto;
               padding: 0.5in;
+              padding-bottom: 2rem;
               box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
               border-radius: 8px;
+              min-height: auto;
+              height: auto;
+              overflow: visible;
+            }
+
+            .print-container:has(.thermal-receipt),
+            .print-container:has(.thermal-report) {
+              max-width: 320px;
+              padding: 12px;
+              padding-bottom: 2rem;
             }
           }
           
