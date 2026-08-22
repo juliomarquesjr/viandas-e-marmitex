@@ -119,6 +119,18 @@ export async function POST(
 
     const reportData = await reportResponse.json();
 
+    // A API devolve fichaPayments de todo o histórico de propósito — o resumo
+    // mensal precisa dos anteriores ao período para calcular o saldo inicial.
+    // Para o resumo do e-mail, contamos só os que caem dentro do período.
+    const periodStart = new Date(reportData.period.startDateTime);
+    const periodEnd = new Date(reportData.period.endDateTime);
+    const paymentsInPeriod = reportData.details.fichaPayments.filter(
+      (payment: { createdAt: string }) => {
+        const paidAt = new Date(payment.createdAt);
+        return paidAt >= periodStart && paidAt <= periodEnd;
+      }
+    ).length;
+
     // Carregar configurações de email
     const configs = await prisma.systemConfig.findMany({
       where: { category: 'email' }
@@ -282,9 +294,9 @@ export async function POST(
                 <h4 style="margin: 0 0 15px 0; color: #713f12; font-size: 16px;">📊 Resumo do Período:</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; color: #713f12;">
                   <div>• ${reportData.metadata.totalPeriodOrders} pedidos realizados</div>
-                  <div>• ${reportData.details.fichaPayments.length} pagamentos</div>
-                  <div>• ${reportData.details.pendingOrders.all.length} pedidos pendentes</div>
-                  <div>• Período: ${reportData.metadata.generatedAt ? new Date(reportData.metadata.generatedAt).toLocaleDateString('pt-BR') : 'N/A'}</div>
+                  <div>• ${paymentsInPeriod} pagamentos</div>
+                  <div>• ${reportData.details.pendingOrders.inPeriod.length} pedidos pendentes</div>
+                  <div>• Período: ${formatDate(startDate)} a ${formatDate(endDate)}</div>
                 </div>
               </div>
               
@@ -337,8 +349,8 @@ ${reportData.summary.totalPaymentsCents > 0 ? `- Pagamentos Realizados: ${format
 
 📊 RESUMO DO PERÍODO:
 - ${reportData.metadata.totalPeriodOrders} pedidos realizados
-- ${reportData.details.fichaPayments.length} pagamentos
-- ${reportData.details.pendingOrders.all.length} pedidos pendentes
+- ${paymentsInPeriod} pagamentos
+- ${reportData.details.pendingOrders.inPeriod.length} pedidos pendentes
 
 📅 Gerado em: ${formatDateTime(emailData.generatedAt)}
 
