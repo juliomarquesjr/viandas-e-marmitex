@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
+const emptyBrowserModule = "./lib/empty-module.ts";
+
 const nextConfig: NextConfig = {
   output: process.env.NEXT_BUILD_STANDALONE === "true" ? "standalone" : undefined,
+  turbopack: {
+    resolveAlias: {
+      fs: { browser: emptyBrowserModule },
+      encoding: { browser: emptyBrowserModule },
+    },
+  },
   images: {
     remotePatterns: [
       {

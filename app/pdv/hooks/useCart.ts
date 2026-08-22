@@ -17,12 +17,14 @@ export function useCart(
   products: Product[],
   onStockBlocked: ((message: string) => void) | undefined,
   audioRef: React.RefObject<HTMLAudioElement | null>,
-  inputRef: React.RefObject<HTMLInputElement | null>,
-  setQuery: (q: string) => void
+  inputRef: React.RefObject<HTMLInputElement | null>
 ) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  // Alimenta o painel de conferência do catálogo. O leitor de código de barras
+  // escreve aqui também, por isso markLastAdded sai no retorno do hook.
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
   const productById = useMemo(() => {
@@ -43,50 +45,41 @@ export function useCart(
     }
   }, [audioRef]);
 
-  const clearQueryField = useCallback(() => {
-    setQuery("");
+  // Só devolve o foco ao campo: a busca por nome permanece para o operador
+  // somar unidades. Quem limpa o campo é o leitor de código de barras.
+  const focusQueryField = useCallback(() => {
     inputRef.current?.focus();
-  }, [setQuery, inputRef]);
+  }, [inputRef]);
 
   const handleAddProductToCart = useCallback(
     (product: Product) => {
+      const totalInCart = totalQtyInCartForProduct(cart, product.id);
+      if (!canSatisfyStock(product, totalInCart + 1)) {
+        notifyStockBlocked(
+          onStockBlocked,
+          `Estoque insuficiente para ${product.name}`
+        );
+        return;
+      }
+
       if (product.pricePerKgCents && product.pricePerKgCents > 0) {
-        const total = totalQtyInCartForProduct(cart, product.id);
-        if (!canSatisfyStock(product, total + 1)) {
-          notifyStockBlocked(
-            onStockBlocked,
-            `Estoque insuficiente para ${product.name}`
-          );
-          return;
-        }
         setPendingProduct(product);
         setIsWeightModalOpen(true);
         return;
       }
 
-      let didAddUnit = false;
-      setCart((prev) => {
-        const total = totalQtyInCartForProduct(prev, product.id);
-        if (!canSatisfyStock(product, total + 1)) {
-          notifyStockBlocked(
-            onStockBlocked,
-            `Estoque insuficiente para ${product.name}`
-          );
-          return prev;
-        }
+      const existingIndex = cart.findIndex(
+        (item) => item.id === product.id && !item.isWeightBased
+      );
 
-        const existingIndex = prev.findIndex(
+      setCart((prev) => {
+        const index = prev.findIndex(
           (item) => item.id === product.id && !item.isWeightBased
         );
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            qty: updated[existingIndex].qty + 1,
-          };
-          setSelectedIndex(existingIndex);
-          didAddUnit = true;
-          return updated;
+        if (index >= 0) {
+          return prev.map((item, i) =>
+            i === index ? { ...item, qty: item.qty + 1 } : item
+          );
         }
         const item: CartItem = {
           id: product.id,
@@ -95,58 +88,49 @@ export function useCart(
           qty: 1,
           isWeightBased: false,
         };
-        setSelectedIndex(prev.length);
-        didAddUnit = true;
         return [...prev, item];
       });
 
-      if (didAddUnit) {
-        playBeepSound();
-        clearQueryField();
-      }
+      setSelectedIndex(existingIndex >= 0 ? existingIndex : cart.length);
+      setLastAddedId(product.id);
+      playBeepSound();
+      focusQueryField();
     },
-    [cart, onStockBlocked, playBeepSound, clearQueryField]
+    [cart, onStockBlocked, playBeepSound, focusQueryField]
   );
 
   const handleAddWeightBasedProduct = useCallback(
     (weightKg: number) => {
       if (!pendingProduct) return;
 
-      let didAdd = false;
-      setCart((prev) => {
-        const total = totalQtyInCartForProduct(prev, pendingProduct.id);
-        if (!canSatisfyStock(pendingProduct, total + 1)) {
-          notifyStockBlocked(
-            onStockBlocked,
-            `Estoque insuficiente para ${pendingProduct.name}`
-          );
-          return prev;
-        }
-
-        const pricePerKg = pendingProduct.pricePerKgCents! / 100;
-        const totalPrice = pricePerKg * weightKg;
-
-        const item: CartItem = {
-          id: pendingProduct.id,
-          name: pendingProduct.name,
-          price: totalPrice,
-          qty: 1,
-          weightKg,
-          isWeightBased: true,
-        };
-        setSelectedIndex(prev.length);
-        didAdd = true;
-        return [...prev, item];
-      });
-
-      if (didAdd) {
-        setIsWeightModalOpen(false);
-        setPendingProduct(null);
-        playBeepSound();
-        clearQueryField();
+      const totalInCart = totalQtyInCartForProduct(cart, pendingProduct.id);
+      if (!canSatisfyStock(pendingProduct, totalInCart + 1)) {
+        notifyStockBlocked(
+          onStockBlocked,
+          `Estoque insuficiente para ${pendingProduct.name}`
+        );
+        return;
       }
+
+      const pricePerKg = pendingProduct.pricePerKgCents! / 100;
+      const item: CartItem = {
+        id: pendingProduct.id,
+        name: pendingProduct.name,
+        price: pricePerKg * weightKg,
+        qty: 1,
+        weightKg,
+        isWeightBased: true,
+      };
+
+      setCart((prev) => [...prev, item]);
+      setSelectedIndex(cart.length);
+      setLastAddedId(pendingProduct.id);
+      setIsWeightModalOpen(false);
+      setPendingProduct(null);
+      playBeepSound();
+      focusQueryField();
     },
-    [pendingProduct, onStockBlocked, playBeepSound, clearQueryField]
+    [cart, pendingProduct, onStockBlocked, playBeepSound, focusQueryField]
   );
 
   const removeCartItem = useCallback((index: number) => {
@@ -176,6 +160,7 @@ export function useCart(
     (newItems: CartItem[]) => {
       setCart((prevCart) => {
         let updatedCart = [...prevCart];
+        let merged: string | null = null;
         for (const newItem of newItems) {
           const product = productById.get(newItem.id);
           const currentTotal = totalQtyInCartForProduct(updatedCart, newItem.id);
@@ -200,6 +185,13 @@ export function useCart(
           } else {
             updatedCart = [...updatedCart, newItem];
           }
+          merged = newItem.id;
+        }
+        // Mesmo motivo do notifyStockBlocked: efeito colateral direto dentro do
+        // updater roda duas vezes em StrictMode.
+        if (merged) {
+          const id = merged;
+          queueMicrotask(() => setLastAddedId(id));
         }
         return updatedCart;
       });
@@ -210,6 +202,7 @@ export function useCart(
   const clearCart = useCallback(() => {
     setCart([]);
     setSelectedIndex(null);
+    setLastAddedId(null);
   }, []);
 
   return {
@@ -230,5 +223,7 @@ export function useCart(
     clearCart,
     subtotal,
     playBeepSound,
+    lastAddedId,
+    markLastAdded: setLastAddedId,
   };
 }

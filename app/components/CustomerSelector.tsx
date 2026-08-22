@@ -8,11 +8,14 @@ export function CustomerSelector({
   selectedCustomer,
   onRemove,
   presetProductsLoaded,
+  variant = "block",
 }: {
   onSelect: (customer: Customer) => void;
   selectedCustomer: Customer | null;
   onRemove: () => void;
   presetProductsLoaded?: boolean;
+  /** "chip" é a versão compacta que vive no cabeçalho do carrinho do PDV. */
+  variant?: "block" | "chip";
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -28,6 +31,72 @@ export function CustomerSelector({
     .map((w) => w[0])
     .join("")
     .toUpperCase() ?? "";
+
+  if (variant === "chip") {
+    return (
+      <>
+        {selectedCustomer ? (
+          <div className="flex min-w-0 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 py-0.5 pl-0.5 pr-1">
+            <button
+              onClick={() => setIsDialogOpen(true)}
+              title={`${selectedCustomer.name} — trocar cliente`}
+              className="flex min-w-0 items-center gap-2 rounded-full pr-1.5 transition-colors hover:bg-blue-100/70"
+            >
+              <span className="relative flex-shrink-0">
+                <span className="grid h-[26px] w-[26px] place-items-center overflow-hidden rounded-full bg-gradient-to-br from-blue-300 to-primary">
+                  {selectedCustomer.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedCustomer.imageUrl}
+                      alt={selectedCustomer.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[10px] font-bold leading-none text-white">
+                      {initials}
+                    </span>
+                  )}
+                </span>
+                {presetProductsLoaded && (
+                  <span className="absolute -bottom-0.5 -right-0.5 grid h-3 w-3 place-items-center rounded-full border-2 border-white bg-green-500">
+                    <Package className="h-1.5 w-1.5 text-white" />
+                  </span>
+                )}
+              </span>
+              <span className="max-w-[130px] truncate text-[11.5px] font-semibold text-blue-900">
+                {selectedCustomer.name}
+              </span>
+            </button>
+            <button
+              onClick={onRemove}
+              aria-label="Remover cliente"
+              className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full text-blue-400 transition-colors hover:bg-red-50 hover:text-red-500"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsDialogOpen(true)}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11.5px] text-muted-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+          >
+            <UserRound className="h-3.5 w-3.5" />
+            Cliente
+            <span className="rounded bg-slate-100 px-1 py-px text-[9px] font-medium text-slate-500">
+              F3
+            </span>
+          </button>
+        )}
+
+        <CustomerSelectorDialog
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onSelect={onSelect}
+          selectedCustomer={selectedCustomer}
+        />
+      </>
+    );
+  }
 
   return (
     <>

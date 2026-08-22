@@ -279,8 +279,8 @@ function ReportViewerContent() {
       }
     });
 
-    // Ordenar por data (mais recente primeiro)
-    return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Ordenar por data (mais antigo primeiro)
+    return transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const allTransactions = createTransactionList();

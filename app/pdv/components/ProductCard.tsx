@@ -1,93 +1,187 @@
 "use client";
 
-import { AlertCircle, Image as ImageIcon } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import type { Product } from "../types";
+import { ProductThumb } from "./ProductThumb";
+
+/** A partir daqui o card ganha aviso âmbar de estoque acabando. */
+const LOW_STOCK_THRESHOLD = 3;
 
 interface ProductCardProps {
   product: Product;
   canAdd: boolean;
+  /** Quantas unidades deste produto já estão no carrinho. */
+  qtyInCart?: number;
   onAdd: (product: Product) => void;
 }
 
-export function ProductCard({ product, canAdd, onAdd }: ProductCardProps) {
-  const hasImage = !!product.imageUrl;
+export function ProductCard({
+  product,
+  canAdd,
+  qtyInCart = 0,
+  onAdd,
+}: ProductCardProps) {
   const price = product.priceCents / 100;
-  const isWeightBased = product.pricePerKgCents && product.pricePerKgCents > 0;
+  const isWeightBased = !!product.pricePerKgCents && product.pricePerKgCents > 0;
+
+  const stockControlled = !!product.stockEnabled;
+  const stock = product.stock ?? null;
+  const isOut = stockControlled && stock === 0;
+  const isUnknownStock = stockControlled && stock === null;
+  const blocked = isOut || isUnknownStock;
+  const isLow = stockControlled && stock !== null && stock > 0 && stock <= LOW_STOCK_THRESHOLD;
+  // Tem estoque na prateleira, mas o carrinho já segurou tudo que havia.
+  const atCartLimit = !canAdd && !blocked;
+
+  const railClass = blocked
+    ? "bg-red-600"
+    : isLow
+    ? "bg-amber-500"
+    : atCartLimit
+    ? "bg-amber-400"
+    : "";
 
   return (
     <button
       onClick={() => onAdd(product)}
       disabled={!canAdd}
-      className={`group flex items-center gap-3 rounded-xl border p-2.5 text-left w-full transition-all duration-200 ${
-        canAdd
-          ? "bg-white border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/20 cursor-pointer"
-          : "bg-red-50/60 border-red-100 cursor-not-allowed opacity-70"
+      style={
+        blocked
+          ? {
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(220,38,38,0.05) 0 7px, transparent 7px 15px)",
+            }
+          : undefined
+      }
+      className={`group relative flex min-h-[112px] w-full items-center gap-3 overflow-hidden rounded-2xl border p-3 text-left transition-all duration-200 ${
+        blocked
+          ? "border-red-200 bg-white cursor-not-allowed"
+          : canAdd
+          ? `bg-white shadow-sm cursor-pointer hover:-translate-y-[3px] hover:border-blue-200 hover:shadow-[0_16px_32px_-18px_rgba(37,99,235,0.55),0_3px_9px_rgba(15,23,42,0.07)] active:translate-y-0 active:scale-[0.995] ${
+              isLow
+                ? "border-amber-200"
+                : qtyInCart > 0
+                ? "border-blue-200 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_0_0_1px_rgba(37,99,235,0.16)]"
+                : "border-slate-100"
+            }`
+          : "border-amber-200 bg-amber-50/40 cursor-not-allowed"
       }`}
     >
-      {/* Imagem */}
-      <div className="h-[68px] w-[68px] flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-inner">
-        {hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={product.imageUrl!}
-            alt={product.name}
-            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-              const parent = target.parentElement;
-              if (parent) {
-                parent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-7 w-7 text-slate-300"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
-              }
-            }}
-          />
-        ) : (
-          <ImageIcon className="h-7 w-7 text-slate-300" />
+      {/* Fio de luz no topo — só aparece no hover de um card clicável */}
+      {canAdd && (
+        <span className="pointer-events-none absolute inset-x-[12%] top-0 h-px bg-gradient-to-r from-transparent via-primary/55 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+      )}
+
+      {/* Trilho de status na borda esquerda */}
+      {railClass && <span className={`absolute inset-y-0 left-0 w-[3px] ${railClass}`} />}
+
+      {/* Contador de unidades já no carrinho */}
+      {qtyInCart > 0 && !blocked && (
+        <span className="absolute top-2 right-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[10.5px] font-bold text-white shadow-[0_3px_8px_-3px_rgba(37,99,235,0.95)]">
+          {qtyInCart}
+        </span>
+      )}
+
+      <div className="relative flex-shrink-0">
+        <ProductThumb
+          src={product.imageUrl}
+          alt={product.name}
+          dimmed={blocked}
+          className="h-[88px] w-[68px] rounded-[14px]"
+          imageClassName={canAdd ? "group-hover:scale-105" : ""}
+        />
+        {/* Fita sobre a foto: na quina do card ela encobria o fim do nome. */}
+        {blocked && (
+          <span className="pointer-events-none absolute inset-x-[-15px] top-1/2 -translate-y-1/2 -rotate-[38deg] bg-red-600 py-1 text-center text-[8.5px] font-bold tracking-[0.12em] text-white shadow-md">
+            {isOut ? "ESGOTADO" : "INDISPON."}
+          </span>
         )}
       </div>
 
-      {/* Conteúdo */}
-      <div className="min-w-0 flex-1 flex flex-col gap-1">
-        <p className="text-sm font-semibold leading-tight line-clamp-2 text-slate-800 group-hover:text-slate-900 transition-colors">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <p
+          className={`line-clamp-2 text-sm font-semibold leading-snug transition-colors ${
+            blocked ? "text-slate-400" : "text-slate-800 group-hover:text-slate-900"
+          }`}
+        >
           {product.name}
         </p>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`text-sm font-bold tabular-nums ${canAdd ? "text-primary" : "text-slate-400"}`}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`text-sm font-bold tabular-nums ${
+              blocked ? "text-slate-400" : canAdd ? "text-primary" : "text-slate-500"
+            }`}
+          >
             {isWeightBased
               ? `R$ ${(product.pricePerKgCents! / 100).toFixed(2)}/kg`
               : `R$ ${price.toFixed(2)}`}
           </span>
-          {isWeightBased && (
-            <Badge variant="warning" size="sm">Por Quilo</Badge>
+          {isWeightBased && <Badge variant="warning" size="sm">Por Quilo</Badge>}
+          {product.productType === "addon" && (
+            <Badge variant="secondary" size="sm">Adicional</Badge>
           )}
         </div>
 
-        {product.stockEnabled && product.stock !== undefined && (
-          <span className={`text-[11px] leading-none ${
-            product.stock > 0 ? "text-muted-foreground" : "text-red-600 font-medium"
-          }`}>
-            Estoque: {product.stock} unid.{product.stock === 0 && " • Esgotado"}
-          </span>
-        )}
-
-        {!canAdd &&
-          product.stockEnabled &&
-          product.stock !== undefined &&
-          product.stock > 0 && (
-          <span className="text-[11px] text-amber-700 font-medium leading-none">
-            Limite do estoque no carrinho
-          </span>
-        )}
-
-        {!canAdd && !product.stockEnabled && (
-          <Badge variant="error" size="sm" icon={<AlertCircle className="h-3 w-3" />}>
-            Indisp.
-          </Badge>
-        )}
+        <StockLine
+          isOut={isOut}
+          isUnknownStock={isUnknownStock}
+          isLow={isLow}
+          atCartLimit={atCartLimit}
+          stockControlled={stockControlled}
+          stock={stock}
+        />
       </div>
     </button>
+  );
+}
+
+function StockLine({
+  isOut,
+  isUnknownStock,
+  isLow,
+  atCartLimit,
+  stockControlled,
+  stock,
+}: {
+  isOut: boolean;
+  isUnknownStock: boolean;
+  isLow: boolean;
+  atCartLimit: boolean;
+  stockControlled: boolean;
+  stock: number | null;
+}) {
+  if (isOut) {
+    return <Line tone="text-red-700 font-semibold" dot="bg-red-600">Repor estoque</Line>;
+  }
+  if (isUnknownStock) {
+    return <Line tone="text-red-700 font-semibold" dot="bg-red-600">Estoque não informado</Line>;
+  }
+  if (atCartLimit) {
+    return <Line tone="text-amber-700 font-semibold" dot="bg-amber-500">Limite no carrinho</Line>;
+  }
+  if (isLow) {
+    return <Line tone="text-amber-700 font-semibold" dot="bg-amber-500">Últimas {stock} un.</Line>;
+  }
+  if (stockControlled && stock !== null) {
+    return <Line tone="text-muted-foreground" dot="bg-emerald-400">Estoque: {stock} un.</Line>;
+  }
+  return null;
+}
+
+function Line({
+  tone,
+  dot,
+  children,
+}: {
+  tone: string;
+  dot: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className={`flex items-center gap-1.5 pt-0.5 text-[11px] leading-none ${tone}`}>
+      <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${dot}`} />
+      {children}
+    </span>
   );
 }

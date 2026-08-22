@@ -50,7 +50,9 @@ export function CartTotals({
 
       <div className="flex items-center justify-between pt-1 border-t border-slate-200">
         <span className="text-sm font-semibold text-slate-700">Total</span>
-        <span className="text-xl font-bold text-primary">R$ {total.toFixed(2)}</span>
+        <span className="text-2xl font-extrabold tracking-tight text-primary tabular-nums">
+          R$ {total.toFixed(2)}
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1 min-w-0">

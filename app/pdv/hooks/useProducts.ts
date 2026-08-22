@@ -1,3 +1,4 @@
+import { sortProductsByName } from "@/lib/pdv/productSearch";
 import { canAddUnits } from "@/lib/pdv/stockQuantity";
 import { useCallback, useState } from "react";
 import type { CartItem, Product } from "../types";
@@ -12,7 +13,9 @@ export function useProducts() {
       const response = await fetch("/api/products?size=100&status=active");
       if (!response.ok) throw new Error("Failed to fetch products");
       const result = await response.json();
-      setProducts(result.data);
+      // A API ordena por createdAt (compartilhada com o admin); o PDV mostra
+      // sempre em ordem alfabética.
+      setProducts(sortProductsByName(result.data ?? []));
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {

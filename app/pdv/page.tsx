@@ -1,14 +1,14 @@
 "use client";
 
+import { resolveLastAdded } from "@/lib/pdv/lastAdded";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DeleteConfirmDialog } from "../components/DeleteConfirmDialog";
 import { CalculatorModal } from "../components/CalculatorModal";
 import { ReceiptModal } from "../components/ReceiptModal";
 import { useToast } from "../components/Toast";
 import { WeightInputModal } from "../components/WeightInputModal";
-import { Kbd } from "../components/ui/kbd";
 import { useBarcodeScanner } from "./hooks/useBarcodeScanner";
 import { useCart } from "./hooks/useCart";
 import { useCustomer } from "./hooks/useCustomer";
@@ -18,6 +18,7 @@ import { usePDVUtils } from "./hooks/usePDVUtils";
 import { useProducts } from "./hooks/useProducts";
 
 import { CartSidebar } from "./components/CartSidebar";
+import { ShortcutsModal } from "./components/ShortcutsModal";
 import { DateModal } from "./components/DateModal";
 import { DiscountModal } from "./components/DiscountModal";
 import { PaymentModal } from "./components/PaymentModal";
@@ -32,6 +33,7 @@ export default function PDVPage() {
   const [isRemoveItemConfirmOpen, setRemoveItemConfirmOpen] = useState(false);
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
   const [isClearCartConfirmOpen, setClearCartConfirmOpen] = useState(false);
+  const [isShortcutsOpen, setShortcutsOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -55,13 +57,7 @@ export default function PDVPage() {
   }, [fetchProducts]);
 
   // --- Carrinho ---
-  const cartHook = useCart(
-    products,
-    showErrorToast,
-    audioRef,
-    inputRef,
-    setQuery
-  );
+  const cartHook = useCart(products, showErrorToast, audioRef, inputRef);
 
   // --- Desconto ---
   const discountHook = useDiscount(cartHook.subtotal, showToast);
@@ -71,6 +67,15 @@ export default function PDVPage() {
 
   // --- Cliente ---
   const customerHook = useCustomer(cartHook.mergeCartItems, cartHook.cart);
+
+  // Linha do último item adicionado — o painel do catálogo e a lista do
+  // carrinho destacam a mesma venda a partir daqui.
+  const lastAddedIndex = useMemo(
+    () =>
+      resolveLastAdded(cartHook.cart, products, cartHook.lastAddedId)?.lineIndex ??
+      null,
+    [cartHook.cart, products, cartHook.lastAddedId]
+  );
 
   // --- Reset ---
   const onReset = useCallback(() => {
@@ -122,6 +127,7 @@ export default function PDVPage() {
     audioRef,
     setQuery,
     calculatorOpen,
+    shortcutsOpen: isShortcutsOpen,
     cart: cartHook.cart,
     cartLength: cartHook.cart.length,
     selectedIndex: cartHook.selectedIndex,
@@ -132,6 +138,7 @@ export default function PDVPage() {
     setPaymentOpen: actionsHook.setPaymentOpen,
     setDiscountOpen: discountHook.setDiscountOpen,
     setNewSaleConfirmOpen: actionsHook.setNewSaleConfirmOpen,
+    setShortcutsOpen,
     resetPDVAndRefreshProducts: actionsHook.resetPDVAndRefreshProducts,
     showErrorToast,
   });
@@ -141,18 +148,29 @@ export default function PDVPage() {
   }, []);
 
   // --- Barcode Scanner ---
+  // Estas duas precisam de identidade estável: como são dependências do efeito
+  // do leitor, recriá-las a cada render fazia o efeito reprocessar a leitura.
+  const clearQueryField = useCallback(() => {
+    setQuery("");
+    inputRef.current?.focus();
+  }, []);
+
+  const validateBarcode = useCallback(
+    (code: string) => /^\d{13}$/.test(code),
+    []
+  );
+
   useBarcodeScanner({
     query,
     products,
+    cart: cartHook.cart,
     handleSelectCustomer: customerHook.handleSelectCustomer,
     setCart: cartHook.setCart,
     setSelectedIndex: cartHook.setSelectedIndex,
     playBeepSound: cartHook.playBeepSound,
-    clearQueryField: () => {
-      setQuery("");
-      inputRef.current?.focus();
-    },
-    validateBarcode: (code: string) => /^\d{13}$/.test(code),
+    markLastAdded: cartHook.markLastAdded,
+    clearQueryField,
+    validateBarcode,
     showErrorToast,
   });
 
@@ -192,10 +210,11 @@ export default function PDVPage() {
         onNewSale={handleNewSale}
         onCalculatorOpen={() => setCalculatorOpen(true)}
         onDateModalOpen={() => actionsHook.setDateModalOpen(true)}
+        onShortcutsOpen={() => setShortcutsOpen(true)}
       />
 
       {/* Layout principal */}
-      <main className="grid min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] gap-3 p-3 overflow-hidden h-[calc(100vh-3.5rem)] supports-[height:100dvh]:h-[calc(100dvh-3.5rem)]">
+      <main className="grid min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,424px)] gap-3 p-3 overflow-hidden h-[calc(100vh-4rem)] supports-[height:100dvh]:h-[calc(100dvh-4rem)]">
         {/* Catálogo de produtos */}
         <ProductCatalog
           inputRef={inputRef}
@@ -204,6 +223,7 @@ export default function PDVPage() {
           products={products}
           loadingProducts={loadingProducts}
           cart={cartHook.cart}
+          lastAddedId={cartHook.lastAddedId}
           canAddProductUnits={canAddProductUnits}
           onAddProduct={cartHook.handleAddProductToCart}
         />
@@ -214,6 +234,7 @@ export default function PDVPage() {
           setCart={cartHook.setCart}
           selectedIndex={cartHook.selectedIndex}
           setSelectedIndex={(i: number) => cartHook.setSelectedIndex(i)}
+          lastAddedIndex={lastAddedIndex}
           onRequestClearCart={handleRequestClearCart}
           subtotal={cartHook.subtotal}
           discountAmount={discountHook.discountAmount}
@@ -231,21 +252,6 @@ export default function PDVPage() {
         />
       </main>
 
-      {/* Hint de atalhos — visível quando carrinho vazio */}
-      {cartHook.cart.length === 0 && (
-        <div className="fixed bottom-3 right-3 z-10 flex flex-col gap-1 bg-white/90 border border-slate-200 rounded-xl px-3 py-2.5 shadow-md text-xs text-muted-foreground backdrop-blur-sm">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">
-            Atalhos
-          </span>
-          <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-1.5"><Kbd>F2</Kbd> Pagamento</span>
-            <span className="flex items-center gap-1.5"><Kbd>F3</Kbd> Cliente</span>
-            <span className="flex items-center gap-1.5"><Kbd>F4</Kbd> Desconto</span>
-            <span className="flex items-center gap-1.5"><Kbd>F9</Kbd> Nova venda</span>
-            <span className="flex items-center gap-1.5"><Kbd>Del</Kbd> Remover item</span>
-          </div>
-        </div>
-      )}
 
       {/* Modais */}
       <PaymentModal
@@ -340,6 +346,8 @@ export default function PDVPage() {
       />
 
       <CalculatorModal open={calculatorOpen} onOpenChange={setCalculatorOpen} />
+
+      <ShortcutsModal open={isShortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       {cartHook.pendingProduct && (
         <WeightInputModal
