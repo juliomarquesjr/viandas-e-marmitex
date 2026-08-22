@@ -147,6 +147,35 @@
   --modal-header-close-hover: rgba(255, 255, 255, 0.10);
 }
 
+/* Grade de produtos do PDV.
+   Em CSS puro de propósito: o Tailwind emite variantes arbitrárias e breakpoints
+   customizados ANTES dos nomeados (md:, lg:, xl:), então `md:grid-cols-3` vencia
+   a regra de 4 colunas na cascata, não importa o breakpoint escolhido. Aqui a
+   ordem das media queries é explícita e o resultado é previsível. */
+.pdv-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 768px) {
+  .pdv-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1400px) {
+  .pdv-product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Trilho horizontal sem barra de rolagem — carrossel de categorias do PDV */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

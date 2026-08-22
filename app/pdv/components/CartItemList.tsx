@@ -4,8 +4,9 @@ import {
   canSatisfyStock,
   totalQtyInCartForProduct,
 } from "@/lib/pdv/stockQuantity";
-import { ShoppingCart } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import { ScanBarcode, ShoppingCart } from "lucide-react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { Kbd } from "../../components/ui/kbd";
 import type { CartItem, Product } from "../types";
 import { CartItemRow } from "./CartItem";
 
@@ -14,6 +15,8 @@ interface CartItemListProps {
   products: Product[];
   selectedIndex: number | null;
   setSelectedIndex: (index: number) => void;
+  /** Linha do último item adicionado — recebe destaque e rola para a vista. */
+  lastAddedIndex: number | null;
   setCart: Dispatch<SetStateAction<CartItem[]>>;
   onRequestRemoveItem: (index: number) => void;
   onStockBlocked: (message: string) => void;
@@ -24,28 +27,46 @@ export function CartItemList({
   products,
   selectedIndex,
   setSelectedIndex,
+  lastAddedIndex,
   setCart,
   onRequestRemoveItem,
   onStockBlocked,
 }: CartItemListProps) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Item novo pode cair fora da área visível numa venda longa.
+  useEffect(() => {
+    if (lastAddedIndex === null) return;
+    const row = listRef.current?.querySelector(`[data-cart-row="${lastAddedIndex}"]`);
+    row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [lastAddedIndex, cart.length]);
+
   if (cart.length === 0) {
     return (
-      <div className="min-h-0 h-full max-h-full flex flex-col items-center justify-center gap-3 overflow-y-auto py-8 px-4 text-center">
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shadow-inner">
-          <ShoppingCart className="h-6 w-6 text-slate-400" />
+      <div className="flex min-h-0 h-full max-h-full flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-8 text-center">
+        <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[18px] bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner">
+          <ShoppingCart className="h-6 w-6 text-slate-400" strokeWidth={1.7} />
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-500">Carrinho vazio</p>
-          <p className="text-xs text-muted-foreground leading-relaxed max-w-[180px]">
-            Escaneie um código ou selecione um produto
+        <div className="space-y-1.5">
+          <p className="text-sm font-bold text-slate-500">Carrinho vazio</p>
+          <p className="mx-auto max-w-[24ch] text-[11.5px] leading-relaxed text-muted-foreground">
+            Escaneie um código de barras ou escolha um produto no catálogo ao lado.
           </p>
         </div>
+        <span className="flex items-center gap-2 text-[10.5px] text-slate-400">
+          <ScanBarcode className="h-3.5 w-3.5" />
+          <Kbd className="h-5 min-w-5 text-[9px]">Ctrl+K</Kbd>
+          focar a busca
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-0 h-full max-h-full overflow-y-auto overflow-x-hidden px-2 py-1">
+    <div
+      ref={listRef}
+      className="min-h-0 h-full max-h-full overflow-y-auto overflow-x-hidden px-2 py-1"
+    >
       {cart.map((item, idx) => {
         const product = products.find((p) => p.id === item.id);
         const totalInCart = totalQtyInCartForProduct(cart, item.id);
@@ -62,6 +83,7 @@ export function CartItemList({
             item={item}
             index={idx}
             isSelected={idx === selectedIndex}
+            isLastAdded={idx === lastAddedIndex}
             onClick={() => setSelectedIndex(idx)}
             incrementDisabled={atStockLimit}
             onDecrement={() =>

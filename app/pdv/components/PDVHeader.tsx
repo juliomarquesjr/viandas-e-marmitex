@@ -4,6 +4,7 @@ import {
   Calculator,
   CalendarDays,
   ChefHat,
+  CircleHelp,
   Clock,
   LayoutDashboard,
   LogOut,
@@ -26,6 +27,7 @@ interface PDVHeaderProps {
   onNewSale: () => void;
   onCalculatorOpen: () => void;
   onDateModalOpen: () => void;
+  onShortcutsOpen: () => void;
 }
 
 export function PDVHeader({
@@ -36,6 +38,7 @@ export function PDVHeader({
   onNewSale,
   onCalculatorOpen,
   onDateModalOpen,
+  onShortcutsOpen,
 }: PDVHeaderProps) {
   const isAdmin = session?.user?.role === "admin";
 
@@ -58,16 +61,16 @@ export function PDVHeader({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-sm">
 
       {/* Zona 1 — Brand */}
       <div className="flex items-center gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-sm flex-shrink-0">
-          <ChefHat className="h-5 w-5 text-white" />
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-sm flex-shrink-0">
+          <ChefHat className="h-[22px] w-[22px] text-white" />
         </div>
         <div className="hidden sm:block">
-          <div className="text-sm font-bold text-slate-900 leading-none">Comida Caseira</div>
-          <div className="text-[11px] text-muted-foreground leading-none mt-0.5">Ponto de Venda</div>
+          <div className="text-[15px] font-bold text-slate-900 leading-none">Comida Caseira</div>
+          <div className="text-[11px] text-muted-foreground leading-none mt-1">Ponto de Venda</div>
         </div>
         {isAdmin && (
           <Badge variant="warning" size="sm" className="hidden sm:inline-flex">
@@ -85,7 +88,7 @@ export function PDVHeader({
             <button
               onClick={onDateModalOpen}
               title="Alterar data da venda"
-              className={`group flex items-center gap-2.5 px-4 py-1.5 transition-colors duration-150 ${
+              className={`group flex items-center gap-2.5 px-4 py-2 transition-colors duration-150 ${
                 customSaleDate
                   ? "bg-amber-50 hover:bg-amber-100"
                   : "hover:bg-slate-50"
@@ -103,7 +106,7 @@ export function PDVHeader({
               <Pencil className={`h-4 w-4 flex-shrink-0 ${customSaleDate ? "text-amber-400" : "text-slate-400"}`} />
             </button>
           ) : (
-            <div className="flex items-center gap-2.5 px-4 py-1.5">
+            <div className="flex items-center gap-2.5 px-4 py-2">
               <CalendarDays className="h-4 w-4 flex-shrink-0 text-slate-400" />
               <div className="flex flex-col items-start leading-none gap-0.5">
                 <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400">Hoje</span>
@@ -113,7 +116,7 @@ export function PDVHeader({
           )}
 
           {/* Seção de hora */}
-          <div className="flex items-center gap-2.5 px-4 py-1.5 bg-slate-50/60">
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-50/60">
             <Clock className="h-4 w-4 flex-shrink-0 text-slate-400" />
             <div className="flex flex-col items-start leading-none gap-0.5">
               <span className="text-[9px] uppercase tracking-widest font-bold text-slate-400">Hora</span>
@@ -128,7 +131,17 @@ export function PDVHeader({
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
+          onClick={onShortcutsOpen}
+          title="Atalhos do teclado (F1)"
+          aria-label="Ver atalhos do teclado (F1)"
+        >
+          <CircleHelp className="h-[18px] w-[18px]" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onCalculatorOpen}
           title="Calculadora"
           aria-label="Abrir calculadora"
@@ -139,7 +152,7 @@ export function PDVHeader({
         {isAdmin && (
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             onClick={() => (window.location.href = "/admin")}
             title="Painel Admin"
             aria-label="Voltar ao painel admin"
@@ -148,11 +161,11 @@ export function PDVHeader({
           </Button>
         )}
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-6 bg-slate-200 mx-1.5" />
 
         <Button
           variant="outline"
-          size="sm"
+          size="default"
           onClick={handleOpenCustomerSelector}
           className="hidden sm:inline-flex gap-1.5"
           aria-label="Selecionar cliente (F3)"
@@ -163,7 +176,7 @@ export function PDVHeader({
         </Button>
 
         <Button
-          size="sm"
+          size="default"
           onClick={onNewSale}
           className="gap-1.5"
           aria-label="Nova venda (F9)"
@@ -175,7 +188,7 @@ export function PDVHeader({
 
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={() => signOut({ callbackUrl: "/auth/login" })}
           title="Sair"
           aria-label="Sair"

@@ -10,6 +10,7 @@ interface UsePDVUtilsProps {
   audioRef: React.RefObject<HTMLAudioElement | null>;
   setQuery: (q: string) => void;
   calculatorOpen: boolean;
+  shortcutsOpen: boolean;
   cart: CartItem[];
   cartLength: number;
   selectedIndex: number | null;
@@ -20,6 +21,7 @@ interface UsePDVUtilsProps {
   setPaymentOpen: (open: boolean) => void;
   setDiscountOpen: (open: boolean) => void;
   setNewSaleConfirmOpen: (open: boolean) => void;
+  setShortcutsOpen: (open: boolean) => void;
   resetPDVAndRefreshProducts: () => Promise<void>;
   showErrorToast: (message: string) => void;
 }
@@ -29,6 +31,7 @@ export function usePDVUtils({
   audioRef,
   setQuery,
   calculatorOpen,
+  shortcutsOpen,
   cart,
   cartLength,
   selectedIndex,
@@ -39,6 +42,7 @@ export function usePDVUtils({
   setPaymentOpen,
   setDiscountOpen,
   setNewSaleConfirmOpen,
+  setShortcutsOpen,
   resetPDVAndRefreshProducts,
   showErrorToast,
 }: UsePDVUtilsProps) {
@@ -65,7 +69,17 @@ export function usePDVUtils({
     (e: KeyboardEvent) => {
       const isCtrlK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k";
 
-      if (calculatorOpen) {
+      // Antes do bloqueio da calculadora: a ajuda tem que abrir de qualquer
+      // estado. O preventDefault impede a ajuda nativa do navegador.
+      if (e.key === "F1") {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+
+      // Com a calculadora ou a ajuda abertas, o resto fica suspenso: sem isso
+      // o F2 abriria o pagamento por trás da janela.
+      if (calculatorOpen || shortcutsOpen) {
         return;
       }
 
@@ -156,6 +170,7 @@ export function usePDVUtils({
     },
     [
       calculatorOpen,
+      shortcutsOpen,
       cart,
       cartLength,
       selectedIndex,
@@ -166,6 +181,7 @@ export function usePDVUtils({
       setPaymentOpen,
       setDiscountOpen,
       setNewSaleConfirmOpen,
+      setShortcutsOpen,
       resetPDVAndRefreshProducts,
       showErrorToast,
     ]

@@ -22,6 +22,9 @@ export function useCart(
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  // Alimenta o painel de conferência do catálogo. O leitor de código de barras
+  // escreve aqui também, por isso markLastAdded sai no retorno do hook.
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
 
   const productById = useMemo(() => {
@@ -89,6 +92,7 @@ export function useCart(
       });
 
       setSelectedIndex(existingIndex >= 0 ? existingIndex : cart.length);
+      setLastAddedId(product.id);
       playBeepSound();
       focusQueryField();
     },
@@ -120,6 +124,7 @@ export function useCart(
 
       setCart((prev) => [...prev, item]);
       setSelectedIndex(cart.length);
+      setLastAddedId(pendingProduct.id);
       setIsWeightModalOpen(false);
       setPendingProduct(null);
       playBeepSound();
@@ -155,6 +160,7 @@ export function useCart(
     (newItems: CartItem[]) => {
       setCart((prevCart) => {
         let updatedCart = [...prevCart];
+        let merged: string | null = null;
         for (const newItem of newItems) {
           const product = productById.get(newItem.id);
           const currentTotal = totalQtyInCartForProduct(updatedCart, newItem.id);
@@ -179,6 +185,13 @@ export function useCart(
           } else {
             updatedCart = [...updatedCart, newItem];
           }
+          merged = newItem.id;
+        }
+        // Mesmo motivo do notifyStockBlocked: efeito colateral direto dentro do
+        // updater roda duas vezes em StrictMode.
+        if (merged) {
+          const id = merged;
+          queueMicrotask(() => setLastAddedId(id));
         }
         return updatedCart;
       });
@@ -189,6 +202,7 @@ export function useCart(
   const clearCart = useCallback(() => {
     setCart([]);
     setSelectedIndex(null);
+    setLastAddedId(null);
   }, []);
 
   return {
@@ -209,5 +223,7 @@ export function useCart(
     clearCart,
     subtotal,
     playBeepSound,
+    lastAddedId,
+    markLastAdded: setLastAddedId,
   };
 }

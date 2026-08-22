@@ -14,6 +14,8 @@ interface UseBarcodeScannerProps {
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   setSelectedIndex: React.Dispatch<React.SetStateAction<number | null>>;
   playBeepSound: () => void;
+  /** Marca o produto lido para o painel de conferência do catálogo. */
+  markLastAdded: (productId: string) => void;
   clearQueryField: () => void;
   validateBarcode: (code: string) => boolean;
   showErrorToast: (message: string) => void;
@@ -27,6 +29,7 @@ export function useBarcodeScanner({
   setCart,
   setSelectedIndex,
   playBeepSound,
+  markLastAdded,
   clearQueryField,
   validateBarcode,
   showErrorToast,
@@ -114,6 +117,7 @@ export function useBarcodeScanner({
       });
 
       setSelectedIndex(existingIndex >= 0 ? existingIndex : cart.length);
+      markLastAdded(product.id);
       playBeepSound();
       clearQueryField();
       return;
@@ -131,6 +135,7 @@ export function useBarcodeScanner({
     setCart,
     setSelectedIndex,
     playBeepSound,
+    markLastAdded,
     clearQueryField,
     validateBarcode,
     showErrorToast,

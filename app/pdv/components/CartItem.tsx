@@ -13,6 +13,8 @@ interface CartItemRowProps {
   onIncrement: () => void;
   onRemove: () => void;
   incrementDisabled?: boolean;
+  /** Último item que entrou na venda — casa com o painel de conferência. */
+  isLastAdded?: boolean;
 }
 
 export function CartItemRow({
@@ -24,12 +26,16 @@ export function CartItemRow({
   onIncrement,
   onRemove,
   incrementDisabled = false,
+  isLastAdded = false,
 }: CartItemRowProps) {
   return (
     <div
+      data-cart-row={index}
       className={`group relative flex items-start gap-2.5 mx-1.5 my-0.5 px-3 py-2.5 rounded-xl transition-all duration-150 ${
         isSelected
           ? "bg-gradient-to-r from-primary/8 to-primary/5 ring-1 ring-primary/20 shadow-sm"
+          : isLastAdded
+          ? "bg-gradient-to-r from-blue-50 to-blue-50/30 ring-1 ring-blue-200"
           : "hover:bg-slate-50/80"
       }`}
       onClick={onClick}
@@ -56,6 +62,11 @@ export function CartItemRow({
           <span className="text-sm font-medium leading-tight line-clamp-1 flex-1 text-slate-800">
             {item.name}
           </span>
+          {isLastAdded && (
+            <span className="flex-shrink-0 rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[8px] font-semibold uppercase tracking-[0.14em] leading-none text-primary">
+              Novo
+            </span>
+          )}
           <span className="text-sm font-bold text-slate-900 whitespace-nowrap tabular-nums">
             R$ {(item.qty * item.price).toFixed(2)}
           </span>
