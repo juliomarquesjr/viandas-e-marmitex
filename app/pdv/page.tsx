@@ -55,13 +55,7 @@ export default function PDVPage() {
   }, [fetchProducts]);
 
   // --- Carrinho ---
-  const cartHook = useCart(
-    products,
-    showErrorToast,
-    audioRef,
-    inputRef,
-    setQuery
-  );
+  const cartHook = useCart(products, showErrorToast, audioRef, inputRef);
 
   // --- Desconto ---
   const discountHook = useDiscount(cartHook.subtotal, showToast);
@@ -141,18 +135,28 @@ export default function PDVPage() {
   }, []);
 
   // --- Barcode Scanner ---
+  // Estas duas precisam de identidade estável: como são dependências do efeito
+  // do leitor, recriá-las a cada render fazia o efeito reprocessar a leitura.
+  const clearQueryField = useCallback(() => {
+    setQuery("");
+    inputRef.current?.focus();
+  }, []);
+
+  const validateBarcode = useCallback(
+    (code: string) => /^\d{13}$/.test(code),
+    []
+  );
+
   useBarcodeScanner({
     query,
     products,
+    cart: cartHook.cart,
     handleSelectCustomer: customerHook.handleSelectCustomer,
     setCart: cartHook.setCart,
     setSelectedIndex: cartHook.setSelectedIndex,
     playBeepSound: cartHook.playBeepSound,
-    clearQueryField: () => {
-      setQuery("");
-      inputRef.current?.focus();
-    },
-    validateBarcode: (code: string) => /^\d{13}$/.test(code),
+    clearQueryField,
+    validateBarcode,
     showErrorToast,
   });
 

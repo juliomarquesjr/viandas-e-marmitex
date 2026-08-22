@@ -1,12 +1,16 @@
 "use client";
 
-import { Boxes } from "lucide-react";
+import { Boxes, SearchX } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { CartItem, Product } from "../types";
 import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {
+  /** Já filtrados pela busca do catálogo. */
   products: Product[];
+  /** Total do catálogo, antes da busca — separa "sem cadastro" de "sem resultado". */
+  totalProducts?: number;
+  searchQuery?: string;
   loadingProducts: boolean;
   cart: CartItem[];
   canAddProductUnits: (
@@ -23,6 +27,8 @@ type PricingValue = "all" | "unit" | "kg";
 
 export function ProductGrid({
   products,
+  totalProducts,
+  searchQuery = "",
   loadingProducts,
   cart,
   canAddProductUnits,
@@ -95,12 +101,31 @@ export function ProductGrid({
   }
 
   if (products.length === 0) {
+    const hasCatalog = (totalProducts ?? products.length) > 0;
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 py-12 text-center">
         <div className="h-14 w-14 rounded-full bg-slate-100 flex items-center justify-center">
-          <Boxes className="h-7 w-7 text-slate-400" />
+          {searchQuery ? (
+            <SearchX className="h-7 w-7 text-slate-400" />
+          ) : (
+            <Boxes className="h-7 w-7 text-slate-400" />
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">Nenhum produto cadastrado.</p>
+        <p className="text-sm text-muted-foreground">
+          {searchQuery ? (
+            <>
+              Nenhum produto encontrado para{" "}
+              <span className="font-medium text-slate-700">
+                &quot;{searchQuery}&quot;
+              </span>
+              .
+            </>
+          ) : hasCatalog ? (
+            "Nenhum produto disponível."
+          ) : (
+            "Nenhum produto cadastrado."
+          )}
+        </p>
       </div>
     );
   }
@@ -196,7 +221,11 @@ export function ProductGrid({
       {/* Grid */}
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-8 text-center flex-1">
-          <p className="text-sm text-muted-foreground">Nenhum produto nesta categoria.</p>
+          <p className="text-sm text-muted-foreground">
+            {searchQuery
+              ? "Nenhum produto encontrado neste filtro."
+              : "Nenhum produto nesta categoria."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 xl:grid-cols-3 gap-2.5 overflow-y-auto flex-1 pr-0.5 content-start pb-2">
