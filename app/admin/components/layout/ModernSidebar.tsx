@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -134,8 +135,39 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
   const isActive = pathname === item.href;
   const Icon = item.icon;
 
+  // Tooltip com o nome do item, só existe no modo recolhido. Fica em portal com
+  // position: fixed porque a <nav> tem overflow-y-auto — qualquer coisa
+  // posicionada dentro dela seria cortada na borda da sidebar.
+  const anchorRef = React.useRef<HTMLAnchorElement>(null);
+  const [tooltipAt, setTooltipAt] = React.useState<{ top: number; left: number } | null>(null);
+
+  const showTooltip = React.useCallback(() => {
+    if (!collapsed || !anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setTooltipAt({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+  }, [collapsed]);
+
+  const hideTooltip = React.useCallback(() => setTooltipAt(null), []);
+
+  // Sai da frente se o menu for expandido, se a lista rolar ou a janela mudar
+  // de tamanho — a posição é congelada no momento do hover.
+  React.useEffect(() => {
+    if (!collapsed) setTooltipAt(null);
+  }, [collapsed]);
+
+  React.useEffect(() => {
+    if (!tooltipAt) return;
+    window.addEventListener("scroll", hideTooltip, true);
+    window.addEventListener("resize", hideTooltip);
+    return () => {
+      window.removeEventListener("scroll", hideTooltip, true);
+      window.removeEventListener("resize", hideTooltip);
+    };
+  }, [tooltipAt, hideTooltip]);
+
   return (
     <Link
+      ref={anchorRef}
       href={item.href}
       className={cn(
         "group relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200",
@@ -144,7 +176,12 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
           ? "bg-primary/10 text-primary"
           : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
       )}
-      title={collapsed ? item.label : undefined}
+      aria-label={collapsed ? item.label : undefined}
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      onFocus={showTooltip}
+      onBlur={hideTooltip}
+      onClick={hideTooltip}
     >
       {/* Indicador de item ativo */}
       {isActive && (
@@ -169,6 +206,29 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
           )}
         </>
       )}
+
+      {tooltipAt &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: tooltipAt.top, left: tooltipAt.left }}
+            className="pointer-events-none fixed z-[60] -translate-y-1/2"
+          >
+            <div
+              className={cn(
+                "sidebar-tooltip-in relative whitespace-nowrap rounded-lg border border-[color:var(--border-dark)] bg-[color:var(--card)] px-3 py-1.5 text-sm font-medium shadow-[var(--shadow-lg)]",
+                isActive ? "text-primary" : "text-[color:var(--foreground)]"
+              )}
+            >
+              {item.label}
+              <span
+                aria-hidden
+                className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border-b border-l border-[color:var(--border-dark)] bg-[color:var(--card)]"
+              />
+            </div>
+          </div>,
+          document.body
+        )}
     </Link>
   );
 }
@@ -217,7 +277,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen flex-col border-r border-[color:var(--border)] bg-[color:var(--card)] transition-all duration-300 ease-in-out lg:flex",
+        "sticky top-0 z-40 hidden h-screen flex-col border-r border-[color:var(--border)] bg-[color:var(--card)] transition-all duration-300 ease-in-out lg:flex",
         collapsed ? "w-[72px]" : "w-[260px]",
         className
       )}
@@ -226,7 +286,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       <div
         className={cn(
           "flex h-16 shrink-0 items-center border-b border-[color:var(--border)]",
-          collapsed ? "justify-center px-2" : "justify-between px-4"
+          collapsed ? "justify-center px-2" : "px-4 pr-6"
         )}
       >
         {!collapsed && (
@@ -248,23 +308,28 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
             </div>
           </Link>
         )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggle}
-          className={cn(
-            "shrink-0 text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]",
-            collapsed && "absolute -right-3 top-6 h-6 w-6 rounded-full border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm"
-          )}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
       </div>
+
+      {/*
+        Botão de recolher: fica sempre sobre a borda direita, na altura do meio
+        dos dois headers (o da sidebar e o da página), independente do estado.
+        A metade que invade a área de conteúdo precisa do z-index da aside para
+        não ser coberta pelo header sticky da página.
+      */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggle}
+        aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+        title={collapsed ? "Expandir menu" : "Recolher menu"}
+        className="absolute right-0 top-8 z-10 h-7 w-7 -translate-y-1/2 translate-x-1/2 rounded-full border border-[color:var(--border)] bg-[color:var(--card)] p-0 text-[color:var(--muted-foreground)] shadow-sm transition-colors hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+      >
+        {collapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </Button>
 
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
