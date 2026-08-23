@@ -4,12 +4,14 @@ import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  Ban,
   CheckCircle2,
   MapPin,
   MoreVertical,
   Pencil,
   Printer,
   Receipt,
+  RotateCcw,
   Scale,
   StickyNote,
   Store,
@@ -107,6 +109,7 @@ interface PreOrderDossierProps {
   onAdvance: (nextStatus: string) => void;
   onPrint: () => void;
   onEdit: () => void;
+  onCancel: () => void;
   onTrack: () => void;
   onDelete: () => void;
 }
@@ -125,6 +128,7 @@ export function PreOrderDossier({
   onAdvance,
   onPrint,
   onEdit,
+  onCancel,
   onTrack,
   onDelete,
 }: PreOrderDossierProps) {
@@ -132,6 +136,7 @@ export function PreOrderDossier({
   const stage = stageOf(preOrder);
   const fulfillment = fulfillmentOf(preOrder);
   const { primary, secondary } = actionsFor(preOrder);
+  const cancelled = stage === "cancelado";
   const due = stage === "cobrar";
 
   return (
@@ -271,6 +276,18 @@ export function PreOrderDossier({
           )}
           <Button variant="ghost" onClick={onEdit} leftIcon={<Pencil className="h-4 w-4" />}>
             Editar
+          </Button>
+
+          {/* Cancelar existe em toda etapa: um pedido pode cair a qualquer
+              momento, e cancelado é estado — não some do banco e dá para
+              reabrir. Por isso fica visível, mas sem peso de ação primária. */}
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+            className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
+          >
+            {cancelled ? "Reabrir" : "Cancelar"}
           </Button>
           <OverflowMenu onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
           <p className="ml-auto hidden w-[220px] shrink-0 text-right text-[11.5px] leading-snug text-[color:var(--muted-foreground-strong)] 2xl:block">

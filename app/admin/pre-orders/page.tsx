@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmDialog } from "@/app/components/ConfirmDialog";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { useToast } from "@/app/components/Toast";
@@ -28,7 +29,9 @@ import { useAdminChrome, useFullBleedLayout } from "@/app/admin/components/layou
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DayRail, type StageTally } from "./components/DayRail";
 import { PreOrderDossier, TicketColumn } from "./components/PreOrderDossier";
+import { MoneyBoard } from "./components/MoneyBoard";
 import { PreOrderRow } from "./components/PreOrderRow";
+import { ViewSettings } from "./components/ViewSettings";
 import type { PaymentMethod } from "./components/ReceivePanel";
 import {
   RAIL_ORDER,
@@ -44,6 +47,8 @@ import {
 const DESKTOP_PRINT_FRAME_ID = "desktop-print-frame";
 /** Teto de carregamento. A tela nunca afirma contagem além do que carregou. */
 const PAGE_SIZE = 200;
+const RAIL_PREF_KEY = "admin-pre-orders-show-rail";
+const CANCELLED_PREF_KEY = "admin-pre-orders-show-cancelled";
 
 type RangeKey = "today" | "week" | "all";
 
@@ -115,6 +120,9 @@ export default function AdminPreOrdersPage() {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<PreOrderStage | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showRail, setShowRail] = useState(true);
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<PreOrder | null>(null);
 
   const [receiving, setReceiving] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -136,6 +144,25 @@ export default function AdminPreOrdersPage() {
   }, []);
 
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const rail = window.localStorage.getItem(RAIL_PREF_KEY);
+      const cancelled = window.localStorage.getItem(CANCELLED_PREF_KEY);
+      if (rail !== null) setShowRail(rail === "true");
+      if (cancelled !== null) setShowCancelled(cancelled === "true");
+    } catch {
+      // storage indisponível: seguem os padrões
+    }
+  }, []);
+
+  const persist = useCallback((key: string, value: boolean) => {
+    try {
+      window.localStorage.setItem(key, String(value));
+    } catch {
+      // a preferência não persiste, mas a troca funciona
+    }
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Carregamento
@@ -185,10 +212,22 @@ export default function AdminPreOrdersPage() {
   // Recortes
   // ---------------------------------------------------------------------------
 
+  // Cancelado é ruído por padrão: sai da lista, da trilha e das contagens até
+  // alguém pedir para ver.
+  const scoped = useMemo(
+    () => (showCancelled ? preOrders : preOrders.filter((preOrder) => stageOf(preOrder) !== "cancelado")),
+    [preOrders, showCancelled],
+  );
+
+  const cancelledCount = useMemo(
+    () => preOrders.filter((preOrder) => stageOf(preOrder) === "cancelado").length,
+    [preOrders],
+  );
+
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    return preOrders.filter((preOrder) => {
+    return scoped.filter((preOrder) => {
       if (stageFilter && stageOf(preOrder) !== stageFilter) return false;
       if (!term) return true;
 
@@ -204,24 +243,24 @@ export default function AdminPreOrdersPage() {
 
       return haystack.includes(term);
     });
-  }, [preOrders, search, stageFilter]);
+  }, [scoped, search, stageFilter]);
 
   const tally = useMemo(() => {
     const result = emptyTally();
-    for (const preOrder of preOrders) {
+    for (const preOrder of scoped) {
       const stage = stageOf(preOrder);
       result[stage].count += 1;
       result[stage].totalCents += preOrder.totalCents;
     }
     return result;
-  }, [preOrders]);
+  }, [scoped]);
 
   const money = useMemo(() => {
     let open = 0;
     let due = 0;
     let billed = 0;
 
-    for (const preOrder of preOrders) {
+    for (const preOrder of scoped) {
       const stage = stageOf(preOrder);
       if (STAGE_META[stage].open) open += preOrder.totalCents;
       if (stage === "cobrar") due += preOrder.totalCents;
@@ -229,7 +268,7 @@ export default function AdminPreOrdersPage() {
     }
 
     return { open, due, billed };
-  }, [preOrders]);
+  }, [scoped]);
 
   const grouped = useMemo(() => {
     return STAGE_ORDER.map((stage) => ({
@@ -528,11 +567,13 @@ export default function AdminPreOrdersPage() {
             {loading
               ? "Carregando…"
               : filtering
-                ? `${visible.length} de ${preOrders.length} pedido${preOrders.length !== 1 ? "s" : ""}`
-                : `${preOrders.length} pedido${preOrders.length !== 1 ? "s" : ""}${truncated ? ` de ${total}` : ""}`}
+                ? `${visible.length} de ${scoped.length} pedido${scoped.length !== 1 ? "s" : ""}`
+                : `${scoped.length} pedido${scoped.length !== 1 ? "s" : ""}${truncated ? ` de ${total}` : ""}`}
             {lastLoadedAt && ` · atualizado ${lastLoadedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
           </p>
         </div>
+
+        <MoneyBoard openCents={money.open} dueCents={money.due} />
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <div
@@ -587,6 +628,20 @@ export default function AdminPreOrdersPage() {
             Novo pré-pedido
           </Button>
 
+          <ViewSettings
+            showRail={showRail}
+            onShowRailChange={(value) => {
+              setShowRail(value);
+              persist(RAIL_PREF_KEY, value);
+            }}
+            showCancelled={showCancelled}
+            onShowCancelledChange={(value) => {
+              setShowCancelled(value);
+              persist(CANCELLED_PREF_KEY, value);
+            }}
+            cancelledCount={cancelledCount}
+          />
+
           <Button
             variant="outline"
             size="icon"
@@ -615,16 +670,16 @@ export default function AdminPreOrdersPage() {
         </p>
       )}
 
-      <DayRail
-        tally={tally}
-        activeStage={stageFilter}
-        onStageChange={setStageFilter}
-        openCents={money.open}
-        dueCents={money.due}
-        billedCents={money.billed}
-        items={itemTally}
-        itemsOrderCount={visible.length}
-      />
+      {showRail && (
+        <DayRail
+          tally={tally}
+          activeStage={stageFilter}
+          onStageChange={setStageFilter}
+          billedCents={money.billed}
+          items={itemTally}
+          itemsOrderCount={visible.length}
+        />
+      )}
 
       {/* Altura travada: cada coluna rola por dentro, como no PDV. A terceira
           coluna, o cupom, só entra quando há largura para ela. */}
@@ -730,6 +785,7 @@ export default function AdminPreOrdersPage() {
               setFormOpen(true);
             }}
             onTrack={() => router.push(`/admin/pre-orders/${selected.id}/tracking`)}
+            onCancel={() => setCancelTarget(selected)}
             onDelete={() => setDeleteId(selected.id)}
           />
         ) : (
@@ -752,6 +808,26 @@ export default function AdminPreOrdersPage() {
         onOpenChange={setFormOpen}
         preOrderId={editingId || undefined}
         onPreOrderSaved={() => loadPreOrders({ silent: true })}
+      />
+
+      <ConfirmDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        title={stageOf(cancelTarget ?? {}) === "cancelado" ? "Reabrir pedido" : "Cancelar pedido"}
+        description={
+          stageOf(cancelTarget ?? {}) === "cancelado"
+            ? "O pedido volta para a fila e entra de novo nas contagens do dia."
+            : "O pedido sai das contagens e some da lista, mas continua no banco e pode ser reaberto. Nada é lançado no caixa."
+        }
+        confirmText={stageOf(cancelTarget ?? {}) === "cancelado" ? "Reabrir" : "Cancelar pedido"}
+        cancelText="Voltar"
+        isLoading={advancing}
+        onConfirm={async () => {
+          const target = cancelTarget;
+          if (!target) return;
+          setCancelTarget(null);
+          await advanceStatus(stageOf(target) === "cancelado" ? "pending" : "cancelled");
+        }}
       />
 
       <DeleteConfirmDialog

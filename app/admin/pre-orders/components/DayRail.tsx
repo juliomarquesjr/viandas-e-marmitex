@@ -24,8 +24,6 @@ interface DayRailProps {
   tally: StageTally;
   activeStage: PreOrderStage | null;
   onStageChange: (stage: PreOrderStage | null) => void;
-  openCents: number;
-  dueCents: number;
   billedCents: number;
   items: ItemTally[];
   itemsOrderCount: number;
@@ -45,8 +43,6 @@ export function DayRail({
   tally,
   activeStage,
   onStageChange,
-  openCents,
-  dueCents,
   billedCents,
   items,
   itemsOrderCount,
@@ -112,15 +108,14 @@ export function DayRail({
             : `${items.length} produto${items.length !== 1 ? "s" : ""} em ${itemsOrderCount} pedido${itemsOrderCount !== 1 ? "s" : ""}`}
         </p>
 
-        <dl className="ml-auto flex flex-wrap items-baseline gap-x-5 gap-y-1">
-          <Figure label="em aberto" value={formatCurrency(openCents)} />
-          {dueCents > 0 && (
-            <Figure label="na rua" value={formatCurrency(dueCents)} tone="var(--state-cobrar)" />
-          )}
-          {billedCents > 0 && (
-            <Figure label="faturado" value={formatCurrency(billedCents)} tone="var(--state-faturado)" />
-          )}
-        </dl>
+        {billedCents > 0 && (
+          <dl className="ml-auto flex items-baseline gap-1.5">
+            <dd className="text-[15px] font-bold tabular-nums tracking-tight" style={{ color: "var(--state-faturado)" }}>
+              {formatCurrency(billedCents)}
+            </dd>
+            <dt className="text-xs text-[color:var(--muted-foreground-strong)]">faturado</dt>
+          </dl>
+        )}
       </div>
 
       {view === "stages" && stages.length > 0 && (
@@ -250,19 +245,5 @@ function ViewTab({
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {children}
     </button>
-  );
-}
-
-function Figure({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dd
-        className="text-[15px] font-bold tabular-nums tracking-tight"
-        style={tone ? { color: tone } : undefined}
-      >
-        {value}
-      </dd>
-      <dt className="text-xs text-[color:var(--muted-foreground-strong)]">{label}</dt>
-    </div>
   );
 }
