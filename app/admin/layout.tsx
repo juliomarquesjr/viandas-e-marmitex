@@ -4,6 +4,7 @@ import * as React from "react";
 import { useSession } from "next-auth/react";
 import { Menu } from "lucide-react";
 import { SidebarProvider, ModernSidebar, MobileSidebar, HeaderActions } from "./components/layout";
+import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminChromeProvider";
 import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
@@ -26,14 +27,30 @@ interface ExtendedSession {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <AdminThemeProvider>
+        <AdminChromeProvider>
+          <AdminShell>{children}</AdminShell>
+        </AdminChromeProvider>
+      </AdminThemeProvider>
+    </SidebarProvider>
+  );
+}
+
+/**
+ * A casca em volta da página. Fica separada do layout porque precisa ler o
+ * contexto que o próprio layout monta.
+ */
+function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() as { data: ExtendedSession | null };
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const { fullBleed, immersive } = useAdminChrome();
 
   const userRole = session?.user?.role;
 
   return (
-    <SidebarProvider>
-      <AdminThemeProvider>
+    <>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -43,12 +60,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main Layout */}
         <div className="flex h-screen">
-          {/* Desktop Sidebar */}
-          <ModernSidebar userRole={userRole} />
+          {/* Desktop Sidebar — escondida no modo imersivo */}
+          {!immersive && <ModernSidebar userRole={userRole} />}
 
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {/* Header */}
+            {/* Header — escondido no modo imersivo */}
+            {!immersive && (
             <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--card)] px-4 lg:px-6 shrink-0 transition-colors duration-200">
               {/* Left side - Mobile menu button */}
               <div className="flex items-center gap-4">
@@ -65,19 +83,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {/* Right side - User menu */}
               <HeaderActions />
             </header>
+            )}
 
             {/* Page Content */}
-            <main className="flex-1 overflow-auto bg-background" style={{ scrollbarGutter: "stable" }}>
-              <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">
-                {children}
-              </div>
+            <main
+              className={
+                fullBleed
+                  ? "flex-1 min-h-0 overflow-hidden bg-background"
+                  : "flex-1 overflow-auto bg-background"
+              }
+              style={fullBleed ? undefined : { scrollbarGutter: "stable" }}
+            >
+              {fullBleed ? (
+                children
+              ) : (
+                <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">{children}</div>
+              )}
             </main>
           </div>
         </div>
 
-        {/* RO Assistant */}
-        <RoAssistant />
-      </AdminThemeProvider>
-    </SidebarProvider>
+        {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
+        {!immersive && <RoAssistant />}
+    </>
   );
 }

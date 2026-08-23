@@ -165,8 +165,19 @@ export async function GET(request: Request) {
           notes: true,
           createdAt: true,
           deliveryStatus: true,
+          estimatedDeliveryTime: true,
+          deliveryStartedAt: true,
+          deliveredAt: true,
           customer: {
             select: preOrderCustomerSelect
+          },
+          deliveryPerson: {
+            select: { id: true, name: true }
+          },
+          // A trilha do pedido na Mesa de Trabalho é montada a partir daqui.
+          tracking: {
+            select: { id: true, status: true, timestamp: true, notes: true },
+            orderBy: { timestamp: 'asc' }
           },
           items: {
             include: {
