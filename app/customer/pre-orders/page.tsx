@@ -19,6 +19,7 @@ interface PreOrder {
   items: Array<{
     quantity: number;
     priceCents: number;
+    weightKg?: number | string | null;
     product: {
       id: string;
       name: string;

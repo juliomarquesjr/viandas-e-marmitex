@@ -1,6 +1,12 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { decrementStockForItems } from '@/lib/stock/orderStock';
+import {
+  isWeightBasedProduct,
+  roundWeightKg,
+  validateWeightKg,
+  weightPriceCents,
+} from '@/lib/weight';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -19,6 +25,84 @@ const preOrderItemProductSelect = {
   pricePerKgCents: true,
   productType: true,
 };
+
+type PricingProduct = {
+  id: string;
+  name: string;
+  priceCents: number;
+  pricePerKgCents: number | null;
+};
+
+type PreOrderItemData = {
+  productId: string;
+  quantity: number;
+  priceCents: number;
+  weightKg: number | null;
+};
+
+/**
+ * Normaliza os itens recebidos aplicando as mesmas regras do PDV:
+ * produto por quilo entra com peso válido, quantidade 1 e preço calculado a
+ * partir do preço por quilo; produto unitário exige valor unitário cadastrado.
+ * O preço vem sempre do cadastro, nunca do payload.
+ */
+function buildPreOrderItems(
+  items: any[],
+  productsMap: Map<string, PricingProduct>
+): { error: string } | { itemsData: PreOrderItemData[]; subtotalCents: number } {
+  const itemsData: PreOrderItemData[] = [];
+  let subtotalCents = 0;
+
+  for (const item of items) {
+    const product = productsMap.get(item.productId);
+
+    if (!product) {
+      return { error: `Product with ID ${item.productId} not found` };
+    }
+
+    if (isWeightBasedProduct(product)) {
+      const rawWeight = Number(item.weightKg);
+
+      if (!Number.isFinite(rawWeight) || rawWeight <= 0) {
+        return {
+          error: `Produto "${product.name}" é vendido por quilo: informe o peso do item.`,
+        };
+      }
+
+      const weightKg = roundWeightKg(rawWeight);
+      const weightError = validateWeightKg(weightKg);
+
+      if (weightError) {
+        return { error: `Produto "${product.name}": ${weightError}` };
+      }
+
+      const priceCents = weightPriceCents(product.pricePerKgCents ?? 0, weightKg);
+      subtotalCents += priceCents;
+      itemsData.push({
+        productId: product.id,
+        quantity: 1,
+        priceCents,
+        weightKg,
+      });
+      continue;
+    }
+
+    if (!product.priceCents || product.priceCents <= 0) {
+      return { error: `Produto "${product.name}" não possui valor unitário válido.` };
+    }
+
+    const quantity = Math.max(1, Math.trunc(Number(item.quantity) || 1));
+    subtotalCents += product.priceCents * quantity;
+    itemsData.push({
+      productId: product.id,
+      quantity,
+      priceCents: product.priceCents,
+      weightKg: null,
+    });
+  }
+
+  return { itemsData, subtotalCents };
+}
 
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
@@ -183,48 +267,14 @@ export async function POST(request: Request) {
     });
     const productsMap = new Map(products.map(p => [p.id, p]));
     
-    // Validar que todos os produtos têm valor unitário (não são por peso)
-    for (const item of body.items) {
-      const product = productsMap.get(item.productId);
-      if (!product) {
-        return NextResponse.json(
-          { error: `Product with ID ${item.productId} not found` },
-          { status: 400 }
-        );
-      }
-      
-      // Verificar se o produto é por peso
-      if (product.pricePerKgCents && product.pricePerKgCents > 0) {
-        return NextResponse.json(
-          { error: `Produto "${product.name}" é vendido por peso e não pode ser adicionado a pré-pedidos. Apenas produtos com valor unitário são permitidos.` },
-          { status: 400 }
-        );
-      }
-      
-      // Verificar se o produto tem valor unitário válido
-      if (!product.priceCents || product.priceCents <= 0) {
-        return NextResponse.json(
-          { error: `Produto "${product.name}" não possui valor unitário válido.` },
-          { status: 400 }
-        );
-      }
+    // Valida e precifica os itens (unitários e por quilo)
+    const normalized = buildPreOrderItems(body.items, productsMap);
+    
+    if ('error' in normalized) {
+      return NextResponse.json({ error: normalized.error }, { status: 400 });
     }
-
-    // Calcular totais (apenas produtos com valor unitário)
-    let subtotalCents = 0;
-    const itemsData = body.items.map((item: any) => {
-      const product = productsMap.get(item.productId);
-      const itemPriceCents = product?.priceCents || item.priceCents || 0;
-      
-      const itemTotal = itemPriceCents * item.quantity;
-      subtotalCents += itemTotal;
-      
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        priceCents: itemPriceCents
-      };
-    });
+    
+    const { itemsData, subtotalCents } = normalized;
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;
@@ -307,10 +357,20 @@ async function convertPreOrderToOrder(request: Request) {
       );
     }
     
-    // Verificar estoque antes de criar o pedido
+    // Verificar estoque antes de criar o pedido. A soma é por produto, não por
+    // linha: um item por quilo ocupa uma linha por peso, e a baixa acontece em
+    // todas elas.
+    const requestedByProduct = new Map<string, number>();
     for (const item of preOrder.items) {
+      requestedByProduct.set(
+        item.productId,
+        (requestedByProduct.get(item.productId) || 0) + item.quantity
+      );
+    }
+    
+    for (const [productId, requestedUnits] of requestedByProduct) {
       const product = await prisma.product.findUnique({
-        where: { id: item.productId },
+        where: { id: productId },
         select: { 
           id: true, 
           name: true, 
@@ -321,15 +381,19 @@ async function convertPreOrderToOrder(request: Request) {
       
       if (!product) {
         return NextResponse.json(
-          { error: `Product with ID ${item.productId} not found` },
+          { error: `Product with ID ${productId} not found` },
           { status: 400 }
         );
       }
       
       if (product.stockEnabled && product.stock !== null) {
-        if (product.stock < item.quantity) {
+        if (product.stock < requestedUnits) {
           return NextResponse.json(
-            { error: `Insufficient stock for product: ${product.name}` },
+            {
+              error: `Estoque insuficiente para "${product.name}": ${requestedUnits} un. no pedido, ${product.stock} ${
+                product.stock === 1 ? 'disponível' : 'disponíveis'
+              }.`
+            },
             { status: 400 }
           );
         }
@@ -438,48 +502,14 @@ export async function PUT(request: Request) {
     }) : [];
     const productsMap = new Map(products.map(p => [p.id, p]));
     
-    // Validar que todos os produtos têm valor unitário (não são por peso)
-    for (const item of (body.items || [])) {
-      const product = productsMap.get(item.productId);
-      if (!product) {
-        return NextResponse.json(
-          { error: `Product with ID ${item.productId} not found` },
-          { status: 400 }
-        );
-      }
-      
-      // Verificar se o produto é por peso
-      if (product.pricePerKgCents && product.pricePerKgCents > 0) {
-        return NextResponse.json(
-          { error: `Produto "${product.name}" é vendido por peso e não pode ser adicionado a pré-pedidos. Apenas produtos com valor unitário são permitidos.` },
-          { status: 400 }
-        );
-      }
-      
-      // Verificar se o produto tem valor unitário válido
-      if (!product.priceCents || product.priceCents <= 0) {
-        return NextResponse.json(
-          { error: `Produto "${product.name}" não possui valor unitário válido.` },
-          { status: 400 }
-        );
-      }
+    // Valida e precifica os itens (unitários e por quilo)
+    const normalized = buildPreOrderItems(body.items || [], productsMap);
+    
+    if ('error' in normalized) {
+      return NextResponse.json({ error: normalized.error }, { status: 400 });
     }
-
-    // Calcular totais (apenas produtos com valor unitário)
-    let subtotalCents = 0;
-    const itemsData = (body.items || []).map((item: any) => {
-      const product = productsMap.get(item.productId);
-      const itemPriceCents = product?.priceCents || item.priceCents || 0;
-      
-      const itemTotal = itemPriceCents * item.quantity;
-      subtotalCents += itemTotal;
-      
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        priceCents: itemPriceCents
-      };
-    });
+    
+    const { itemsData, subtotalCents } = normalized;
     
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;

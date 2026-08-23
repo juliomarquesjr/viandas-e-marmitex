@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/app/components/ui/dialog";
 import { Badge } from "@/app/components/ui/badge";
+import { formatWeightKg } from "@/lib/weight";
 import {
   Package,
   X,
@@ -81,19 +82,25 @@ export function PreOrderSummaryModal({
               Itens ({preOrder.items.length})
             </h3>
             <div className="space-y-1.5">
-              {preOrder.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-slate-600">
-                    {item.quantity}x {item.product.name}
-                  </span>
-                  <span className="text-slate-900 font-medium">
-                    {formatCurrency(item.priceCents * item.quantity)}
-                  </span>
-                </div>
-              ))}
+              {preOrder.items.map((item) => {
+                const weightKg = item.weightKg != null ? Number(item.weightKg) : 0;
+                const isWeightBased = weightKg > 0;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-slate-600 min-w-0">
+                      {isWeightBased
+                        ? `${formatWeightKg(weightKg)} kg × ${item.product.name}`
+                        : `${item.quantity}x ${item.product.name}`}
+                    </span>
+                    <span className="text-slate-900 font-medium tabular-nums flex-shrink-0">
+                      {formatCurrency(item.priceCents * item.quantity)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
