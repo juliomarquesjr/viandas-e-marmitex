@@ -1,356 +1,434 @@
 "use client";
 
 import { Button } from "@/app/components/ui/button";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Camera, AlertCircle, Loader2 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { signIn } from "next-auth/react";
 import {
+  profileInitials,
+  profileLabel,
+  rememberLogin,
+  type RecentLogin,
+} from "@/lib/auth/recent-logins";
+import {
+  descriptorToArray,
+  extractFaceDescriptor,
   loadModels,
   validateSingleFace,
-  extractFaceDescriptor,
-  descriptorToArray,
 } from "@/lib/facial-recognition";
+import { AlertCircle, KeyRound, Loader2 } from "lucide-react";
+import { signIn } from "next-auth/react";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/** Guia circular sobre o vídeo, em px. */
+const GUIDE_SIZE = 236;
+const GUIDE_RADIUS = 112;
+const GUIDE_CIRCUMFERENCE = 2 * Math.PI * GUIDE_RADIUS;
+
+/** Intervalo entre tentativas de captura automática. */
+const CAPTURE_INTERVAL_MS = 800;
+
+type FacialPhase =
+  | "loading-models"
+  | "starting-camera"
+  | "searching"
+  | "recognizing"
+  | "error";
+
+const PHASE_MESSAGE: Record<Exclude<FacialPhase, "error">, string> = {
+  "loading-models": "Carregando modelos",
+  "starting-camera": "Abrindo a câmera",
+  searching: "Procurando seu rosto",
+  recognizing: "Reconhecendo o rosto",
+};
 
 interface FacialLoginProps {
+  /** Perfil escolhido antes de abrir a câmera, quando houver. */
+  profile: RecentLogin | null;
   onCancel: () => void;
 }
 
-export function FacialLogin({ onCancel }: FacialLoginProps) {
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [loading, setLoading] = useState(false);
+export function FacialLogin({ profile, onCancel }: FacialLoginProps) {
+  const [phase, setPhase] = useState<FacialPhase>("loading-models");
   const [error, setError] = useState<string | null>(null);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [capturing, setCapturing] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cameraStartedRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const busyRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  // Iniciar webcam
-  const startWebcam = useCallback(async () => {
-    // Evitar iniciar se já estiver ativa
-    if (cameraStartedRef.current) return;
-    
-    cameraStartedRef.current = true;
-    
-    try {
-      setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: "user" // Câmera frontal
-        },
-        audio: false
-      });
-      setStream(mediaStream);
-      
-      // Usar setTimeout para garantir que o ref está atualizado
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          console.log('Stream atribuído ao vídeo:', {
-            active: mediaStream.active,
-            videoTracks: mediaStream.getVideoTracks().length
-          });
-          
-          // Forçar reprodução
-          videoRef.current.play().catch(err => {
-            console.error('Erro ao iniciar reprodução:', err);
-          });
-        }
-      }, 100);
-    } catch (err) {
-      cameraStartedRef.current = false;
-      console.error("Erro ao acessar webcam:", err);
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setError("Permissão de câmera negada. Por favor, permita o acesso à câmera nas configurações do navegador.");
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          setError("Nenhuma câmera encontrada. Verifique se há uma câmera conectada.");
-        } else {
-          setError(`Erro ao acessar webcam: ${err.message}`);
-        }
-      } else {
-        setError("Não foi possível acessar a webcam. Verifique as permissões.");
-      }
-    }
-  }, []);
+  const stopWebcam = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
 
-  // Carregar modelos quando o componente montar
-  useEffect(() => {
-    let mounted = true;
-    
-    loadModels()
-      .then(() => {
-        if (mounted) {
-          setModelsLoaded(true);
-          // Iniciar câmera automaticamente após modelos carregarem
-          // Pequeno delay para garantir que tudo está pronto
-          setTimeout(() => {
-            if (mounted && !cameraStartedRef.current) {
-              startWebcam();
-            }
-          }, 300);
-        }
-      })
-      .catch((err) => {
-        if (mounted) {
-          console.error("Erro ao carregar modelos:", err);
-          setError("Erro ao carregar modelos de reconhecimento facial");
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [startWebcam]);
-
-  // Parar webcam
-  const stopWebcam = () => {
-    cameraStartedRef.current = false;
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+  }, []);
 
-  // Processar login facial
-  const handleFacialLogin = async () => {
-    if (!videoRef.current || !canvasRef.current || !modelsLoaded) {
-      setError("Aguarde o carregamento dos modelos ou inicie a webcam");
+  const failWith = useCallback((message: string) => {
+    if (!mountedRef.current) {
       return;
     }
 
-    setLoading(true);
-    setCapturing(true);
-    setError(null);
+    setError(message);
+    setPhase("error");
+  }, []);
+
+  const startWebcam = useCallback(async () => {
+    if (streamRef.current) {
+      return;
+    }
 
     try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user",
+        },
+        audio: false,
+      });
 
-      if (!context) {
-        throw new Error("Erro ao acessar canvas");
-      }
-
-      // Verificar se o vídeo está pronto e tem dimensões válidas
-      if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-        throw new Error("Aguarde a câmera estar pronta");
-      }
-
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        throw new Error("Vídeo não está pronto. Aguarde um momento e tente novamente");
-      }
-
-      // Capturar frame
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Validar rosto
-      const validation = await validateSingleFace(canvas);
-      if (!validation.valid) {
-        setError(validation.message);
-        setLoading(false);
-        setCapturing(false);
+      if (!mountedRef.current) {
+        mediaStream.getTracks().forEach((track) => track.stop());
         return;
       }
 
-      // Extrair descriptor
-      const descriptor = await extractFaceDescriptor(canvas);
-      if (!descriptor) {
-        setError("Não foi possível extrair o descriptor facial");
-        setLoading(false);
-        setCapturing(false);
+      streamRef.current = mediaStream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play().catch(() => {
+          // Autoplay bloqueado: o loop de captura espera o vídeo ficar pronto.
+        });
+      }
+
+      setPhase("searching");
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          failWith(
+            "Permissão de câmera negada. Libere o acesso à câmera para entrar pelo rosto."
+          );
+          return;
+        }
+
+        if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          failWith("Nenhuma câmera encontrada. Verifique se há uma câmera conectada.");
+          return;
+        }
+
+        failWith(`Erro ao acessar a câmera: ${err.message}`);
         return;
       }
 
-      // Converter para array
-      const descriptorArray = descriptorToArray(descriptor);
+      failWith("Não foi possível acessar a câmera. Verifique as permissões.");
+    }
+  }, [failWith]);
 
-      // Gerar nonce e timestamp para proteção contra replay
-      const nonce = `${Date.now()}-${Math.random().toString(36).substring(7)}-${Math.random().toString(36).substring(7)}`;
-      const timestamp = Date.now();
+  // Carregar modelos e abrir a câmera em sequência, sem passo manual.
+  useEffect(() => {
+    mountedRef.current = true;
 
-      // Enviar para API de autenticação com nonce e timestamp
+    loadModels()
+      .then(() => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setPhase("starting-camera");
+        return startWebcam();
+      })
+      .catch(() => {
+        failWith("Erro ao carregar os modelos de reconhecimento facial.");
+      });
+
+    return () => {
+      mountedRef.current = false;
+      stopWebcam();
+    };
+  }, [failWith, startWebcam, stopWebcam]);
+
+  const authenticate = useCallback(
+    async (descriptor: number[]) => {
+      const nonce = `${Date.now()}-${Math.random().toString(36).substring(7)}-${Math.random()
+        .toString(36)
+        .substring(7)}`;
+
       const response = await fetch("/api/auth/facial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          descriptor: descriptorArray,
-          nonce,
-          timestamp
-        }),
+        body: JSON.stringify({ descriptor, nonce, timestamp: Date.now() }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        
-        // Verificar se é rate limit
+        const errorData = await response.json().catch(() => ({}));
+
         if (response.status === 429) {
-          const retryAfter = response.headers.get('Retry-After');
-          throw new Error(errorData.error || `Muitas tentativas. Aguarde ${retryAfter} segundos.`);
+          const retryAfter = response.headers.get("Retry-After");
+          throw new Error(
+            errorData.error || `Muitas tentativas. Aguarde ${retryAfter} segundos.`
+          );
         }
-        
-        throw new Error(errorData.error || "Erro na autenticação");
+
+        throw new Error(errorData.error || "Rosto não reconhecido.");
       }
 
       const { user, token } = await response.json();
 
       if (!token) {
-        throw new Error("Token de autenticação não recebido");
+        throw new Error("Token de autenticação não recebido.");
       }
 
-      // Criar sessão usando NextAuth com token JWT
+      // O perfil escolhido antes da câmera precisa bater com o rosto reconhecido,
+      // senão o operador entraria como outra pessoa sem perceber.
+      if (profile && user?.email && user.email !== profile.email) {
+        throw new Error(
+          `O rosto reconhecido não corresponde ao perfil ${profileLabel(profile)}.`
+        );
+      }
+
       const signInResult = await signIn("credentials", {
         email: user.email,
-        password: token, // Token JWT temporário
+        password: token,
         redirect: false,
       });
 
       if (signInResult?.error) {
-        throw new Error("Erro ao criar sessão. Tente fazer login com email/senha.");
+        throw new Error("Erro ao criar sessão. Entre com e-mail e senha.");
       }
 
-      // Aguardar um pouco para garantir que a sessão foi criada
-      await new Promise(resolve => setTimeout(resolve, 300));
+      rememberLogin({
+        email: user.email,
+        name: user.name ?? null,
+        role: user.role ?? null,
+        image: user.image ?? null,
+        method: "facial",
+      });
 
-      // Redirecionar baseado no role
-      const redirectUrl = user.role === "pdv" ? "/pdv" : "/admin";
-      window.location.href = redirectUrl;
-    } catch (err) {
-      console.error("Erro no login facial:", err);
-      setError(
-        err instanceof Error ? err.message : "Erro ao processar login facial"
-      );
-      setLoading(false);
-      setCapturing(false);
+      stopWebcam();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      window.location.href = user.role === "pdv" ? "/pdv" : "/admin";
+    },
+    [profile, stopWebcam]
+  );
+
+  const attemptRecognition = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas) {
+      return;
     }
+
+    if (video.readyState !== video.HAVE_ENOUGH_DATA || !video.videoWidth) {
+      return;
+    }
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const validation = await validateSingleFace(canvas);
+
+    if (!validation.valid) {
+      if (mountedRef.current) {
+        // A mensagem da biblioteca fala em "imagem"; aqui a fonte é a câmera ao vivo.
+        setHint(
+          validation.message.includes("ltiplos") ? "Mais de um rosto na câmera" : null
+        );
+      }
+      return;
+    }
+
+    if (!mountedRef.current) {
+      return;
+    }
+
+    setHint(null);
+    setPhase("recognizing");
+
+    try {
+      const descriptor = await extractFaceDescriptor(canvas);
+
+      if (!descriptor) {
+        if (mountedRef.current) {
+          setPhase("searching");
+        }
+        return;
+      }
+
+      await authenticate(descriptorToArray(descriptor));
+    } catch (err) {
+      failWith(err instanceof Error ? err.message : "Erro ao processar o login facial.");
+    }
+  }, [authenticate, failWith]);
+
+  // Captura automática: dispara sozinha assim que um rosto encaixa na guia.
+  useEffect(() => {
+    if (phase !== "searching") {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (busyRef.current) {
+        return;
+      }
+
+      busyRef.current = true;
+      void attemptRecognition().finally(() => {
+        busyRef.current = false;
+      });
+    }, CAPTURE_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [attemptRecognition, phase]);
+
+  const handleRetry = () => {
+    setError(null);
+    setHint(null);
+
+    if (streamRef.current) {
+      setPhase("searching");
+      return;
+    }
+
+    setPhase("starting-camera");
+    void startWebcam();
   };
 
-  // Limpar ao desmontar
-  useEffect(() => {
-    return () => {
-      stopWebcam();
-    };
-  }, []);
+  const handleCancel = () => {
+    stopWebcam();
+    onCancel();
+  };
+
+  const isRecognizing = phase === "recognizing";
+  const isCameraLive = phase === "searching" || phase === "recognizing";
 
   return (
-    <div className="space-y-4 flex-1 flex flex-col">
-      {error && (
-        <Alert variant="destructive" className="border-red-200 bg-red-50">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-red-700">{error}</AlertDescription>
-        </Alert>
-      )}
+    <>
+      {/* mesma anatomia de cabeçalho da visão de senha */}
+      <div className="flex items-center gap-3.5">
+        {profile?.image ? (
+          <Image
+            src={profile.image}
+            alt=""
+            width={52}
+            height={52}
+            className="h-[52px] w-[52px] shrink-0 rounded-full object-cover"
+            unoptimized
+          />
+        ) : (
+          <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-primary text-[17px] font-semibold text-white">
+            {profile ? profileInitials(profile) : "?"}
+          </span>
+        )}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-xl font-semibold tracking-tight text-[color:var(--foreground)]">
+            {profile ? profileLabel(profile) : "Reconhecimento facial"}
+          </span>
+          <span className="truncate text-[13px] text-[color:var(--muted-foreground)]">
+            Olhe para a câmera para entrar.
+          </span>
+        </span>
+      </div>
 
-      {!stream && !modelsLoaded && (
-        <div className="flex items-center justify-center py-6 flex-1">
-          <div className="text-center space-y-3">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-            <p className="text-sm text-slate-600">
-              Carregando modelos de reconhecimento facial...
-            </p>
-          </div>
-        </div>
-      )}
-
-      {!stream && modelsLoaded && (
-        <Button
-          onClick={startWebcam}
-          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm"
-        >
-          <Camera className="h-4 w-4 mr-2" />
-          Iniciar Câmera
-        </Button>
-      )}
-
-      {stream && (
-        <div className="space-y-3 flex-1 flex flex-col">
-          <div className="relative bg-slate-900 rounded-xl overflow-hidden aspect-video flex-shrink-0 ring-1 ring-slate-200 shadow-md">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-              style={{ 
-                transform: 'scaleX(-1)' // Espelhar horizontalmente para parecer um espelho
-              }}
-              onLoadedMetadata={() => {
-                if (videoRef.current) {
-                  console.log('Vídeo pronto:', {
-                    width: videoRef.current.videoWidth,
-                    height: videoRef.current.videoHeight,
-                    readyState: videoRef.current.readyState,
-                    srcObject: videoRef.current.srcObject !== null
-                  });
-                }
-              }}
-              onLoadedData={() => {
-                if (videoRef.current) {
-                  videoRef.current.play().catch(err => {
-                    console.error('Erro ao reproduzir vídeo:', err);
-                  });
-                }
-              }}
-              onError={(e) => {
-                console.error('Erro no vídeo:', e);
-                setError('Erro ao reproduzir vídeo da câmera');
-              }}
-            />
-            <canvas ref={canvasRef} className="hidden" />
-            {/* Overlay de guia */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="border-2 border-white/30 rounded-full w-48 h-48" />
-            </div>
-            {capturing && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                <div className="text-white text-center space-y-3">
-                  <Loader2 className="h-10 w-10 animate-spin mx-auto" />
-                  <p className="font-medium">Processando reconhecimento...</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <Button
-            onClick={handleFacialLogin}
-            disabled={loading || !modelsLoaded || capturing}
-            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] text-sm disabled:hover:scale-100"
-          >
-            {loading || capturing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Reconhecendo...
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4 mr-2" />
-                Fazer Login
-              </>
-            )}
-          </Button>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={() => {
-          stopWebcam();
-          onCancel();
-        }}
-        className="w-full text-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors pt-1"
+      <div
+        className="relative mt-6 flex aspect-[4/3] w-full max-w-[420px] items-center justify-center overflow-hidden rounded-xl border border-[color:var(--auth-viewport-border)] bg-[#05080f] shadow-[var(--auth-viewport-shadow)]"
       >
-        Voltar para email e senha
-      </button>
-    </div>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ transform: "scaleX(-1)" }}
+        />
+        <canvas ref={canvasRef} className="hidden" />
+
+        {isCameraLive ? (
+          <div
+            className="relative"
+            style={
+              {
+                width: GUIDE_SIZE,
+                height: GUIDE_SIZE,
+                "--auth-scan-distance": `${GUIDE_SIZE - 4}px`,
+              } as React.CSSProperties
+            }
+          >
+            <div className="auth-facial-guide absolute inset-0 rounded-full border-2 border-white/25" />
+
+            <svg
+              width={GUIDE_SIZE}
+              height={GUIDE_SIZE}
+              viewBox={`0 0 ${GUIDE_SIZE} ${GUIDE_SIZE}`}
+              className="absolute inset-0 -rotate-90"
+              aria-hidden="true"
+            >
+              <circle
+                cx={GUIDE_SIZE / 2}
+                cy={GUIDE_SIZE / 2}
+                r={GUIDE_RADIUS}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={GUIDE_CIRCUMFERENCE}
+                strokeDashoffset={
+                  isRecognizing ? GUIDE_CIRCUMFERENCE * 0.25 : GUIDE_CIRCUMFERENCE
+                }
+                className="transition-[stroke-dashoffset] duration-[1200ms] ease-out"
+              />
+            </svg>
+
+            <div className="auth-facial-scan absolute left-0 top-0 h-0.5 w-full bg-gradient-to-r from-transparent via-blue-500/85 to-transparent" />
+          </div>
+        ) : null}
+
+        {phase === "error" ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/65 px-8 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <AlertCircle className="h-8 w-8 text-red-400" />
+              <p className="text-sm leading-relaxed text-white">{error}</p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex h-5 items-center gap-2.5 font-mono text-[13px] text-[color:var(--muted-foreground)]">
+        {phase === "error" ? null : (
+          <>
+            <Loader2 className="h-[15px] w-[15px] animate-spin text-primary" />
+            {hint && phase === "searching" ? hint : PHASE_MESSAGE[phase]}
+          </>
+        )}
+      </div>
+
+      <div className="mt-5 flex max-w-[420px] flex-col gap-2.5">
+        {phase === "error" ? (
+          <Button type="button" size="lg" onClick={handleRetry}>
+            Tentar novamente
+          </Button>
+        ) : null}
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11"
+          onClick={handleCancel}
+          leftIcon={<KeyRound className="h-[18px] w-[18px]" />}
+        >
+          Usar senha
+        </Button>
+      </div>
+    </>
   );
 }
-

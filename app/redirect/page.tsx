@@ -1,163 +1,201 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Loader2, Shield } from "lucide-react";
+import { AuthThemeProvider } from "@/app/components/AuthThemeProvider";
+import { BrandBackdrop } from "@/app/components/BrandBackdrop";
+import { Button } from "@/app/components/ui/button";
+import type { VersionStatusResponse } from "@/lib/version-metadata";
+import { AlertCircle, Check, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+/**
+ * Tempo mínimo em tela. Não é progresso falso: só evita o piscar quando as duas
+ * verificações respondem em poucas dezenas de milissegundos.
+ */
+const MIN_VISIBLE_MS = 900;
+
+type StepStatus = "pending" | "done" | "failed";
+
+interface BootSteps {
+  server: StepStatus;
+  session: StepStatus;
+}
+
+const INITIAL_STEPS: BootSteps = { server: "pending", session: "pending" };
+
+function StepRow({ status, label }: { status: StepStatus; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      {status === "done" ? (
+        <Check className="h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2.4} />
+      ) : status === "failed" ? (
+        <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+      ) : (
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+      )}
+      <span
+        className={
+          status === "failed"
+            ? "text-red-500"
+            : status === "done"
+              ? "text-[color:var(--muted-foreground)]"
+              : "text-[color:var(--foreground)]"
+        }
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function BootScreen() {
+  const router = useRouter();
+  const [steps, setSteps] = useState<BootSteps>(INITIAL_STEPS);
+  const [version, setVersion] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const boot = async () => {
+      setSteps(INITIAL_STEPS);
+      setError(null);
+
+      // 1. O servidor responde? /api/version é público e não depende de sessão.
+      try {
+        const versionResponse = await fetch("/api/version");
+
+        if (!versionResponse.ok) {
+          throw new Error(String(versionResponse.status));
+        }
+
+        const versionData: VersionStatusResponse = await versionResponse.json();
+
+        if (cancelled) return;
+
+        setVersion(versionData.version ?? null);
+        setSteps((current) => ({ ...current, server: "done" }));
+      } catch {
+        if (cancelled) return;
+
+        setSteps((current) => ({ ...current, server: "failed" }));
+        setError("O servidor não respondeu. Verifique a conexão e tente de novo.");
+        return;
+      }
+
+      // 2. Já existe sessão? É o que decide para onde ir.
+      let destination = "/auth/login";
+
+      try {
+        const sessionResponse = await fetch("/api/auth/session");
+
+        if (!sessionResponse.ok) {
+          throw new Error(String(sessionResponse.status));
+        }
+
+        const sessionData = await sessionResponse.json();
+
+        if (cancelled) return;
+
+        if (sessionData?.user) {
+          destination = sessionData.user.role === "pdv" ? "/pdv" : "/admin";
+        }
+
+        setSteps((current) => ({ ...current, session: "done" }));
+      } catch {
+        if (cancelled) return;
+
+        setSteps((current) => ({ ...current, session: "failed" }));
+        setError("Não foi possível verificar a sessão. Tente de novo.");
+        return;
+      }
+
+      const remaining = Math.max(0, MIN_VISIBLE_MS - (Date.now() - startedAt));
+
+      window.setTimeout(() => {
+        if (!cancelled) {
+          router.replace(destination);
+        }
+      }, remaining);
+    };
+
+    void boot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt, router]);
+
+  const completed = Object.values(steps).filter((status) => status === "done").length;
+  const progress = (completed / 2) * 100;
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+      <BrandBackdrop />
+
+      <div className="relative z-10 w-full max-w-[452px]">
+        <div className="flex items-center gap-3.5">
+          <Image
+            src="/img/icon.png"
+            alt=""
+            width={46}
+            height={46}
+            className="rounded-full"
+            priority
+          />
+          <div className="flex flex-col gap-1">
+            <span className="text-[17px] font-semibold tracking-tight text-[color:var(--foreground)]">
+              Comida Caseira
+            </span>
+            <span className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-[color:var(--auth-fg-subtle)]">
+              {error ? "Falha ao iniciar" : "Iniciando"}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-9 flex flex-col gap-3.5 font-mono text-[13px]">
+          <StepRow status={steps.server} label="Conectando ao servidor" />
+          <StepRow status={steps.session} label="Verificando sessão" />
+        </div>
+
+        <div className="mt-10 h-0.5 overflow-hidden bg-[color:var(--border)]">
+          <div
+            className={`h-full transition-[width] duration-500 ease-out ${
+              error ? "bg-red-500" : "bg-primary"
+            }`}
+            style={{ width: `${error ? 100 : progress}%` }}
+          />
+        </div>
+
+        <div className="mt-[18px] flex items-center justify-between font-mono text-[11.5px] text-[color:var(--auth-fg-subtle)]">
+          <span>Comida Caseira</span>
+          {version ? <span className="tabular-nums">v{version}</span> : null}
+        </div>
+
+        {error ? (
+          <div className="mt-8 flex flex-col gap-4">
+            <p className="text-sm leading-relaxed text-[color:var(--muted-foreground)]">{error}</p>
+            <Button
+              type="button"
+              className="h-12 w-full"
+              onClick={() => setAttempt((current) => current + 1)}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export default function RedirectPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 via-white to-slate-50/90 overflow-hidden relative">
-      {/* Background decorativo - blobs animados */}
-      <div
-        className="absolute top-1/4 -left-32 w-96 h-96 rounded-full opacity-[0.08] animate-blob"
-        style={{
-          background: "radial-gradient(circle, #3b82f6, #60a5fa)",
-        }}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-[480px] h-[480px] rounded-full opacity-[0.06] animate-blob animation-delay-4000"
-        style={{
-          background: "radial-gradient(circle, #38bdf8, #60a5fa)",
-        }}
-      />
-      <div
-        className="absolute top-1/2 left-1/4 w-64 h-64 rounded-full opacity-[0.05] animate-blob animation-delay-2000"
-        style={{
-          background: "radial-gradient(circle, #60a5fa, #818cf8)",
-        }}
-      />
-
-      {/* Padrão de grade sutil */}
-      <div
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
-
-      {/* Conteúdo central */}
-      <div className="relative z-10 flex flex-col items-center justify-center px-4">
-        {/* Logo com halo e animação */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="mb-8"
-        >
-          <div className="relative inline-block">
-            <div
-              className="absolute inset-0 rounded-full blur-2xl opacity-40"
-              style={{
-                background: "radial-gradient(circle, #3b82f6, #6366f1)",
-              }}
-            />
-            <Image
-              src="/img/icon.png"
-              alt="Comida Caseira"
-              width={96}
-              height={96}
-              className="relative rounded-full shadow-2xl"
-              priority
-            />
-          </div>
-        </motion.div>
-
-        {/* Título e descrição */}
-        <motion.div
-          initial={{ y: 16, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-center mb-8"
-        >
-          <h1
-            className="text-2xl sm:text-3xl font-bold tracking-tight mb-2"
-            style={{
-              background: "linear-gradient(90deg, #0f172a 0%, #2563eb 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Comida Caseira
-          </h1>
-          <p className="text-slate-500 text-sm italic font-medium">
-            Sabor que aquece o coração
-          </p>
-        </motion.div>
-
-        {/* Card de redirecionamento */}
-        <motion.div
-          initial={{ y: 24, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="w-full max-w-sm"
-        >
-          <div className="rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/50 backdrop-blur-sm p-6 sm:p-8">
-            {/* Loader animado */}
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="relative">
-                {/* Anéis concêntricos animados */}
-                <motion.div
-                  animate={{ scale: [1, 1.4, 1.8], opacity: [0.8, 0.4, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
-                  className="absolute inset-0 rounded-full bg-blue-100"
-                />
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0.3, 0.6] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
-                  className="absolute inset-0 rounded-full bg-blue-200"
-                />
-                <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
-                  <Loader2 className="h-8 w-8 text-white animate-spin" />
-                </div>
-              </div>
-
-              {/* Texto de redirecionamento */}
-              <div className="text-center space-y-1.5">
-                <p className="text-slate-700 font-semibold text-base">
-                  Redirecionando para o login...
-                </p>
-                <p className="text-slate-400 text-xs">
-                  Aguarde um momento
-                </p>
-              </div>
-
-              {/* Barra de progresso animada */}
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-4">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Footer com status de segurança */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.6 }}
-          className="mt-6 flex items-center gap-2 text-slate-400 text-xs"
-        >
-          <Shield className="h-3.5 w-3.5" />
-          <span>Conexão segura e criptografada</span>
-        </motion.div>
-
-        {/* Indicador de status online */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.7 }}
-          className="mt-2 flex items-center gap-1.5 text-slate-400 text-xs"
-        >
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Sistema online</span>
-        </motion.div>
-      </div>
-    </div>
+    <AuthThemeProvider>
+      <BootScreen />
+    </AuthThemeProvider>
   );
 }

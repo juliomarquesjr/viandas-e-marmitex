@@ -77,20 +77,6 @@
   --modal-header-close: #94a3b8;
   --modal-header-close-hover: rgba(37, 99, 235, 0.08);
 
-  /* Login — painel de marca (gradientes decorativos, alinhado ao azul do sistema) */
-  --auth-brand-glow-1-from: #3b82f6;
-  --auth-brand-glow-1-to: #38bdf8;
-  --auth-brand-glow-2-from: #38bdf8;
-  --auth-brand-glow-2-to: #60a5fa;
-  --auth-brand-glow-3-from: #60a5fa;
-  --auth-brand-glow-3-to: #818cf8;
-  --auth-brand-logo-halo-from: #3b82f6;
-  --auth-brand-logo-halo-to: #6366f1;
-  --auth-brand-title-mid: #7dd3fc;
-  --auth-brand-title-end: #93c5fd;
-  --auth-brand-divider: rgba(59, 130, 246, 0.4);
-  --auth-brand-feature-bg: rgba(59, 130, 246, 0.15);
-  --auth-brand-feature-border: rgba(59, 130, 246, 0.25);
 }
 
 @theme inline {
@@ -213,6 +199,130 @@ body {
   --modal-header-close: #94a3b8;
   --modal-header-close-hover: rgb(var(--admin-accent-rgb, 37 99 235) / 0.08);
   color-scheme: light;
+}
+
+/* =============================================================================
+   LOGIN — superfície própria, com tema claro/escuro persistido em localStorage.
+   Redefine os tokens base (como o escopo do admin faz) para que Button, Input e
+   demais componentes do design system funcionem nos dois temas sem override,
+   e acrescenta os tokens exclusivos desta tela (grade, brilho, ladrilhos).
+   ============================================================================= */
+[data-auth-theme-scope] {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+[data-auth-theme="light"] [data-auth-theme-scope] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --accent: #eff6ff;
+  --accent-foreground: #1e40af;
+  --border: #e2e8f0;
+  --border-dark: #cbd5e1;
+  --input: #e2e8f0;
+
+  /* fundo da página */
+  --auth-ring: rgba(15, 23, 42, 0.055);
+  --auth-grain-opacity: 0.035;
+  --auth-glow: rgba(37, 99, 235, 0.10);
+
+  /* painel dividido */
+  --auth-panel-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --auth-aside-bg: #f8fafc;
+  --auth-footer-bg: #f1f5f9;
+
+  /* linhas de perfil */
+  --auth-row-name: #334155;
+  --auth-row-selected-bg: #ffffff;
+  --auth-row-selected-border: #dbeafe;
+  --auth-row-selected-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --auth-row-hover-bg: #eef2f7;
+  --auth-avatar-bg: #e2e8f0;
+  --auth-avatar-fg: #64748b;
+  --auth-dashed-border: #cbd5e1;
+
+  /* campos e visor */
+  --auth-field-bg: #ffffff;
+  --auth-field-border: #cbd5e1;
+  --auth-fg-subtle: #94a3b8;
+  --auth-viewport-border: #cbd5e1;
+  --auth-viewport-shadow: 0 8px 24px -12px rgb(15 23 42 / 0.28);
+  color-scheme: light;
+}
+
+[data-auth-theme="dark"] [data-auth-theme-scope] {
+  --background: #0a0f1c;
+  --foreground: #f1f5f9;
+  --muted-foreground: #64748b;
+  --card: #111a2e;
+  --card-foreground: #f1f5f9;
+  --muted: #172036;
+  --accent: rgba(37, 99, 235, 0.16);
+  --accent-foreground: #dbeafe;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-dark: rgba(255, 255, 255, 0.16);
+  --input: rgba(255, 255, 255, 0.12);
+
+  /* fundo da página */
+  --auth-ring: rgba(148, 163, 184, 0.075);
+  --auth-grain-opacity: 0.05;
+  --auth-glow: rgba(37, 99, 235, 0.18);
+
+  /* painel dividido */
+  --auth-panel-shadow: 0 28px 64px -30px rgb(0 0 0 / 0.75);
+  --auth-aside-bg: #0d1424;
+  --auth-footer-bg: #0d1424;
+
+  /* linhas de perfil */
+  --auth-row-name: #cbd5e1;
+  --auth-row-selected-bg: rgba(37, 99, 235, 0.14);
+  --auth-row-selected-border: rgba(59, 130, 246, 0.45);
+  --auth-row-selected-shadow: none;
+  --auth-row-hover-bg: rgba(255, 255, 255, 0.04);
+  --auth-avatar-bg: rgba(255, 255, 255, 0.07);
+  --auth-avatar-fg: #94a3b8;
+  --auth-dashed-border: rgba(255, 255, 255, 0.14);
+
+  /* campos e visor */
+  --auth-field-bg: rgba(255, 255, 255, 0.05);
+  --auth-field-border: rgba(255, 255, 255, 0.12);
+  --auth-fg-subtle: #475569;
+  --auth-viewport-border: rgba(255, 255, 255, 0.09);
+  --auth-viewport-shadow: none;
+  color-scheme: dark;
+}
+
+/* Fundo "mesa posta": os pratos respiram devagar o bastante para não distrair. */
+@keyframes authTableBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
+.auth-table-backdrop {
+  transform-origin: 50% 50%;
+  animation: authTableBreathe 24s ease-in-out infinite;
+}
+
+/* Varredura e anel de progresso do reconhecimento facial */
+@keyframes authFacialScan {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateY(var(--auth-scan-distance, 232px)); opacity: 0; }
+}
+.auth-facial-scan {
+  animation: authFacialScan 2s ease-in-out infinite;
+}
+
+@keyframes authFacialGuide {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.5; }
+}
+.auth-facial-guide {
+  animation: authFacialGuide 2.2s ease-in-out infinite;
 }
 
 [data-admin-theme-scope][data-admin-theme="dark"] {
