@@ -6,6 +6,9 @@ export type AuthThemeMode = "light" | "dark";
 
 export const AUTH_THEME_STORAGE_KEY = "auth:theme";
 
+/** Tema de partida quando o usuário ainda não escolheu nenhum. */
+export const DEFAULT_AUTH_THEME_MODE: AuthThemeMode = "light";
+
 interface AuthThemeContextValue {
   mode: AuthThemeMode;
   setMode: (mode: AuthThemeMode) => void;
@@ -22,14 +25,19 @@ function isThemeMode(value: unknown): value is AuthThemeMode {
  * Roda antes da primeira pintura e escreve o tema em <html>. Fica no layout raiz
  * porque a splash (`/` e `/redirect`) também usa o escopo; sozinho o atributo não
  * muda nada — só vale onde existe um `[data-auth-theme-scope]`.
+ *
+ * Sem escolha salva o tema é claro, independente do tema do sistema operacional:
+ * o escuro é opt-in pelo botão.
  */
 export const AUTH_THEME_BOOTSTRAP_SCRIPT = `(function(){try{var m=window.localStorage.getItem(${JSON.stringify(
   AUTH_THEME_STORAGE_KEY
-)});if(m!=="light"&&m!=="dark"){m=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}document.documentElement.setAttribute("data-auth-theme",m);}catch(e){}})();`;
+)});if(m!=="light"&&m!=="dark"){m=${JSON.stringify(
+  DEFAULT_AUTH_THEME_MODE
+)};}document.documentElement.setAttribute("data-auth-theme",m);}catch(e){}})();`;
 
 function resolveInitialMode(): AuthThemeMode {
   if (typeof window === "undefined") {
-    return "light";
+    return DEFAULT_AUTH_THEME_MODE;
   }
 
   const fromRoot = document.documentElement.getAttribute("data-auth-theme");
@@ -45,14 +53,14 @@ function resolveInitialMode(): AuthThemeMode {
       return stored;
     }
   } catch {
-    // Sem armazenamento: cai na preferência do sistema.
+    // Sem armazenamento: segue com o padrão.
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return DEFAULT_AUTH_THEME_MODE;
 }
 
 export function AuthThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = React.useState<AuthThemeMode>("light");
+  const [mode, setModeState] = React.useState<AuthThemeMode>(DEFAULT_AUTH_THEME_MODE);
 
   React.useLayoutEffect(() => {
     const initialMode = resolveInitialMode();
