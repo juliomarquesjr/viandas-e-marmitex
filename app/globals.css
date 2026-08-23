@@ -12,6 +12,10 @@
   --background: #f8fafc; /* slate-50 */
   --foreground: #0f172a; /* slate-900 */
   --muted-foreground: #64748b; /* slate-500 */
+  /* Texto secundário sobre superfície secundária: --muted-foreground sobre
+     --muted fica em 4,34:1, logo abaixo do mínimo. Valor explícito por tema:
+     color-mix() aqui seria resolvido no :root e herdado congelado no claro. */
+  --muted-foreground-strong: #49566c;
 
   /* Paleta principal (azul profissional) */
   --primary: #2563eb; /* blue-600 */
@@ -76,6 +80,25 @@
   --modal-header-icon-ring: rgba(37, 99, 235, 0.18);
   --modal-header-close: #94a3b8;
   --modal-header-close-hover: rgba(37, 99, 235, 0.08);
+
+  /* Estados do pré-pedido — uma cor por etapa, reusada em trilho, avatar, chip e trilha do dia */
+  --state-fila: #64748b;      --state-fila-bg: #f1f5f9;      --state-fila-fg: #475569;
+  --state-producao: #2563eb;  --state-producao-bg: #dbeafe;  --state-producao-fg: #1d4ed8;
+  --state-pronto: #d97706;    --state-pronto-bg: #fef3c7;    --state-pronto-fg: #92400e;
+  --state-rota: #7c3aed;      --state-rota-bg: #ede9fe;      --state-rota-fg: #5b21b6;
+  --state-cobrar: #e11d48;    --state-cobrar-bg: #ffe4e6;    --state-cobrar-fg: #9f1239;
+  --state-faturado: #0d9488;  --state-faturado-bg: #ccfbf1;  --state-faturado-fg: #115e59;
+  --state-cancelado: #94a3b8; --state-cancelado-bg: #f8fafc; --state-cancelado-fg: #64748b;
+  /* Versão sólida (preenchimento) + a cor do texto que vai sobre ela.
+     Separada da cor de destaque: âmbar e verde-azulado não passam no
+     contraste com texto branco, e no tema escuro os matizes são claros. */
+  --state-fila-solid: #475569;      --state-fila-on: #ffffff;
+  --state-producao-solid: #2563eb;  --state-producao-on: #ffffff;
+  --state-pronto-solid: #b45309;    --state-pronto-on: #ffffff;
+  --state-rota-solid: #6d28d9;      --state-rota-on: #ffffff;
+  --state-cobrar-solid: #e11d48;    --state-cobrar-on: #ffffff;
+  --state-faturado-solid: #0f766e;  --state-faturado-on: #ffffff;
+  --state-cancelado-solid: #475569; --state-cancelado-on: #ffffff;
 
 }
 
@@ -178,6 +201,26 @@ body {
 }
 
 [data-admin-theme-scope][data-admin-theme="light"] {
+  --muted-foreground-strong: #49566c;
+
+  /* Estados do pré-pedido — uma cor por etapa, reusada em trilho, avatar, chip e trilha do dia */
+  --state-fila: #64748b;      --state-fila-bg: #f1f5f9;      --state-fila-fg: #475569;
+  --state-producao: #2563eb;  --state-producao-bg: #dbeafe;  --state-producao-fg: #1d4ed8;
+  --state-pronto: #d97706;    --state-pronto-bg: #fef3c7;    --state-pronto-fg: #92400e;
+  --state-rota: #7c3aed;      --state-rota-bg: #ede9fe;      --state-rota-fg: #5b21b6;
+  --state-cobrar: #e11d48;    --state-cobrar-bg: #ffe4e6;    --state-cobrar-fg: #9f1239;
+  --state-faturado: #0d9488;  --state-faturado-bg: #ccfbf1;  --state-faturado-fg: #115e59;
+  --state-cancelado: #94a3b8; --state-cancelado-bg: #f8fafc; --state-cancelado-fg: #64748b;
+  /* Versão sólida (preenchimento) + a cor do texto que vai sobre ela.
+     Separada da cor de destaque: âmbar e verde-azulado não passam no
+     contraste com texto branco, e no tema escuro os matizes são claros. */
+  --state-fila-solid: #475569;      --state-fila-on: #ffffff;
+  --state-producao-solid: #2563eb;  --state-producao-on: #ffffff;
+  --state-pronto-solid: #b45309;    --state-pronto-on: #ffffff;
+  --state-rota-solid: #6d28d9;      --state-rota-on: #ffffff;
+  --state-cobrar-solid: #e11d48;    --state-cobrar-on: #ffffff;
+  --state-faturado-solid: #0f766e;  --state-faturado-on: #ffffff;
+  --state-cancelado-solid: #475569; --state-cancelado-on: #ffffff;
   --background: #f8fafc;
   --foreground: #0f172a;
   --muted-foreground: #64748b;
@@ -326,6 +369,24 @@ body {
 }
 
 [data-admin-theme-scope][data-admin-theme="dark"] {
+  --muted-foreground-strong: #adb9ca;
+
+  /* Estados do pré-pedido — redefinidos para o fundo escuro, não invertidos */
+  --state-fila: #94a3b8;      --state-fila-bg: #1e293b;      --state-fila-fg: #cbd5e1;
+  --state-producao: #60a5fa;  --state-producao-bg: #16305c;  --state-producao-fg: #bfdbfe;
+  --state-pronto: #fbbf24;    --state-pronto-bg: #3d2c0a;    --state-pronto-fg: #fde68a;
+  --state-rota: #a78bfa;      --state-rota-bg: #2e2352;      --state-rota-fg: #ddd6fe;
+  --state-cobrar: #fb7185;    --state-cobrar-bg: #4c1226;    --state-cobrar-fg: #fecdd3;
+  --state-faturado: #2dd4bf;  --state-faturado-bg: #10403c;  --state-faturado-fg: #99f6e4;
+  --state-cancelado: #64748b; --state-cancelado-bg: #16202f; --state-cancelado-fg: #94a3b8;
+  /* No escuro o sólido é o matiz claro e o texto por cima é escuro. */
+  --state-fila-solid: #94a3b8;      --state-fila-on: #0f172a;
+  --state-producao-solid: #60a5fa;  --state-producao-on: #0b1220;
+  --state-pronto-solid: #fbbf24;    --state-pronto-on: #1c1300;
+  --state-rota-solid: #a78bfa;      --state-rota-on: #1a0b33;
+  --state-cobrar-solid: #fb7185;    --state-cobrar-on: #3f0715;
+  --state-faturado-solid: #2dd4bf;  --state-faturado-on: #04231a;
+  --state-cancelado-solid: #94a3b8; --state-cancelado-on: #0f172a;
   --background: #020617;
   --foreground: #e2e8f0;
   --muted-foreground: #94a3b8;

@@ -126,7 +126,7 @@ export async function PUT(
 
     // Atualizar status
     if (body.status) {
-      const validStatuses = ['pending', 'preparing', 'out_for_delivery', 'in_transit', 'delivered', 'cancelled'];
+      const validStatuses = ['pending', 'preparing', 'ready', 'out_for_delivery', 'in_transit', 'delivered', 'cancelled'];
       if (!validStatuses.includes(body.status)) {
         return NextResponse.json(
           { error: 'Invalid status' },

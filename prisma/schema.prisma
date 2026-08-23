@@ -170,6 +170,7 @@ model CustomerProductPreset {
 enum DeliveryStatus {
   pending
   preparing
+  ready              // Pronto e aguardando o cliente retirar no balcão
   out_for_delivery
   in_transit
   delivered
