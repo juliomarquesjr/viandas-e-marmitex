@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AuthThemeProvider } from "@/app/components/AuthThemeProvider";
 
 export default function AuthLayout({
   children,
@@ -6,8 +7,10 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense>
-      {children}
-    </Suspense>
+    <AuthThemeProvider>
+      <Suspense>
+        {children}
+      </Suspense>
+    </AuthThemeProvider>
   );
 }

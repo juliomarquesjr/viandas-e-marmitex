@@ -205,9 +205,12 @@ export function buildPreOrderThermalPrintBytes(
   for (const item of preOrder.items) {
     lines.push(...wrapText(item.product.name));
 
+    // Em itens por quilo, priceCents é o total da linha: volta ao preço/kg.
     const quantityLabel =
       item.weightKg && Number(item.weightKg) > 0
-        ? `${Number(item.weightKg).toFixed(3)}kg x ${formatCurrency(item.priceCents)}`
+        ? `${Number(item.weightKg).toFixed(3)}kg x ${formatCurrency(
+            Math.round(item.priceCents / Number(item.weightKg))
+          )}/kg`
         : `${item.quantity}x ${formatCurrency(item.priceCents)}`;
 
     const totalCents =

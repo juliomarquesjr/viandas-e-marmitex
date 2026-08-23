@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Button } from "@/app/components/ui/button";
 import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { formatCurrency, formatDate } from "@/lib/customer-auth";
+import { formatWeightKg } from "@/lib/weight";
 import { Calendar, Package, ShoppingCart, MapPin } from "lucide-react";
 import Link from "next/link";
 
 interface PreOrderItem {
   quantity: number;
   priceCents: number;
+  weightKg?: number | string | null;
   product: {
     id: string;
     name: string;
@@ -77,16 +79,22 @@ export function PreOrderCard({ preOrder }: PreOrderCardProps) {
               Itens
             </h4>
             <div className="space-y-2">
-              {preOrder.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span className="text-gray-700">
-                    {item.quantity}x {item.product.name}
-                  </span>
-                  <span className="font-medium">
-                    {formatCurrency(item.priceCents * item.quantity)}
-                  </span>
-                </div>
-              ))}
+              {preOrder.items.map((item, idx) => {
+                const weightKg = item.weightKg != null ? Number(item.weightKg) : 0;
+                const isWeightBased = weightKg > 0;
+                return (
+                  <div key={idx} className="flex justify-between gap-3 text-sm">
+                    <span className="text-gray-700 min-w-0">
+                      {isWeightBased
+                        ? `${formatWeightKg(weightKg)} kg × ${item.product.name}`
+                        : `${item.quantity}x ${item.product.name}`}
+                    </span>
+                    <span className="font-medium tabular-nums flex-shrink-0">
+                      {formatCurrency(item.priceCents * item.quantity)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

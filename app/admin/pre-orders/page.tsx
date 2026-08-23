@@ -508,7 +508,9 @@ export default function AdminPreOrdersPage() {
             items: selectedPreOrder.items.map(item => ({
               productId: item.product.id,
               quantity: item.quantity,
-              priceCents: item.priceCents
+              priceCents: item.priceCents,
+              // Itens por quilo precisam do peso para a API recalcular o preço.
+              weightKg: item.weightKg != null ? Number(item.weightKg) : null
             })),
             discountCents: discountCents,
             deliveryFeeCents: selectedPreOrder.deliveryFeeCents,
@@ -518,7 +520,8 @@ export default function AdminPreOrdersPage() {
         });
 
         if (!updateResponse.ok) {
-          throw new Error('Failed to update pre-order discount');
+          const detail = await updateResponse.json().catch(() => null);
+          throw new Error(detail?.error || 'Erro ao atualizar o desconto do pré-pedido.');
         }
       }
 
@@ -541,7 +544,9 @@ export default function AdminPreOrdersPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to convert pre-order to order');
+        // A API explica o motivo (ex.: estoque insuficiente) — não engolir.
+        const detail = await response.json().catch(() => null);
+        throw new Error(detail?.error || 'Erro ao converter pré-pedido em venda. Por favor, tente novamente.');
       }
 
       setIsPaymentDialogOpen(false);
@@ -550,7 +555,12 @@ export default function AdminPreOrdersPage() {
       showToast('Pré-pedido convertido em venda com sucesso!', 'success');
     } catch (error) {
       console.error("Error converting pre-order to order:", error);
-      showToast("Erro ao converter pré-pedido em venda. Por favor, tente novamente.", 'error');
+      showToast(
+        error instanceof Error && error.message
+          ? error.message
+          : "Erro ao converter pré-pedido em venda. Por favor, tente novamente.",
+        'error'
+      );
     } finally {
       setIsConverting(false);
     }

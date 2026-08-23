@@ -1,3 +1,4 @@
+import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/app/components/AuthThemeProvider";
 import { Providers } from "@/app/components/Providers";
 import { DesktopWindowFrame } from "@/app/components/DesktopWindowFrame";
 import type { Metadata } from "next";
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
         <Providers>
           <DesktopWindowFrame>{children}</DesktopWindowFrame>
         </Providers>

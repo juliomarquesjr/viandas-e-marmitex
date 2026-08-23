@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  WEIGHT_RANGE_HINT,
+  WEIGHT_REQUIRED_MESSAGE,
+  parseWeightInput,
+  roundWeightKg,
+  sanitizeWeightInput,
+  validateWeightKg,
+  weightPriceCents,
+} from "@/lib/weight";
 import { Scale, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
@@ -46,65 +55,31 @@ export function WeightInputModal({
   }, [open]);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    
-    // Permitir apenas números e ponto/vírgula decimal
-    const cleanedValue = value.replace(/[^0-9,.]/g, "");
-    
-    // Substituir vírgula por ponto
-    const normalizedValue = cleanedValue.replace(",", ".");
-    
-    // Validar formato (máximo 3 casas decimais)
-    if (normalizedValue === "" || normalizedValue === ".") {
-      setWeight(normalizedValue);
-      setError("");
-      return;
-    }
+    // Aceita vírgula ou ponto; as regras de limite vivem em lib/weight.
+    const normalized = sanitizeWeightInput(e.target.value);
+    setWeight(normalized);
 
-    const numValue = parseFloat(normalizedValue);
-    
-    if (isNaN(numValue)) {
-      setWeight(normalizedValue);
-      setError("");
-      return;
-    }
-
-    // Validar limites
-    if (numValue < 0.001) {
-      setError("Peso mínimo: 0,001 kg (1 grama)");
-      setWeight(normalizedValue);
-      return;
-    }
-
-    if (numValue > 999.999) {
-      setError("Peso máximo: 999,999 kg");
-      setWeight(normalizedValue);
-      return;
-    }
-
-    setWeight(normalizedValue);
-    setError("");
+    const parsed = parseWeightInput(normalized);
+    setError(parsed === null ? "" : validateWeightKg(parsed) ?? "");
   };
 
   const handleConfirm = () => {
-    if (!weight || weight === "") {
-      setError("Por favor, insira o peso");
+    const parsed = parseWeightInput(weight);
+
+    if (parsed === null) {
+      setError(WEIGHT_REQUIRED_MESSAGE);
       return;
     }
 
-    const numWeight = parseFloat(weight.replace(",", "."));
-    
-    if (isNaN(numWeight) || numWeight < 0.001) {
-      setError("Peso mínimo: 0,001 kg (1 grama)");
+    const weightKg = roundWeightKg(parsed);
+    const validationError = validateWeightKg(weightKg);
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    if (numWeight > 999.999) {
-      setError("Peso máximo: 999,999 kg");
-      return;
-    }
-
-    onConfirm(numWeight);
+    onConfirm(weightKg);
     setWeight("");
     setError("");
   };
@@ -118,8 +93,9 @@ export function WeightInputModal({
   if (!open) return null;
 
   const pricePerKg = formatPriceToReais(pricePerKgCents);
-  const numWeight = weight ? parseFloat(weight.replace(",", ".")) : 0;
-  const totalPriceCents = numWeight > 0 ? Math.round(pricePerKgCents * numWeight) : 0;
+  const numWeight = parseWeightInput(weight) ?? 0;
+  const totalPriceCents =
+    numWeight > 0 ? weightPriceCents(pricePerKgCents, numWeight) : 0;
   const totalPrice = formatPriceToReais(totalPriceCents);
 
   return (
@@ -176,9 +152,7 @@ export function WeightInputModal({
             {error && (
               <p className="text-sm text-red-600">{error}</p>
             )}
-            <p className="text-xs text-gray-500">
-              Peso mínimo: 0,001 kg (1 grama) | Máximo: 999,999 kg
-            </p>
+            <p className="text-xs text-gray-500">{WEIGHT_RANGE_HINT}</p>
           </div>
 
           <div className="p-4 bg-orange-50 rounded-xl border border-orange-200 space-y-2">
@@ -218,7 +192,7 @@ export function WeightInputModal({
             <Button
               type="button"
               onClick={handleConfirm}
-              disabled={!weight || parseFloat(weight.replace(",", ".")) < 0.001}
+              disabled={!!validateWeightKg(parseWeightInput(weight))}
               className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Adicionar ao Carrinho

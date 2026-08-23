@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
+import { Badge } from "@/app/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +14,18 @@ import {
   DialogTitle,
 } from "@/app/components/ui/dialog";
 import {
+  formatWeightKg,
+  isWeightBasedProduct,
+  weightPriceCents,
+} from "@/lib/weight";
+import {
+  AlertTriangle,
   Check,
   Loader2,
   Package,
+  Pencil,
   Plus,
+  Scale,
   Search,
   ShoppingCart,
   Tag,
@@ -26,6 +35,7 @@ import {
 import { useEffect, useState } from "react";
 import { useToast } from "./Toast";
 import { CustomerSelectorDialog } from "./CustomerSelectorDialog";
+import { WeightInputDialog } from "./WeightInputDialog";
 
 // =============================================================================
 // TIPOS
@@ -41,10 +51,12 @@ type Product = {
   id: string;
   name: string;
   priceCents: number;
-  pricePerKgCents?: number;
+  pricePerKgCents?: number | null;
   barcode?: string;
   imageUrl?: string;
   active: boolean;
+  stockEnabled?: boolean;
+  stock?: number | null;
   category?: { id: string; name: string };
 };
 
@@ -53,7 +65,12 @@ type PreOrderItem = {
   productId: string;
   quantity: number;
   priceCents: number;
+  /** Preenchido só em produtos vendidos por quilo. */
+  weightKg?: number | null;
 };
+
+/** Produto aguardando o peso: index null = item novo, número = item em edição. */
+type WeightTarget = { product: Product; index: number | null };
 
 type PreOrder = {
   id?: string;
@@ -93,6 +110,56 @@ function formatCurrency(cents: number | null) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 }
 
+/** A partir daqui o produto ganha aviso âmbar de estoque acabando (igual ao PDV). */
+const LOW_STOCK_THRESHOLD = 3;
+
+/**
+ * Unidades do produto já lançadas no pré-pedido. Item por quilo conta 1 por
+ * linha, que é como a baixa de estoque acontece na conversão em venda.
+ */
+function unitsInPreOrder(items: PreOrderItem[], productId: string) {
+  return items
+    .filter((item) => item.productId === productId)
+    .reduce((sum, item) => sum + item.quantity, 0);
+}
+
+/**
+ * Leitura de estoque para exibição. O pré-pedido é pedido futuro: aqui só
+ * avisamos — quem bloqueia de fato é a conversão em venda.
+ */
+function readStock(product: Product | undefined, items: PreOrderItem[]) {
+  const controlled = !!product?.stockEnabled;
+  const stock = product?.stock ?? null;
+  const units = product ? unitsInPreOrder(items, product.id) : 0;
+
+  return {
+    controlled,
+    stock,
+    units,
+    unknown: controlled && stock === null,
+    out: controlled && stock === 0,
+    low: controlled && stock !== null && stock > 0 && stock <= LOW_STOCK_THRESHOLD,
+    exceeds: controlled && stock !== null && units > stock,
+  };
+}
+
+function StockLine({
+  tone,
+  dot,
+  children,
+}: {
+  tone: string;
+  dot: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className={`flex items-center gap-1.5 text-[11px] leading-none ${tone}`}>
+      <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${dot}`} />
+      {children}
+    </span>
+  );
+}
+
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
@@ -120,6 +187,7 @@ export function PreOrderFormDialog({
   const [showProductModal, setShowProductModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [weightTarget, setWeightTarget] = useState<WeightTarget | null>(null);
 
   // ── Carregar dados ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -165,6 +233,8 @@ export function PreOrderFormDialog({
               productId: item.productId,
               quantity: item.quantity,
               priceCents: item.priceCents,
+              // Chega como string (Decimal serializado pelo Prisma).
+              weightKg: item.weightKg != null ? Number(item.weightKg) : null,
             })),
           });
         } else {
@@ -196,8 +266,8 @@ export function PreOrderFormDialog({
 
   const filteredProducts = products.filter((p) => {
     if (!p.active) return false;
-    if (!p.priceCents || p.priceCents <= 0) return false;
-    if (p.pricePerKgCents && p.pricePerKgCents > 0) return false;
+    // Produto por quilo não tem valor unitário: vale o preço por quilo.
+    if (!isWeightBasedProduct(p) && (!p.priceCents || p.priceCents <= 0)) return false;
     const q = searchQuery.toLowerCase();
     return (
       p.name.toLowerCase().includes(q) ||
@@ -206,11 +276,41 @@ export function PreOrderFormDialog({
     );
   });
 
+  /** Confirma a adição; se passar do saldo, o toast vira aviso em vez de sucesso. */
+  const notifyAdded = (
+    product: Product,
+    action: string,
+    overStock: boolean,
+    stock: number | null
+  ) => {
+    if (overStock) {
+      showToast(
+        `${product.name} — ${action}, acima do estoque (${stock} un. ${
+          stock === 1 ? "disponível" : "disponíveis"
+        })`,
+        "warning"
+      );
+      return;
+    }
+    showToast(`${product.name} — ${action}`, "success");
+  };
+
   const handleAddProduct = (product: Product) => {
+    // Por quilo entra sempre como linha nova, com o peso informado na hora.
+    if (isWeightBasedProduct(product)) {
+      setWeightTarget({ product, index: null });
+      return;
+    }
     if (!product.priceCents || product.priceCents <= 0) {
       showToast("Produto sem valor unitário definido.", "error");
       return;
     }
+    const stockAfter = readStock(product, preOrder.items);
+    const overStock =
+      stockAfter.controlled &&
+      stockAfter.stock !== null &&
+      stockAfter.units + 1 > stockAfter.stock;
+
     const existing = preOrder.items.find((item) => item.productId === product.id);
     if (existing) {
       setPreOrder((prev) => ({
@@ -219,14 +319,46 @@ export function PreOrderFormDialog({
           item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
         ),
       }));
-      showToast(`${product.name} — quantidade atualizada`, "success");
     } else {
       setPreOrder((prev) => ({
         ...prev,
         items: [...prev.items, { productId: product.id, quantity: 1, priceCents: product.priceCents }],
       }));
-      showToast(`${product.name} adicionado`, "success");
     }
+
+    notifyAdded(product, existing ? "quantidade atualizada" : "adicionado", overStock, stockAfter.stock);
+    setSearchQuery("");
+  };
+
+  const handleConfirmWeight = (weightKg: number) => {
+    if (!weightTarget) return;
+    const { product, index } = weightTarget;
+    const priceCents = weightPriceCents(product.pricePerKgCents ?? 0, weightKg);
+
+    setPreOrder((prev) => {
+      const items = [...prev.items];
+      if (index !== null && items[index]) {
+        items[index] = { ...items[index], quantity: 1, priceCents, weightKg };
+      } else {
+        items.push({ productId: product.id, quantity: 1, priceCents, weightKg });
+      }
+      return { ...prev, items };
+    });
+
+    if (index !== null) {
+      showToast(`${product.name} — peso atualizado para ${formatWeightKg(weightKg)} kg`, "success");
+    } else {
+      const stockAfter = readStock(product, preOrder.items);
+      notifyAdded(
+        product,
+        `${formatWeightKg(weightKg)} kg adicionado`,
+        stockAfter.controlled &&
+          stockAfter.stock !== null &&
+          stockAfter.units + 1 > stockAfter.stock,
+        stockAfter.stock
+      );
+    }
+    setWeightTarget(null);
     setSearchQuery("");
   };
 
@@ -282,6 +414,7 @@ export function PreOrderFormDialog({
             productId: item.productId,
             quantity: item.quantity,
             priceCents: item.priceCents,
+            weightKg: item.weightKg ?? null,
           })),
         }),
       });
@@ -297,6 +430,11 @@ export function PreOrderFormDialog({
   };
 
   const selectedCustomer = customers.find((c) => c.id === preOrder.customerId);
+
+  // Produtos cujo total pedido passou do saldo: só avisa, quem trava é a conversão.
+  const productsOverStock = Array.from(new Set(preOrder.items.map((i) => i.productId)))
+    .map((id) => products.find((p) => p.id === id))
+    .filter((p): p is Product => !!p && readStock(p, preOrder.items).exceeds);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -403,6 +541,23 @@ export function PreOrderFormDialog({
                   }
                 />
 
+                {productsOverStock.length > 0 && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-amber-800">
+                        {productsOverStock.length === 1
+                          ? "1 produto acima do estoque disponível"
+                          : `${productsOverStock.length} produtos acima do estoque disponível`}
+                      </p>
+                      <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                        O pré-pedido pode ser salvo normalmente, mas a conversão em venda
+                        vai falhar enquanto o saldo não cobrir a quantidade pedida.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {preOrder.items.length === 0 ? (
                   <button
                     type="button"
@@ -422,6 +577,18 @@ export function PreOrderFormDialog({
                   <div className="space-y-2">
                     {preOrder.items.map((item, index) => {
                       const product = products.find((p) => p.id === item.productId);
+                      const itemWeightKg = item.weightKg != null ? Number(item.weightKg) : 0;
+                      const isWeightItem = itemWeightKg > 0;
+                      // Preço/kg do cadastro; se o produto sumiu, deduz do próprio item.
+                      const itemPricePerKgCents = isWeightItem
+                        ? Number(product?.pricePerKgCents ?? 0) ||
+                          Math.round(item.priceCents / itemWeightKg)
+                        : 0;
+                      const stockInfo = readStock(product, preOrder.items);
+                      // Um produto pode render várias linhas: avisa só na primeira.
+                      const showStockWarning =
+                        stockInfo.exceeds &&
+                        preOrder.items.findIndex((i) => i.productId === item.productId) === index;
                       return (
                         <div
                           key={item.id || index}
@@ -446,41 +613,72 @@ export function PreOrderFormDialog({
 
                           {/* Nome + preço */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">
-                              {product?.name || "Produto não encontrado"}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">
+                                {product?.name || "Produto não encontrado"}
+                              </p>
+                              {isWeightItem && (
+                                <Badge variant="warning" size="sm" className="flex-shrink-0">
+                                  Por quilo
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5 tabular-nums">
+                              {isWeightItem
+                                ? `${formatWeightKg(itemWeightKg)} kg × ${formatCurrency(itemPricePerKgCents)}/kg`
+                                : `${formatCurrency(item.priceCents)}/un.`}
                             </p>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              {formatCurrency(item.priceCents)}/un.
-                            </p>
+                            {showStockWarning && (
+                              <span className="flex items-center gap-1 mt-1 text-[11px] font-medium text-amber-700">
+                                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                                <span className="tabular-nums">
+                                  {stockInfo.units} un. pedidas · {stockInfo.stock} em estoque
+                                </span>
+                              </span>
+                            )}
                           </div>
 
-                          {/* Controles de quantidade */}
-                          <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 p-0.5 flex-shrink-0">
+                          {/* Peso (por quilo) ou controles de quantidade */}
+                          {isWeightItem ? (
                             <button
                               type="button"
-                              onClick={() => handleItemQuantityChange(index, item.quantity - 1)}
-                              disabled={saving || item.quantity <= 1}
-                              className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-primary hover:bg-primary/10 disabled:opacity-30 transition-colors"
+                              onClick={() => product && setWeightTarget({ product, index })}
+                              disabled={saving || !product}
+                              title="Ajustar peso do item"
+                              className="group/weight flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:border-amber-300 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                             >
-                              <span className="text-xs font-bold leading-none">−</span>
+                              <Scale className="h-3.5 w-3.5" />
+                              <span className="tabular-nums">{formatWeightKg(itemWeightKg)} kg</span>
+                              <Pencil className="h-3 w-3 opacity-50 transition-opacity group-hover/weight:opacity-100" />
                             </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => handleItemQuantityChange(index, parseInt(e.target.value) || 1)}
-                              className="w-9 h-6 text-center text-xs font-semibold text-slate-800 border-0 outline-none bg-transparent"
-                              disabled={saving}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleItemQuantityChange(index, item.quantity + 1)}
-                              disabled={saving}
-                              className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-primary hover:bg-primary/10 transition-colors"
-                            >
-                              <span className="text-xs font-bold leading-none">+</span>
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 p-0.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleItemQuantityChange(index, item.quantity - 1)}
+                                disabled={saving || item.quantity <= 1}
+                                className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-primary hover:bg-primary/10 disabled:opacity-30 transition-colors"
+                              >
+                                <span className="text-xs font-bold leading-none">−</span>
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => handleItemQuantityChange(index, parseInt(e.target.value) || 1)}
+                                className="w-9 h-6 text-center text-xs font-semibold text-slate-800 border-0 outline-none bg-transparent"
+                                disabled={saving}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleItemQuantityChange(index, item.quantity + 1)}
+                                disabled={saving}
+                                className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <span className="text-xs font-bold leading-none">+</span>
+                              </button>
+                            </div>
+                          )}
 
                           {/* Subtotal */}
                           <span className="text-sm font-semibold text-emerald-600 tabular-nums w-20 text-right flex-shrink-0">
@@ -627,7 +825,8 @@ export function PreOrderFormDialog({
                 Selecionar Produtos
               </DialogTitle>
               <DialogDescription>
-                Clique em um produto para adicioná-lo ao pré-pedido
+                Clique em um produto para adicioná-lo ao pré-pedido — os itens por
+                quilo pedem o peso antes de entrar
               </DialogDescription>
 
               {/* Campo de busca */}
@@ -660,8 +859,15 @@ export function PreOrderFormDialog({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredProducts.map((product) => {
-                    const isInCart = preOrder.items.some((i) => i.productId === product.id);
-                    const cartItem = preOrder.items.find((i) => i.productId === product.id);
+                    const weightBased = isWeightBasedProduct(product);
+                    const cartLines = preOrder.items.filter((i) => i.productId === product.id);
+                    const isInCart = cartLines.length > 0;
+                    const cartQty = cartLines.reduce((sum, i) => sum + i.quantity, 0);
+                    const cartWeightKg = cartLines.reduce(
+                      (sum, i) => sum + (Number(i.weightKg) || 0),
+                      0
+                    );
+                    const stockInfo = readStock(product, preOrder.items);
                     return (
                       <button
                         key={product.id}
@@ -700,29 +906,74 @@ export function PreOrderFormDialog({
                               {product.category.name}
                             </p>
                           )}
-                          <p className="text-sm font-bold text-emerald-600 mt-1">
-                            {formatCurrency(product.priceCents)}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <p className="text-sm font-bold text-emerald-600 tabular-nums">
+                              {weightBased
+                                ? `${formatCurrency(Number(product.pricePerKgCents))}/kg`
+                                : formatCurrency(product.priceCents)}
+                            </p>
+                            {weightBased && (
+                              <Badge variant="warning" size="sm">
+                                Por quilo
+                              </Badge>
+                            )}
+                          </div>
+
+                          {stockInfo.controlled && (
+                            <div className="mt-1.5">
+                              {stockInfo.unknown ? (
+                                <StockLine tone="text-red-700 font-semibold" dot="bg-red-600">
+                                  Estoque não informado
+                                </StockLine>
+                              ) : stockInfo.out ? (
+                                <StockLine tone="text-red-700 font-semibold" dot="bg-red-600">
+                                  Sem estoque
+                                </StockLine>
+                              ) : stockInfo.exceeds ? (
+                                <StockLine tone="text-amber-700 font-semibold" dot="bg-amber-500">
+                                  <span className="tabular-nums">
+                                    {stockInfo.units} pedidas · {stockInfo.stock} em estoque
+                                  </span>
+                                </StockLine>
+                              ) : stockInfo.low ? (
+                                <StockLine tone="text-amber-700 font-semibold" dot="bg-amber-500">
+                                  Últimas {stockInfo.stock} un.
+                                </StockLine>
+                              ) : (
+                                <StockLine tone="text-slate-400" dot="bg-emerald-400">
+                                  Estoque: {stockInfo.stock} un.
+                                </StockLine>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Indicador */}
                         <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
                           <div
                             className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all ${
-                              isInCart
+                              weightBased
+                                ? "bg-amber-100 text-amber-700 group-hover:bg-amber-200"
+                                : isInCart
                                 ? "bg-primary/15 text-primary"
                                 : "bg-primary text-white group-hover:bg-primary/90"
                             }`}
                           >
-                            {isInCart ? (
+                            {weightBased ? (
+                              <Scale className="h-3.5 w-3.5" />
+                            ) : isInCart ? (
                               <Check className="h-3.5 w-3.5" />
                             ) : (
                               <Plus className="h-3.5 w-3.5" />
                             )}
                           </div>
-                          {isInCart && cartItem && (
-                            <span className="text-[10px] font-semibold text-primary">
-                              ×{cartItem.quantity}
+                          {isInCart && (
+                            <span
+                              className={`text-[10px] font-semibold tabular-nums whitespace-nowrap ${
+                                weightBased ? "text-amber-700" : "text-primary"
+                              }`}
+                            >
+                              {weightBased ? `${formatWeightKg(cartWeightKg)} kg` : `×${cartQty}`}
                             </span>
                           )}
                         </div>
@@ -750,6 +1001,24 @@ export function PreOrderFormDialog({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* ── SELETOR DE PESO (produtos por quilo) ── */}
+      {weightTarget && (
+        <WeightInputDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setWeightTarget(null);
+          }}
+          productName={weightTarget.product.name}
+          pricePerKgCents={Number(weightTarget.product.pricePerKgCents ?? 0)}
+          initialWeightKg={
+            weightTarget.index !== null
+              ? Number(preOrder.items[weightTarget.index]?.weightKg ?? 0) || null
+              : null
+          }
+          onConfirm={handleConfirmWeight}
+        />
       )}
 
       {/* ── SELETOR DE CLIENTE ── */}
