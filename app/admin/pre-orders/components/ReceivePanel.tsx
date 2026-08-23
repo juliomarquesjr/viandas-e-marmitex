@@ -81,7 +81,7 @@ export function ReceivePanel({ preOrder, submitting, onCancel, onConfirm }: Rece
   return (
     <section
       aria-label="Receber pré-pedido"
-      className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto border-t border-[color:var(--border)] bg-[color:var(--card)] px-5 py-5"
+      className="scroll-slim flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto border-t border-[color:var(--border)] bg-[color:var(--card)] px-5 py-5"
     >
       <div className="flex items-baseline gap-3">
         <h3

@@ -3,6 +3,7 @@
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
 import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { useToast } from "@/app/components/Toast";
+import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import {
@@ -11,12 +12,22 @@ import {
   printBitmapToDesktopPrinter,
 } from "@/lib/runtime/capabilities";
 import { cn } from "@/lib/utils";
-import { Loader2, Maximize2, Minimize2, Plus, Search, ShoppingCart, WifiOff, X } from "lucide-react";
+import {
+  Loader2,
+  Maximize2,
+  Minimize2,
+  MousePointerClick,
+  Plus,
+  Search,
+  ShoppingCart,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAdminChrome, useFullBleedLayout } from "@/app/admin/components/layout/AdminChromeProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DayRail, type StageTally } from "./components/DayRail";
-import { PreOrderDossier } from "./components/PreOrderDossier";
+import { PreOrderDossier, TicketColumn } from "./components/PreOrderDossier";
 import { PreOrderRow } from "./components/PreOrderRow";
 import type { PaymentMethod } from "./components/ReceivePanel";
 import {
@@ -503,6 +514,7 @@ export default function AdminPreOrdersPage() {
   // ---------------------------------------------------------------------------
 
   const truncated = total > preOrders.length;
+  const filtering = Boolean(search.trim() || stageFilter);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
@@ -515,7 +527,9 @@ export default function AdminPreOrdersPage() {
           <p className="text-xs text-[color:var(--muted-foreground)]">
             {loading
               ? "Carregando…"
-              : `${preOrders.length} pedido${preOrders.length !== 1 ? "s" : ""}${truncated ? ` de ${total}` : ""}`}
+              : filtering
+                ? `${visible.length} de ${preOrders.length} pedido${preOrders.length !== 1 ? "s" : ""}`
+                : `${preOrders.length} pedido${preOrders.length !== 1 ? "s" : ""}${truncated ? ` de ${total}` : ""}`}
             {lastLoadedAt && ` · atualizado ${lastLoadedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
           </p>
         </div>
@@ -524,7 +538,7 @@ export default function AdminPreOrdersPage() {
           <div
             role="group"
             aria-label="Período"
-            className="flex rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] p-0.5"
+            className="flex shrink-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--card)] p-0.5"
           >
             {RANGES.map((item) => (
               <button
@@ -551,7 +565,7 @@ export default function AdminPreOrdersPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cliente, telefone, produto"
             aria-label="Buscar pré-pedido"
-            className="w-56"
+            className="w-56 min-w-[160px] shrink"
             leftIcon={<Search className="h-4 w-4" />}
             rightIcon={
               search ? (
@@ -568,6 +582,7 @@ export default function AdminPreOrdersPage() {
               setFormOpen(true);
             }}
             leftIcon={<Plus className="h-4 w-4" />}
+            className="shrink-0"
           >
             Novo pré-pedido
           </Button>
@@ -579,8 +594,9 @@ export default function AdminPreOrdersPage() {
             aria-pressed={immersive}
             title={immersive ? "Sair da tela cheia (Esc)" : "Tela cheia"}
             aria-label={immersive ? "Sair da tela cheia" : "Tela cheia"}
+            className="h-10 w-10 shrink-0"
           >
-            {immersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {immersive ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
           </Button>
         </div>
       </header>
@@ -610,18 +626,49 @@ export default function AdminPreOrdersPage() {
         itemsOrderCount={visible.length}
       />
 
-      {/* Altura travada: cada coluna rola por dentro, como no PDV. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[352px_minmax(0,1fr)]">
-        <div className="flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] lg:border-r">
+      {/* Altura travada: cada coluna rola por dentro, como no PDV. A terceira
+          coluna, o cupom, só entra quando há largura para ela. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_368px]">
+        <div className="scroll-slim flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] lg:border-r">
           {loading && preOrders.length === 0 ? (
             <ListSkeleton />
           ) : ordered.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-              <ShoppingCart className="h-8 w-8 text-[color:var(--muted-foreground)]" />
-              <p className="text-sm font-medium text-[color:var(--foreground)]">Nenhum pré-pedido aqui</p>
-              <p className="text-xs text-[color:var(--muted-foreground)]">
-                {search || stageFilter ? "Ajuste a busca ou o filtro de etapa." : "Nada registrado neste período."}
-              </p>
+            <div className="flex flex-1 items-start justify-center pt-16">
+              {search || stageFilter ? (
+                <EmptyState
+                  size="sm"
+                  variant="search"
+                  title="Nenhum pedido corresponde"
+                  description={
+                    stageFilter && search
+                      ? `Nada em "${STAGE_META[stageFilter].label}" com "${search}".`
+                      : stageFilter
+                        ? `Nenhum pedido em "${STAGE_META[stageFilter].label}" neste período.`
+                        : `Nenhum pedido para "${search}" neste período.`
+                  }
+                  action={{
+                    label: "Limpar filtros",
+                    onClick: () => {
+                      setSearch("");
+                      setStageFilter(null);
+                    },
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  size="sm"
+                  variant="orders"
+                  title="Nenhum pré-pedido no período"
+                  description="Os pedidos anotados aparecem aqui, agrupados por etapa."
+                  action={{
+                    label: "Novo pré-pedido",
+                    onClick: () => {
+                      setEditingId(null);
+                      setFormOpen(true);
+                    },
+                  }}
+                />
+              )}
             </div>
           ) : (
             grouped.map((group) => {
@@ -686,10 +733,18 @@ export default function AdminPreOrdersPage() {
             onDelete={() => setDeleteId(selected.id)}
           />
         ) : (
-          <div className="hidden items-center justify-center p-8 text-sm text-[color:var(--muted-foreground)] lg:flex">
-            Escolha um pedido na lista.
+          <div className="hidden items-start justify-center bg-[color:var(--background)] pt-16 lg:flex">
+            <EmptyState
+              size="sm"
+              variant="default"
+              icon={MousePointerClick}
+              title="Escolha um pedido na lista"
+              description="Aqui aparecem os dados do cliente, o histórico e as ações do pedido."
+            />
           </div>
         )}
+
+        <TicketColumn preOrder={selected} onPrint={() => selected && printTicket(selected.id)} />
       </div>
 
       <PreOrderFormDialog

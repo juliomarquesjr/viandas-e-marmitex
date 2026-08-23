@@ -69,16 +69,17 @@ const variantIcons: Record<EmptyStateVariant, React.ElementType> = {
   error: AlertCircle,
 };
 
-// Configuração de cores por variante
+// Cores por variante, em tokens: o estado vazio precisa funcionar nos dois
+// temas, e cor fixa aqui obriga o patch de !important do tema escuro.
 const variantColors: Record<EmptyStateVariant, { bg: string; icon: string }> = {
-  default: { bg: "bg-slate-100", icon: "text-slate-400" },
-  search: { bg: "bg-blue-50", icon: "text-blue-400" },
-  "no-data": { bg: "bg-slate-100", icon: "text-slate-400" },
-  "no-results": { bg: "bg-amber-50", icon: "text-amber-400" },
-  users: { bg: "bg-purple-50", icon: "text-purple-400" },
-  products: { bg: "bg-emerald-50", icon: "text-emerald-400" },
-  orders: { bg: "bg-orange-50", icon: "text-orange-400" },
-  error: { bg: "bg-red-50", icon: "text-red-400" },
+  default: { bg: "var(--muted)", icon: "var(--muted-foreground-strong)" },
+  search: { bg: "var(--accent)", icon: "var(--accent-foreground)" },
+  "no-data": { bg: "var(--muted)", icon: "var(--muted-foreground-strong)" },
+  "no-results": { bg: "var(--state-pronto-bg)", icon: "var(--state-pronto-fg)" },
+  users: { bg: "var(--state-rota-bg)", icon: "var(--state-rota-fg)" },
+  products: { bg: "var(--state-faturado-bg)", icon: "var(--state-faturado-fg)" },
+  orders: { bg: "var(--state-producao-bg)", icon: "var(--state-producao-fg)" },
+  error: { bg: "var(--state-cobrar-bg)", icon: "var(--state-cobrar-fg)" },
 };
 
 // Tamanhos
@@ -120,16 +121,21 @@ export function EmptyState({
   return (
     <div className={cn("flex flex-col items-center justify-center text-center px-4", styles.container, className)}>
       {/* Ícone */}
-      <div className={cn("flex items-center justify-center rounded-full p-4 mb-4", colors.bg)}>
-        <Icon className={cn(styles.icon, colors.icon)} />
+      <div
+        className="mb-4 flex items-center justify-center rounded-full p-4"
+        style={{ background: colors.bg }}
+      >
+        <Icon className={styles.icon} style={{ color: colors.icon }} />
       </div>
 
       {/* Título */}
-      <h3 className={cn("font-semibold text-slate-900 mb-1", styles.title)}>{title}</h3>
+      <h3 className={cn("mb-1 font-semibold text-[color:var(--foreground)]", styles.title)}>{title}</h3>
 
       {/* Descrição */}
       {description && (
-        <p className={cn("text-slate-500 max-w-sm mb-4", styles.description)}>{description}</p>
+        <p className={cn("mb-4 max-w-sm text-balance text-[color:var(--muted-foreground-strong)]", styles.description)}>
+          {description}
+        </p>
       )}
 
       {/* Ações */}
