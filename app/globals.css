@@ -625,3 +625,25 @@ body.desktop-runtime {
   height: 100%;
   overflow: hidden;
 }
+
+/* Tooltip com o nome do item da sidebar recolhida. */
+@keyframes sidebarTooltipIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.sidebar-tooltip-in {
+  animation: sidebarTooltipIn 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-tooltip-in {
+    animation: none;
+  }
+}
