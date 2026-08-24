@@ -1,5 +1,11 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import {
+  isCashMethod,
+  isPaymentMethod,
+  settle,
+  type PaymentMethod,
+} from '@/app/admin/pre-orders/lib/payment';
 import { decrementStockForItems } from '@/lib/stock/orderStock';
 import {
   isWeightBasedProduct,
@@ -230,6 +236,7 @@ async function getPreOrderById(id: string) {
         { status: 404 }
       );
     }
+
     
     return NextResponse.json(preOrder);
   } catch (error) {
@@ -347,7 +354,30 @@ async function convertPreOrderToOrder(request: Request) {
         { status: 400 }
       );
     }
-    
+
+    /**
+     * O Terminal manda o valor em centavos. O formato antigo — o mesmo método,
+     * com o valor em reais — continua aceito e é convertido aqui, para existir
+     * um caminho único de validação e gravação.
+     */
+    if (!isPaymentMethod(body.paymentMethod)) {
+      return NextResponse.json(
+        { error: 'Informe como o pedido foi pago.' },
+        { status: 400 }
+      );
+    }
+
+    const paymentMethod: PaymentMethod = body.paymentMethod;
+
+    let receivedCents = 0;
+    if (isCashMethod(paymentMethod)) {
+      if (Number.isSafeInteger(body.cashReceivedCents)) {
+        receivedCents = body.cashReceivedCents;
+      } else if (typeof body.cashReceived === 'number') {
+        receivedCents = Math.round(body.cashReceived * 100);
+      }
+    }
+
     // Obter o pré-pedido
     const preOrder = await prisma.preOrder.findUnique({
       where: { id: body.preOrderId },
@@ -368,6 +398,35 @@ async function convertPreOrderToOrder(request: Request) {
       );
     }
     
+    // Sem valor digitado, dinheiro contado é o valor exato da comanda.
+    const settlement = settle(
+      paymentMethod,
+      isCashMethod(paymentMethod) && receivedCents === 0 ? preOrder.totalCents : receivedCents,
+      preOrder.totalCents
+    );
+
+    if (!settlement.ok || !settlement.payment) {
+      return NextResponse.json(
+        {
+          error:
+            settlement.error ??
+            `Faltam R$ ${(settlement.remainingCents / 100).toFixed(2)} para fechar a conta.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Fora do fechamento a narrowing se perde dentro da transação.
+    const payment = settlement.payment;
+
+    // Ficha é dívida de alguém: sem cliente, não há de quem cobrar depois.
+    if (paymentMethod === 'invoice' && !preOrder.customerId) {
+      return NextResponse.json(
+        { error: 'Lançar na ficha exige um cliente no pedido.' },
+        { status: 400 }
+      );
+    }
+
     // Verificar estoque antes de criar o pedido. A soma é por produto, não por
     // linha: um item por quilo ocupa uma linha por peso, e a baixa acontece em
     // todas elas.
@@ -413,8 +472,9 @@ async function convertPreOrderToOrder(request: Request) {
     
     // Criar pedido e atualizar estoque em uma transação
     const order = await prisma.$transaction(async (prisma) => {
-      // Determinar o status com base no método de pagamento
-      const orderStatus = body.paymentMethod === 'invoice' ? 'pending' : 'confirmed';
+      // Ficha vira dívida: a venda nasce pendente. Qualquer outra forma já
+      // entrou no caixa.
+      const orderStatus = paymentMethod === 'invoice' ? 'pending' : 'confirmed';
       
       // Criar pedido
       const newOrder = await prisma.order.create({
@@ -425,12 +485,11 @@ async function convertPreOrderToOrder(request: Request) {
           discountCents: preOrder.discountCents,
           deliveryFeeCents: preOrder.deliveryFeeCents,
           totalCents: preOrder.totalCents,
-          paymentMethod: body.paymentMethod || null,
-          // Add cash payment information if provided (convert to cents)
-          ...(body.paymentMethod === 'cash' && body.cashReceived !== undefined && body.change !== undefined && {
-            cashReceivedCents: Math.round(body.cashReceived * 100),
-            changeCents: Math.round(body.change * 100)
-          }),
+          paymentMethod,
+          // Só o dinheiro tem o que registrar aqui: quanto veio na mão e quanto
+          // voltou. A lista de vendas e o recibo térmico leem estas colunas.
+          cashReceivedCents: isCashMethod(paymentMethod) ? payment.receivedCents : null,
+          changeCents: isCashMethod(paymentMethod) ? payment.changeCents : null,
           items: {
             create: preOrder.items.map(item => ({
               productId: item.productId,

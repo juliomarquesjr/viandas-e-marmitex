@@ -11,6 +11,7 @@ import {
   isDesktopRuntime,
   printBitmapToDesktopPrinter,
 } from "@/lib/runtime/capabilities";
+import type { ThermalAutoPrintModuleKey } from "@/lib/runtime/printing";
 import { cn } from "@/lib/utils";
 import {
   Loader2,
@@ -31,8 +32,9 @@ import { OrderDesk } from "./components/OrderDesk";
 import { PreOrderDossier, TicketColumn } from "./components/PreOrderDossier";
 import { MoneyBoard } from "./components/MoneyBoard";
 import { PreOrderRow } from "./components/PreOrderRow";
+import { ReceiveTerminal, type NextInQueue } from "./components/ReceiveTerminal";
 import { ViewSettings } from "./components/ViewSettings";
-import type { PaymentMethod } from "./components/ReceivePanel";
+import { isCashMethod, type Payment } from "./lib/payment";
 import {
   RAIL_ORDER,
   STAGE_META,
@@ -45,6 +47,30 @@ import {
 } from "./lib/preOrderView";
 
 const DESKTOP_PRINT_FRAME_ID = "desktop-print-frame";
+
+/**
+ * Os dois papéis que saem desta tela: a comanda do pré-pedido (cozinha) e o
+ * recibo da venda (cliente, depois de receber). Mesma máquina, mesma mecânica
+ * de impressão — só muda a rota, o parâmetro e o módulo da preferência.
+ */
+const THERMAL_DOCS = {
+  preOrder: {
+    path: "/print/pre-order-thermal",
+    param: "preOrderId",
+    moduleKey: "preOrders" as ThermalAutoPrintModuleKey,
+    label: "Comanda",
+    jobPrefix: "Pre-pedido",
+  },
+  receipt: {
+    path: "/print/receipt-thermal",
+    param: "orderId",
+    moduleKey: "sales" as ThermalAutoPrintModuleKey,
+    label: "Recibo",
+    jobPrefix: "Venda",
+  },
+} as const;
+
+type ThermalDocKind = keyof typeof THERMAL_DOCS;
 /** Teto de carregamento. A tela nunca afirma contagem além do que carregou. */
 const PAGE_SIZE = 200;
 const RAIL_PREF_KEY = "admin-pre-orders-show-rail";
@@ -124,7 +150,12 @@ export default function AdminPreOrdersPage() {
   const [showCancelled, setShowCancelled] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<PreOrder | null>(null);
 
-  const [receiving, setReceiving] = useState(false);
+  /**
+   * O pedido dentro do Terminal. É uma cópia, não o `selected`: a conversão
+   * apaga o pré-pedido do banco, e o recibo precisa continuar na tela depois
+   * disso — com `selected` a folha se fecharia sozinha no melhor momento.
+   */
+  const [receivingOrder, setReceivingOrder] = useState<PreOrder | null>(null);
   const [converting, setConverting] = useState(false);
   const [advancing, setAdvancing] = useState(false);
 
@@ -288,6 +319,27 @@ export default function AdminPreOrdersPage() {
     [preOrders, selectedId],
   );
 
+  /**
+   * O próximo pedido a cobrar, na ordem da lista. Alimenta o encadeamento do
+   * Terminal: no fim do expediente a fila fecha em série, sem voltar à lista.
+   */
+  const nextToCharge = useMemo(() => {
+    const queue = ordered.filter((preOrder) => stageOf(preOrder) === "cobrar");
+    return queue.find((preOrder) => preOrder.id !== receivingOrder?.id) ?? null;
+  }, [ordered, receivingOrder?.id]);
+
+  const nextInQueue: NextInQueue | null = useMemo(
+    () =>
+      nextToCharge
+        ? {
+            id: nextToCharge.id,
+            name: nextToCharge.customer?.name ?? "Venda avulsa",
+            totalCents: nextToCharge.totalCents,
+          }
+        : null,
+    [nextToCharge],
+  );
+
   // Mantém sempre um pedido em foco, sem escolher um que o filtro escondeu.
   useEffect(() => {
     if (ordered.length === 0) {
@@ -296,7 +348,6 @@ export default function AdminPreOrdersPage() {
     }
     if (!selectedId || !ordered.some((preOrder) => preOrder.id === selectedId)) {
       setSelectedId(ordered[0].id);
-      setReceiving(false);
     }
   }, [ordered, selectedId]);
 
@@ -315,7 +366,7 @@ export default function AdminPreOrdersPage() {
         return;
       }
 
-      if (typing || receiving) return;
+      if (typing || receivingOrder) return;
 
       // Rede de segurança: se o navegador recusar a tela cheia, o Esc do
       // próprio navegador não dispara e o Esc daqui é a única saída.
@@ -337,18 +388,19 @@ export default function AdminPreOrdersPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [ordered, selectedId, receiving, immersive, exitImmersive]);
+  }, [ordered, selectedId, receivingOrder, immersive, exitImmersive]);
 
   // ---------------------------------------------------------------------------
   // Impressão térmica (mantida da tela anterior)
   // ---------------------------------------------------------------------------
 
-  const tryDirectThermalPrint = useCallback(async (preOrderId: string) => {
+  const tryDirectThermalPrint = useCallback(async (kind: ThermalDocKind, id: string) => {
+    const doc = THERMAL_DOCS[kind];
     const preferences = await getDesktopPrintPreferences();
     const target =
       preferences.defaultThermalPrinterName?.trim() || preferences.defaultThermalPrinterId?.trim() || null;
 
-    if (!target || !preferences.thermalAutoPrintModules.preOrders) return false;
+    if (!target || !preferences.thermalAutoPrintModules[doc.moduleKey]) return false;
 
     const printSessionId = crypto.randomUUID();
     setBitmapPrinting(true);
@@ -358,12 +410,12 @@ export default function AdminPreOrdersPage() {
         const iframe = document.createElement("iframe");
         iframe.style.cssText =
           "position:absolute;left:-9999px;top:-9999px;width:320px;height:1px;opacity:0;pointer-events:none;border:none;";
-        iframe.src = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}&captureMode=true`;
+        iframe.src = `${doc.path}?${doc.param}=${id}&printSessionId=${printSessionId}&captureMode=true`;
         document.body.appendChild(iframe);
 
         const timeout = window.setTimeout(() => {
           iframe.remove();
-          reject(new Error("Tempo esgotado aguardando a comanda."));
+          reject(new Error(`Tempo esgotado aguardando ${doc.label.toLowerCase()}.`));
         }, 30_000);
 
         const handler = (event: MessageEvent) => {
@@ -383,7 +435,7 @@ export default function AdminPreOrdersPage() {
         bitmap.imageData,
         bitmap.width,
         bitmap.height,
-        `Pre-pedido ${preOrderId.slice(-8).toUpperCase()}`,
+        `${doc.jobPrefix} ${id.slice(-8).toUpperCase()}`,
       );
     } finally {
       setBitmapPrinting(false);
@@ -392,18 +444,19 @@ export default function AdminPreOrdersPage() {
     return true;
   }, []);
 
-  const printTicket = useCallback(
-    async (preOrderId: string) => {
+  const printThermal = useCallback(
+    async (kind: ThermalDocKind, id: string) => {
+      const doc = THERMAL_DOCS[kind];
       const printSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
       if (!isDesktopRuntime()) {
-        window.open(`/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}`, "_blank");
+        window.open(`${doc.path}?${doc.param}=${id}&printSessionId=${printSessionId}`, "_blank");
         return;
       }
 
       try {
-        if (await tryDirectThermalPrint(preOrderId)) {
-          showToast("Comanda enviada para a impressora térmica.", "success");
+        if (await tryDirectThermalPrint(kind, id)) {
+          showToast(`${doc.label} enviado para a impressora térmica.`, "success");
           return;
         }
       } catch (error) {
@@ -416,7 +469,7 @@ export default function AdminPreOrdersPage() {
 
       const iframe = document.createElement("iframe");
       iframe.id = DESKTOP_PRINT_FRAME_ID;
-      iframe.src = `/print/pre-order-thermal?preOrderId=${preOrderId}&printSessionId=${printSessionId}&autoPrint=0`;
+      iframe.src = `${doc.path}?${doc.param}=${id}&printSessionId=${printSessionId}&autoPrint=0`;
       iframe.setAttribute("aria-hidden", "true");
       iframe.style.cssText =
         "position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;opacity:0;pointer-events:none;border:0;";
@@ -428,6 +481,11 @@ export default function AdminPreOrdersPage() {
       }, 30_000);
     },
     [showToast, tryDirectThermalPrint],
+  );
+
+  const printTicket = useCallback(
+    (preOrderId: string) => printThermal("preOrder", preOrderId),
+    [printThermal],
   );
 
   useEffect(() => {
@@ -478,55 +536,62 @@ export default function AdminPreOrdersPage() {
     [loadPreOrders, selected, showToast],
   );
 
+  /**
+   * Fecha o pedido do Terminal. Devolve o id da venda criada — é dele que sai
+   * o recibo — ou null quando nada foi gravado.
+   */
   const confirmReceive = useCallback(
-    async (input: { paymentMethod: PaymentMethod; cashReceived?: number; change?: number }) => {
-      if (!selected) return;
-      setConverting(true);
+    async (payment: Payment): Promise<string | null> => {
+      const target = receivingOrder;
+      if (!target) return null;
 
-      const apiMethod = input.paymentMethod === "ficha_payment" ? "invoice" : input.paymentMethod;
+      setConverting(true);
 
       try {
         const response = await fetch("/api/pre-orders?convert=true", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            preOrderId: selected.id,
-            paymentMethod: apiMethod,
-            ...(input.paymentMethod === "cash" && input.cashReceived !== undefined
-              ? { cashReceived: input.cashReceived, change: input.change ?? 0 }
-              : {}),
+            preOrderId: target.id,
+            paymentMethod: payment.method,
+            ...(isCashMethod(payment.method) ? { cashReceivedCents: payment.receivedCents } : {}),
           }),
         });
 
         if (!response.ok) {
           // Pode ser corrida: outra pessoa já converteu e o registro sumiu.
           const fresh = await loadPreOrders({ silent: true });
-          if (fresh && !fresh.some((preOrder) => preOrder.id === selected.id)) {
-            setReceiving(false);
+          if (fresh && !fresh.some((preOrder) => preOrder.id === target.id)) {
+            setReceivingOrder(null);
             showToast("Este pedido já foi convertido por outra pessoa.", "warning");
-            return;
+            return null;
           }
           throw new Error(
             await errorMessageOf(response, "Não foi possível concluir o recebimento. Nada foi alterado."),
           );
         }
 
-        setReceiving(false);
-        setSelectedId(null);
+        const order = await response.json();
+
+        // A lista se atualiza por baixo enquanto o recibo segue na tela.
         await loadPreOrders({ silent: true });
-        showToast(`Recebido ${formatCurrency(selected.totalCents)}. Venda criada e estoque baixado.`, "success");
+        showToast(`Recebido ${formatCurrency(target.totalCents)}. Venda criada e estoque baixado.`, "success");
+
+        return typeof order?.id === "string" ? order.id : null;
       } catch (error) {
         console.error(error);
-        // O painel continua aberto: o operador corrige e tenta de novo sem refazer o caminho.
+        // O Terminal continua aberto: o operador corrige e tenta de novo sem
+        // refazer o caminho.
         showToast(
           error instanceof Error ? error.message : "Não foi possível concluir o recebimento. Nada foi alterado.",
           "error",
         );
+        return null;
       } finally {
         setConverting(false);
       }
     },
-    [loadPreOrders, selected, showToast],
+    [loadPreOrders, receivingOrder, showToast],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -749,10 +814,7 @@ export default function AdminPreOrdersPage() {
                       preOrder={preOrder}
                       selected={preOrder.id === selectedId}
                       now={now}
-                      onSelect={(next) => {
-                        setSelectedId(next.id);
-                        setReceiving(false);
-                      }}
+                      onSelect={(next) => setSelectedId(next.id)}
                     />
                   ))}
                 </section>
@@ -772,12 +834,8 @@ export default function AdminPreOrdersPage() {
             key={selected.id}
             preOrder={selected}
             now={now}
-            receiving={receiving}
-            converting={converting}
             advancing={advancing}
-            onStartReceive={() => setReceiving(true)}
-            onCancelReceive={() => setReceiving(false)}
-            onConfirmReceive={confirmReceive}
+            onStartReceive={() => setReceivingOrder(selected)}
             onAdvance={advanceStatus}
             onPrint={() => printTicket(selected.id)}
             onEdit={() => {
@@ -802,6 +860,27 @@ export default function AdminPreOrdersPage() {
 
         <TicketColumn preOrder={selected} onPrint={() => selected && printTicket(selected.id)} />
       </div>
+
+      <ReceiveTerminal
+        preOrder={receivingOrder}
+        open={receivingOrder !== null}
+        onOpenChange={(open) => {
+          if (open) return;
+          setReceivingOrder(null);
+          // Depois de converter, o pedido não existe mais: sem isso a lista
+          // ficaria com a seleção apontando para um id que sumiu.
+          if (!preOrders.some((preOrder) => preOrder.id === receivingOrder?.id)) setSelectedId(null);
+        }}
+        submitting={converting}
+        onConfirm={confirmReceive}
+        next={nextInQueue}
+        onNext={() => {
+          if (!nextToCharge) return;
+          setSelectedId(nextToCharge.id);
+          setReceivingOrder(nextToCharge);
+        }}
+        onPrintReceipt={(orderId) => printThermal("receipt", orderId)}
+      />
 
       <OrderDesk
         open={formOpen}
