@@ -100,6 +100,29 @@
   --state-faturado-solid: #0f766e;  --state-faturado-on: #ffffff;
   --state-cancelado-solid: #475569; --state-cancelado-on: #ffffff;
 
+  /* Estados do ciclo mensal da ficha — mesmo formato dos estados do pré-pedido,
+     para que pílula, passo do stepper e linha de ciclo anterior nunca divirjam. */
+  --cycle-aberta: #2563eb;  --cycle-aberta-bg: #dbeafe;  --cycle-aberta-fg: #1d4ed8;
+  --cycle-cobrar: #b45309;  --cycle-cobrar-bg: #fef3c7;  --cycle-cobrar-fg: #92400e;
+  --cycle-atraso: #e11d48;  --cycle-atraso-bg: #ffe4e6;  --cycle-atraso-fg: #9f1239;
+  --cycle-paga: #0d9488;    --cycle-paga-bg: #ccfbf1;    --cycle-paga-fg: #115e59;
+  --cycle-vazio: #94a3b8;   --cycle-vazio-bg: #f1f5f9;   --cycle-vazio-fg: #64748b;
+  --cycle-aberta-solid: #2563eb; --cycle-aberta-on: #ffffff;
+  --cycle-cobrar-solid: #b45309; --cycle-cobrar-on: #ffffff;
+  --cycle-atraso-solid: #e11d48; --cycle-atraso-on: #ffffff;
+  --cycle-paga-solid: #0f766e;   --cycle-paga-on: #ffffff;
+  --cycle-vazio-solid: #64748b;  --cycle-vazio-on: #ffffff;
+
+  /* Escala de intensidade do calendário de consumo. Quatro degraus fixos: a
+     leitura precisa ser comparável de um mês para o outro. */
+  --heat-0: #f1f5f9;
+  --heat-1: #dbe8fe;
+  --heat-2: #a8c6fb;
+  --heat-3: #2563eb;
+  --heat-0-fg: #94a3b8;
+  --heat-1-fg: #2f5fc4;
+  --heat-2-fg: #173a86;
+  --heat-3-fg: #ffffff;
 }
 
 @theme inline {
@@ -154,6 +177,23 @@
   --modal-header-icon-ring: rgba(255, 255, 255, 0.15);
   --modal-header-close: rgba(241, 245, 249, 0.55);
   --modal-header-close-hover: rgba(255, 255, 255, 0.10);
+
+  /* Estados do ciclo no tema escuro: matiz mais claro no destaque, fundo mais
+     escuro, para o texto do chip continuar passando no contraste. */
+  --cycle-aberta: #60a5fa;  --cycle-aberta-bg: #1e3a5f;  --cycle-aberta-fg: #bfdbfe;
+  --cycle-cobrar: #fbbf24;  --cycle-cobrar-bg: #422e08;  --cycle-cobrar-fg: #fde68a;
+  --cycle-atraso: #fb7185;  --cycle-atraso-bg: #4c1129;  --cycle-atraso-fg: #fecdd3;
+  --cycle-paga: #2dd4bf;    --cycle-paga-bg: #0f3b38;    --cycle-paga-fg: #99f6e4;
+  --cycle-vazio: #64748b;   --cycle-vazio-bg: #1e293b;   --cycle-vazio-fg: #94a3b8;
+
+  --heat-0: #1e293b;
+  --heat-1: #1e3a5f;
+  --heat-2: #2f5fc4;
+  --heat-3: #60a5fa;
+  --heat-0-fg: #64748b;
+  --heat-1-fg: #93c5fd;
+  --heat-2-fg: #dbeafe;
+  --heat-3-fg: #0b1220;
 }
 
 /* Grade de produtos do PDV.

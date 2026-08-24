@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../../../components/ui/dialog";
-import { Input } from "../../../../../components/ui/input";
+import { DateFieldBR } from "../../../../../components/ui/date-field-br";
 import { Switch } from "../../../../../components/ui/switch";
 import { PDFGeneratorComponent } from "../../../../../components/PDFGenerator";
 import { Customer } from "../../types";
@@ -98,13 +98,12 @@ export function ClosingReportDialog({
               <label htmlFor="startDate" className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Data Inicial <span className="text-red-400">*</span>
               </label>
-              <Input
+              <DateFieldBR
                 id="startDate"
-                type="date"
                 value={config.startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
                 max={config.endDate || undefined}
-                className="w-full"
+                className="h-10 py-0 text-sm"
               />
               <Button
                 variant="outline"
@@ -125,13 +124,11 @@ export function ClosingReportDialog({
               <label htmlFor="endDate" className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Data Final <span className="text-red-400">*</span>
               </label>
-              <Input
+              <DateFieldBR
                 id="endDate"
-                type="date"
                 value={config.endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={config.startDate || undefined}
-                className="w-full"
+                onChange={setEndDate}
+                className="h-10 py-0 text-sm"
               />
             </div>
           </div>

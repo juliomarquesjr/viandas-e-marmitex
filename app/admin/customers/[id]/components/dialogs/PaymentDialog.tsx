@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Banknote, CreditCard, DollarSign, Loader2, QrCode, Wallet } from "lucide-react";
 import { Button } from "../../../../../components/ui/button";
+import { DateFieldBR } from "../../../../../components/ui/date-field-br";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../../../components/ui/dialog";
+import { formatCurrency } from "../../constants";
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -22,6 +24,16 @@ interface PaymentDialogProps {
     date: string,
     cashReceived: string
   ) => Promise<boolean>;
+  /** Saldo devedor de toda a ficha. */
+  balanceCents: number;
+  /** Quanto a competência aberta na tela ainda tem a cobrar. */
+  cycleOpenCents: number;
+  cycleLabel: string;
+}
+
+/** Transforma centavos no texto que o campo de valor espera ("123.45"). */
+function centsToInput(cents: number) {
+  return (cents / 100).toFixed(2);
 }
 
 const PAYMENT_METHODS = [
@@ -36,10 +48,27 @@ export function PaymentDialog({
   onOpenChange,
   isProcessingPayment,
   onSubmit,
+  balanceCents,
+  cycleOpenCents,
+  cycleLabel,
 }: PaymentDialogProps) {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
+
+  // Atalhos de valor: sem eles o operador digitava o saldo de cabeça, com o
+  // cliente esperando — e a tela nem mostrava qual era o saldo.
+  const shortcuts = [
+    { label: "Quitar tudo", cents: balanceCents, hint: "saldo da ficha" },
+    {
+      label: `Fechar ${cycleLabel.split(" de ")[0]}`,
+      cents: cycleOpenCents,
+      hint: "só esta competência",
+    },
+  ].filter(
+    (shortcut, index, list) =>
+      shortcut.cents > 0 && list.findIndex((item) => item.cents === shortcut.cents) === index
+  );
 
   const resetState = () => {
     setPaymentAmount("");
@@ -87,6 +116,47 @@ export function PaymentDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Saldo atual — a informação que o operador precisa antes de digitar */}
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-xl px-4 py-3"
+            style={{
+              background: balanceCents > 0 ? "var(--cycle-atraso-bg)" : "var(--cycle-paga-bg)",
+              color: balanceCents > 0 ? "var(--cycle-atraso-fg)" : "var(--cycle-paga-fg)",
+            }}
+          >
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
+                {balanceCents > 0
+                  ? "Saldo devedor da ficha"
+                  : balanceCents < 0
+                    ? "Crédito a favor do cliente"
+                    : "Ficha em dia"}
+              </p>
+              <p className="text-2xl font-bold tabular-nums">
+                {formatCurrency(Math.abs(balanceCents))}
+              </p>
+            </div>
+
+            {shortcuts.length > 0 && (
+              <div className="ml-auto flex flex-wrap gap-2">
+                {shortcuts.map((shortcut) => (
+                  <button
+                    key={shortcut.label}
+                    type="button"
+                    disabled={isProcessingPayment}
+                    onClick={() => setPaymentAmount(centsToInput(shortcut.cents))}
+                    className="rounded-lg bg-white/70 px-3 py-2 text-left text-xs font-semibold shadow-sm transition-colors hover:bg-white disabled:opacity-50"
+                  >
+                    {shortcut.label}
+                    <span className="block text-[10px] font-normal opacity-70">
+                      {formatCurrency(shortcut.cents)} · {shortcut.hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Valor & Data */}
           <div className="flex items-center gap-3 pt-1">
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
@@ -126,13 +196,12 @@ export function PaymentDialog({
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Data do Pagamento
               </label>
-              <input
-                type="date"
+              <DateFieldBR
                 value={paymentDate}
+                onChange={setPaymentDate}
                 disabled={isProcessingPayment}
-                onChange={(e) => setPaymentDate(e.target.value)}
                 max={new Date().toISOString().split("T")[0]}
-                className="w-full h-[52px] px-3 border border-slate-200 rounded-xl text-base text-slate-900 bg-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="h-[52px] py-0"
               />
               <p className="text-xs text-slate-400">Deixe em branco para usar a data atual</p>
             </div>
