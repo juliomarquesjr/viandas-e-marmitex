@@ -2,7 +2,6 @@
 
 import { ConfirmDialog } from "@/app/components/ConfirmDialog";
 import { DeleteConfirmDialog } from "@/app/components/DeleteConfirmDialog";
-import { PreOrderFormDialog } from "@/app/components/PreOrderFormDialog";
 import { useToast } from "@/app/components/Toast";
 import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
 import { Button } from "@/app/components/ui/button";
@@ -28,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { useAdminChrome, useFullBleedLayout } from "@/app/admin/components/layout/AdminChromeProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DayRail, type StageTally } from "./components/DayRail";
+import { OrderDesk } from "./components/OrderDesk";
 import { PreOrderDossier, TicketColumn } from "./components/PreOrderDossier";
 import { MoneyBoard } from "./components/MoneyBoard";
 import { PreOrderRow } from "./components/PreOrderRow";
@@ -803,11 +803,17 @@ export default function AdminPreOrdersPage() {
         <TicketColumn preOrder={selected} onPrint={() => selected && printTicket(selected.id)} />
       </div>
 
-      <PreOrderFormDialog
+      <OrderDesk
         open={formOpen}
         onOpenChange={setFormOpen}
         preOrderId={editingId || undefined}
-        onPreOrderSaved={() => loadPreOrders({ silent: true })}
+        onSaved={async ({ id, print }) => {
+          const refreshed = await loadPreOrders({ silent: true });
+          // O pedido recém-salvo já entra selecionado: o operador vê a comanda
+          // que acabou de escrever sem precisar procurá-la na lista.
+          if (id && refreshed?.some((preOrder) => preOrder.id === id)) setSelectedId(id);
+          if (id && print) printTicket(id);
+        }}
       />
 
       <ConfirmDialog
