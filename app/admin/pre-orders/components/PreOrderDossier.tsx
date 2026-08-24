@@ -33,7 +33,6 @@ import {
   type PreOrder,
 } from "../lib/preOrderView";
 import { PreOrderTimeline } from "./PreOrderTimeline";
-import { ReceivePanel, type PaymentMethod } from "./ReceivePanel";
 import { StagePicker } from "./StagePicker";
 import { ThermalTicket } from "./ThermalTicket";
 
@@ -100,12 +99,9 @@ function actionsFor(preOrder: PreOrder): { primary: Action | null; secondary: Ac
 interface PreOrderDossierProps {
   preOrder: PreOrder;
   now: Date;
-  receiving: boolean;
-  converting: boolean;
   advancing: boolean;
+  /** Abre o Terminal de recebimento. O dinheiro não entra por aqui. */
   onStartReceive: () => void;
-  onCancelReceive: () => void;
-  onConfirmReceive: (input: { paymentMethod: PaymentMethod; cashReceived?: number; change?: number }) => void;
   onAdvance: (nextStatus: string) => void;
   onPrint: () => void;
   onEdit: () => void;
@@ -119,12 +115,8 @@ type Tab = "itens" | "historico" | "entrega";
 export function PreOrderDossier({
   preOrder,
   now,
-  receiving,
-  converting,
   advancing,
   onStartReceive,
-  onCancelReceive,
-  onConfirmReceive,
   onAdvance,
   onPrint,
   onEdit,
@@ -182,7 +174,7 @@ export function PreOrderDossier({
 
         {/* Etapa e modalidade empilhadas, ao lado do bloco de identificação. */}
         <div className="flex flex-none flex-col items-start gap-2 self-center">
-          <StagePicker stage={stage} disabled={advancing || receiving} onChange={onAdvance} />
+          <StagePicker stage={stage} disabled={advancing} onChange={onAdvance} />
           {fulfillment !== "unknown" && (
             <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[color:var(--border)] px-3.5 text-[13px] font-bold text-[color:var(--muted-foreground-strong)]">
               {fulfillment === "pickup" ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
@@ -205,100 +197,91 @@ export function PreOrderDossier({
         </div>
       </header>
 
-      {!receiving && (
-        <>
-          <div role="tablist" aria-label="Detalhes do pedido" className="flex gap-0.5 border-b border-[color:var(--border)] bg-[color:var(--card)] px-5">
-            <TabButton active={tab === "itens"} onClick={() => setTab("itens")}>
-              Itens
-            </TabButton>
-            <TabButton active={tab === "historico"} onClick={() => setTab("historico")}>
-              Histórico
-            </TabButton>
-            <TabButton active={tab === "entrega"} onClick={() => setTab("entrega")}>
-              Entrega
-            </TabButton>
-          </div>
+      <div
+        role="tablist"
+        aria-label="Detalhes do pedido"
+        className="flex gap-0.5 border-b border-[color:var(--border)] bg-[color:var(--card)] px-5"
+      >
+        <TabButton active={tab === "itens"} onClick={() => setTab("itens")}>
+          Itens
+        </TabButton>
+        <TabButton active={tab === "historico"} onClick={() => setTab("historico")}>
+          Histórico
+        </TabButton>
+        <TabButton active={tab === "entrega"} onClick={() => setTab("entrega")}>
+          Entrega
+        </TabButton>
+      </div>
 
-          <div className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            {tab === "itens" && (
-              <>
-                <ItemsTab preOrder={preOrder} />
-                {/* Sem largura para a terceira coluna, o cupom volta para cá. */}
-                <div className="mt-6 flex justify-center xl:hidden">
-                  <ThermalTicket preOrder={preOrder} />
-                </div>
-              </>
-            )}
-            {tab === "historico" && <PreOrderTimeline preOrder={preOrder} now={now} />}
-            {tab === "entrega" && (
-              <DeliveryTab preOrder={preOrder} fulfillment={fulfillment} onTrack={onTrack} />
-            )}
-          </div>
-        </>
-      )}
+      <div className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        {tab === "itens" && (
+          <>
+            <ItemsTab preOrder={preOrder} />
+            {/* Sem largura para a terceira coluna, o cupom volta para cá. */}
+            <div className="mt-6 flex justify-center xl:hidden">
+              <ThermalTicket preOrder={preOrder} />
+            </div>
+          </>
+        )}
+        {tab === "historico" && <PreOrderTimeline preOrder={preOrder} now={now} />}
+        {tab === "entrega" && (
+          <DeliveryTab preOrder={preOrder} fulfillment={fulfillment} onTrack={onTrack} />
+        )}
+      </div>
 
-      {receiving ? (
-        <ReceivePanel
-          preOrder={preOrder}
-          submitting={converting}
-          onCancel={onCancelReceive}
-          onConfirm={onConfirmReceive}
-        />
-      ) : (
-        <footer className="flex flex-wrap items-center gap-2.5 border-t border-[color:var(--border)] bg-[color:var(--card)] px-5 py-3.5">
-          {primary && (
-            <Button
-              size="lg"
-              loading={advancing}
-              onClick={() => (primary.kind === "receive" ? onStartReceive() : onAdvance(primary.next))}
-              leftIcon={<primary.icon className="h-4 w-4" />}
-              style={
-                primary.kind === "receive"
-                  ? { background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }
-                  : undefined
-              }
-            >
-              {primary.label}
-              {primary.kind === "receive" && (
-                <span className="font-mono font-bold tabular-nums">{formatCurrency(preOrder.totalCents)}</span>
-              )}
-            </Button>
-          )}
-          {secondary && (
-            <Button
-              variant="outline"
-              disabled={advancing}
-              onClick={() => (secondary.kind === "receive" ? onStartReceive() : onAdvance(secondary.next))}
-              leftIcon={<secondary.icon className="h-4 w-4" />}
-            >
-              {secondary.label}
-            </Button>
-          )}
-          <Button variant="ghost" onClick={onEdit} leftIcon={<Pencil className="h-4 w-4" />}>
-            Editar
-          </Button>
-
-          {/* Cancelar existe em toda etapa: um pedido pode cair a qualquer
-              momento, e cancelado é estado — não some do banco e dá para
-              reabrir. Por isso fica visível, mas sem peso de ação primária. */}
+      <footer className="flex flex-wrap items-center gap-2.5 border-t border-[color:var(--border)] bg-[color:var(--card)] px-5 py-3.5">
+        {primary && (
           <Button
-            variant="ghost"
-            onClick={onCancel}
-            leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-            className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
+            size="lg"
+            loading={advancing}
+            onClick={() => (primary.kind === "receive" ? onStartReceive() : onAdvance(primary.next))}
+            leftIcon={<primary.icon className="h-4 w-4" />}
+            style={
+              primary.kind === "receive"
+                ? { background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }
+                : undefined
+            }
           >
-            {cancelled ? "Reabrir" : "Cancelar"}
+            {primary.label}
+            {primary.kind === "receive" && (
+              <span className="font-mono font-bold tabular-nums">{formatCurrency(preOrder.totalCents)}</span>
+            )}
           </Button>
-          <OverflowMenu onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
-          <p className="ml-auto hidden w-[220px] shrink-0 text-right text-[11.5px] leading-snug text-[color:var(--muted-foreground-strong)] 2xl:block">
-            {primary?.kind === "receive"
-              ? "Cria a venda e baixa o estoque. Você confere itens e total antes."
-              : primary
-                ? "Registra o horário. Não mexe em estoque nem em caixa."
-                : "Este pedido já foi encerrado."}
-          </p>
-        </footer>
-      )}
+        )}
+        {secondary && (
+          <Button
+            variant="outline"
+            disabled={advancing}
+            onClick={() => (secondary.kind === "receive" ? onStartReceive() : onAdvance(secondary.next))}
+            leftIcon={<secondary.icon className="h-4 w-4" />}
+          >
+            {secondary.label}
+          </Button>
+        )}
+        <Button variant="ghost" onClick={onEdit} leftIcon={<Pencil className="h-4 w-4" />}>
+          Editar
+        </Button>
+
+        {/* Cancelar existe em toda etapa: um pedido pode cair a qualquer
+            momento, e cancelado é estado — não some do banco e dá para
+            reabrir. Por isso fica visível, mas sem peso de ação primária. */}
+        <Button
+          variant="ghost"
+          onClick={onCancel}
+          leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+          className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
+        >
+          {cancelled ? "Reabrir" : "Cancelar"}
+        </Button>
+        <OverflowMenu onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
+        <p className="ml-auto hidden w-[220px] shrink-0 text-right text-[11.5px] leading-snug text-[color:var(--muted-foreground-strong)] 2xl:block">
+          {primary?.kind === "receive"
+            ? "Abre o terminal de recebimento. A venda só é criada depois da sua confirmação."
+            : primary
+              ? "Registra o horário. Não mexe em estoque nem em caixa."
+              : "Este pedido já foi encerrado."}
+        </p>
+      </footer>
     </div>
   );
 }
