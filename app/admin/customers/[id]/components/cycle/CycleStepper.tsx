@@ -34,7 +34,7 @@ export function CycleStepper({ cycle, now }: { cycle: Cycle; now: Date }) {
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full text-[9.5px] font-bold",
+                    "flex h-5 w-5 items-center justify-center rounded-full text-[10.5px] font-bold",
                     !done && !active && "bg-muted text-muted-foreground"
                   )}
                   style={
@@ -53,7 +53,7 @@ export function CycleStepper({ cycle, now }: { cycle: Cycle; now: Date }) {
                 </span>
                 <span
                   className={cn(
-                    "text-[11.5px]",
+                    "text-[12.5px]",
                     active ? "font-semibold" : "text-muted-foreground"
                   )}
                   style={active ? { color: `var(--cycle-${activeToken}-fg)` } : undefined}
@@ -75,7 +75,7 @@ export function CycleStepper({ cycle, now }: { cycle: Cycle; now: Date }) {
           );
         })}
 
-        <p className="ml-auto pl-3 text-[11px] text-muted-foreground">
+        <p className="ml-auto pl-3 text-[12px] text-muted-foreground">
           {describeTiming(cycle, now)}
         </p>
       </div>

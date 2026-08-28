@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, CalendarDays, Gauge, Wallet } from "lucide-react";
+import { AlertCircle, CalendarCheck2, CalendarDays, Gauge, Wallet } from "lucide-react";
+import { SectionTitle } from "./SectionTitle";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "../../constants";
 import { consumptionLevel, type Cycle } from "../../lib/cycle";
@@ -30,10 +31,10 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
   return (
     <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="text-[12.5px] font-semibold tracking-tight text-foreground">
+        <SectionTitle icon={CalendarDays}>
           Consumo de {cycle.label.split(" de ")[0]}
-        </h2>
-        <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        </SectionTitle>
+        <div className="ml-auto flex items-center gap-1.5 text-[12px] text-muted-foreground">
           <span>menos</span>
           {[0, 1, 2, 3].map((level) => (
             <span
@@ -46,13 +47,13 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <div className="w-full max-w-[320px] shrink-0">
-          <div className="grid grid-cols-7 gap-1.5">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 2xl:gap-8">
+        <div className="w-full max-w-[320px] shrink-0 2xl:max-w-[380px]">
+          <div className="grid grid-cols-7 gap-2">
             {WEEKDAY_INITIALS.map((initial, index) => (
               <span
                 key={index}
-                className="pb-1 text-center text-[9.5px] font-semibold tracking-wide text-muted-foreground"
+                className="pb-1 text-center text-[10.5px] font-semibold tracking-wide text-muted-foreground"
               >
                 {initial}
               </span>
@@ -71,7 +72,7 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
                   key={day}
                   title={dayTitle(cycle, day, cents, isPayment, isMissing)}
                   className={cn(
-                    "flex aspect-square items-center justify-center rounded-[9px] text-[11px] font-medium transition-transform",
+                    "flex aspect-square items-center justify-center rounded-[9px] text-[12px] font-medium transition-transform",
                     cents > 0 && "hover:scale-105",
                     isToday(day) && "ring-2 ring-offset-1 ring-offset-[color:var(--card)]"
                   )}
@@ -98,9 +99,9 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
           </div>
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="grid min-w-0 flex-1 gap-x-8 2xl:grid-cols-2">
           <Stat
-            icon={CalendarDays}
+            icon={CalendarCheck2}
             tone="info"
             label="Dias com consumo"
             value={`${cycle.daysWithConsumption}`}
@@ -178,11 +179,11 @@ function Stat({
         <Icon className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+        <p className="text-[13px] text-muted-foreground">{label}</p>
+        <p className="text-[16px] font-semibold tracking-tight text-foreground">
           {value}
           {hint && (
-            <span className="ml-1.5 text-xs font-normal text-muted-foreground">{hint}</span>
+            <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">{hint}</span>
           )}
         </p>
       </div>

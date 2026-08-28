@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Trash2 } from "lucide-react";
+import { Package, Receipt, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "../../constants";
 import type { Cycle, LedgerEntry } from "../../lib/cycle";
 import { OrderDetailsModal } from "../OrderDetailsModal";
+import { SectionTitle } from "./SectionTitle";
 
 const WEEKDAY_SHORT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -28,10 +29,10 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
   return (
     <section className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
       <div className="flex flex-wrap items-center gap-2 px-5 pb-3 pt-4">
-        <h2 className="text-[12.5px] font-semibold tracking-tight text-foreground">
+        <SectionTitle icon={Receipt}>
           Lançamentos de {cycle.label.split(" de ")[0]}
-        </h2>
-        <p className="ml-auto text-[11px] text-muted-foreground">
+        </SectionTitle>
+        <p className="ml-auto text-[12px] text-muted-foreground">
           {cycle.entries.length}{" "}
           {cycle.entries.length === 1 ? "lançamento" : "lançamentos"}
         </p>
@@ -40,10 +41,10 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
       {cycle.entries.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-5 py-12 text-center">
           <Package className="h-10 w-10 text-border" />
-          <p className="text-[13px] font-semibold text-foreground">
+          <p className="text-[14px] font-semibold text-foreground">
             Nenhum lançamento em {cycle.label}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground">
             Vendas na ficha e pagamentos deste mês aparecem aqui.
           </p>
         </div>
@@ -75,15 +76,15 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
                       !isPayment && "cursor-pointer hover:bg-muted/60"
                     )}
                   >
-                    <td className="py-2.5 pr-2 text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                    <td className="py-2.5 pr-2 text-[13px] tabular-nums text-muted-foreground whitespace-nowrap">
                       {String(entry.day).padStart(2, "0")}{" "}
                       <span className="text-muted-foreground/70">{weekday}</span>
                     </td>
 
-                    <td className="py-2.5 pr-2 text-xs text-foreground">
+                    <td className="py-2.5 pr-2 text-[13px] text-foreground">
                       {isPayment ? (
                         <span
-                          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
                           style={{
                             background: "var(--cycle-paga-bg)",
                             color: "var(--cycle-paga-fg)",
@@ -103,7 +104,7 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
                           )}
                           {isCash && (
                             <span
-                              className="rounded px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide"
+                              className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide"
                               style={{
                                 background: "var(--cycle-vazio-bg)",
                                 color: "var(--cycle-vazio-fg)",
@@ -118,7 +119,7 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
                     </td>
 
                     <td
-                      className="py-2.5 pr-2 text-right text-xs font-medium tabular-nums"
+                      className="py-2.5 pr-2 text-right text-[13px] font-medium tabular-nums"
                       style={
                         isPayment
                           ? { color: "var(--cycle-paga-fg)" }
@@ -131,7 +132,7 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
                       {formatCurrency(entry.amountCents)}
                     </td>
 
-                    <td className="py-2.5 text-right text-xs font-semibold tabular-nums text-foreground">
+                    <td className="py-2.5 text-right text-[13px] font-semibold tabular-nums text-foreground">
                       {formatCurrency(entry.balanceAfterCents)}
                     </td>
 
@@ -176,7 +177,7 @@ function Th({
   return (
     <th
       className={cn(
-        "pb-2 text-[9.5px] font-bold uppercase tracking-[0.13em] text-muted-foreground",
+        "pb-2 text-[10.5px] font-bold uppercase tracking-[0.13em] text-muted-foreground",
         align === "right" ? "text-right" : "text-left",
         className
       )}

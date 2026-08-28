@@ -1,8 +1,10 @@
 "use client";
 
+import { History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "../../constants";
 import type { Cycle } from "../../lib/cycle";
+import { SectionTitle } from "./SectionTitle";
 import { StateChip } from "./StateChip";
 
 /**
@@ -23,9 +25,9 @@ export function PreviousCycles({
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
-      <h2 className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      <SectionTitle icon={History} tone="neutral" className="mb-2">
         Histórico de ciclos
-      </h2>
+      </SectionTitle>
 
       <ul>
         {cycles.map((cycle) => {
@@ -42,7 +44,7 @@ export function PreviousCycles({
               >
                 <span
                   className={cn(
-                    "w-[68px] shrink-0 text-xs",
+                    "w-[68px] shrink-0 text-[13px]",
                     isSelected ? "font-semibold text-foreground" : "text-muted-foreground"
                   )}
                 >
@@ -51,7 +53,7 @@ export function PreviousCycles({
 
                 <WeeklySparkline cycle={cycle} />
 
-                <span className="ml-auto text-xs font-semibold tabular-nums text-foreground">
+                <span className="ml-auto text-[13px] font-semibold tabular-nums text-foreground">
                   {formatCurrency(cycle.fichaCents)}
                 </span>
 

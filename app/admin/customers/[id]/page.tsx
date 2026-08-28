@@ -10,6 +10,8 @@ import { CustomerPresetModal } from "../../../components/CustomerPresetModal";
 import { DeleteConfirmDialog } from "../../../components/DeleteConfirmDialog";
 import { Button } from "../../../components/ui/button";
 
+import { useWideLayout } from "../../components/layout/AdminChromeProvider";
+
 import { useCustomerData } from "./hooks/useCustomerData";
 import { useCustomerActions } from "./hooks/useCustomerActions";
 import { useCustomerEdit } from "./hooks/useCustomerEdit";
@@ -39,6 +41,10 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const customerId = params.id as string;
+
+  // A ficha usa a largura toda: o calendário do mês e o extrato ficam
+  // desnecessariamente apertados no container de 1280 px do resto do admin.
+  useWideLayout();
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
@@ -150,7 +156,7 @@ export default function CustomerDetailPage() {
         onDownloadBarcode={downloadBarcode}
       />
 
-      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="flex min-w-0 flex-col gap-3.5">
           <CycleStepper cycle={cycle} now={now} />
           <ConsumptionCalendar cycle={cycle} now={now} />

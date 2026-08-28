@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, MessageCircle, Plus, Printer, Wallet } from "lucide-react";
+import { ArrowDownLeft, FileText, MessageCircle, Plus, Printer, Wallet } from "lucide-react";
 import { formatCurrency } from "../../constants";
 import { summarizeBalance, type Cycle } from "../../lib/cycle";
 import { StateChip } from "./StateChip";
@@ -61,19 +61,26 @@ export function InvoicePanel({
         />
 
         <div className="relative">
-          <div className="flex items-center gap-2">
-            <p className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/70">
-              Fatura de {cycle.label.split(" de ")[0]}
-            </p>
-            <StateChip state={cycle.state} onSurface className="ml-auto" />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quebra a linha antes de quebrar o título: numa coluna de 340 px,
+                "FATURA DE DEZEMBRO" + o chip não cabem lado a lado. */}
+            <h2 className="flex flex-wrap items-center gap-y-1.5">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white/20">
+                <FileText className="h-[15px] w-[15px]" />
+              </span>
+              <span className="ml-2 whitespace-nowrap text-[14px] font-bold uppercase tracking-[0.09em]">
+                Fatura de {cycle.label.split(" de ")[0]}
+              </span>
+            </h2>
+            <StateChip state={cycle.state} onSurface className="ml-auto shrink-0" />
           </div>
 
-          <p className="mt-1.5 text-[36px] font-semibold leading-[1.05] tracking-[-0.04em] tabular-nums">
-            <span className="mr-1.5 text-[17px] font-medium opacity-70">R$</span>
+          <p className="mt-1.5 text-[38px] font-semibold leading-[1.05] tracking-[-0.04em] tabular-nums">
+            <span className="mr-1.5 text-[18px] font-medium opacity-70">R$</span>
             {formatCurrency(Math.abs(cycle.openCents)).replace("R$", "").trim()}
           </p>
 
-          <p className="mt-1.5 text-[11.5px] text-white/80">
+          <p className="mt-1.5 text-[12.5px] text-white/80">
             {summarizeCycle(cycle)}
           </p>
 
@@ -91,7 +98,7 @@ export function InvoicePanel({
                   transform="rotate(-90 23 23)"
                 />
               </svg>
-              <p className="text-[11.5px] leading-[1.45] text-white/80">
+              <p className="text-[12.5px] leading-[1.45] text-white/80">
                 <span className="font-semibold text-white">
                   {cycle.daysWithConsumption} de {cycle.businessDays}
                 </span>{" "}
@@ -127,8 +134,8 @@ export function InvoicePanel({
         )}
 
         <div className="mt-1.5 flex items-center border-t border-border pt-2.5">
-          <span className="text-[13.5px] font-semibold text-foreground">A cobrar</span>
-          <span className="ml-auto text-[13.5px] font-semibold tabular-nums text-foreground">
+          <span className="text-[14.5px] font-semibold text-foreground">A cobrar</span>
+          <span className="ml-auto text-[14.5px] font-semibold tabular-nums text-foreground">
             {formatCurrency(cycle.openCents)}
           </span>
         </div>
@@ -137,7 +144,7 @@ export function InvoicePanel({
             débito mais antigo. Então o total recebido no mês é informação à
             parte — misturá-lo na conta acima faria as linhas não fecharem. */}
         {cycle.paymentsCents > 0 && (
-          <p className="mt-2.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-2.5 flex items-start gap-1.5 text-[12px] leading-relaxed text-muted-foreground">
             <ArrowDownLeft
               className="mt-0.5 h-3 w-3 shrink-0"
               style={{ color: "var(--cycle-paga)" }}
@@ -156,7 +163,7 @@ export function InvoicePanel({
 
         {showsPrevious && (
           <p
-            className="mt-3 rounded-lg px-3 py-2 text-[11px] leading-relaxed"
+            className="mt-3 rounded-lg px-3 py-2 text-[12px] leading-relaxed"
             style={{
               background: previousCents > 0 ? "var(--cycle-atraso-bg)" : "var(--cycle-paga-bg)",
               color: previousCents > 0 ? "var(--cycle-atraso-fg)" : "var(--cycle-paga-fg)",
@@ -181,7 +188,7 @@ export function InvoicePanel({
         <div className="mt-4 flex flex-col gap-2">
           <button
             onClick={onReceivePayment}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] text-[11.5px] font-semibold text-white transition-transform active:scale-[0.98]"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] text-[12.5px] font-semibold text-white transition-transform active:scale-[0.98]"
             style={{
               background: "linear-gradient(180deg, #3b82f6, #2563eb)",
               boxShadow:
@@ -195,7 +202,7 @@ export function InvoicePanel({
           <div className="flex gap-2">
             <button
               onClick={onPreview}
-              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border bg-card text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border bg-card text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
             >
               <Printer className="h-3.5 w-3.5" />
               Prévia
@@ -204,7 +211,7 @@ export function InvoicePanel({
               onClick={onSendWhatsApp}
               disabled={!hasPhone}
               title={hasPhone ? undefined : "Cliente sem telefone cadastrado"}
-              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border bg-card text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border bg-card text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
             >
               <MessageCircle className="h-3.5 w-3.5" />
               WhatsApp
@@ -218,7 +225,7 @@ export function InvoicePanel({
           className="mt-0.5 h-3.5 w-3.5 shrink-0"
           style={{ color: `var(--cycle-${balance.tone === "devedor" ? "atraso" : balance.tone === "credito" ? "aberta" : "paga"})` }}
         />
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground">{balance.label}:</span>{" "}
           <span className="tabular-nums">{formatCurrency(Math.abs(balance.cents))}</span>
           <br />
@@ -243,7 +250,7 @@ function Row({
   title?: string;
 }) {
   return (
-    <div className="flex items-center py-1.5 text-xs" title={title}>
+    <div className="flex items-center py-1.5 text-[13px]" title={title}>
       <span
         className={muted ? "text-muted-foreground/70" : "text-muted-foreground"}
         style={tone === "ok" ? { color: "var(--cycle-paga-fg)" } : undefined}

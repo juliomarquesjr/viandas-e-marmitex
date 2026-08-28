@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() as { data: ExtendedSession | null };
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { fullBleed, immersive } = useAdminChrome();
+  const { fullBleed, wide, immersive } = useAdminChrome();
 
   const userRole = session?.user?.role;
 
@@ -97,7 +97,15 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               {fullBleed ? (
                 children
               ) : (
-                <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">{children}</div>
+                <div
+                  className={
+                    wide
+                      ? "w-full px-4 lg:px-6 py-6"
+                      : "container mx-auto px-4 lg:px-6 py-6 max-w-7xl"
+                  }
+                >
+                  {children}
+                </div>
               )}
             </main>
           </div>

@@ -7,6 +7,9 @@ import * as React from "react";
  *
  * - `fullBleed`: a página gerencia o próprio espaçamento e ocupa toda a área,
  *   sem o container centralizado de 1280 px que o resto do sistema usa.
+ * - `wide`: o meio-termo entre os dois. Mantém o espaçamento e a rolagem do
+ *   layout padrão, mas solta o teto de 1280 px — para telas que ficam
+ *   estranhamente estreitas num monitor largo sem precisar assumir a rolagem.
  * - `immersive`: some com a barra lateral e o cabeçalho, entregando a tela
  *   inteira para a página. Acompanha a API de tela cheia do navegador quando
  *   ela está disponível.
@@ -14,6 +17,8 @@ import * as React from "react";
 type AdminChromeValue = {
   fullBleed: boolean;
   setFullBleed: (value: boolean) => void;
+  wide: boolean;
+  setWide: (value: boolean) => void;
   immersive: boolean;
   toggleImmersive: () => void;
   exitImmersive: () => void;
@@ -23,6 +28,7 @@ const AdminChromeContext = React.createContext<AdminChromeValue | undefined>(und
 
 export function AdminChromeProvider({ children }: { children: React.ReactNode }) {
   const [fullBleed, setFullBleed] = React.useState(false);
+  const [wide, setWide] = React.useState(false);
   const [immersive, setImmersive] = React.useState(false);
 
   // Sair pelo Esc ou pelo F11 dispara o evento do navegador; o estado segue.
@@ -61,8 +67,8 @@ export function AdminChromeProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const value = React.useMemo(
-    () => ({ fullBleed, setFullBleed, immersive, toggleImmersive, exitImmersive }),
-    [fullBleed, immersive, toggleImmersive, exitImmersive],
+    () => ({ fullBleed, setFullBleed, wide, setWide, immersive, toggleImmersive, exitImmersive }),
+    [fullBleed, wide, immersive, toggleImmersive, exitImmersive],
   );
 
   return <AdminChromeContext.Provider value={value}>{children}</AdminChromeContext.Provider>;
@@ -89,4 +95,18 @@ export function useFullBleedLayout(): void {
     setFullBleed(true);
     return () => setFullBleed(false);
   }, [setFullBleed]);
+}
+
+/**
+ * Declara que a página usa toda a largura disponível, sem o teto de 1280 px.
+ * Diferente de `useFullBleedLayout`, o espaçamento e a rolagem continuam sendo
+ * do layout. Monte uma vez na raiz da página; ao sair, o teto volta sozinho.
+ */
+export function useWideLayout(): void {
+  const { setWide } = useAdminChrome();
+
+  React.useEffect(() => {
+    setWide(true);
+    return () => setWide(false);
+  }, [setWide]);
 }
