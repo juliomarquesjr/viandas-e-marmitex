@@ -301,6 +301,49 @@ cenario(
   }
 );
 
+// ── alocação visível nos dois sentidos ───────────────────────────────────────
+
+{
+  const orders = [
+    compra("2026-06-10T12:00:00.000Z", 60_000),
+    compra("2026-07-08T12:00:00.000Z", 70_000),
+    pagamento("2026-08-20T12:00:00.000Z", 130_000),
+  ];
+  const ledger = buildLedger(orders);
+  const cycles = buildCycles(ledger, new Date("2026-08-28T12:00:00.000Z"));
+  const erros: string[] = [];
+
+  // Olhando junho: a entrada que pagou aparece, mesmo tendo vindo de agosto.
+  const junho = cycles.find((c) => c.key === "2026-06")!;
+  if (junho.settlements.length !== 1) {
+    erros.push(`junho deveria listar 1 entrada, listou ${junho.settlements.length}`);
+  } else {
+    const s0 = junho.settlements[0];
+    if (s0.cents !== 60_000) erros.push(`junho: baixa de ${s0.cents}, esperado 60000`);
+    if (s0.paymentCycleKey !== "2026-08") {
+      erros.push(`junho: baixa veio de ${s0.paymentCycleKey}, esperado 2026-08`);
+    }
+  }
+
+  // Olhando o pagamento de agosto: ele diz que competências quitou.
+  const pag = ledger.find((e) => e.kind === "pagamento")!;
+  const cobertura = pag.covers
+    .map((c) => `${c.cycleKey}:${c.cents}`)
+    .sort()
+    .join(" ");
+  if (cobertura !== "2026-06:60000 2026-07:70000") {
+    erros.push(`cobertura do pagamento: ${cobertura}`);
+  }
+
+  if (erros.length) {
+    falhas += erros.length;
+    console.error("✗ a baixa aparece dos dois lados: no mês pago e no pagamento");
+    for (const erro of erros) console.error(`    ${erro}`);
+  } else {
+    console.log("✓ a baixa aparece dos dois lados: no mês pago e no pagamento");
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (falhas > 0) {

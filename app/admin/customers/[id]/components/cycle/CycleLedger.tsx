@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Receipt, Trash2 } from "lucide-react";
+import { ArrowDownLeft, Package, Receipt, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "../../constants";
-import type { Cycle, LedgerEntry } from "../../lib/cycle";
+import { cycleLabel, type Cycle, type LedgerEntry } from "../../lib/cycle";
 import { OrderDetailsModal } from "../OrderDetailsModal";
 import { SectionTitle } from "./SectionTitle";
 
@@ -95,6 +95,12 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
                             style={{ background: "var(--cycle-paga)" }}
                           />
                           Pagamento recebido
+                          {entry.covers.length > 0 && (
+                            <span className="font-normal opacity-80">
+                              · abateu{" "}
+                              {listaDeCompetencias(entry.covers.map((c) => c.cycleKey))}
+                            </span>
+                          )}
                         </span>
                       ) : (
                         <span className="flex flex-wrap items-baseline gap-x-1.5">
@@ -156,6 +162,55 @@ export function CycleLedger({ cycle, onDelete }: CycleLedgerProps) {
         </div>
       )}
 
+      {cycle.settlements.length > 0 && (
+        <div className="border-t border-border/60 px-5 py-4">
+          <h3 className="mb-1 flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
+            <ArrowDownLeft className="h-3.5 w-3.5" style={{ color: "var(--cycle-paga)" }} />
+            Entradas que pagaram {cycle.label.split(" de ")[0]}
+          </h3>
+          <p className="mb-2 text-[12px] text-muted-foreground">
+            Pagamento não fica preso ao mês da compra: aqui está de onde veio a baixa
+            desta competência.
+          </p>
+
+          <ul>
+            {cycle.settlements.map((settlement) => {
+              const emOutroMes = settlement.paymentCycleKey !== cycle.key;
+              const [ano, mes] = settlement.paymentCycleKey.split("-").map(Number);
+
+              return (
+                <li
+                  key={settlement.paymentId}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/50 py-2 text-[13px]"
+                >
+                  <span className="tabular-nums text-muted-foreground">
+                    {new Date(settlement.at).toLocaleDateString("pt-BR")}
+                  </span>
+                  <span className="text-foreground">Entrada de valores</span>
+                  {emOutroMes && (
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                      style={{
+                        background: "var(--cycle-aberta-bg)",
+                        color: "var(--cycle-aberta-fg)",
+                      }}
+                    >
+                      recebido em {cycleLabel(ano, mes - 1)}
+                    </span>
+                  )}
+                  <span
+                    className="ml-auto font-semibold tabular-nums"
+                    style={{ color: "var(--cycle-paga-fg)" }}
+                  >
+                    − {formatCurrency(settlement.cents)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <OrderDetailsModal
         open={selected !== null}
         order={selected?.order ?? null}
@@ -185,4 +240,28 @@ function Th({
       {children}
     </th>
   );
+}
+
+/** "junho e julho de 2026" a partir das chaves de competência. */
+function listaDeCompetencias(keys: string[]) {
+  const nomes = keys
+    .slice()
+    .sort()
+    .map((key) => {
+      const [ano, mes] = key.split("-").map(Number);
+      return cycleLabel(ano, mes - 1);
+    });
+
+  if (nomes.length === 1) return nomes[0];
+
+  // "junho de 2026 e julho de 2026" fica pesado quando o ano se repete.
+  const anos = new Set(nomes.map((nome) => nome.split(" de ")[1]));
+  const curtos =
+    anos.size === 1
+      ? nomes.map((nome, index) =>
+          index === nomes.length - 1 ? nome : nome.split(" de ")[0]
+        )
+      : nomes;
+
+  return `${curtos.slice(0, -1).join(", ")} e ${curtos[curtos.length - 1]}`;
 }

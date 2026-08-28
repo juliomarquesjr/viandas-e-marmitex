@@ -26,6 +26,26 @@ import { Order } from "../types";
 
 export type EntryKind = "consumo" | "consumo_avista" | "pagamento";
 
+/**
+ * Um pedaço de pagamento aplicado a um débito.
+ *
+ * É o que liga as duas pontas que o extrato sozinho não liga: olhando
+ * dezembro, dá para ver qual entrada de agosto pagou aquilo; olhando a entrada
+ * de agosto, dá para ver que competências ela quitou.
+ */
+export type Settlement = {
+  paymentId: string;
+  /** Data do pagamento — quase sempre fora da competência que ele quita. */
+  at: string;
+  /** Competência em que o pagamento entrou. */
+  paymentCycleKey: string;
+  paymentMethod: string | null;
+  cents: number;
+};
+
+/** Quanto de um pagamento foi para cada competência. */
+export type Coverage = { cycleKey: string; cents: number };
+
 export type LedgerEntry = {
   id: string;
   kind: EntryKind;
@@ -49,6 +69,10 @@ export type LedgerEntry = {
    * sempre que o cliente fecha a conta depois — que é o caso comum.
    */
   settledAt: string | null;
+  /** Só em débitos: os pedaços de pagamento que cobriram este lançamento. */
+  settledBy: Settlement[];
+  /** Só em pagamentos: para que competências este dinheiro foi. */
+  covers: Coverage[];
   order: Order;
 };
 
@@ -75,6 +99,11 @@ export type Cycle = {
    * dentro do próprio mês — é essa data que responde "mas ele já pagou junho?".
    */
   settledAt: string | null;
+  /**
+   * As entradas de valores que pagaram esta competência, agrupadas por
+   * pagamento. Muitas vêm de meses posteriores — é o caso normal.
+   */
+  settlements: Settlement[];
   daysWithConsumption: number;
   /** Dias úteis do mês já decorridos. */
   businessDays: number;
@@ -223,6 +252,8 @@ export function buildLedger(orders: Order[]): LedgerEntry[] {
       balanceAfterCents: balance,
       openCents: kind === "consumo" ? order.totalCents : 0,
       settledAt: null,
+      settledBy: [],
+      covers: [],
       order,
     });
   }
@@ -245,7 +276,17 @@ export function buildLedger(orders: Order[]): LedgerEntry[] {
 function applyFifoSettlement(entries: LedgerEntry[]) {
   const open: LedgerEntry[] = [];
   /** Pagamentos ainda não alocados, do mais antigo para o mais recente. */
-  const credit: { at: string; cents: number }[] = [];
+  const credit: (Omit<Settlement, "cents"> & { cents: number })[] = [];
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+  const register = (debit: LedgerEntry, source: Settlement) => {
+    debit.settledBy.push(source);
+    const payment = byId.get(source.paymentId);
+    if (!payment) return;
+    const existing = payment.covers.find((c) => c.cycleKey === debit.cycleKey);
+    if (existing) existing.cents += source.cents;
+    else payment.covers.push({ cycleKey: debit.cycleKey, cents: source.cents });
+  };
 
   const consumeCredit = (entry: LedgerEntry) => {
     while (entry.openCents > 0 && credit.length) {
@@ -253,6 +294,7 @@ function applyFifoSettlement(entries: LedgerEntry[]) {
       const taken = Math.min(entry.openCents, oldest.cents);
       entry.openCents -= taken;
       oldest.cents -= taken;
+      register(entry, { ...oldest, cents: taken });
       if (entry.openCents === 0) entry.settledAt = oldest.at;
       if (oldest.cents === 0) credit.shift();
     }
@@ -272,13 +314,28 @@ function applyFifoSettlement(entries: LedgerEntry[]) {
       const taken = Math.min(remaining, oldest.openCents);
       oldest.openCents -= taken;
       remaining -= taken;
+      register(oldest, {
+        paymentId: entry.id,
+        at: entry.createdAt,
+        paymentCycleKey: entry.cycleKey,
+        paymentMethod: entry.paymentMethod,
+        cents: taken,
+      });
       if (oldest.openCents === 0) {
         oldest.settledAt = entry.createdAt;
         open.shift();
       }
     }
 
-    if (remaining > 0) credit.push({ at: entry.createdAt, cents: remaining });
+    if (remaining > 0) {
+      credit.push({
+        paymentId: entry.id,
+        at: entry.createdAt,
+        paymentCycleKey: entry.cycleKey,
+        paymentMethod: entry.paymentMethod,
+        cents: remaining,
+      });
+    }
   }
 }
 
@@ -360,6 +417,20 @@ function buildCycle(
 
   // O ciclo só está quitado quando o último débito dele foi coberto.
   const debits = list.filter((entry) => entry.kind === "consumo");
+
+  // As baixas do mês, somadas por pagamento: um mesmo pagamento costuma cobrir
+  // vários dias, e o operador quer ver a entrada, não cada pedaço dela.
+  const settlementsById = new Map<string, Settlement>();
+  for (const debit of debits) {
+    for (const part of debit.settledBy) {
+      const found = settlementsById.get(part.paymentId);
+      if (found) found.cents += part.cents;
+      else settlementsById.set(part.paymentId, { ...part });
+    }
+  }
+  const settlements = [...settlementsById.values()].sort((a, b) =>
+    a.at < b.at ? -1 : 1
+  );
   const settledAt =
     debits.length &&
     debits.every((entry) => entry.openCents === 0 && entry.settledAt) &&
@@ -415,6 +486,7 @@ function buildCycle(
       key, currentKey, year, month, list, allEntries, openCents, now,
     }),
     settledAt,
+    settlements,
     daysWithConsumption,
     businessDays,
     missingDays,
