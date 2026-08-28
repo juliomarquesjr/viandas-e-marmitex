@@ -23,6 +23,7 @@
     "seed:products": "npx tsx scripts/seed-products.ts",
     "seed:customers": "npx tsx scripts/seed-customers.ts",
     "seed:users": "npx tsx scripts/seed-users.ts",
+    "check:ficha": "npx tsx scripts/check-ficha-cycle.ts",
     "seed:all": "npm run seed:categories && npm run seed:products && npm run seed:customers && npm run seed:users"
   },
   "dependencies": {

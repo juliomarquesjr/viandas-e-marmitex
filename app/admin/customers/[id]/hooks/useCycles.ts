@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Order } from "../types";
-import { buildCycles, buildLedger, cycleKeyOf, type Cycle } from "../lib/cycle";
+import {
+  buildCycles,
+  buildLedger,
+  creditBalanceOf,
+  cycleKeyOf,
+  type Cycle,
+} from "../lib/cycle";
 
 /**
  * Transforma os lançamentos brutos em competências e controla qual delas está
@@ -45,7 +51,21 @@ export function useCycles(orders: Order[]) {
     ? ledger[ledger.length - 1].balanceAfterCents
     : 0;
 
+  // O que está em aberto fora deste ciclo, separado por posição no tempo:
+  // dizer "meses anteriores" olhando um ciclo antigo estaria errado, porque
+  // a dívida restante pode ser toda de depois dele.
+  const earlierOpenCents = cycles
+    .filter((item) => item.key < activeKey)
+    .reduce((sum, item) => sum + item.openCents, 0);
+  const laterOpenCents = cycles
+    .filter((item) => item.key > activeKey)
+    .reduce((sum, item) => sum + item.openCents, 0);
+  const creditCents = creditBalanceOf(ledger);
+
   return {
+    earlierOpenCents,
+    laterOpenCents,
+    creditCents,
     now,
     ledger,
     cycles,

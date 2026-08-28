@@ -66,6 +66,9 @@ export default function CustomerDetailPage() {
     canGoPrevious,
     canGoNext,
     totalBalanceCents,
+    earlierOpenCents,
+    laterOpenCents,
+    creditCents,
     previousCycles,
   } = useCycles(orders);
 
@@ -157,9 +160,21 @@ export default function CustomerDetailPage() {
       />
 
       <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="flex min-w-0 flex-col gap-3.5">
+        {/* Container query em vez de breakpoint de janela: a largura útil desta
+            coluna muda quando a barra lateral colapsa, e é ela que decide se o
+            consumo e o histórico cabem lado a lado. */}
+        <div className="@container flex min-w-0 flex-col gap-3.5">
           <CycleStepper cycle={cycle} now={now} />
-          <ConsumptionCalendar cycle={cycle} now={now} />
+
+          <div className="grid items-start gap-3.5 @[680px]:grid-cols-[minmax(0,1fr)_280px] @[900px]:grid-cols-[minmax(0,1fr)_330px]">
+            <ConsumptionCalendar cycle={cycle} now={now} />
+            <PreviousCycles
+              cycles={previousCycles}
+              selectedKey={selectedKey}
+              onSelect={setSelectedKey}
+            />
+          </div>
+
           <CycleLedger cycle={cycle} onDelete={setEntryToDelete} />
         </div>
 
@@ -167,15 +182,13 @@ export default function CustomerDetailPage() {
           <InvoicePanel
             cycle={cycle}
             totalBalanceCents={totalBalanceCents}
+            earlierOpenCents={earlierOpenCents}
+            laterOpenCents={laterOpenCents}
+            creditCents={creditCents}
             onReceivePayment={() => setIsPaymentDialogOpen(true)}
             onPreview={openPreview}
             onSendWhatsApp={sendWhatsApp}
             hasPhone={Boolean(customer.phone?.trim())}
-          />
-          <PreviousCycles
-            cycles={previousCycles}
-            selectedKey={selectedKey}
-            onSelect={setSelectedKey}
           />
         </div>
       </div>

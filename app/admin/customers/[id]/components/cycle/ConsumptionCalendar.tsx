@@ -29,12 +29,12 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
   ];
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
+    <section className="@container rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle icon={CalendarDays}>
           Consumo de {cycle.label.split(" de ")[0]}
         </SectionTitle>
-        <div className="ml-auto flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <div className="ml-auto hidden items-center gap-1.5 text-[12px] text-muted-foreground @[560px]:flex">
           <span>menos</span>
           {[0, 1, 2, 3].map((level) => (
             <span
@@ -47,8 +47,8 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 2xl:gap-8">
-        <div className="w-full max-w-[320px] shrink-0 2xl:max-w-[380px]">
+      <div className="flex flex-col gap-5 @[620px]:flex-row @[620px]:items-start @[620px]:gap-6 @[980px]:gap-8">
+        <div className="w-full max-w-[320px] shrink-0 @[980px]:max-w-[380px]">
           <div className="grid grid-cols-7 gap-2">
             {WEEKDAY_INITIALS.map((initial, index) => (
               <span
@@ -99,7 +99,7 @@ export function ConsumptionCalendar({ cycle, now }: { cycle: Cycle; now: Date })
           </div>
         </div>
 
-        <div className="grid min-w-0 flex-1 gap-x-8 2xl:grid-cols-2">
+        <div className="grid min-w-0 flex-1 gap-x-8 @[560px]:grid-cols-2 @[620px]:grid-cols-1 @[1080px]:grid-cols-2">
           <Stat
             icon={CalendarCheck2}
             tone="info"

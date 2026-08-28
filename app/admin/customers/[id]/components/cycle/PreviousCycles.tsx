@@ -24,7 +24,7 @@ export function PreviousCycles({
   if (!cycles.length) return null;
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
+    <section className="@container rounded-2xl border border-border/60 bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_4px_14px_-8px_rgba(15,23,42,0.16)]">
       <SectionTitle icon={History} tone="neutral" className="mb-2">
         Histórico de ciclos
       </SectionTitle>
@@ -37,6 +37,11 @@ export function PreviousCycles({
               <button
                 onClick={() => onSelect(cycle.key)}
                 aria-current={isSelected ? "true" : undefined}
+                title={
+                  cycle.settledAt
+                    ? `${cycle.label} — quitada em ${new Date(cycle.settledAt).toLocaleDateString("pt-BR")}`
+                    : cycle.label
+                }
                 className={cn(
                   "flex w-full items-center gap-3 border-b border-border/50 py-2.5 text-left transition-colors last:border-b-0",
                   isSelected ? "text-foreground" : "hover:bg-muted/50"
@@ -78,7 +83,7 @@ function WeeklySparkline({ cycle }: { cycle: Cycle }) {
 
   if (!max) {
     return (
-      <span className="h-4 w-14 shrink-0" aria-hidden="true">
+      <span className="hidden h-4 w-14 shrink-0 @[300px]:block" aria-hidden="true">
         <span className="mt-[7px] block h-px w-full bg-border" />
       </span>
     );
@@ -88,7 +93,7 @@ function WeeklySparkline({ cycle }: { cycle: Cycle }) {
 
   return (
     <span
-      className="flex h-4 w-14 shrink-0 items-end gap-[1.5px]"
+      className="hidden h-4 w-14 shrink-0 items-end gap-[1.5px] @[300px]:flex"
       aria-hidden="true"
       title={`Consumo por semana em ${cycle.label}`}
     >

@@ -44,6 +44,11 @@ export type LedgerEntry = {
   balanceAfterCents: number;
   /** Quanto deste débito ainda não foi coberto por pagamento (FIFO). */
   openCents: number;
+  /**
+   * Data do pagamento que terminou de cobrir este débito. Fica em outro mês
+   * sempre que o cliente fecha a conta depois — que é o caso comum.
+   */
+  settledAt: string | null;
   order: Order;
 };
 
@@ -65,6 +70,11 @@ export type Cycle = {
   /** Quanto do consumo do mês ainda está em aberto depois da baixa FIFO. */
   openCents: number;
   state: CycleState;
+  /**
+   * Quando o último débito do mês terminou de ser coberto. Quase nunca cai
+   * dentro do próprio mês — é essa data que responde "mas ele já pagou junho?".
+   */
+  settledAt: string | null;
   daysWithConsumption: number;
   /** Dias úteis do mês já decorridos. */
   businessDays: number;
@@ -194,6 +204,7 @@ export function buildLedger(orders: Order[]): LedgerEntry[] {
       paymentMethod: order.paymentMethod,
       balanceAfterCents: balance,
       openCents: kind === "consumo" ? order.totalCents : 0,
+      settledAt: null,
       order,
     });
   }
@@ -203,15 +214,36 @@ export function buildLedger(orders: Order[]): LedgerEntry[] {
 }
 
 /**
- * Baixa FIFO: cada pagamento consome os débitos mais antigos ainda abertos.
- * Sobra vira crédito e simplesmente não é alocada — aparece no saldo negativo.
+ * Baixa FIFO nos dois sentidos do tempo.
+ *
+ * Pagamento não carrega competência: quem compra em junho e julho e fecha tudo
+ * em agosto quitou junho e julho, e a ficha precisa dizer isso. Então cada
+ * pagamento consome os débitos mais antigos ainda abertos, atravessando meses.
+ *
+ * E o que sobra não se perde: vira crédito e fica esperando as próximas
+ * compras. Sem isso, quem paga adiantado aparecia com crédito no saldo e, ao
+ * mesmo tempo, com o consumo seguinte "a cobrar".
  */
 function applyFifoSettlement(entries: LedgerEntry[]) {
   const open: LedgerEntry[] = [];
+  /** Pagamentos ainda não alocados, do mais antigo para o mais recente. */
+  const credit: { at: string; cents: number }[] = [];
+
+  const consumeCredit = (entry: LedgerEntry) => {
+    while (entry.openCents > 0 && credit.length) {
+      const oldest = credit[0];
+      const taken = Math.min(entry.openCents, oldest.cents);
+      entry.openCents -= taken;
+      oldest.cents -= taken;
+      if (entry.openCents === 0) entry.settledAt = oldest.at;
+      if (oldest.cents === 0) credit.shift();
+    }
+  };
 
   for (const entry of entries) {
     if (entry.kind === "consumo") {
-      open.push(entry);
+      consumeCredit(entry);
+      if (entry.openCents > 0) open.push(entry);
       continue;
     }
     if (entry.kind !== "pagamento") continue;
@@ -222,9 +254,25 @@ function applyFifoSettlement(entries: LedgerEntry[]) {
       const taken = Math.min(remaining, oldest.openCents);
       oldest.openCents -= taken;
       remaining -= taken;
-      if (oldest.openCents === 0) open.shift();
+      if (oldest.openCents === 0) {
+        oldest.settledAt = entry.createdAt;
+        open.shift();
+      }
     }
+
+    if (remaining > 0) credit.push({ at: entry.createdAt, cents: remaining });
   }
+}
+
+/** O que sobrou de pagamento sem débito para cobrir, em centavos. */
+export function creditBalanceOf(entries: LedgerEntry[]) {
+  const consumed = entries
+    .filter((entry) => entry.kind === "consumo")
+    .reduce((sum, entry) => sum + entry.amountCents - entry.openCents, 0);
+  const paid = entries
+    .filter((entry) => entry.kind === "pagamento")
+    .reduce((sum, entry) => sum + entry.amountCents, 0);
+  return Math.max(0, paid - consumed);
 }
 
 // =============================================================================
@@ -291,6 +339,16 @@ function buildCycle(
   const consumedDays = Object.keys(byDay).map(Number).sort((a, b) => a - b);
   const daysWithConsumption = consumedDays.length;
 
+  // O ciclo só está quitado quando o último débito dele foi coberto.
+  const debits = list.filter((entry) => entry.kind === "consumo");
+  const settledAt =
+    debits.length && debits.every((entry) => entry.openCents === 0 && entry.settledAt)
+      ? debits.reduce(
+          (latest, entry) => (entry.settledAt! > latest ? entry.settledAt! : latest),
+          debits[0].settledAt!
+        )
+      : null;
+
   const businessDaysList: number[] = [];
   for (let day = 1; day <= lastDayConsidered; day++) {
     if (isBusinessDay(new Date(year, month, day))) businessDaysList.push(day);
@@ -333,6 +391,7 @@ function buildCycle(
     paymentsCents,
     openCents,
     state: deriveState({ key, currentKey, year, month, list, openCents, now }),
+    settledAt,
     daysWithConsumption,
     businessDays,
     missingDays,

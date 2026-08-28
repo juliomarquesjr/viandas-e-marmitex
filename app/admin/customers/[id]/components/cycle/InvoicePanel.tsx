@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowDownLeft, FileText, MessageCircle, Plus, Printer, Wallet } from "lucide-react";
+import {
+  ArrowDownLeft,
+  CheckCircle2,
+  FileText,
+  MessageCircle,
+  Plus,
+  Printer,
+  Wallet,
+} from "lucide-react";
 import { formatCurrency } from "../../constants";
 import { summarizeBalance, type Cycle } from "../../lib/cycle";
 import { StateChip } from "./StateChip";
@@ -9,6 +17,12 @@ interface InvoicePanelProps {
   cycle: Cycle;
   /** Saldo da ficha inteira, somando todos os ciclos. */
   totalBalanceCents: number;
+  /** Em aberto nos ciclos anteriores a este. */
+  earlierOpenCents: number;
+  /** Em aberto nos ciclos posteriores a este. */
+  laterOpenCents: number;
+  /** Pagamento adiantado ainda não consumido. */
+  creditCents: number;
   onReceivePayment: () => void;
   onPreview: () => void;
   onSendWhatsApp: () => void;
@@ -26,14 +40,15 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 export function InvoicePanel({
   cycle,
   totalBalanceCents,
+  earlierOpenCents,
+  laterOpenCents,
+  creditCents,
   onReceivePayment,
   onPreview,
   onSendWhatsApp,
   hasPhone,
 }: InvoicePanelProps) {
   const balance = summarizeBalance(totalBalanceCents);
-  const previousCents = totalBalanceCents - cycle.openCents;
-  const showsPrevious = Math.abs(previousCents) >= 1;
   const avulsosCents = cycle.consumptionCents - cycle.fichaCents;
   // Quanto do consumo deste mês já foi coberto por pagamentos (baixa FIFO).
   const settledCents = cycle.fichaCents - cycle.openCents;
@@ -140,6 +155,17 @@ export function InvoicePanel({
           </span>
         </div>
 
+        {cycle.settledAt && (
+          <p
+            className="mt-2 flex items-center gap-1.5 text-[12px]"
+            style={{ color: "var(--cycle-paga-fg)" }}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            Quitada em {new Date(cycle.settledAt).toLocaleDateString("pt-BR")}
+            {cycle.settledAt.slice(0, 7) !== cycle.key && " — em outro mês"}
+          </p>
+        )}
+
         {/* Pagamento não carrega competência: o dinheiro que entra liquida o
             débito mais antigo. Então o total recebido no mês é informação à
             parte — misturá-lo na conta acima faria as linhas não fecharem. */}
@@ -161,28 +187,30 @@ export function InvoicePanel({
           </p>
         )}
 
-        {showsPrevious && (
-          <p
-            className="mt-3 rounded-lg px-3 py-2 text-[12px] leading-relaxed"
-            style={{
-              background: previousCents > 0 ? "var(--cycle-atraso-bg)" : "var(--cycle-paga-bg)",
-              color: previousCents > 0 ? "var(--cycle-atraso-fg)" : "var(--cycle-paga-fg)",
-            }}
-          >
-            {previousCents > 0 ? (
-              <>
-                Somando meses anteriores, a ficha tem{" "}
-                <strong className="font-semibold">{formatCurrency(totalBalanceCents)}</strong> em
+        {(earlierOpenCents > 0 || laterOpenCents > 0 || creditCents > 0) && (
+          <div className="mt-3 flex flex-col gap-1.5">
+            {earlierOpenCents > 0 && (
+              <ContextLine tone="alert">
+                Meses anteriores ainda têm{" "}
+                <strong className="font-semibold">{formatCurrency(earlierOpenCents)}</strong> em
                 aberto.
-              </>
-            ) : (
-              <>
-                O cliente tem{" "}
-                <strong className="font-semibold">{formatCurrency(Math.abs(previousCents))}</strong>{" "}
-                de crédito de meses anteriores.
-              </>
+              </ContextLine>
             )}
-          </p>
+            {laterOpenCents > 0 && (
+              <ContextLine tone="alert">
+                Depois deste ciclo há{" "}
+                <strong className="font-semibold">{formatCurrency(laterOpenCents)}</strong> em
+                aberto.
+              </ContextLine>
+            )}
+            {creditCents > 0 && (
+              <ContextLine tone="ok">
+                O cliente tem{" "}
+                <strong className="font-semibold">{formatCurrency(creditCents)}</strong> de crédito
+                para as próximas compras.
+              </ContextLine>
+            )}
+          </div>
         )}
 
         <div className="mt-4 flex flex-col gap-2">
@@ -280,4 +308,25 @@ function summarizeCycle(cycle: Cycle) {
   }
   if (cycle.state === "paga") parts.push("liquidado");
   return parts.join(" · ");
+}
+
+/** Uma linha de contexto sobre o resto da ficha, fora deste ciclo. */
+function ContextLine({
+  tone,
+  children,
+}: {
+  tone: "alert" | "ok";
+  children: React.ReactNode;
+}) {
+  return (
+    <p
+      className="rounded-lg px-3 py-2 text-[12px] leading-relaxed"
+      style={{
+        background: tone === "alert" ? "var(--cycle-atraso-bg)" : "var(--cycle-paga-bg)",
+        color: tone === "alert" ? "var(--cycle-atraso-fg)" : "var(--cycle-paga-fg)",
+      }}
+    >
+      {children}
+    </p>
+  );
 }
