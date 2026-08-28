@@ -211,7 +211,7 @@ cenario(
 );
 
 cenario(
-  "o mesmo pagamento parcial, passada a tolerância, vira atraso",
+  "pagamento parcial recente: passa da tolerância, mas o cliente está ativo",
   [
     compra("2026-07-10T12:00:00.000Z", 60_000),
     pagamento("2026-08-02T12:00:00.000Z", 20_000),
@@ -220,7 +220,84 @@ cenario(
   {
     saldo: 40_000,
     credito: 0,
+    ciclos: [{ key: "2026-07", emAberto: 40_000, estado: "a-cobrar", quitadoEm: null }],
+  }
+);
+
+cenario(
+  "o mesmo pagamento parcial, mas o cliente sumiu depois: vira atraso",
+  [
+    compra("2026-07-10T12:00:00.000Z", 60_000),
+    pagamento("2026-08-02T12:00:00.000Z", 20_000),
+  ],
+  "2026-10-30T12:00:00.000Z",
+  {
+    saldo: 40_000,
+    credito: 0,
     ciclos: [{ key: "2026-07", emAberto: 40_000, estado: "em-atraso", quitadoEm: null }],
+  }
+);
+
+cenario(
+  "resíduo de centavos não é dívida: o mês continua quitado",
+  [
+    compra("2026-06-10T12:00:00.000Z", 60_030),
+    pagamento("2026-06-28T12:00:00.000Z", 60_000),
+  ],
+  "2026-08-28T12:00:00.000Z",
+  {
+    saldo: 30,
+    credito: 0,
+    ciclos: [{ key: "2026-06", emAberto: 30, estado: "paga", quitadoEm: null }],
+  }
+);
+
+cenario(
+  "quem voltou a pagar depois do mês fechar não é inadimplente",
+  [
+    compra("2026-06-10T12:00:00.000Z", 60_000),
+    compra("2026-07-05T12:00:00.000Z", 20_000),
+    pagamento("2026-07-20T12:00:00.000Z", 20_000),
+  ],
+  "2026-08-28T12:00:00.000Z",
+  {
+    saldo: 60_000,
+    credito: 0,
+    ciclos: [
+      // O pagamento de julho foi para junho (FIFO), mas prova que o cliente
+      // continua ativo: junho fica a cobrar, não em atraso.
+      { key: "2026-06", emAberto: 40_000, estado: "a-cobrar", quitadoEm: null },
+      { key: "2026-07", emAberto: 20_000, estado: "a-cobrar", quitadoEm: null },
+    ],
+  }
+);
+
+cenario(
+  "comprar e pagar no ato também conta como sinal de vida",
+  [
+    compra("2026-06-10T12:00:00.000Z", 60_000),
+    {
+      id: "avista", status: "confirmed", subtotalCents: 3_000, discountCents: 0,
+      totalCents: 3_000, paymentMethod: "pix", createdAt: "2026-08-20T12:00:00.000Z",
+      items: [],
+    },
+  ],
+  "2026-08-28T12:00:00.000Z",
+  {
+    saldo: 60_000,
+    credito: 0,
+    ciclos: [{ key: "2026-06", emAberto: 60_000, estado: "a-cobrar", quitadoEm: null }],
+  }
+);
+
+cenario(
+  "sumiu de vez depois do mês fechar: aí sim é atraso",
+  [compra("2026-06-10T12:00:00.000Z", 60_000)],
+  "2026-08-28T12:00:00.000Z",
+  {
+    saldo: 60_000,
+    credito: 0,
+    ciclos: [{ key: "2026-06", emAberto: 60_000, estado: "em-atraso", quitadoEm: null }],
   }
 );
 

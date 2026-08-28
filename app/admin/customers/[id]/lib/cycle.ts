@@ -98,6 +98,24 @@ const DAILY_PATTERN_THRESHOLD = 0.6;
 /** Dias de tolerância depois do fim do mês antes de a conta virar atraso. */
 export const GRACE_DAYS = 10;
 
+/**
+ * Abaixo disso o resto é poeira de arredondamento, não dívida.
+ *
+ * Sem essa folga um resíduo de R$ 0,30 — que existe de verdade na base —
+ * carimbava um mês inteiro de vermelho. Cobrar trinta centavos não é uma
+ * operação que exista neste negócio.
+ */
+export const SETTLEMENT_TOLERANCE_CENTS = 100;
+
+/**
+ * Sem sinal de vida por mais tempo que isso, o cliente conta como sumido.
+ *
+ * Um mês e meio cobre com folga o ciclo mensal do negócio: quem paga, ou
+ * compra e paga no balcão, dentro dessa janela está aparecendo — tem conta em
+ * aberto, não é inadimplente.
+ */
+export const INACTIVITY_DAYS = 45;
+
 // =============================================================================
 // HELPERS
 // =============================================================================
@@ -295,7 +313,7 @@ export function buildCycles(entries: LedgerEntry[], now = new Date()): Cycle[] {
   if (!grouped.has(currentKey)) grouped.set(currentKey, []);
 
   const cycles = [...grouped.entries()].map(([key, list]) =>
-    buildCycle(key, list, now, currentKey)
+    buildCycle(key, list, entries, now, currentKey)
   );
 
   return cycles.sort((a, b) => (a.key < b.key ? 1 : -1));
@@ -304,6 +322,7 @@ export function buildCycles(entries: LedgerEntry[], now = new Date()): Cycle[] {
 function buildCycle(
   key: string,
   list: LedgerEntry[],
+  allEntries: LedgerEntry[],
   now: Date,
   currentKey: string
 ): Cycle {
@@ -342,7 +361,9 @@ function buildCycle(
   // O ciclo só está quitado quando o último débito dele foi coberto.
   const debits = list.filter((entry) => entry.kind === "consumo");
   const settledAt =
-    debits.length && debits.every((entry) => entry.openCents === 0 && entry.settledAt)
+    debits.length &&
+    debits.every((entry) => entry.openCents === 0 && entry.settledAt) &&
+    openCents < SETTLEMENT_TOLERANCE_CENTS
       ? debits.reduce(
           (latest, entry) => (entry.settledAt! > latest ? entry.settledAt! : latest),
           debits[0].settledAt!
@@ -390,7 +411,9 @@ function buildCycle(
     fichaCents,
     paymentsCents,
     openCents,
-    state: deriveState({ key, currentKey, year, month, list, openCents, now }),
+    state: deriveState({
+      key, currentKey, year, month, list, allEntries, openCents, now,
+    }),
     settledAt,
     daysWithConsumption,
     businessDays,
@@ -408,24 +431,58 @@ function buildCycle(
   };
 }
 
+/**
+ * O estado do ciclo.
+ *
+ * "Em atraso" é uma acusação e só vale quando os dados sustentam. O sinal não
+ * é o mês estar aberto — é o cliente ter sumido. Quem continua aparecendo,
+ * quitando ficha ou comprando e pagando na hora, tem conta em aberto e ponto.
+ *
+ * Sem essa condição a etiqueta não informava nada: na base inteira, os 16
+ * clientes com saldo devedor apareciam todos em atraso.
+ *
+ * A inatividade é medida no cliente, não no ciclo. Medir por ciclo invertia a
+ * gravidade — um mês antigo ficava "a cobrar" e um mais recente "em atraso",
+ * só porque sobrava mais extrato depois do antigo.
+ */
 function deriveState(input: {
   key: string;
   currentKey: string;
   year: number;
   month: number;
   list: LedgerEntry[];
+  allEntries: LedgerEntry[];
   openCents: number;
   now: Date;
 }): CycleState {
-  const { key, currentKey, year, month, list, openCents, now } = input;
+  const { key, currentKey, year, month, list, allEntries, openCents, now } = input;
 
   if (key === currentKey) return "aberta";
   if (!list.length) return "sem-movimento";
-  if (openCents <= 0) return "paga";
+  if (openCents < SETTLEMENT_TOLERANCE_CENTS) return "paga";
 
-  const dueDate = new Date(year, month + 1, 0);
+  const dueDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
   dueDate.setDate(dueDate.getDate() + GRACE_DAYS);
-  return now > dueDate ? "em-atraso" : "a-cobrar";
+  if (now <= dueDate) return "a-cobrar";
+
+  return isDormant(allEntries, now) ? "em-atraso" : "a-cobrar";
+}
+
+/** Data do último sinal de que o cliente ainda aparece e paga. */
+export function lastPaymentActivityOf(entries: LedgerEntry[]): string | null {
+  let latest: string | null = null;
+  for (const entry of entries) {
+    if (entry.kind !== "pagamento" && entry.kind !== "consumo_avista") continue;
+    if (!latest || entry.createdAt > latest) latest = entry.createdAt;
+  }
+  return latest;
+}
+
+function isDormant(entries: LedgerEntry[], now: Date) {
+  const latest = lastPaymentActivityOf(entries);
+  if (!latest) return true;
+  const days = (now.getTime() - new Date(latest).getTime()) / 86_400_000;
+  return days > INACTIVITY_DAYS;
 }
 
 // =============================================================================
