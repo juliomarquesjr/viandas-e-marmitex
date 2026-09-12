@@ -64,15 +64,24 @@ type BudgetDate = {
     enabled: boolean;
 };
 
-type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+const PRINT_PAYLOAD_PREFIX = 'budget-full-print:';
+const PRINT_PAYLOAD_TTL_MS = 6 * 60 * 60 * 1000;
 
-type BudgetDay = {
-    day: DayOfWeek;
-    label: string;
-    enabled: boolean;
-    items: BudgetItem[];
-    discountCents: number;
-};
+// Remove payloads de impressões antigas para não acumular no localStorage.
+function cleanupPrintPayloads() {
+    try {
+        Object.keys(window.localStorage)
+            .filter(key => key.startsWith(PRINT_PAYLOAD_PREFIX))
+            .forEach(key => {
+                const createdAt = Number(key.slice(PRINT_PAYLOAD_PREFIX.length).split('-')[0]);
+                if (!Number.isFinite(createdAt) || Date.now() - createdAt > PRINT_PAYLOAD_TTL_MS) {
+                    window.localStorage.removeItem(key);
+                }
+            });
+    } catch {
+        // localStorage indisponível: nada a limpar
+    }
+}
 
 type BudgetModalProps = {
     isOpen: boolean;
@@ -103,6 +112,7 @@ export function BudgetModal({
     const [selectedProductsForBulk, setSelectedProductsForBulk] = useState<Set<string>>(new Set());
     const [bulkQuantity, setBulkQuantity] = useState<Record<string, number>>({});
     const [bulkApplyMode, setBulkApplyMode] = useState<'all' | 'empty'>('all');
+    const [bulkScope, setBulkScope] = useState<'all' | 'weekdays'>('all');
     const [tempDateData, setTempDateData] = useState<BudgetDate | null>(null);
     const [applyDiscountToAllDays, setApplyDiscountToAllDays] = useState(false);
     const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -156,6 +166,7 @@ export function BudgetModal({
             setShowProductList(false);
             setShowDateSummary(false);
             setShowBulkAddModal(false);
+            setBulkScope('all');
             setShowSavedBudgetsPicker(false);
             setSelectedProductsForBulk(new Set());
             setBulkQuantity({});
@@ -209,6 +220,16 @@ export function BudgetModal({
             });
         }
     }, [allDatesInPeriod]);
+
+    const isWeekday = (date: string) => {
+        const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+        return dayOfWeek >= 1 && dayOfWeek <= 5;
+    };
+
+    const weekdayDatesInPeriod = useMemo(
+        () => allDatesInPeriod.filter(isWeekday),
+        [allDatesInPeriod]
+    );
 
     const filteredProducts = products.filter(product => {
         if (!product.active) return false;
@@ -299,10 +320,11 @@ export function BudgetModal({
             selectedProductsForBulk.has(p.id) && p.active && p.priceCents && p.priceCents > 0 &&
             (!p.pricePerKgCents || p.pricePerKgCents <= 0)
         );
+        const targetDates = bulkScope === 'weekdays' ? weekdayDatesInPeriod : allDatesInPeriod;
         let appliedCount = 0;
         setBudgetDates(prev => {
             const newMap = new Map(prev);
-            allDatesInPeriod.forEach(date => {
+            targetDates.forEach(date => {
                 const budgetDate = newMap.get(date);
                 if (budgetDate && budgetDate.enabled) {
                     if (bulkApplyMode === 'empty' && budgetDate.items.length > 0) return;
@@ -325,7 +347,10 @@ export function BudgetModal({
             });
             return newMap;
         });
-        showToast(`${selectedProducts.length} produto(s) aplicado(s) em ${appliedCount} dia(s)`, "success");
+        showToast(
+            `${selectedProducts.length} produto(s) aplicado(s) em ${appliedCount} ${bulkScope === 'weekdays' ? 'dia(s) útil(eis)' : 'dia(s)'}`,
+            "success"
+        );
         setShowBulkAddModal(false);
         setSelectedProductsForBulk(new Set());
         setBulkQuantity({});
@@ -413,42 +438,44 @@ export function BudgetModal({
         return Math.max(0, subtotal - budgetDate.discountCents);
     };
 
-    const convertToBudgetDays = (): BudgetDay[] => {
-        const dayMap: Record<DayOfWeek, BudgetDay> = {
-            'monday': { day: 'monday', label: 'Segunda-feira', enabled: false, items: [], discountCents: 0 },
-            'tuesday': { day: 'tuesday', label: 'Terça-feira', enabled: false, items: [], discountCents: 0 },
-            'wednesday': { day: 'wednesday', label: 'Quarta-feira', enabled: false, items: [], discountCents: 0 },
-            'thursday': { day: 'thursday', label: 'Quinta-feira', enabled: false, items: [], discountCents: 0 },
-            'friday': { day: 'friday', label: 'Sexta-feira', enabled: false, items: [], discountCents: 0 },
-            'saturday': { day: 'saturday', label: 'Sábado', enabled: false, items: [], discountCents: 0 },
-            'sunday': { day: 'sunday', label: 'Domingo', enabled: false, items: [], discountCents: 0 },
-        };
-        const dayNames: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const sortedDates = Array.from(budgetDates.entries())
-            .filter(([_, budgetDate]) => budgetDate.enabled && budgetDate.items.length > 0)
-            .sort(([a], [b]) => a.localeCompare(b));
-        sortedDates.forEach(([dateStr, budgetDate]) => {
-            const date = new Date(dateStr + 'T00:00:00');
-            const dayOfWeek = dayNames[date.getDay()];
-            const dayData = dayMap[dayOfWeek];
-            if (!dayData.enabled) {
-                dayData.enabled = true;
-                dayData.items = budgetDate.items.map(item => ({ ...item }));
-                dayData.discountCents = budgetDate.discountCents;
-            }
-        });
-        return Object.values(dayMap);
-    };
-
     const generateFullBudget = () => {
         if (!startDate || !endDate) { showToast("Por favor, preencha as datas de início e fim", "warning"); return; }
-        const enabledDates = Array.from(budgetDates.values()).filter(d => d.enabled && d.items.length > 0);
-        if (enabledDates.length === 0) { showToast("Adicione produtos em pelo menos um dia", "warning"); return; }
-        const budgetDays = convertToBudgetDays();
-        const enabledDays = budgetDays.filter(day => day.enabled);
-        const budgetData = { customerId, customerName, startDate, endDate, days: enabledDays, sameProductsAllDays: false, totalCents: calculateBudgetTotal() };
-        const params = new URLSearchParams({ data: JSON.stringify(budgetData) });
-        window.open(`/print/budget-full?${params.toString()}`, '_blank');
+        const selectedDates = allDatesInPeriod
+            .map(date => budgetDates.get(date))
+            .filter((d): d is BudgetDate => !!d && d.enabled && d.items.length > 0);
+        if (selectedDates.length === 0) { showToast("Adicione produtos em pelo menos um dia", "warning"); return; }
+
+        // Cada data vai individualmente: a impressão reflete exatamente o calendário,
+        // sem replicar um dia da semana nas outras semanas do período.
+        const budgetData = {
+            customerId,
+            customerName,
+            startDate,
+            endDate,
+            totalCents: calculateBudgetTotal(),
+            dates: selectedDates.map(d => ({
+                date: d.date,
+                discountCents: d.discountCents,
+                items: d.items.map(item => ({
+                    productId: item.productId,
+                    name: item.product.name,
+                    priceCents: item.product.priceCents,
+                    quantity: item.quantity,
+                })),
+            })),
+        };
+
+        const payload = JSON.stringify(budgetData);
+        // O payload passa pelo localStorage porque a URL não suporta orçamentos longos.
+        try {
+            const key = `${PRINT_PAYLOAD_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            cleanupPrintPayloads();
+            window.localStorage.setItem(key, payload);
+            window.open(`/print/budget-full?key=${encodeURIComponent(key)}`, '_blank');
+        } catch {
+            const params = new URLSearchParams({ data: payload });
+            window.open(`/print/budget-full?${params.toString()}`, '_blank');
+        }
     };
 
     const formatCurrency = (cents: number) =>
@@ -619,15 +646,26 @@ export function BudgetModal({
 
                             <div className="p-4 space-y-3">
                                 {/* Adição rápida */}
-                                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl">
+                                <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl">
                                     <div>
                                         <p className="text-sm font-semibold text-slate-700">Adição Rápida</p>
-                                        <p className="text-xs text-slate-400">Adicione produtos em todos os dias de uma vez</p>
+                                        <p className="text-xs text-slate-400">Adicione produtos em vários dias de uma vez</p>
                                     </div>
-                                    <Button onClick={() => setShowBulkAddModal(true)} size="sm">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Todos os Dias
-                                    </Button>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => { setBulkScope('weekdays'); setShowBulkAddModal(true); }}
+                                            size="sm"
+                                            disabled={weekdayDatesInPeriod.length === 0}
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Dias Úteis
+                                        </Button>
+                                        <Button onClick={() => { setBulkScope('all'); setShowBulkAddModal(true); }} size="sm">
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Todos os Dias
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 {/* Legenda */}
@@ -806,10 +844,12 @@ export function BudgetModal({
                                     >
                                         <Package className="h-5 w-5 text-primary" />
                                     </div>
-                                    Adicionar em Todos os Dias
+                                    {bulkScope === 'weekdays' ? 'Adicionar em Dias Úteis' : 'Adicionar em Todos os Dias'}
                                 </DialogTitle>
                                 <DialogDescription>
-                                    Selecione os produtos que serão adicionados em todos os dias do período
+                                    {bulkScope === 'weekdays'
+                                        ? `Os produtos serão adicionados de segunda a sexta — ${weekdayDatesInPeriod.length} dia(s) útil(eis) no período`
+                                        : 'Selecione os produtos que serão adicionados em todos os dias do período'}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -832,8 +872,16 @@ export function BudgetModal({
                                     <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Modo de Aplicação</p>
                                     <div className="flex flex-col gap-2">
                                         {[
-                                            { value: 'all', label: 'Aplicar em todos os dias', sub: `Sobrescrever se já existir — ${allDatesInPeriod.length} dia(s)` },
-                                            { value: 'empty', label: 'Aplicar apenas em dias vazios', sub: 'Não altera dias que já possuem produtos' },
+                                            {
+                                                value: 'all',
+                                                label: bulkScope === 'weekdays' ? 'Aplicar em todos os dias úteis' : 'Aplicar em todos os dias',
+                                                sub: `Sobrescrever se já existir — ${(bulkScope === 'weekdays' ? weekdayDatesInPeriod : allDatesInPeriod).length} dia(s)`,
+                                            },
+                                            {
+                                                value: 'empty',
+                                                label: bulkScope === 'weekdays' ? 'Aplicar apenas em dias úteis vazios' : 'Aplicar apenas em dias vazios',
+                                                sub: 'Não altera dias que já possuem produtos',
+                                            },
                                         ].map(({ value, label, sub }) => (
                                             <label key={value} className="flex items-start gap-3 cursor-pointer group">
                                                 <input
