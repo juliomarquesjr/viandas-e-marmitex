@@ -6,20 +6,14 @@ import { Suspense, useEffect, useState } from 'react';
 
 type BudgetItem = {
     productId: string;
-    product: {
-        id: string;
-        name: string;
-        priceCents: number;
-        pricePerKgCents?: number;
-    };
+    name: string;
+    priceCents: number;
     quantity: number;
     weightKg?: number | null;
 };
 
-type BudgetDay = {
-    day: string;
-    label: string;
-    enabled: boolean;
+type BudgetDate = {
+    date: string;
     items: BudgetItem[];
     discountCents?: number;
 };
@@ -29,8 +23,7 @@ type BudgetData = {
     customerName: string;
     startDate: string;
     endDate: string;
-    days: BudgetDay[];
-    sameProductsAllDays: boolean;
+    dates: BudgetDate[];
     totalCents: number;
 };
 
@@ -53,6 +46,7 @@ type Customer = {
 
 function FullBudgetContent() {
     const searchParams = useSearchParams();
+    const keyParam = searchParams.get('key');
     const dataParam = searchParams.get('data');
 
     const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
@@ -68,15 +62,28 @@ function FullBudgetContent() {
 
     useEffect(() => {
         const loadData = async () => {
-            if (!dataParam) {
+            // O payload chega pelo localStorage (chave na URL) para não estourar o
+            // limite de tamanho da URL; o parâmetro `data` é o fallback.
+            let raw: string | null = null;
+            if (keyParam) {
+                try {
+                    raw = window.localStorage.getItem(keyParam);
+                } catch {
+                    raw = null;
+                }
+            }
+            if (!raw && dataParam) {
+                raw = dataParam;
+            }
+
+            if (!raw) {
                 setError('Dados do orçamento não fornecidos');
                 setLoading(false);
                 return;
             }
 
             try {
-                // Decodificar dados do orçamento
-                const budget = JSON.parse(decodeURIComponent(dataParam));
+                const budget: BudgetData = JSON.parse(raw);
                 setBudgetData(budget);
 
                 // Carregar dados do cliente e informações de contato do sistema em paralelo
@@ -116,7 +123,7 @@ function FullBudgetContent() {
         };
 
         loadData();
-    }, [dataParam]);
+    }, [keyParam, dataParam]);
 
     // Auto print when page loads
     useEffect(() => {
@@ -169,81 +176,16 @@ function FullBudgetContent() {
         });
     };
 
-    const calculateDaySubtotal = (day: BudgetDay) => {
-        return day.items.reduce((total, item) => {
-            return total + (item.product.priceCents * item.quantity);
+    const calculateDaySubtotal = (budgetDate: BudgetDate) => {
+        return budgetDate.items.reduce((total, item) => {
+            return total + (item.priceCents * item.quantity);
         }, 0);
     };
 
-    const calculateDayTotal = (day: BudgetDay) => {
-        const subtotal = calculateDaySubtotal(day);
-        const discount = day.discountCents || 0;
+    const calculateDayTotal = (budgetDate: BudgetDate) => {
+        const subtotal = calculateDaySubtotal(budgetDate);
+        const discount = budgetDate.discountCents || 0;
         return Math.max(0, subtotal - discount);
-    };
-
-    const calculateWeeks = () => {
-        if (!budgetData) return 0;
-        const start = parseLocalDate(budgetData.startDate);
-        const end = parseLocalDate(budgetData.endDate);
-        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        return Math.ceil(daysDiff / 7);
-    };
-
-    // Gerar todas as datas do período
-    const generateAllDatesInPeriod = () => {
-        if (!budgetData) return [];
-        const dates: string[] = [];
-        const start = parseLocalDate(budgetData.startDate);
-        const end = parseLocalDate(budgetData.endDate);
-        
-        const currentDate = new Date(start);
-        while (currentDate <= end) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-            dates.push(dateStr);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        
-        return dates;
-    };
-
-    // Obter o dia da semana de uma data
-    const getDayOfWeek = (dateString: string): string => {
-        const date = parseLocalDate(dateString);
-        const dayIndex = date.getDay();
-        const dayNames = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-        return dayNames[dayIndex];
-    };
-
-    // Obter dados do dia da semana para uma data específica
-    const getDayDataForDate = (dateString: string): BudgetDay | null => {
-        const dayOfWeek = getDayOfWeek(dateString);
-        // Mapear para o formato usado no BudgetDay
-        const dayMap: Record<string, string> = {
-            'domingo': 'sunday',
-            'segunda-feira': 'monday',
-            'terça-feira': 'tuesday',
-            'quarta-feira': 'wednesday',
-            'quinta-feira': 'thursday',
-            'sexta-feira': 'friday',
-            'sábado': 'saturday'
-        };
-        
-        const dayKey = dayMap[dayOfWeek];
-        if (!dayKey) return null;
-        
-        return budgetData?.days.find(day => day.day === dayKey) || null;
-    };
-
-    const calculateTotalPerWeek = () => {
-        if (!budgetData) return 0;
-        
-        // Calcular o total de uma semana típica somando os totais de cada dia habilitado
-        // Cada dia habilitado ocorre uma vez por semana
-        const enabledDays = budgetData.days.filter(day => day.enabled);
-        return enabledDays.reduce((total, day) => {
-            const dayTotal = calculateDayTotal(day);
-            return total + dayTotal;
-        }, 0);
     };
 
     if (loading) {
@@ -286,34 +228,16 @@ function FullBudgetContent() {
         );
     }
 
-    // Calcular total de desconto (considerando quantas vezes cada dia ocorre no período)
-    const calculateTotalDiscount = () => {
-        if (!budgetData) return 0;
-        const allDates = generateAllDatesInPeriod();
-        let totalDiscount = 0;
-        
-        allDates.forEach(dateStr => {
-            const dayData = getDayDataForDate(dateStr);
-            if (dayData && dayData.enabled && dayData.discountCents) {
-                totalDiscount += dayData.discountCents;
-            }
-        });
-        
-        return totalDiscount;
-    };
+    // Datas exatamente como planejadas no calendário, em ordem cronológica
+    const selectedDates = [...budgetData.dates]
+        .filter((budgetDate) => budgetDate.items.length > 0)
+        .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Contar quantas datas do período têm itens
-    const countDatesWithItems = () => {
-        if (!budgetData) return 0;
-        const allDates = generateAllDatesInPeriod();
-        return allDates.filter(dateStr => {
-            const dayData = getDayDataForDate(dateStr);
-            return dayData && dayData.enabled && dayData.items.length > 0;
-        }).length;
-    };
-
-    const totalDiscount = calculateTotalDiscount();
-    const datesWithItems = countDatesWithItems();
+    const totalDiscount = selectedDates.reduce(
+        (total, budgetDate) => total + (budgetDate.discountCents || 0),
+        0
+    );
+    const datesWithItems = selectedDates.length;
 
     return (
         <div className="min-h-screen bg-white p-8 print:p-0">
@@ -412,34 +336,28 @@ function FullBudgetContent() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {generateAllDatesInPeriod().map((dateStr) => {
-                                    const dayData = getDayDataForDate(dateStr);
-                                    
-                                    if (!dayData || !dayData.enabled || dayData.items.length === 0) {
-                                        return null;
-                                    }
-                                    
-                                    const discount = dayData.discountCents || 0;
-                                    const total = calculateDayTotal(dayData);
+                                {selectedDates.map((budgetDate) => {
+                                    const discount = budgetDate.discountCents || 0;
+                                    const total = calculateDayTotal(budgetDate);
                                     
                                     // Formatar itens separados por vírgula
-                                    const itemsText = dayData.items.map((item) => {
+                                    const itemsText = budgetDate.items.map((item) => {
                                         const qty = item.weightKg && Number(item.weightKg) > 0 
                                             ? `${Number(item.weightKg).toFixed(2)}kg` 
                                             : item.quantity;
-                                        return `${item.product.name} (${qty})`;
+                                        return `${item.name} (${qty})`;
                                     }).join(', ');
                                     
                                     return (
-                                        <tr key={dateStr} className="border-b border-gray-200">
+                                        <tr key={budgetDate.date} className="border-b border-gray-200">
                                             <td className="py-0 print:py-0 px-0.5 print:px-0.5 font-semibold text-gray-900 text-[9px] print:text-[8px]">
-                                                {formatDate(dateStr)}
+                                                {formatDate(budgetDate.date)}
                                             </td>
                                             <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-gray-900 text-[9px] print:text-[8px]">
                                                 {itemsText}
                                             </td>
                                             <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-center text-gray-700 text-[9px] print:text-[8px]">
-                                                {dayData.items.length}
+                                                {budgetDate.items.length}
                                             </td>
                                             <td className="py-0 print:py-0 px-0.5 print:px-0.5 text-right font-bold text-green-700 text-[9px] print:text-[8px]">
                                                 {formatCurrency(total)}
