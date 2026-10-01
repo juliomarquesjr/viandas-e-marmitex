@@ -3,6 +3,8 @@
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { ReportLoading } from '@/app/components/ReportLoading';
+import { amountDueCents } from '@/lib/closing-report';
+import { loadPixCharge, type PixCharge, type PixSettings } from '@/lib/pix-qr';
 
 type Customer = {
   id: string;
@@ -102,6 +104,11 @@ function CustomerReportContent() {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pix, setPix] = useState<{ settings: PixSettings; charge: PixCharge } | null>(null);
+  // O QR é opcional: `pixResolved` diz que a tentativa acabou (com ou sem QR),
+  // e só então a impressão pode começar. `qrReady` espera a imagem pintar.
+  const [pixResolved, setPixResolved] = useState(false);
+  const [qrReady, setQrReady] = useState(false);
 
   useEffect(() => {
     const loadReport = async () => {
@@ -136,15 +143,44 @@ function CustomerReportContent() {
     loadReport();
   }, [customerId, startDate, endDate]);
 
+  // Gerar o QR do valor a pagar. Sem chave PIX ou sem dívida, sai sem QR.
+  useEffect(() => {
+    if (!reportData) return;
+
+    let active = true;
+    // Relatório novo recomeça do zero: QR velho não pode escapar para o papel.
+    setPix(null);
+    setPixResolved(false);
+    setQrReady(false);
+    (async () => {
+      const charge = await loadPixCharge(amountDueCents(reportData));
+      if (!active) return;
+      setPix(charge);
+      setPixResolved(true);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [reportData]);
+
+  // Rede lenta ou imagem que não dispara evento não travam a impressão.
+  useEffect(() => {
+    if (!pix) return;
+    const timer = setTimeout(() => setQrReady(true), 4000);
+    return () => clearTimeout(timer);
+  }, [pix]);
+
   // Auto print when page loads
   useEffect(() => {
-    if (reportData && !loading && !error) {
+    const pixDone = pixResolved && (!pix || qrReady);
+    if (reportData && !loading && !error && pixDone) {
       // Small delay to ensure content is rendered
       setTimeout(() => {
         window.print();
       }, 500);
     }
-  }, [reportData, loading, error]);
+  }, [reportData, loading, error, pixResolved, pix, qrReady]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -279,6 +315,11 @@ function CustomerReportContent() {
 
       {/* Customer Data - Compact */}
       <div className="mb-3 avoid-break">
+        {/* O título e os campos ficam à esquerda e o PIX ocupa a faixa à
+            direita, que antes sobrava vazia — poupa a altura de uma seção
+            própria e alinha o QR pelo topo do bloco. */}
+        <div className="flex items-start gap-4">
+        <div className="flex-1" style={{ minWidth: 0 }}>
         <h2 className="text-base font-semibold mb-2 text-gray-800 border-b pb-1">
           Dados do Cliente
         </h2>
@@ -316,6 +357,32 @@ function CustomerReportContent() {
               <div className="text-gray-900 ml-2">{customer.doc}</div>
             </div>
           )}
+        </div>
+        </div>
+        {pix && (
+          <div className="border rounded p-2 text-xs" style={{ width: '200px', flexShrink: 0 }}>
+            <div className="font-medium text-gray-600 mb-1 text-center">Pagamento por PIX</div>
+            <img
+              src={pix.charge.qrCodeUrl}
+              alt="QR Code PIX"
+              className="border border-gray-300 bg-white"
+              style={{ width: '116px', height: '116px', display: 'block', margin: '0 auto' }}
+              onLoad={() => setQrReady(true)}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                setQrReady(true);
+              }}
+            />
+            <div className="text-center mt-1">
+              <div className="text-base font-bold text-gray-900">
+                {formatCurrency(amountDueCents(reportData))}
+              </div>
+              <div className="text-gray-900" style={{ wordBreak: 'break-all' }}>
+                {pix.settings.key}
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
 
