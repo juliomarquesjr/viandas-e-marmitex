@@ -1,3 +1,4 @@
+import { readPixSettings, type PixSettings } from "@/lib/pix-qr";
 import { describeItem, formatCurrency, weightOf, type PreOrder } from "./preOrderView";
 
 /**
@@ -10,40 +11,11 @@ import { describeItem, formatCurrency, weightOf, type PreOrder } from "./preOrde
  * aparelho oferece compartilhamento de arquivo.
  */
 
-/** Chave PIX e identificação do recebedor, lidas das configurações. */
-export type PixSettings = {
-  key: string;
-  merchantName: string;
-  city: string;
-};
-
-const CEP = /^\d{5}-?\d{3}$/;
-
 /**
- * Lê a chave PIX das configurações públicas, com o mesmo critério da comanda
- * térmica: chave configurada e, na falta dela, o celular do estabelecimento.
- * Divergir daqui faria o QR do balcão apontar para outro lugar que o do papel.
+ * A chave vem de `lib/pix-qr`: é a mesma que a comanda térmica e o fechamento
+ * imprimem. Reexportada aqui porque o Terminal lê o PIX por este módulo.
  */
-export function readPixSettings(
-  configs: Array<{ key: string; value: string | null }>,
-): PixSettings | null {
-  const value = (key: string) => configs.find((config) => config.key === key)?.value?.trim() ?? "";
-
-  const configured = value("payment_pix_key");
-  const mobile = value("contact_phone_mobile");
-  const key = configured || mobile.replace(/\D/g, "");
-  if (!key) return null;
-
-  const city = value("contact_address_city");
-
-  return {
-    key,
-    merchantName: (value("branding_system_title") || "PIX").replace(/\s+/g, " ").slice(0, 25),
-    // A cidade tem 15 caracteres no padrão do BR Code, e CEP no lugar da
-    // cidade quebra a leitura em alguns bancos.
-    city: city && !CEP.test(city) ? city.replace(/\s+/g, " ").slice(0, 15) : "BR",
-  };
-}
+export { readPixSettings, type PixSettings };
 
 /**
  * Telefone no formato que o `wa.me` entende: só dígitos, com o país na frente.
