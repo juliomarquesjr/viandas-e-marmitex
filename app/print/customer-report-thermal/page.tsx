@@ -2,6 +2,8 @@
 
 import { ThermalFooter } from '@/app/components/ThermalFooter';
 import { ReportLoading } from '@/app/components/ReportLoading';
+import { amountDueCents } from '@/lib/closing-report';
+import { loadPixCharge, type PixCharge, type PixSettings } from '@/lib/pix-qr';
 import { printThermalPage } from '@/lib/thermal-print-utils';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -109,6 +111,11 @@ function CustomerReportThermalContent() {
   const [systemTitle, setSystemTitle] = useState<string>('COMIDA CASEIRA');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pix, setPix] = useState<{ settings: PixSettings; charge: PixCharge } | null>(null);
+  // O QR é opcional: `pixResolved` diz que a tentativa acabou (com ou sem QR),
+  // e só então a impressão pode começar. `qrReady` espera a imagem pintar.
+  const [pixResolved, setPixResolved] = useState(false);
+  const [qrReady, setQrReady] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -182,9 +189,38 @@ function CustomerReportThermalContent() {
     loadData();
   }, [customerId, startDate, endDate]);
 
+  // Gerar o QR do valor a pagar. Sem chave PIX ou sem dívida, sai sem QR.
+  useEffect(() => {
+    if (!reportData) return;
+
+    let active = true;
+    // Relatório novo recomeça do zero: QR velho não pode escapar para o papel.
+    setPix(null);
+    setPixResolved(false);
+    setQrReady(false);
+    (async () => {
+      const charge = await loadPixCharge(amountDueCents(reportData));
+      if (!active) return;
+      setPix(charge);
+      setPixResolved(true);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [reportData]);
+
+  // Rede lenta ou imagem que não dispara evento não travam a impressão.
+  useEffect(() => {
+    if (!pix) return;
+    const timer = setTimeout(() => setQrReady(true), 4000);
+    return () => clearTimeout(timer);
+  }, [pix]);
+
   // Auto print when page loads
   useEffect(() => {
-    if (reportData && !loading && !error) {
+    const pixDone = pixResolved && (!pix || qrReady);
+    if (reportData && !loading && !error && pixDone) {
       setTimeout(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -193,7 +229,7 @@ function CustomerReportThermalContent() {
         });
       }, 1200);
     }
-  }, [reportData, loading, error]);
+  }, [reportData, loading, error, pixResolved, pix, qrReady]);
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -450,6 +486,35 @@ function CustomerReportThermalContent() {
         </div>
       )}
 
+      {/* QR Code PIX do valor a pagar */}
+      {pix && (
+        <div className="thermal-section">
+          <div className="thermal-section-title">
+            PAGUE COM PIX:
+          </div>
+          <div className="pix-qr-section">
+            <img
+              src={pix.charge.qrCodeUrl}
+              alt="QR Code PIX"
+              className="pix-qr-img"
+              onLoad={() => setQrReady(true)}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                setQrReady(true);
+              }}
+            />
+            <div className="pix-qr-info">
+              <div className="thermal-text" style={{fontSize: '13px', fontWeight: '700'}}>
+                {formatCurrency(amountDueCents(reportData))}
+              </div>
+              <div className="thermal-text" style={{fontSize: '10px', wordBreak: 'break-all'}}>
+                {pix.settings.key}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="thermal-footer">
         <div style={{fontWeight: '500', fontSize: '12px', color: '#000'}}>Gerado em:</div>
@@ -562,6 +627,34 @@ function CustomerReportThermalContent() {
           padding: 4px 6px;
           margin-top: 4px;
           margin-bottom: 2px;
+        }
+        
+        /* QR Code PIX */
+        .pix-qr-section {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
+        }
+        
+        .pix-qr-img {
+          width: 100px;
+          height: 100px;
+          flex-shrink: 0;
+          border: 2px solid #000;
+          padding: 3px;
+          background-color: #fff;
+          display: block;
+        }
+        
+        .pix-qr-info {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 4px;
+          min-width: 0;
         }
         
         /* Transações (relatórios) */
@@ -728,6 +821,7 @@ function CustomerReportThermalContent() {
 
           .thermal-summary-block,
           .thermal-transaction,
+          .pix-qr-section,
           .thermal-footer {
             page-break-inside: avoid;
             break-inside: avoid;
