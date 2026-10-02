@@ -1,18 +1,20 @@
 "use client";
 
-import { Clock, Package, Truck, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Clock, Package, PackageCheck, Truck, CheckCircle, XCircle, Loader2, CircleHelp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type DeliveryStatus = 
-  | "pending" 
-  | "preparing" 
+export type DeliveryStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
   | "out_for_delivery" 
   | "in_transit" 
   | "delivered" 
   | "cancelled";
 
 interface DeliveryStatusBadgeProps {
-  status: DeliveryStatus;
+  // Aceita texto solto: status novo ou desconhecido cai no visual neutro em vez de quebrar a tela
+  status: DeliveryStatus | (string & {});
   className?: string;
   showIcon?: boolean;
 }
@@ -32,6 +34,12 @@ const statusConfig: Record<
     icon: Package,
     color: "text-blue-700",
     bgColor: "bg-blue-100",
+  },
+  ready: {
+    label: "Pronto para retirar",
+    icon: PackageCheck,
+    color: "text-teal-700",
+    bgColor: "bg-teal-100",
   },
   out_for_delivery: {
     label: "Saiu para Entrega",
@@ -59,12 +67,19 @@ const statusConfig: Record<
   },
 };
 
+const unknownConfig = {
+  label: "Status desconhecido",
+  icon: CircleHelp,
+  color: "text-gray-700",
+  bgColor: "bg-gray-100",
+};
+
 export function DeliveryStatusBadge({
   status,
   className,
   showIcon = true,
 }: DeliveryStatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status as DeliveryStatus] ?? unknownConfig;
   const Icon = config.icon;
 
   return (

@@ -1,14 +1,15 @@
 "use client";
 
-import { Clock, Package, Truck, CheckCircle, XCircle, MapPin } from "lucide-react";
+import { Clock, Package, PackageCheck, Truck, CheckCircle, XCircle, MapPin, CircleHelp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 
-type DeliveryStatus = 
-  | "pending" 
-  | "preparing" 
+type DeliveryStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
   | "out_for_delivery" 
   | "in_transit" 
   | "delivered" 
@@ -91,6 +92,12 @@ const statusConfig: Record<
     color: "text-blue-600",
     bgColor: "bg-blue-100 border-blue-300",
   },
+  ready: {
+    label: "Pronto para retirar",
+    icon: PackageCheck,
+    color: "text-teal-600",
+    bgColor: "bg-teal-100 border-teal-300",
+  },
   out_for_delivery: {
     label: "Saiu para Entrega",
     icon: Truck,
@@ -115,6 +122,14 @@ const statusConfig: Record<
     color: "text-red-600",
     bgColor: "bg-red-100 border-red-300",
   },
+};
+
+// Evento com status fora da lista (dado antigo ou status novo) não derruba a linha do tempo
+const unknownConfig = {
+  label: "Atualização",
+  icon: CircleHelp,
+  color: "text-gray-600",
+  bgColor: "bg-gray-100 border-gray-300",
 };
 
 export function DeliveryTimeline({
@@ -207,7 +222,7 @@ export function DeliveryTimeline({
   return (
     <div className={cn("space-y-4", className)}>
       {sortedEvents.map((event, index) => {
-        const config = statusConfig[event.status];
+        const config = statusConfig[event.status] ?? unknownConfig;
         const Icon = config.icon;
         const isLast = index === sortedEvents.length - 1;
         const isActive = event.status === currentStatus;

@@ -1,0 +1,99 @@
+/** Formato das respostas de /api/customer/*, como a tela as recebe (datas em ISO). */
+
+export interface ExpenseItem {
+  id?: string;
+  quantity: number;
+  priceCents?: number;
+  /** Decimal do Prisma chega como texto. */
+  weightKg?: string | number | null;
+  product: { id: string; name: string };
+}
+
+export interface PendingOrder {
+  id: string;
+  totalCents: number;
+  createdAt: string;
+  items: ExpenseItem[];
+}
+
+export interface FichaPayment {
+  id: string;
+  totalCents: number;
+  createdAt: string;
+  status: string;
+  cashReceivedCents: number | null;
+  changeCents: number | null;
+}
+
+export interface ExpensesResponse {
+  /** Saldo de toda a ficha, sem filtro: positivo é o que o cliente deve. */
+  balanceCents: number;
+  /** Totais de toda a ficha, sem filtro. */
+  totalPending: number;
+  totalPayments: number;
+  /** Totais só do período pedido; `null` quando não há filtro. */
+  period: { pendingCents: number; paymentsCents: number } | null;
+  /** Listas já filtradas pelo período, quando houver. */
+  pendingOrders: PendingOrder[];
+  fichaPayments: FichaPayment[];
+}
+
+export type DeliveryStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
+  | "out_for_delivery"
+  | "in_transit"
+  | "delivered"
+  | "cancelled";
+
+export interface PreOrderItem {
+  id: string;
+  quantity: number;
+  /** Preço unitário; o total da linha é priceCents × quantity. */
+  priceCents: number;
+  weightKg: string | number | null;
+  product: { id: string; name: string; imageUrl: string | null };
+}
+
+export interface PreOrder {
+  id: string;
+  totalCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  deliveryFeeCents: number;
+  notes: string | null;
+  createdAt: string;
+  deliveryStatus: DeliveryStatus;
+  estimatedDeliveryTime: string | null;
+  deliveryStartedAt: string | null;
+  deliveredAt: string | null;
+  /** Há um entregador designado (o nome e o contato não vêm para o cliente). */
+  hasCourier: boolean;
+  items: PreOrderItem[];
+}
+
+export interface PreOrdersResponse {
+  data: PreOrder[];
+  total: number;
+}
+
+export interface CustomerAddress {
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  doc: string | null;
+  address: CustomerAddress | null;
+  imageUrl?: string | null;
+}

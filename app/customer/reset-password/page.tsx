@@ -1,14 +1,14 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import "../auth/auth.css";
+import { AuthScene } from "../components/AuthScene";
 
+// Mesmo valor de lib/customer-password-reset.ts, que não pode vir para o
+// navegador (importa o Prisma). A API valida de novo.
 const MIN_PASSWORD_LENGTH = 8;
 
 function ResetPasswordForm() {
@@ -22,6 +22,7 @@ function ResetPasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
 
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -54,122 +55,126 @@ function ResetPasswordForm() {
     }
   };
 
-  const inputClass =
-    "h-12 pl-4 pr-12 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 bg-white";
+  const links = (
+    <div className="c-llinks">
+      {!done && (
+        <Link href="/customer/forgot-password" className="c-link">
+          Solicitar novo link
+        </Link>
+      )}
+      <Link href="/customer/login" className={done ? "c-link" : "c-link is-quiet"}>
+        Ir para o login
+      </Link>
+    </div>
+  );
+
+  if (!token) {
+    return (
+      <div className="c-linner">
+        <h1>Nova senha</h1>
+        <p className="c-alert" role="alert">
+          Link inválido. Solicite uma nova redefinição de senha.
+        </p>
+        {links}
+      </div>
+    );
+  }
+
+  if (done) {
+    return (
+      <div className="c-linner">
+        <h1>Nova senha</h1>
+        <p className="c-alert is-ok" role="status">
+          Senha atualizada com sucesso. Você já pode entrar com a nova senha.
+        </p>
+        {links}
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(251,146,60,0.1),transparent_50%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(245,158,11,0.1),transparent_50%)]" />
+    <form className="c-linner" onSubmit={handleSubmit}>
+      <h1>Nova senha</h1>
+      <p className="c-lsub">Escolha uma nova senha para sua conta.</p>
 
-      <div className="relative min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-md relative z-10">
-          <Card className="backdrop-blur-xl bg-white/90 border-0 shadow-2xl">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">Nova senha</CardTitle>
-              <CardDescription className="text-gray-600">Escolha uma nova senha para sua conta</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {!token ? (
-                <Alert variant="destructive" className="border-red-200 bg-red-50">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-red-700">
-                    Link inválido. Solicite uma nova redefinição de senha.
-                  </AlertDescription>
-                </Alert>
-              ) : done ? (
-                <Alert className="border-green-200 bg-green-50">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700">
-                    Senha atualizada com sucesso. Você já pode entrar com a nova senha.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {error && (
-                    <Alert variant="destructive" className="border-red-200 bg-red-50">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
-                    </Alert>
-                  )}
+      {error && (
+        <p className="c-alert" role="alert">
+          {error}
+        </p>
+      )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-orange-500" />
-                      Nova senha
-                    </label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Mínimo de 8 caracteres"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={inputClass}
-                        required
-                      />
-                      <button
-                        type="button"
-                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-orange-500 transition-colors duration-200 p-1 rounded-lg hover:bg-orange-50"
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                  </div>
+      <div className="c-field">
+        <label htmlFor="reset-password">Nova senha</label>
+        <div className="c-inwrap">
+          <span className="c-lead" aria-hidden="true">
+            <Lock size={20} />
+          </span>
+          <input
+            id="reset-password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            aria-describedby="reset-password-hint"
+            required
+          />
+          <button
+            type="button"
+            className="c-eye"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </div>
+        <span id="reset-password-hint" className="c-field-hint">
+          Mínimo de {MIN_PASSWORD_LENGTH} caracteres.
+        </span>
+      </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="confirm" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-orange-500" />
-                      Confirmar senha
-                    </label>
-                    <Input
-                      id="confirm"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Repita a nova senha"
-                      value={confirm}
-                      onChange={(e) => setConfirm(e.target.value)}
-                      className={inputClass}
-                      required
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                    disabled={loading}
-                  >
-                    {loading ? "Salvando..." : "Redefinir senha"}
-                  </Button>
-                </form>
-              )}
-
-              <div className="pt-6 border-t border-gray-200 text-center space-y-2">
-                {!done && (
-                  <Link
-                    href="/customer/forgot-password"
-                    className="block text-sm font-medium text-orange-700 hover:text-orange-800 hover:underline"
-                  >
-                    Solicitar novo link
-                  </Link>
-                )}
-                <Link href="/customer/login" className="block text-sm text-gray-600 hover:underline">
-                  Ir para o login
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="c-field">
+        <label htmlFor="reset-confirm">Confirmar senha</label>
+        <div className="c-inwrap">
+          <span className="c-lead" aria-hidden="true">
+            <Lock size={20} />
+          </span>
+          <input
+            id="reset-confirm"
+            type={showPassword ? "text" : "password"}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            required
+          />
         </div>
       </div>
-    </div>
+
+      <button type="submit" className="c-btn is-cta" aria-busy={loading} aria-live="polite">
+        {loading ? (
+          <>
+            <span className="c-spin" aria-hidden="true" />
+            Salvando…
+          </>
+        ) : (
+          "Redefinir senha"
+        )}
+      </button>
+
+      {links}
+    </form>
   );
 }
 
 export default function CustomerResetPasswordPage() {
   return (
-    <Suspense fallback={null}>
-      <ResetPasswordForm />
-    </Suspense>
+    <div className="c-auth">
+      <AuthScene title="Quase lá!" subtitle="Crie uma senha nova e volte para a sua conta." />
+      <div className="c-lform">
+        {/* useSearchParams pede um Suspense; o painel fica fora dele e já aparece no primeiro carregamento */}
+        <Suspense fallback={null}>
+          <ResetPasswordForm />
+        </Suspense>
+      </div>
+    </div>
   );
 }
