@@ -1,3 +1,4 @@
+import { CUSTOMER_SESSION_COOKIE } from "@/lib/customer-session-cookie";
 import { getToken } from "next-auth/jwt";
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
@@ -25,10 +26,11 @@ export default withAuth(
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
       
-      // Verificar sessão de cliente via cookie usando o mesmo secret
-      const customerToken = await getToken({ 
-        req, 
-        secret: process.env.NEXTAUTH_SECRET
+      // Sessão de cliente: cookie próprio, separado do de funcionário
+      const customerToken = await getToken({
+        req,
+        secret: process.env.NEXTAUTH_SECRET,
+        cookieName: CUSTOMER_SESSION_COOKIE,
       });
       
       // Se não tem token de cliente e não está na página de login, redirecionar
