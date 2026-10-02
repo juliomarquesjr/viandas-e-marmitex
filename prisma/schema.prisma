@@ -52,6 +52,21 @@ model Customer {
   presets    CustomerProductPreset[] // Presets de produtos para este cliente
   preOrders  PreOrder[]
   budgets    CustomerBudget[] // Orçamentos salvos para este cliente
+  passwordResetTokens CustomerPasswordResetToken[]
+}
+
+// Token de redefinição de senha do cliente (só o hash é armazenado; uso único)
+model CustomerPasswordResetToken {
+  id         String    @id @default(uuid())
+  customerId String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
 }
 
 // Modelo de Categoria de Produto

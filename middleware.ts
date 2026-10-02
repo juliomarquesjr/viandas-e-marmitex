@@ -10,7 +10,11 @@ export default withAuth(
     // Rotas de cliente - verificar sessão de cliente separadamente
     if (pathname.startsWith("/customer")) {
       // Se está tentando acessar login, permitir
-      if (pathname === "/customer/login") {
+      if (
+        pathname === "/customer/login" ||
+        pathname === "/customer/forgot-password" ||
+        pathname === "/customer/reset-password"
+      ) {
         return NextResponse.next();
       }
       
