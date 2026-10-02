@@ -15,6 +15,11 @@ const NAV = [
   { href: "/customer/profile", label: "Perfil", icon: User },
 ];
 
+/** Rastreio público: quem recebe o link não está logado e a tela ainda tem o visual antigo. */
+function isTrackingRoute(pathname: string | null) {
+  return !!pathname && /^\/customer\/pre-orders\/[^/]+\/tracking$/.test(pathname);
+}
+
 /** Telas sem navegação: entrar, recuperar senha e o rastreio público. */
 function isBareRoute(pathname: string | null) {
   if (!pathname) return false;
@@ -22,7 +27,7 @@ function isBareRoute(pathname: string | null) {
     pathname === "/customer/login" ||
     pathname === "/customer/forgot-password" ||
     pathname === "/customer/reset-password" ||
-    /^\/customer\/pre-orders\/[^/]+\/tracking$/.test(pathname)
+    isTrackingRoute(pathname)
   );
 }
 
@@ -101,6 +106,14 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export function CustomerShell({ children, fontClassName }: { children: React.ReactNode; fontClassName: string }) {
+  const pathname = usePathname();
+
+  // O rastreio fica fora do escopo visual novo (tema e kit), exatamente como era antes:
+  // dentro dele, o fundo seguia o tema escuro e os cartões antigos continuavam brancos.
+  if (isTrackingRoute(pathname)) {
+    return <SessionProvider basePath="/api/auth/customer">{children}</SessionProvider>;
+  }
+
   return (
     <SessionProvider basePath="/api/auth/customer">
       <CustomerThemeProvider>
