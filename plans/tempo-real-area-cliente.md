@@ -33,7 +33,7 @@ O feed de avisos do cliente é **derivado** de pedidos e ficha (não há tabela 
 
 | Canal | Evento | Quando publicar | Efeito |
 |---|---|---|---|
-| `staff:notifications` | `notification.created` | `POST /api/customer/payment-intents` (cliente informa o PIX) | o sino do admin chama `refresh()` na hora, em vez de esperar até 30 s |
+| `staff:notifications` | `notification.changed` | `POST /api/customer/payment-intents` (cliente informa o PIX), `confirm` e `reject` | o sino do admin chama `refresh()` na hora, em vez de esperar até 30 s |
 | `customer:{id}` | `ficha.updated` | `POST /api/payment-intents/[id]/confirm` (o operador confirma e o pagamento entra na ficha) | saldo, Ficha e avisos do cliente se atualizam sozinhos |
 | `customer:{id}` | `payment-intent.updated` | `confirm` e `reject` | a tela de PIX do cliente sai de "em análise" sem recarregar |
 
@@ -157,7 +157,7 @@ O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` 
 | `app/api/orders/route.ts` | `POST` | quando a venda for para a ficha (`paymentMethod: invoice`, status `pending`) e tiver `customerId` | `ficha.updated` |
 | `app/api/orders/route.ts` | `PUT`, `DELETE` | quando o pedido alterado for de um cliente | `ficha.updated` |
 | `app/api/ficha-payments/route.ts` | `POST`, `DELETE` | sempre (pagamento sempre tem `customerId`) | `ficha.updated` |
-| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.created` (canal dos funcionários) |
+| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.changed` (canal dos funcionários) |
 | `app/api/payment-intents/[id]/confirm` e `reject` | `POST` | depois de revisar | `payment-intent.reviewed` (canal do cliente) e, no confirmar, também `ficha.updated` |
 
 O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
