@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { publishToCustomer } from '@/lib/realtime';
 import {
   isCashMethod,
   isPaymentMethod,
@@ -324,6 +325,8 @@ export async function POST(request: Request) {
         }
       }
     });
+
+    await publishToCustomer(preOrder.customerId, 'pre-order.updated', { id: preOrder.id });
     
     return NextResponse.json(preOrder);
   } catch (error) {
@@ -533,6 +536,12 @@ async function convertPreOrderToOrder(request: Request) {
       
       return newOrder;
     });
+
+    // O pré-pedido some e, se foi para a ficha, o saldo muda
+    await publishToCustomer(order.customerId, 'pre-order.updated', { id: preOrder.id });
+    if (paymentMethod === 'invoice') {
+      await publishToCustomer(order.customerId, 'ficha.updated');
+    }
     
     return NextResponse.json(order);
   } catch (error) {
@@ -613,6 +622,8 @@ export async function PUT(request: Request) {
         }
       }
     });
+
+    await publishToCustomer(preOrder.customerId, 'pre-order.updated', { id: preOrder.id });
     
     return NextResponse.json(preOrder);
   } catch (error) {
@@ -645,6 +656,8 @@ export async function DELETE(request: Request) {
       );
     }
     
+    const owner = await prisma.preOrder.findUnique({ where: { id }, select: { customerId: true } });
+
     // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
     // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos
     await prisma.deliveryTracking.deleteMany({
@@ -661,6 +674,8 @@ export async function DELETE(request: Request) {
       where: { id }
     });
     
+    await publishToCustomer(owner?.customerId, 'pre-order.updated', { id });
+
     return NextResponse.json({ message: 'Pre-order deleted successfully' });
   } catch (error) {
     console.error('Error deleting pre-order:', error);

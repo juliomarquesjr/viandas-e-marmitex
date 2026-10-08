@@ -44,6 +44,12 @@ O feed de avisos do cliente é **derivado** de pedidos e ficha (não há tabela 
 
 Um endpoint "pulso" (`GET /api/customer/pulse`, devolvendo só um número de versão barato e recarregando os dados quando ele muda) daria sensação de tempo real sem serviço externo. Mas cada cliente com o app aberto vira uma chamada a cada poucos segundos: 100 clientes simultâneos a cada 15 s são cerca de 400 chamadas por minuto, perto de 190 mil por dia, e o plano Hobby da Vercel tem 1 milhão de invocações por mês. Serve como ponte para poucos clientes; o push do Ably custa uma mensagem por mudança, não por segundo de espera.
 
+### Como ficou a Fase 1 (implementada em 08/10/2026)
+
+- **Navegador sem biblioteca.** O pacote `ably` no navegador não passa no build do Next (o SWC quebra um `super()` dentro de função de seta no construtor). Em vez disso o navegador usa o canal de eventos nativo do Ably (`EventSource` em `realtime.ably.io/event-stream`), que também reconecta sozinho. O `ably` fica só no servidor.
+- **Token.** `GET /api/customer/realtime-token` devolve um token de 1 hora que só permite **ouvir** `customer:{id}`. O navegador pede outro 5 minutos antes de vencer e, se a conexão cair, tenta de novo com espera crescente.
+- **A chave do servidor precisa de permissão de publicar.** A chave "somente assinar" que o Ably cria por padrão emite tokens, mas não publica: o servidor recebe "Unauthorized to publish to channel" (registrado no log, sem derrubar a rota).
+
 ### Fases
 
 | Fase | Entrega | O que o cliente percebe |

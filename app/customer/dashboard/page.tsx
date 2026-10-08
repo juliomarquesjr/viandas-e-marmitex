@@ -14,6 +14,7 @@ import { firstName, formatBRL, formatTime, formatTodayLabel, greeting } from "..
 import { fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
 import { PAYMENT_INTENTS_URL } from "../lib/payment-intents";
 import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreOrdersResponse } from "../lib/types";
+import { useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
 import "./dashboard.css";
 
@@ -42,6 +43,8 @@ export default function CustomerDashboardPage() {
   const profile = useCustomerData<CustomerProfile>("/api/customer/profile");
   // Secundária: se falhar, o Início segue sem o andamento dos pagamentos
   const intents = useCustomerData<CustomerPaymentIntentsResponse>(PAYMENT_INTENTS_URL);
+  useRealtimeEvent("ficha.updated", expenses.reload);
+  useRealtimeEvent("pre-order.updated", preOrders.reload);
   const [pixOpen, setPixOpen] = React.useState(false);
   const closePix = React.useCallback(() => setPixOpen(false), []);
 

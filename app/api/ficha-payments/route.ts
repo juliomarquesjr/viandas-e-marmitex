@@ -1,6 +1,7 @@
 import { authOptions } from '@/lib/auth';
 import { createFichaPaymentOrder } from '@/lib/ficha-payment';
 import prisma from '@/lib/prisma';
+import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 
@@ -55,6 +56,8 @@ export async function POST(request: Request) {
       cashReceivedCents: body.cashReceivedCents,
       changeCents: body.changeCents,
     });
+
+    await publishToCustomer(paymentOrder.customerId, 'ficha.updated');
 
     return NextResponse.json(paymentOrder);
   } catch (error) {
@@ -182,6 +185,8 @@ export async function DELETE(request: Request) {
         paymentMethod: 'ficha_payment' // Ensure it's actually a ficha payment
       }
     });
+
+    await publishToCustomer(payment.customerId, 'ficha.updated');
 
     return NextResponse.json({ message: 'Ficha payment deleted successfully' });
   } catch (error) {

@@ -19,8 +19,10 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import * as React from "react";
 import { formatRelative } from "../../lib/format";
+import { useRealtimeEvent } from "../../lib/realtime";
 import {
   dismissAllNotices,
+  loadNotices,
   dismissNotice,
   markAllNoticesRead,
   markNoticeRead,
@@ -99,6 +101,9 @@ export function NotificationBell({ variant = "icon" }: { variant?: "icon" | "rai
   const { data: session } = useSession();
   const customerId = (session?.user as { customerId?: string } | undefined)?.customerId;
   const { items, loaded, unread, canUndo, clearedCount, isUnread } = useNotices(customerId);
+
+  // Os avisos são derivados de pedidos e ficha: qualquer mudança neles atualiza o sino na hora
+  useRealtimeEvent(["pre-order.updated", "ficha.updated"], () => void loadNotices());
 
   const [open, setOpen] = React.useState(false);
   const [filter, setFilter] = React.useState<Filter>("all");
