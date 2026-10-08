@@ -329,6 +329,13 @@ export default function AdminCustomersPage() {
         imageUrl: formData.imageUrl || null,
       };
 
+      // A foto também pode ser trocada pelo próprio cliente na área dele. Ao editar, só
+      // enviamos a foto se ela foi mudada neste formulário; senão o envio devolveria a foto
+      // que o formulário carregou ao abrir, desfazendo (e apagando) a troca do cliente.
+      if (editingCustomer && (formData.imageUrl || "") === (editingCustomer.imageUrl || "")) {
+        delete customerData.imageUrl;
+      }
+
       if (formData.password?.trim()) {
         customerData.password = formData.password.trim();
       }

@@ -1,57 +1,56 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { findValidResetToken, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '@/lib/customer-password-reset';
 
-// Endpoint temporário para resetar senha de cliente
-// ATENÇÃO: Remover este endpoint após uso em produção
+const INVALID_TOKEN = 'Link inválido ou expirado. Solicite uma nova redefinição de senha.';
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, newPassword } = body;
+    const body = (await request.json().catch(() => null)) ?? {};
+    const token = typeof body.token === 'string' ? body.token : '';
+    const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
 
-    if (!email || !newPassword) {
+    if (!token || !newPassword) {
+      return NextResponse.json({ error: 'Token e nova senha são obrigatórios' }, { status: 400 });
+    }
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH) {
       return NextResponse.json(
-        { error: 'Email e nova senha são obrigatórios' },
+        { error: `A senha deve ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres` },
         { status: 400 }
       );
     }
 
-    // Buscar cliente
-    const customer = await prisma.customer.findUnique({
-      where: { email },
-    });
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Cliente não encontrado' },
-        { status: 404 }
-      );
+    const record = await findValidResetToken(token);
+    if (!record) {
+      return NextResponse.json({ error: INVALID_TOKEN }, { status: 400 });
     }
 
-    // Gerar hash da nova senha
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Atualizar senha
-    await prisma.customer.update({
-      where: { id: customer.id },
-      data: { password: hashedPassword },
+    // Marca o token como usado só se ainda estiver livre: protege contra uso concorrente
+    const consumed = await prisma.$transaction(async (tx) => {
+      const claim = await tx.customerPasswordResetToken.updateMany({
+        where: { id: record.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claim.count === 0) return false;
+
+      await tx.customer.update({
+        where: { id: record.customerId },
+        data: { password: hashedPassword },
+      });
+      return true;
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Senha atualizada com sucesso',
-      email: customer.email,
-      name: customer.name,
-    });
+    if (!consumed) {
+      return NextResponse.json({ error: INVALID_TOKEN }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Senha atualizada com sucesso' });
   } catch (error) {
     console.error('Error resetting password:', error);
-    return NextResponse.json(
-      { error: 'Erro ao atualizar senha' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao atualizar senha' }, { status: 500 });
   }
 }
-
-
-
-

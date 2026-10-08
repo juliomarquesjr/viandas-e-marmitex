@@ -1,0 +1,14 @@
+/* Linha de compra/pagamento da ficha (MovementRow): o ícone do pagamento. Só tokens --c-*. */
+@layer components {
+  /* mesmo tamanho de uma miniatura (48px), para compras e pagamentos alinharem na lista */
+  .c-pay-ic {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+  }
+}

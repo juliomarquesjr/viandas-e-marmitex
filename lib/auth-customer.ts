@@ -1,3 +1,4 @@
+import { CUSTOMER_SESSION_COOKIE, USE_SECURE_COOKIES } from "@/lib/customer-session-cookie";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import NextAuth, { AuthOptions } from "next-auth";
@@ -147,6 +148,18 @@ export const customerAuthOptions: AuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  // Cookie com nome próprio, separado do de funcionário (ver lib/customer-session-cookie.ts)
+  cookies: {
+    sessionToken: {
+      name: CUSTOMER_SESSION_COOKIE,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: USE_SECURE_COOKIES,
+      },
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

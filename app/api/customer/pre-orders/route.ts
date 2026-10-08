@@ -1,48 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
+import { parseCustomerDateRange } from '@/lib/customer-date-range';
 
-// GET - Listar pré-pedidos do cliente autenticado
+// GET - Pré-pedidos do cliente autenticado
 export async function GET(request: Request) {
   try {
     const session = await getCustomerSession();
-    
+
     if (!session) {
-      return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-
-    const customerId = session.user.customerId;
-
-    const where: any = {
-      customerId
-    };
-    
-    // Filtro por data
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        const [year, month, day] = startDate.split('-').map(Number);
-        const startDateTimeLocal = new Date(year, month - 1, day, 0, 0, 0, 0);
-        const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
-        where.createdAt.gte = startDateTime;
-      }
-      if (endDate) {
-        const [year, month, day] = endDate.split('-').map(Number);
-        const endDateTimeLocal = new Date(year, month - 1, day, 23, 59, 59, 999);
-        const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
-        where.createdAt.lte = endDateTime;
-      }
+    const range = parseCustomerDateRange(searchParams.get('startDate'), searchParams.get('endDate'));
+    if (range === 'invalid') {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
     }
-    
+
     const preOrders = await prisma.preOrder.findMany({
-      where,
+      where: { customerId: session.user.customerId, ...(range ? { createdAt: range } : {}) },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -53,30 +30,27 @@ export async function GET(request: Request) {
         notes: true,
         createdAt: true,
         deliveryStatus: true,
+        estimatedDeliveryTime: true,
+        deliveryStartedAt: true,
+        deliveredAt: true,
+        // Só serve para saber se o pedido vai por entrega; quem é o entregador não sai daqui
+        deliveryPersonId: true,
         items: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true
-              }
-            }
-          }
-        }
-      }
+            product: { select: { id: true, name: true, imageUrl: true } },
+          },
+        },
+      },
     });
-    
-    return NextResponse.json({
-      data: preOrders,
-      total: preOrders.length
-    });
+
+    const data = preOrders.map(({ deliveryPersonId, ...preOrder }) => ({
+      ...preOrder,
+      hasCourier: deliveryPersonId !== null,
+    }));
+
+    return NextResponse.json({ data, total: data.length });
   } catch (error) {
     console.error('Error fetching customer pre-orders:', error);
-    return NextResponse.json(
-      { error: 'Erro ao buscar pré-pedidos' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao buscar pré-pedidos' }, { status: 500 });
   }
 }
-

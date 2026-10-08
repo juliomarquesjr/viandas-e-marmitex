@@ -1,0 +1,76 @@
+/* Folha de pagamento por PIX: só o que o kit (customer.css) não cobre. */
+@layer components {
+  .c-pix-step {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .c-pix-step.is-done {
+    text-align: center;
+  }
+  .c-pix-step.is-done .c-sheet-h {
+    text-align: left;
+  }
+  .c-opt small {
+    display: block;
+    margin-top: 1px;
+  }
+  .c-pix-amt {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 2px 0;
+  }
+  .c-pix-amt .c-amtin[data-invalid="true"] {
+    border-color: var(--c-warn);
+  }
+  .c-pix-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .c-pix-quick .c-chip {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .c-pix-msg {
+    margin: 0;
+    font-size: 13px;
+    color: var(--c-ink2);
+  }
+  .c-pix-msg.is-error {
+    color: var(--c-brand-text);
+    font-weight: 600;
+  }
+  .c-pix-wait {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 36px 0;
+    color: var(--c-ink2);
+    font-weight: 600;
+  }
+  .c-pix-wait .c-spin {
+    width: 34px;
+    height: 34px;
+    border-width: 3px;
+  }
+  .c-pix-k {
+    font-size: 14px;
+    color: var(--c-ink2);
+    margin: 0 0 4px;
+  }
+  .c-pix-label {
+    margin-bottom: 8px;
+  }
+  .c-pix-step .c-copyrow .c-btn {
+    min-height: 44px;
+  }
+  .c-pix-step .c-howto strong {
+    color: var(--c-ink);
+  }
+  .c-pix-done-art {
+    align-self: center;
+  }
+}

@@ -1,493 +1,546 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { CheckCircle, Edit, Eye, EyeOff, Loader2, MapPin, User, Mail, Phone, Lock, Building2 } from "lucide-react";
+import { Camera, Eye, EyeOff, LogOut, Pencil } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { CustomerAvatar } from "../components/Avatar";
+import { ErrorState, Toast, ThemeChoice } from "../components/kit";
+import { ProfilePhotoSheet } from "../components/perfil/ProfilePhotoSheet";
+import { useCustomerAvatar } from "../lib/avatar-store";
+import type { CustomerAddress, CustomerProfile } from "../lib/types";
+import { useCustomerData } from "../lib/useCustomerData";
+import {
+  digitsOf,
+  displayCep,
+  displayDoc,
+  displayPhone,
+  maskCep,
+  maskDoc,
+  maskPhone,
+  maskUf,
+  sameDigits,
+} from "./masks";
+import "./profile.css";
 
-interface CustomerData {
-  id: string;
+// Mesmos limites de lib/customer-password-reset.ts (que importa o Prisma e
+// não pode vir para o navegador). A API valida de novo.
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 72;
+
+const SECTIONS = [
+  { id: "dados", label: "Dados" },
+  { id: "endereco", label: "Endereço" },
+  { id: "seguranca", label: "Segurança" },
+  { id: "aparencia", label: "Aparência" },
+] as const;
+type Section = (typeof SECTIONS)[number]["id"];
+
+type Address = Required<{ [K in keyof CustomerAddress]: string }>;
+
+interface Draft {
   name: string;
   phone: string;
-  email?: string | null;
-  doc?: string | null;
-  address?: any;
+  email: string;
+  doc: string;
+  address: Address;
+}
+
+function addressOf(profile: CustomerProfile): CustomerAddress {
+  return profile.address && typeof profile.address === "object" ? profile.address : {};
+}
+
+function toDraft(profile: CustomerProfile): Draft {
+  const a = addressOf(profile);
+  return {
+    name: profile.name ?? "",
+    phone: displayPhone(profile.phone),
+    email: profile.email ?? "",
+    doc: displayDoc(profile.doc),
+    address: {
+      street: a.street ?? "",
+      number: a.number ?? "",
+      complement: a.complement ?? "",
+      neighborhood: a.neighborhood ?? "",
+      city: a.city ?? "",
+      state: a.state ?? "",
+      zip: displayCep(a.zip),
+    },
+  };
+}
+
+const NO_CONNECTION = "Sem conexão. Confira a internet e tente de novo.";
+
+// Mesmo ponto de corte do layout de computador (profile.css)
+const DESKTOP_QUERY = "(min-width: 860px)";
+const subscribeDesktop = (listener: () => void) => {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", listener);
+  return () => mq.removeEventListener("change", listener);
+};
+const isDesktop = () => window.matchMedia(DESKTOP_QUERY).matches;
+
+/* ------------------------------------------------------------ campos */
+
+function Info({ label, value }: { label: string; value?: string | null }) {
+  const text = value?.trim();
+  return (
+    <dl className="c-dl">
+      <dt>{label}</dt>
+      <dd>{text ? text : "—"}</dd>
+    </dl>
+  );
+}
+
+type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "id" | "value" | "onChange"> & {
+  id: string;
+  label: string;
+  value: string;
+  onValue: (value: string) => void;
+};
+
+function Field({ id, label, value, onValue, ...rest }: InputProps) {
+  return (
+    <div className="c-field">
+      <label htmlFor={id}>{label}</label>
+      <input id={id} value={value} onChange={(e) => onValue(e.target.value)} {...rest} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ tela */
+
+function ProfileSkeleton() {
+  return (
+    <div className="c-pskel" aria-busy="true" aria-label="Carregando">
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <span className="c-skel" style={{ width: 88, height: 88, borderRadius: "50%", flex: "none" }} />
+        <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+          <span className="c-skel" style={{ height: 22, width: "60%" }} />
+          <span className="c-skel" style={{ height: 14, width: "40%" }} />
+        </span>
+      </div>
+      <span className="c-skel" style={{ height: 44, width: "100%", borderRadius: 999 }} />
+      {Array.from({ length: 4 }).map((_, i) => (
+        <span key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span className="c-skel" style={{ height: 12, width: 90 }} />
+          <span className="c-skel" style={{ height: 18, width: `${70 - i * 10}%` }} />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export default function CustomerProfilePage() {
-  const { data: session } = useSession();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const router = useRouter();
+  const { data, error: loadError, loading, reload } = useCustomerData<CustomerProfile>("/api/customer/profile");
+  // Depois de salvar, a tela usa o que a API devolveu, sem buscar de novo.
+  const [saved, setSaved] = useState<CustomerProfile | null>(null);
+  const profile = saved ?? data;
+
+  const [section, setSection] = useState<Section>("dados");
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [customer, setCustomer] = useState<CustomerData | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    doc: '',
-    address: {
-      street: '',
-      number: '',
-      complement: '',
-      neighborhood: '',
-      city: '',
-      state: '',
-      zip: ''
-    },
-    password: ''
-  });
+  const [pwError, setPwError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/customer/profile');
-        if (!response.ok) throw new Error('Erro ao carregar perfil');
-        
-        const data = await response.json();
-        setCustomer(data);
-        setFormData({
-          name: data.name || '',
-          phone: data.phone || '',
-          email: data.email || '',
-          doc: data.doc || '',
-          address: data.address && typeof data.address === 'object' 
-            ? {
-                street: data.address.street || '',
-                number: data.address.number || '',
-                complement: data.address.complement || '',
-                neighborhood: data.address.neighborhood || '',
-                city: data.address.city || '',
-                state: data.address.state || '',
-                zip: data.address.zip || ''
-              }
-            : {
-                street: '',
-                number: '',
-                complement: '',
-                neighborhood: '',
-                city: '',
-                state: '',
-                zip: ''
-              },
-          password: ''
-        });
-      } catch (err) {
-        setError('Erro ao carregar dados do perfil');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [toast, setToast] = useState<string | null>(null);
+  const clearToast = useCallback(() => setToast(null), []);
+  const busy = useRef(false);
 
-    if (session) {
-      loadProfile();
-    }
-  }, [session]);
+  const { imageUrl } = useCustomerAvatar();
+  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const cameraRef = useRef<HTMLButtonElement>(null);
+  const openPhoto = useCallback(() => setPhotoOpen(true), []);
+  const closePhoto = useCallback(() => {
+    setPhotoOpen(false);
+    // o Sheet devolve o foco a quem estava focado; ao tocar no avatar não era o botão
+    window.requestAnimationFrame(() => cameraRef.current?.focus({ preventScroll: true }));
+  }, []);
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      setError(null);
-      setSuccess(false);
-
-      // Converter email vazio para null (banco não aceita string vazia)
-      const emailValue = formData.email?.trim() || null;
-      
-      const updateData: any = {
-        name: formData.name,
-        phone: formData.phone,
-        email: emailValue,
-        doc: formData.doc?.trim() || null,
-      };
-
-      // Processar endereço
-      updateData.address = formData.address;
-
-      // Adicionar senha apenas se foi fornecida
-      if (formData.password) {
-        updateData.password = formData.password;
-      }
-
-      const response = await fetch('/api/customer/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao atualizar perfil');
-      }
-
-      const updated = await response.json();
-      setCustomer(updated.customer);
-      setEditing(false);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar alterações');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCancel = () => {
-    if (customer) {
-      setFormData({
-        name: customer.name || '',
-        phone: customer.phone || '',
-        email: customer.email || '',
-        doc: customer.doc || '',
-        address: customer.address && typeof customer.address === 'object'
-          ? {
-              street: customer.address.street || '',
-              number: customer.address.number || '',
-              complement: customer.address.complement || '',
-              neighborhood: customer.address.neighborhood || '',
-              city: customer.address.city || '',
-              state: customer.address.state || '',
-              zip: customer.address.zip || ''
-            }
-          : {
-              street: '',
-              number: '',
-              complement: '',
-              neighborhood: '',
-              city: '',
-              state: '',
-              zip: ''
-            },
-        password: ''
-      });
-    }
-    setEditing(false);
-    setError(null);
-  };
-
-  if (loading) {
+  if (!profile && (loading || !loadError)) return <ProfileSkeleton />;
+  if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      <div className="c-page">
+        <ErrorState message={loadError ?? "Não foi possível carregar agora."} onRetry={reload} />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header com gradiente */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-6 md:p-8 shadow-xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent_50%)]" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-              <User className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">Meu Perfil</h1>
-              <p className="text-orange-100 text-sm md:text-base">Gerencie suas informações pessoais</p>
-            </div>
-          </div>
+  const address = addressOf(profile);
+  const form = draft ?? toDraft(profile);
+  const setField = (patch: Partial<Omit<Draft, "address">>) => setDraft({ ...form, ...patch });
+  const setAddr = (patch: Partial<Address>) => setDraft({ ...form, address: { ...form.address, ...patch } });
+
+  const startEditing = () => {
+    setDraft(toDraft(profile));
+    setDataError(null);
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setDraft(null);
+    setDataError(null);
+    setEditing(false);
+  };
+
+  const clearPassword = () => {
+    setNewPassword("");
+    setConfirmPassword("");
+    setPwError(null);
+  };
+
+  /** PUT no perfil; devolve a mensagem de erro, ou null quando deu certo. */
+  const put = async (body: Record<string, unknown>): Promise<{ error: string | null; customer?: CustomerProfile }> => {
+    try {
+      const response = await fetch("/api/customer/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 401) {
+        window.location.href = "/customer/login";
+        return { error: null };
+      }
+      const json = await response.json().catch(() => null);
+      if (!response.ok) return { error: json?.error || "Não foi possível salvar agora. Tente de novo." };
+      return { error: null, customer: json?.customer };
+    } catch {
+      return { error: NO_CONNECTION };
+    }
+  };
+
+  const saveProfile = async () => {
+    if (busy.current) return;
+    const name = form.name.trim();
+    const email = form.email.trim();
+    const phoneChanged = !sameDigits(form.phone, profile.phone);
+    const phoneDigits = digitsOf(form.phone);
+
+    if (!name) return setDataError("Informe o seu nome.");
+    if (phoneChanged && phoneDigits.length !== 10 && phoneDigits.length !== 11) {
+      return setDataError("Confira o telefone: DDD e número, com 10 ou 11 dígitos.");
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setDataError("Confira o email.");
+
+    const a = form.address;
+    const body = {
+      name,
+      // Telefone sem formatação: é assim que o login por telefone encontra o cliente.
+      // Se não mudou, nem vai: a API mantém o que está salvo.
+      phone: phoneChanged ? phoneDigits : undefined,
+      email: email || null,
+      doc: profile.doc && sameDigits(form.doc, profile.doc) ? profile.doc : form.doc.trim() || null,
+      address: {
+        street: a.street.trim(),
+        number: a.number.trim(),
+        complement: a.complement.trim(),
+        neighborhood: a.neighborhood.trim(),
+        city: a.city.trim(),
+        state: a.state.trim().toUpperCase(),
+        zip: address.zip && sameDigits(a.zip, address.zip) ? address.zip : a.zip.trim(),
+      },
+    };
+
+    busy.current = true;
+    setSaving(true);
+    setDataError(null);
+    const result = await put(body);
+    busy.current = false;
+    setSaving(false);
+
+    if (result.error) return setDataError(result.error);
+    if (result.customer) setSaved(result.customer);
+    setDraft(null);
+    setEditing(false);
+    setToast("Alterações salvas");
+  };
+
+  const changePassword = async () => {
+    if (busy.current) return;
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      return setPwError(`A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+    }
+    if (newPassword.length > MAX_PASSWORD_LENGTH) {
+      return setPwError(`A senha pode ter no máximo ${MAX_PASSWORD_LENGTH} caracteres.`);
+    }
+    if (newPassword !== confirmPassword) return setPwError("As duas senhas não são iguais.");
+
+    busy.current = true;
+    setSaving(true);
+    setPwError(null);
+    const result = await put({ password: newPassword });
+    busy.current = false;
+    setSaving(false);
+
+    if (result.error) return setPwError(result.error);
+    clearPassword();
+    setShowPassword(false);
+    setToast("Senha alterada");
+  };
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (section === "seguranca") void changePassword();
+    else if (editing) void saveProfile();
+  };
+
+  const logout = async () => {
+    await signOut({ redirect: false });
+    router.push("/customer/login");
+  };
+
+  const isSecurity = section === "seguranca";
+  const showSavebar = isSecurity || editing;
+  const canEdit = !editing && (section === "dados" || section === "endereco");
+
+  const tabs = SECTIONS.map((s) => (
+    <button key={s.id} type="button" className="c-chip" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
+      {s.label}
+    </button>
+  ));
+
+  let body: React.ReactNode;
+  if (section === "dados") {
+    body = editing ? (
+      <>
+        <div className="c-fields2">
+          <Field id="pf-name" label="Nome" value={form.name} onValue={(v) => setField({ name: v })} autoComplete="name" autoCapitalize="words" />
+          <Field
+            id="pf-phone"
+            label="Telefone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={form.phone}
+            onValue={(v) => setField({ phone: maskPhone(v) })}
+          />
         </div>
+        <Field
+          id="pf-email"
+          label="Email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={form.email}
+          onValue={(v) => setField({ email: v })}
+        />
+        <Field
+          id="pf-doc"
+          label="CPF ou CNPJ"
+          inputMode="numeric"
+          autoComplete="off"
+          value={form.doc}
+          onValue={(v) => setField({ doc: maskDoc(v) })}
+        />
+      </>
+    ) : (
+      <>
+        <div className="c-fields2">
+          <Info label="Nome" value={profile.name} />
+          <Info label="Telefone" value={displayPhone(profile.phone)} />
+        </div>
+        <Info label="Email" value={profile.email} />
+        <Info label="CPF ou CNPJ" value={displayDoc(profile.doc)} />
+      </>
+    );
+  } else if (section === "endereco") {
+    const a = form.address;
+    body = editing ? (
+      <>
+        <div className="c-fields2">
+          <Field
+            id="pf-zip"
+            label="CEP"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            value={a.zip}
+            onValue={(v) => setAddr({ zip: maskCep(v) })}
+          />
+          <Field id="pf-number" label="Número" autoComplete="off" value={a.number} onValue={(v) => setAddr({ number: v })} />
+        </div>
+        <Field id="pf-street" label="Rua" autoComplete="address-line1" value={a.street} onValue={(v) => setAddr({ street: v })} />
+        <Field
+          id="pf-complement"
+          label="Complemento"
+          autoComplete="address-line2"
+          value={a.complement}
+          onValue={(v) => setAddr({ complement: v })}
+        />
+        <div className="c-fields2">
+          <Field
+            id="pf-neighborhood"
+            label="Bairro"
+            autoComplete="address-level3"
+            value={a.neighborhood}
+            onValue={(v) => setAddr({ neighborhood: v })}
+          />
+          <Field id="pf-city" label="Cidade" autoComplete="address-level2" value={a.city} onValue={(v) => setAddr({ city: v })} />
+        </div>
+        <Field
+          id="pf-state"
+          label="Estado"
+          autoComplete="address-level1"
+          autoCapitalize="characters"
+          maxLength={2}
+          placeholder="UF"
+          value={a.state}
+          onValue={(v) => setAddr({ state: maskUf(v) })}
+        />
+      </>
+    ) : (
+      <>
+        <div className="c-fields2">
+          <Info label="CEP" value={displayCep(address.zip)} />
+          <Info label="Número" value={address.number} />
+        </div>
+        <Info label="Rua" value={address.street} />
+        <Info label="Complemento" value={address.complement} />
+        <div className="c-fields2">
+          <Info label="Bairro" value={address.neighborhood} />
+          <Info label="Cidade" value={address.city} />
+        </div>
+        <Info label="Estado" value={address.state?.toUpperCase()} />
+      </>
+    );
+  } else if (section === "seguranca") {
+    const type = showPassword ? "text" : "password";
+    body = (
+      <>
+        <div className="c-field">
+          <label htmlFor="pf-newpw">Nova senha</label>
+          <div className="c-inwrap">
+            <input
+              id="pf-newpw"
+              type={type}
+              autoComplete="new-password"
+              aria-describedby="pf-newpw-hint"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              className="c-eye"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+          <span id="pf-newpw-hint" className="c-field-hint">
+            Mínimo de {MIN_PASSWORD_LENGTH} caracteres.
+          </span>
+        </div>
+        <div className="c-field">
+          <label htmlFor="pf-confirmpw">Confirmar nova senha</label>
+          <input
+            id="pf-confirmpw"
+            type={type}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </div>
+        {pwError && (
+          <p className="c-alert" role="alert">
+            {pwError}
+          </p>
+        )}
+        <div className="c-pout">
+          <button type="button" className="c-btn is-ghost" onClick={logout}>
+            <LogOut size={18} aria-hidden="true" />
+            Sair da conta
+          </button>
+        </div>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <div>
+          <h2 className="c-psec-t">Tema do aplicativo</h2>
+          <p className="c-psec-p">A escolha é salva neste aparelho.</p>
+        </div>
+        <ThemeChoice />
+      </>
+    );
+  }
+
+  const sectionLabel = SECTIONS.find((s) => s.id === section)?.label ?? "";
+
+  return (
+    <div className="c-profile">
+      <header className="c-phead">
+        <div className="c-pavatar">
+          {/* tocar na foto também abre a folha; para teclado e leitor de tela vale o botão da câmera */}
+          <span className="c-pavatar-pic" onClick={openPhoto}>
+            <CustomerAvatar name={profile.name} imageUrl={imageUrl} size={desktop ? 96 : 88} />
+          </span>
+          <button ref={cameraRef} type="button" className="c-pavatar-cam" aria-label="Alterar foto do perfil" onClick={openPhoto}>
+            <Camera size={20} aria-hidden="true" />
+          </button>
+        </div>
+        <div>
+          <h1>{profile.name}</h1>
+          <small>{profile.email || displayPhone(profile.phone)}</small>
+        </div>
+      </header>
+
+      <div className="c-pbody">
+        <div className="c-ptabs" role="group" aria-label="Seção do perfil">
+          {tabs}
+        </div>
+        <nav className="c-pnav" aria-label="Seção do perfil">
+          {tabs}
+        </nav>
+
+        <form className="c-pmain" noValidate onSubmit={onSubmit}>
+          <div className="c-pform" key={section}>
+            {section !== "aparencia" && <h2 className="c-sr">{sectionLabel}</h2>}
+            {canEdit && (
+              <button type="button" className="c-btn is-ghost" onClick={startEditing}>
+                <Pencil size={18} aria-hidden="true" />
+                Editar dados
+              </button>
+            )}
+            {body}
+            {dataError && editing && !isSecurity && (
+              <p className="c-alert" role="alert">
+                {dataError}
+              </p>
+            )}
+          </div>
+
+          {showSavebar && (
+            <div className="c-savebar">
+              <button
+                type="button"
+                className="c-btn is-ghost"
+                onClick={isSecurity ? clearPassword : cancelEditing}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="c-btn is-primary" aria-busy={saving}>
+                {saving && <span className="c-spin" aria-hidden="true" />}
+                {isSecurity ? (saving ? "Trocando…" : "Trocar senha") : saving ? "Salvando…" : "Salvar alterações"}
+              </button>
+            </div>
+          )}
+        </form>
       </div>
 
-      {success && (
-        <Alert className="border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 shadow-md">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <AlertDescription className="text-green-800 font-medium">
-            Perfil atualizado com sucesso!
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {error && (
-        <Alert variant="destructive" className="shadow-md">
-          <AlertDescription className="font-medium">{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Card de Informações Pessoais */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-gray-800">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md">
-                <User className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl">Informações Pessoais</span>
-            </CardTitle>
-            {!editing && (
-              <Button
-                onClick={() => setEditing(true)}
-                className="gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md hover:shadow-lg transition-all"
-              >
-                <Edit className="h-4 w-4" />
-                Editar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <User className="h-4 w-4 text-orange-500" />
-                Nome Completo
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-orange-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"}`}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Phone className="h-4 w-4 text-orange-500" />
-                Telefone
-              </Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-orange-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"}`}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Mail className="h-4 w-4 text-orange-500" />
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-orange-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"}`}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="doc" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-orange-500" />
-                CPF/CNPJ
-              </Label>
-              <Input
-                id="doc"
-                value={formData.doc}
-                onChange={(e) => setFormData({ ...formData, doc: e.target.value })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-orange-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100"}`}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Card de Endereço */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-          <CardTitle className="flex items-center gap-3 text-gray-800">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-md">
-              <MapPin className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl">Endereço</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="address.street" className="text-sm font-semibold text-gray-700">Rua/Logradouro</Label>
-              <Input
-                id="address.street"
-                value={formData.address.street}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, street: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: Rua das Flores"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.number" className="text-sm font-semibold text-gray-700">Número</Label>
-              <Input
-                id="address.number"
-                value={formData.address.number}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, number: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: 123"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.complement" className="text-sm font-semibold text-gray-700">Complemento</Label>
-              <Input
-                id="address.complement"
-                value={formData.address.complement}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, complement: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: Apto 101"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.neighborhood" className="text-sm font-semibold text-gray-700">Bairro</Label>
-              <Input
-                id="address.neighborhood"
-                value={formData.address.neighborhood}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, neighborhood: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: Centro"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.city" className="text-sm font-semibold text-gray-700">Cidade</Label>
-              <Input
-                id="address.city"
-                value={formData.address.city}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, city: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: Santa Maria"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.state" className="text-sm font-semibold text-gray-700">Estado</Label>
-              <Input
-                id="address.state"
-                value={formData.address.state}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, state: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: RS"
-                maxLength={2}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="address.zip" className="text-sm font-semibold text-gray-700">CEP</Label>
-              <Input
-                id="address.zip"
-                value={formData.address.zip}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  address: { ...formData.address, zip: e.target.value }
-                })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}`}
-                placeholder="Ex: 97000-000"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Card de Segurança */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100">
-          <CardTitle className="flex items-center gap-3 text-gray-800">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
-              <Lock className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl">Segurança</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Lock className="h-4 w-4 text-purple-500" />
-              Nova Senha (deixe em branco para não alterar)
-            </Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                disabled={!editing}
-                className={`h-12 rounded-xl border-2 pr-12 transition-all ${!editing ? "bg-gray-50 border-gray-200" : "border-purple-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100"}`}
-                placeholder="••••••••"
-              />
-              {editing && (
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-600 transition-colors p-2 rounded-lg hover:bg-purple-50"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {editing && (
-        <div className="flex gap-4 pt-2">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 gap-2 h-14 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-5 w-5" />
-                Salvar Alterações
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleCancel}
-            variant="outline"
-            disabled={saving}
-            className="h-14 px-8 rounded-xl border-2 hover:bg-gray-50 transition-all"
-          >
-            Cancelar
-          </Button>
-        </div>
-      )}
+      <ProfilePhotoSheet open={photoOpen} onClose={closePhoto} name={profile.name} onToast={setToast} />
+      <Toast message={toast} onDone={clearToast} />
     </div>
   );
 }

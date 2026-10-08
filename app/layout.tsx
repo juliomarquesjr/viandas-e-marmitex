@@ -1,4 +1,5 @@
 import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/app/components/AuthThemeProvider";
+import { CUSTOMER_THEME_BOOTSTRAP_SCRIPT } from "@/app/customer/lib/theme";
 import { Providers } from "@/app/components/Providers";
 import { DesktopWindowFrame } from "@/app/components/DesktopWindowFrame";
 import type { Metadata } from "next";
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: CUSTOMER_THEME_BOOTSTRAP_SCRIPT }} />
         <Providers>
           <DesktopWindowFrame>{children}</DesktopWindowFrame>
         </Providers>

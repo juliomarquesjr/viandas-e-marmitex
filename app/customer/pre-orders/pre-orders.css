@@ -1,0 +1,23 @@
+/* Ajustes da tela de Pedidos sobre o kit (customer.css). Só tokens --c-*. */
+@layer components {
+  .c-orders-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .c-orders-intro p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+
+  /* espera do detalhe enquanto a lista chega */
+  .c-dskel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .c-dskel .c-skel {
+    border-radius: var(--c-r-lg);
+  }
+}
