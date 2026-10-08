@@ -94,6 +94,34 @@
     background: var(--c-surface);
   }
 
+  /* "Mais N …": o resto fica a um toque. Dentro do cartão é um rodapé; solto, uma pílula. */
+  .c-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px;
+    color: var(--c-ink2);
+    font: 600 14px var(--c-f-body);
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .c-more b {
+    color: var(--c-brand-text);
+  }
+  .c-more:hover {
+    background: var(--c-sunk);
+    color: var(--c-ink);
+  }
+  .c-card > .c-more {
+    border-top: 1px solid var(--c-line);
+    border-radius: 0 0 var(--c-r-lg) var(--c-r-lg);
+  }
+  section > .c-more {
+    border-radius: var(--c-r-md);
+    background: var(--c-sunk);
+  }
+
   @media (min-width: 860px) {
     .c-page.c-home {
       display: grid;

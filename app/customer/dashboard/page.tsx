@@ -14,6 +14,22 @@ import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreO
 import { useCustomerData } from "../lib/useCustomerData";
 import "./dashboard.css";
 
+/** A Início mostra só o mais recente de cada assunto; o resto fica a um toque (e nos avisos). */
+const HOME_LIMIT = 1;
+
+/** "Mais 5 lançamentos" no fim de um bloco que mostrou só o último. */
+function MoreLink({ href, count, one, many }: { href: string; count: number; one: string; many: string }) {
+  if (count <= 0) return null;
+  return (
+    <Link href={href} className="c-more">
+      <span>
+        Mais <b className="c-num">{count}</b> {count === 1 ? one : many}
+      </span>
+      <ChevronRight size={18} aria-hidden="true" />
+    </Link>
+  );
+}
+
 const rise = (i: number) => ({ ["--c-i" as string]: i }) as React.CSSProperties;
 
 export default function CustomerDashboardPage() {
@@ -60,7 +76,7 @@ export default function CustomerDashboardPage() {
               </Link>
             </div>
             <div className="c-card">
-              {loading || !expenses.data ? <LoadingRows rows={4} /> : <RecentMovements data={expenses.data} />}
+              {loading || !expenses.data ? <LoadingRows rows={1} /> : <RecentMovements data={expenses.data} />}
             </div>
           </section>
         )}
@@ -181,16 +197,21 @@ function HeroSkeleton() {
 /* ---------------------------------------------------------- movimentações */
 
 function RecentMovements({ data }: { data: ExpensesResponse }) {
-  const recent = buildMovements(data).slice(0, 4);
+  const all = buildMovements(data);
+  const recent = all.slice(0, HOME_LIMIT);
   if (recent.length === 0) {
     return <EmptyState title="Nada na ficha ainda" text="Suas compras e pagamentos na ficha aparecem aqui." />;
   }
+  const more = all.length - recent.length;
   return (
-    <div className="c-rows">
-      {recent.map((m) => (
-        <MovementRow key={m.id} movement={m} href={`/customer/expenses?item=${encodeURIComponent(m.id)}`} />
-      ))}
-    </div>
+    <>
+      <div className="c-rows">
+        {recent.map((m) => (
+          <MovementRow key={m.id} movement={m} href={`/customer/expenses?item=${encodeURIComponent(m.id)}`} />
+        ))}
+      </div>
+      <MoreLink href="/customer/expenses" count={more} one="lançamento" many="lançamentos" />
+    </>
   );
 }
 
@@ -213,13 +234,14 @@ function ActiveOrders({ orders }: { orders: PreOrder[] }) {
           Ver pedidos
         </Link>
       </div>
-      {active.map((o) =>
+      {active.slice(0, HOME_LIMIT).map((o) =>
         o.deliveryStatus === "out_for_delivery" || o.deliveryStatus === "in_transit" ? (
           <OnTheWayCard key={o.id} order={o} />
         ) : (
           <ActiveCard key={o.id} order={o} />
         )
       )}
+      <MoreLink href="/customer/pre-orders" count={active.length - HOME_LIMIT} one="pedido em andamento" many="pedidos em andamento" />
     </section>
   );
 }
