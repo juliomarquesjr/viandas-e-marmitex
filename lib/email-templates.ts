@@ -609,4 +609,44 @@ ${companyInfo?.address ? `\nEndereço: ${companyInfo.address}` : ''}
 ${companyInfo?.phone ? `\nTelefone: ${companyInfo.phone}` : ''}
     `.trim();
   }
+
+  static generatePasswordResetHtml(rawCustomerName: string, resetUrl: string, expiresInMinutes: number): string {
+    const customerName = rawCustomerName.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    return `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redefinição de senha</title>
+      </head>
+      <body style="margin:0;padding:24px;background:#fff7ed;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+        <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+          <div style="background:linear-gradient(135deg,#f97316,#f59e0b);padding:24px;text-align:center;color:#ffffff;">
+            <h1 style="margin:0;font-size:20px;">Redefinição de senha</h1>
+          </div>
+          <div style="padding:24px;line-height:1.6;">
+            <p>Olá, ${customerName}!</p>
+            <p>Recebemos um pedido para redefinir a senha da sua conta. Clique no botão abaixo para escolher uma nova senha:</p>
+            <p style="text-align:center;margin:28px 0;">
+              <a href="${resetUrl}" style="background:#f97316;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:bold;display:inline-block;">Redefinir senha</a>
+            </p>
+            <p style="font-size:13px;color:#6b7280;">O link vale por ${expiresInMinutes} minutos e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este email — sua senha continua a mesma.</p>
+            <p style="font-size:12px;color:#9ca3af;word-break:break-all;">Se o botão não funcionar, copie este endereço no navegador:<br>${resetUrl}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  static generatePasswordResetText(customerName: string, resetUrl: string, expiresInMinutes: number): string {
+    return `Olá, ${customerName}!
+
+Recebemos um pedido para redefinir a senha da sua conta. Acesse o link abaixo para escolher uma nova senha:
+
+${resetUrl}
+
+O link vale por ${expiresInMinutes} minutos e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este email.`;
+  }
 }

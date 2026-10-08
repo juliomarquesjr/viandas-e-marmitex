@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Input } from "@/app/components/ui/input";
 import { AlertCircle, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { SessionProvider, signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -128,10 +129,15 @@ function CustomerLoginForm() {
                       )}
                     </button>
                   </div>
+                  <div className="text-right">
+                    <Link href="/customer/forgot-password" className="text-sm font-medium text-orange-700 hover:text-orange-800 hover:underline">
+                      Esqueci minha senha
+                    </Link>
+                  </div>
                 </div>
-                
-                <Button 
-                  type="submit" 
+
+                <Button
+                  type="submit"
                   className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]" 
                   disabled={loading}
                 >

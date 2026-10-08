@@ -34,7 +34,10 @@ function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   ];
 
   // Se estiver na página de login ou tracking, não renderizar navegação
-  const isLoginPage = pathname === "/customer/login";
+  const isLoginPage =
+    pathname === "/customer/login" ||
+    pathname === "/customer/forgot-password" ||
+    pathname === "/customer/reset-password";
   const isTrackingPage = pathname?.match(/^\/customer\/pre-orders\/[^\/]+\/tracking$/);
 
   if (isLoginPage || isTrackingPage) {
