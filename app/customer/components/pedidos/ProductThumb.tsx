@@ -10,7 +10,7 @@ export type ThumbSize = "sm" | "md" | "lg";
 export interface ThumbProduct {
   id: string;
   name: string;
-  imageUrl: string | null;
+  imageUrl?: string | null;
 }
 
 /** Lado em px do arquivo pedido ao navegador (o CSS manda no tamanho exibido; lg vai a 64 no computador). */

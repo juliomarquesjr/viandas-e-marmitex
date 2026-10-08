@@ -47,6 +47,23 @@ export function formatTime(value: string | Date): string {
   return toDate(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+/** "agora", "há 12 min", "há 3 h", "Ontem · 18:40" ou "30/09 · 11:30" */
+export function formatRelative(value: string | Date, now: Date = new Date()): string {
+  const date = toDate(value);
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `há ${minutes} min`;
+  if (minutes < 6 * 60) return `há ${Math.floor(minutes / 60)} h`;
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const time = formatTime(date);
+  if (sameDay(date, now)) return `Hoje · ${time}`;
+  if (sameDay(date, yesterday)) return `Ontem · ${time}`;
+  return `${formatDayMonth(date)} · ${time}`;
+}
+
 /** "Quinta-feira, 1 de outubro" */
 export function formatLongDate(value: string | Date): string {
   return capitalize(toDate(value).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));

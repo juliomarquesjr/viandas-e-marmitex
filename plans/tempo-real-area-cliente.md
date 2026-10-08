@@ -1,8 +1,8 @@
 # Plano de Implementação — Atualização em tempo real na área do cliente
 
-> Data: 2026-10-02
+> Data: 2026-10-02 · revisado em 2026-10-08
 > Status: Planejamento (não implementado)
-> Depende de: nova área do cliente (`feat/area-cliente-v2`)
+> Depende de: nova área do cliente (`feat/area-cliente-v2`); a Fase 2 depende também do centro de notificações do admin (`feat/notificacoes-intencao-pagamento`)
 
 ---
 
@@ -12,6 +12,55 @@ Quando algo muda para o cliente, a tela dele deve mudar em segundos, sem recarre
 
 - o pedido avança de status ("Em preparo" → "Pronto para retirar", "A caminho" → "Entregue");
 - entra uma compra na ficha ou um pagamento é registrado, e o saldo muda;
+- o cliente toca "Já paguei" no PIX e o painel do admin recebe o aviso na hora (Fase 2, ver a revisão abaixo).
+
+## Revisão de 08/10/2026: o que mudou desde o plano
+
+Desde 02/10 surgiram três consumidores que o plano original não tinha. Todos hoje usam polling, e todos têm um ponto de encaixe único:
+
+| Consumidor | Hoje | Ponto de encaixe |
+|---|---|---|
+| Sino de avisos do cliente | polling de 60 s e ao voltar para a aba | `loadNotices()` em `app/customer/lib/notifications-store.ts` |
+| Sino do admin (centro de notificações) | polling de 30 s e ao voltar para a aba | `refresh()` em `app/admin/components/notifications/useNotifications.ts` |
+| Pedidos / Início / Ficha | 30 s só em Pedidos; Início e Ficha só ao abrir | `reload()` de `useCustomerData` |
+
+O feed de avisos do cliente é **derivado** de pedidos e ficha (não há tabela de avisos). Por isso um evento de pedido ou de ficha já basta para atualizar o sino: o navegador recebe o sinal e chama `loadNotices()`, sem novo evento nem nova tabela.
+
+### O que isso muda no plano
+
+1. **A pergunta "Já paguei" notifica o estabelecimento?** foi respondida: sim, a PR #47 já cria a notificação para o operador. O canal `staff:notifications` deixa de ser "futuro" e vira a **Fase 2**.
+2. **Eventos novos**, além dos da tabela original:
+
+| Canal | Evento | Quando publicar | Efeito |
+|---|---|---|---|
+| `staff:notifications` | `notification.created` | `POST /api/customer/payment-intents` (cliente informa o PIX) | o sino do admin chama `refresh()` na hora, em vez de esperar até 30 s |
+| `customer:{id}` | `ficha.updated` | `POST /api/payment-intents/[id]/confirm` (o operador confirma e o pagamento entra na ficha) | saldo, Ficha e avisos do cliente se atualizam sozinhos |
+| `customer:{id}` | `payment-intent.updated` | `confirm` e `reject` | a tela de PIX do cliente sai de "em análise" sem recarregar |
+
+3. **Um só provedor de eventos no navegador.** Em vez de um hook por tela, o `CustomerShell` abre **uma** conexão e reparte os eventos por contexto. Cada tela se inscreve no que precisa (`useRealtimeEvent("pre-order", reload)`). O sino do cliente se inscreve em `pre-order` e em `ficha`.
+4. **Publicar na rota, de forma explícita.** Foi considerada a alternativa de publicar por uma extensão do Prisma (`$extends`), que pegaria toda escrita sem editar cada rota. Fica descartada por ora: dispararia também nas atualizações de localização do entregador, que são frequentes e gastariam a cota, e esconderia de onde sai cada aviso. Uma chamada visível por rota é mais fácil de auditar.
+
+### Por que não só encurtar o polling
+
+Um endpoint "pulso" (`GET /api/customer/pulse`, devolvendo só um número de versão barato e recarregando os dados quando ele muda) daria sensação de tempo real sem serviço externo. Mas cada cliente com o app aberto vira uma chamada a cada poucos segundos: 100 clientes simultâneos a cada 15 s são cerca de 400 chamadas por minuto, perto de 190 mil por dia, e o plano Hobby da Vercel tem 1 milhão de invocações por mês. Serve como ponte para poucos clientes; o push do Ably custa uma mensagem por mudança, não por segundo de espera.
+
+### Fases
+
+| Fase | Entrega | O que o cliente percebe |
+|---|---|---|
+| **1. Cliente** | `lib/realtime.ts`, rota de token, provedor no `CustomerShell`, publicação nas rotas de pedido, ficha e pagamento; Pedidos, Início, Ficha e o sino passam a reagir | o pedido muda de etapa, o saldo e o selo do sino mudam sozinhos em até ~2 s |
+| **2. Operador** | rota de token de staff (`requireStaff()`), canal `staff:notifications`, `refresh()` do sino do admin ligado | o aviso de "cliente informou PIX" aparece na hora para quem está no painel |
+| **3. Mapa** (opcional) | posição do entregador em tempo real | o ponto se move sem esperar 15 s; outra conta de mensagens, decidir depois |
+
+Cada fase é independente e, sem `ABLY_API_KEY`, tudo continua funcionando com o polling atual.
+
+### Decisões que dependem de você
+
+1. **Criar a conta no Ably** (gratuita, sem cartão) e a chave, quando a Fase 1 for liberada. Sem isso não há como testar de ponta a ponta.
+2. **Ably ou Pusher.** A recomendação continua sendo o Ably; trocar depois mexe só em `lib/realtime.ts` e no provedor.
+3. **A Fase 2 entra junto com a 1 ou depois?** Recomendo depois, para a PR da Fase 1 ficar pequena e só do cliente.
+
+---
 - o cliente toca "Já paguei" no PIX e o sino do painel do admin recebe o aviso na hora (hoje o aviso já existe, mas chega por consulta a cada 30 s).
 
 ## Como é hoje
@@ -82,6 +131,9 @@ sequenceDiagram
 |---|---|---|---|---|
 | `customer:{customerId}` | `pre-order.updated` | `{ id }` | o cliente | Pedidos e Início chamam `reload()`; o detalhe aberto se atualiza |
 | `customer:{customerId}` | `ficha.updated` | `{}` | o cliente | Início e Ficha chamam `reload()`; o saldo conta até o novo valor |
+| `staff:notifications` | `notification.created` | `{}` | admin logado | o sino do admin chama `refresh()` (ver a revisão de 08/10) |
+
+O aviso de PIX para o operador, que aqui era uma dúvida, já existe na PR #47; falta só ligá-lo ao tempo real (Fase 2).
 | `staff:notifications` | `notification.created` | `{ id }` | admin e PDV logados | o sino chama `reload()` e mostra o aviso na hora, em vez de esperar os 30 s |
 | `customer:{customerId}` | `payment-intent.reviewed` | `{ id }` | o cliente | o cartão "aguardando confirmação" do Início vira "confirmado" ou "recusado" na hora |
 
@@ -173,6 +225,8 @@ Esforço pequeno, cerca de 1 dia de desenvolvimento e testes: um helper no servi
 
 - **Canal dos funcionários:** `staff:notifications` precisa de uma rota de token própria, que só emite token com a sessão de funcionário (perfil `admin` ou `pdv`, ver `lib/staff-session.ts`).
 - **Ably ou Pusher:** a recomendação é Ably; a escolha final é de quem criar a conta.
+- **Fase 2 junto ou depois da 1:** ver "Decisões que dependem de você" na revisão de 08/10.
+- **Aviso de PIX recusado para o cliente:** o feed de avisos é derivado de pedidos e ficha, então a recusa não aparece como aviso. Se for desejado, o aviso passa a ser derivado também de `PaymentIntent`, uma mudança pequena no feed, independente do tempo real.
 
 ## Referências
 

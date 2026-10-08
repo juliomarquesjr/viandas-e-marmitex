@@ -44,22 +44,22 @@
 
   @media (prefers-color-scheme: dark) {
     html:not([data-customer-theme="light"]) [data-customer-scope] {
-      --c-bg: #171216;
-      --c-surface: #211a1f;
-      --c-sunk: #120e11;
-      --c-ink: #f5edef;
-      --c-ink2: #b9adb2;
-      --c-line: #352b31;
+      --c-bg: #121214;
+      --c-surface: #1b1b1e;
+      --c-sunk: #0c0c0e;
+      --c-ink: #f3f3f4;
+      --c-ink2: #a8a8ae;
+      --c-line: #2c2c31;
       --c-brand: #ff6075;
       --c-brand-ink: #2b0d13;
-      --c-brand-soft: #3d1e27;
+      --c-brand-soft: #3a2328;
       --c-brand-text: #ff8092;
       --c-ok: #52d3a3;
       --c-ok-soft: #163328;
       --c-warn: #f2b861;
       --c-warn-soft: #3a2d14;
-      --c-tint: #1e1419;
-      --c-tint-line: #3a2730;
+      --c-tint: #1d1b1c;
+      --c-tint-line: #332c2e;
       --c-panel: #a8233a;
       --c-panel-deep: #6e1424;
       --c-overlay: rgb(0 0 0 / 0.6);
@@ -68,22 +68,22 @@
   }
 
   html[data-customer-theme="dark"] [data-customer-scope] {
-    --c-bg: #171216;
-    --c-surface: #211a1f;
-    --c-sunk: #120e11;
-    --c-ink: #f5edef;
-    --c-ink2: #b9adb2;
-    --c-line: #352b31;
+    --c-bg: #121214;
+    --c-surface: #1b1b1e;
+    --c-sunk: #0c0c0e;
+    --c-ink: #f3f3f4;
+    --c-ink2: #a8a8ae;
+    --c-line: #2c2c31;
     --c-brand: #ff6075;
     --c-brand-ink: #2b0d13;
-    --c-brand-soft: #3d1e27;
+    --c-brand-soft: #3a2328;
     --c-brand-text: #ff8092;
     --c-ok: #52d3a3;
     --c-ok-soft: #163328;
     --c-warn: #f2b861;
     --c-warn-soft: #3a2d14;
-    --c-tint: #1e1419;
-    --c-tint-line: #3a2730;
+    --c-tint: #1d1b1c;
+    --c-tint-line: #332c2e;
     --c-panel: #a8233a;
     --c-panel-deep: #6e1424;
     --c-overlay: rgb(0 0 0 / 0.6);
@@ -1601,10 +1601,10 @@
     background: linear-gradient(#f7f5f4 62%, #d92d43 62%);
   }
   .c-sw.is-dark {
-    background: linear-gradient(#171216 62%, #ff6075 62%);
+    background: linear-gradient(#121214 62%, #ff6075 62%);
   }
   .c-sw.is-auto {
-    background: linear-gradient(105deg, #f7f5f4 50%, #171216 50%);
+    background: linear-gradient(105deg, #f7f5f4 50%, #121214 50%);
   }
 
   /* ---------- estados: carregando, vazio, erro ---------- */

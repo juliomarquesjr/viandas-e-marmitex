@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         include: {
           items: {
             include: {
-              product: { select: { id: true, name: true } },
+              product: { select: { id: true, name: true, imageUrl: true } },
             },
           },
         },

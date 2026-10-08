@@ -202,11 +202,14 @@ export function Sheet({
   open,
   onClose,
   label,
+  className,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
+  /** Classe extra do painel, para folhas que precisam de outro tamanho. */
+  className?: string;
   children: React.ReactNode;
 }) {
   const [host, setHost] = React.useState<Element | null>(null);
@@ -242,7 +245,7 @@ export function Sheet({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div ref={panel} className="c-sheet" role="dialog" aria-modal="true" aria-label={label}>
+      <div ref={panel} className={cx("c-sheet", className)} role="dialog" aria-modal="true" aria-label={label}>
         <span className="c-grab" aria-hidden="true" />
         {children}
       </div>

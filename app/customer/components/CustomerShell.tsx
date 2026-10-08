@@ -5,6 +5,8 @@ import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { resetCustomerAvatar, useCustomerAvatar } from "../lib/avatar-store";
+import { resetNotices } from "../lib/notifications-store";
+import { NotificationBell } from "./avisos/NotificationBell";
 import { CustomerAvatar } from "./Avatar";
 import { CustomerThemeProvider } from "./CustomerTheme";
 import { BrandMark, ThemeButton, useBranding } from "./kit";
@@ -61,6 +63,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     resetCustomerAvatar();
+    resetNotices();
     await signOut({ redirect: false });
     router.push("/customer/login");
   };
@@ -75,6 +78,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <span>{shortTitle}</span>
         </Link>
         <div className="c-top-actions">
+          <NotificationBell />
           <ThemeButton />
           <Link href="/customer/profile" className="c-avatar-link" aria-label="Meu perfil">
             <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={40} />
@@ -88,6 +92,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         <NavLinks pathname={pathname} />
         <span className="c-rail-spacer" />
+        <NotificationBell variant="rail" />
         <ThemeButton variant="rail" />
         <button type="button" className="c-nav" onClick={logout}>
           <span className="c-nav-ic">

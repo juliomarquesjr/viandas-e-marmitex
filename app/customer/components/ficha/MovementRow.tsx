@@ -1,8 +1,11 @@
 "use client";
 
+import { HandCoins } from "lucide-react";
 import Link from "next/link";
-import { formatBRL, formatDay, formatDayMonth, formatTime, formatWeekdayShort } from "../../lib/format";
+import { formatBRL, formatDayMonth, formatTime } from "../../lib/format";
+import { ThumbStack } from "../pedidos/ThumbStack";
 import { itemCount, itemsLabel, itemsTitle, type Movement } from "./movements";
+import "./movements.css";
 
 /**
  * Linha de compra ou pagamento da ficha, igual no Início e na Ficha.
@@ -24,24 +27,18 @@ export function MovementRow({
 
   const content = (
     <>
-      <span className="c-row-date" aria-hidden="true">
-        <b className="c-num">{formatDay(movement.createdAt)}</b>
-        <i>{formatWeekdayShort(movement.createdAt)}</i>
-      </span>
+      {isPay ? (
+        <span className="c-pay-ic" aria-hidden="true">
+          <HandCoins size={22} strokeWidth={1.8} />
+        </span>
+      ) : (
+        <ThumbStack items={movement.items} fallbackId={movement.id} />
+      )}
       <span className="c-row-main">
         <strong>{isPay ? "Pagamento recebido" : itemsTitle(movement.items)}</strong>
         <small className="c-num">
-          {formatDayMonth(movement.createdAt)} ·{" "}
-          {isPay ? (
-            <>
-              <span className="c-tag">Pagamento</span>
-              {formatTime(movement.createdAt)}
-            </>
-          ) : (
-            <>
-              {formatTime(movement.createdAt)} · {itemsLabel(itemCount(movement.items))}
-            </>
-          )}
+          {formatDayMonth(movement.createdAt)} · {formatTime(movement.createdAt)}
+          {!isPay && <> · {itemsLabel(itemCount(movement.items))}</>}
         </small>
       </span>
       {isPay ? (
