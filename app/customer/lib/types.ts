@@ -6,7 +6,7 @@ export interface ExpenseItem {
   priceCents?: number;
   /** Decimal do Prisma chega como texto. */
   weightKg?: string | number | null;
-  product: { id: string; name: string };
+  product: { id: string; name: string; imageUrl?: string | null };
 }
 
 export interface PendingOrder {

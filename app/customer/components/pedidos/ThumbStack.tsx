@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
-import type { PreOrderItem } from "../../lib/types";
 import { ProductThumb, type ThumbProduct } from "./ProductThumb";
 
 /** Produtos distintos do pedido, na ordem dos itens (o mesmo produto não se repete). */
-export function uniqueProducts(items: PreOrderItem[]): ThumbProduct[] {
+export function uniqueProducts(items: Array<{ product: ThumbProduct }>): ThumbProduct[] {
   const seen = new Set<string>();
   const products: ThumbProduct[] = [];
   for (const { product } of items) {
@@ -21,7 +20,7 @@ const MAX_TILES = 3;
  * Pilha de miniaturas da linha da lista: a primeira por cima, cada uma com um anel na cor de
  * fundo da linha (var(--c-ring), definida em thumbs.css conforme repouso/hover/selecionada).
  */
-export function ThumbStack({ items, fallbackId }: { items: PreOrderItem[]; fallbackId: string }) {
+export function ThumbStack({ items, fallbackId }: { items: Array<{ product: ThumbProduct }>; fallbackId: string }) {
   const products = uniqueProducts(items);
   const overflow = products.length > MAX_TILES;
   const shown = overflow ? products.slice(0, MAX_TILES - 1) : products;
