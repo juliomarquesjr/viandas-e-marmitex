@@ -12,7 +12,7 @@ Quando algo muda para o cliente, a tela dele deve mudar em segundos, sem recarre
 
 - o pedido avança de status ("Em preparo" → "Pronto para retirar", "A caminho" → "Entregue");
 - entra uma compra na ficha ou um pagamento é registrado, e o saldo muda;
-- (futuro) o cliente toca "Já paguei" no PIX e o painel do admin recebe o aviso na hora.
+- o cliente toca "Já paguei" no PIX e o sino do painel do admin recebe o aviso na hora (hoje o aviso já existe, mas chega por consulta a cada 30 s).
 
 ## Como é hoje
 
@@ -82,9 +82,10 @@ sequenceDiagram
 |---|---|---|---|---|
 | `customer:{customerId}` | `pre-order.updated` | `{ id }` | o cliente | Pedidos e Início chamam `reload()`; o detalhe aberto se atualiza |
 | `customer:{customerId}` | `ficha.updated` | `{}` | o cliente | Início e Ficha chamam `reload()`; o saldo conta até o novo valor |
-| `staff:ficha` (futuro) | `pix.informed` | `{ customerId, amountCents }` | admin logado | aviso no painel: "Cliente informou pagamento de R$ X" |
+| `staff:notifications` | `notification.created` | `{ id }` | admin e PDV logados | o sino chama `reload()` e mostra o aviso na hora, em vez de esperar os 30 s |
+| `customer:{customerId}` | `payment-intent.reviewed` | `{ id }` | o cliente | o cartão "aguardando confirmação" do Início vira "confirmado" ou "recusado" na hora |
 
-O evento `pix.informed` depende de decidir que o "Já paguei" notifica o estabelecimento (hoje ele só confirma para o cliente).
+O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` e uma `Notification` (ver `app/api/customer/payment-intents/route.ts`), e o operador revisa pelo sino do admin. O que falta aqui é só trocar a consulta de 30 s por esses dois eventos.
 
 ## Onde publicar
 
@@ -95,6 +96,8 @@ O evento `pix.informed` depende de decidir que o "Já paguei" notifica o estabel
 | `app/api/orders/route.ts` | `POST` | quando a venda for para a ficha (`paymentMethod: invoice`, status `pending`) e tiver `customerId` | `ficha.updated` |
 | `app/api/orders/route.ts` | `PUT`, `DELETE` | quando o pedido alterado for de um cliente | `ficha.updated` |
 | `app/api/ficha-payments/route.ts` | `POST`, `DELETE` | sempre (pagamento sempre tem `customerId`) | `ficha.updated` |
+| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.created` (canal dos funcionários) |
+| `app/api/payment-intents/[id]/confirm` e `reject` | `POST` | depois de revisar | `payment-intent.reviewed` (canal do cliente) e, no confirmar, também `ficha.updated` |
 
 O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
 
@@ -168,7 +171,7 @@ Esforço pequeno, cerca de 1 dia de desenvolvimento e testes: um helper no servi
 
 ## Em aberto
 
-- **"Já paguei" notifica o estabelecimento?** Se sim, entra o canal `staff:ficha`, uma rota de token para usuários do admin (com a sessão de staff) e um aviso no painel.
+- **Canal dos funcionários:** `staff:notifications` precisa de uma rota de token própria, que só emite token com a sessão de funcionário (perfil `admin` ou `pdv`, ver `lib/staff-session.ts`).
 - **Ably ou Pusher:** a recomendação é Ably; a escolha final é de quem criar a conta.
 
 ## Referências
