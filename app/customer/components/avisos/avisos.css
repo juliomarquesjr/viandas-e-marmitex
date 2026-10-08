@@ -30,81 +30,344 @@
     animation: c-bell-ring 1.4s 0.4s ease-in-out 2;
   }
 
-  .c-notices {
+  /* ---------- folha de avisos ---------- */
+  .c-sheet.is-avisos {
+    height: min(88dvh, 760px);
+    overflow: hidden;
+    padding-bottom: 0;
+    gap: 14px;
+    position: relative;
+  }
+  @media (min-width: 860px) {
+    .c-sheet.is-avisos {
+      max-width: 540px;
+      height: min(82dvh, 720px);
+    }
+  }
+  .c-av-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .c-av-head h2 {
+    font: 700 26px/1.1 var(--c-f-display);
+    letter-spacing: -0.02em;
+  }
+  .c-av-head p {
+    margin: 4px 0 0;
+    color: var(--c-ink2);
+    font-size: 14px;
+  }
+  .c-av-head p b {
+    display: inline-block;
+    min-width: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--c-brand);
+    color: var(--c-brand-ink);
+    font: 700 13px/22px var(--c-f-body);
+    text-align: center;
+    margin-right: 2px;
+  }
+
+  /* abas e ações em lote */
+  .c-av-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .c-av-seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--c-sunk);
+  }
+  .c-av-seg button {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font: 600 14px var(--c-f-body);
+    color: var(--c-ink2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .c-av-seg button span {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+  .c-av-seg button[aria-pressed="true"] {
+    background: var(--c-surface);
+    color: var(--c-ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), inset 0 0 0 1px var(--c-line);
+  }
+  .c-av-bulk {
+    display: flex;
+    gap: 4px;
+  }
+  .c-av-bulk button {
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: var(--c-r-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 13px var(--c-f-body);
+    color: var(--c-ink2);
+    white-space: nowrap;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .c-av-bulk button:hover:not(:disabled) {
+    background: var(--c-sunk);
+    color: var(--c-ink);
+  }
+  .c-av-bulk button:disabled {
+    opacity: 0.45;
+  }
+  .c-av-bulk button.is-danger:hover {
+    color: var(--c-brand-text);
+  }
+
+  /* lista rolável: o cabeçalho e as abas ficam parados */
+  .c-av-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    margin: 0 -20px;
+    padding: 0 12px 28px;
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+  }
+  .c-av-group h3 {
+    font: 600 12px var(--c-f-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-ink2);
+    padding: 10px 8px 6px;
+  }
+  .c-av-list {
     list-style: none;
-    margin: 0 -8px;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
+    gap: 6px;
   }
-  .c-notice {
+
+  .c-av-item {
     position: relative;
+    display: flex;
+    align-items: stretch;
+    border-radius: var(--c-r-lg);
+    border: 1px solid transparent;
+    background: transparent;
+    max-height: 140px;
+    overflow: hidden;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      max-height 0.24s ease,
+      opacity 0.2s ease,
+      transform 0.24s ease,
+      margin 0.24s ease;
+    animation: c-up 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--c-i, 0) * 45ms);
+  }
+  .c-av-item.is-new {
+    background: var(--c-tint);
+    border-color: var(--c-tint-line);
+  }
+  .c-av-item.is-leaving {
+    max-height: 0;
+    opacity: 0;
+    transform: translateX(28px);
+    margin-top: -6px;
+    border-width: 0;
+  }
+  .c-av-link {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 12px 8px;
-    border-radius: var(--c-r-md);
+    padding: 12px 4px 12px 12px;
+    border-radius: var(--c-r-lg);
     transition: background-color 0.15s;
   }
-  .c-notice:hover {
+  .c-av-link:hover {
     background: var(--c-sunk);
   }
-  .c-notice.is-new {
-    background: var(--c-tint);
+  .c-av-item.is-new .c-av-link:hover {
+    background: transparent;
   }
-  .c-notice.is-new::before {
-    content: "";
-    position: absolute;
-    left: -2px;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    margin-top: -3px;
-    border-radius: 50%;
-    background: var(--c-brand);
-  }
-  .c-notice-ic {
+
+  .c-av-ic {
+    position: relative;
     flex: none;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     display: grid;
     place-items: center;
     background: var(--c-sunk);
     color: var(--c-ink2);
   }
-  .c-notice-ic.is-go {
+  .c-av-ic.is-go {
     background: var(--c-brand-soft);
     color: var(--c-brand-text);
   }
-  .c-notice-ic.is-prog {
+  .c-av-ic.is-prog {
     background: var(--c-warn-soft);
     color: var(--c-warn);
   }
-  .c-notice-ic.is-pay,
-  .c-notice-ic.is-done {
+  .c-av-ic.is-pay,
+  .c-av-ic.is-done {
     background: var(--c-ok-soft);
     color: var(--c-ok);
   }
-  .c-notice-main {
+  /* aviso novo: o ícone ganha um anel que pulsa e um pontinho */
+  .c-av-item.is-new .c-av-ic::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    opacity: 0;
+    animation: c-ring 2.4s ease-out infinite;
+  }
+  .c-av-dot {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--c-brand);
+    border: 2px solid var(--c-surface);
+    box-sizing: content-box;
+  }
+  .c-av-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 1px;
   }
-  .c-notice-main strong {
+  .c-av-body strong {
     font-weight: 600;
   }
-  .c-notice-main small {
+  .c-av-item:not(.is-new) .c-av-body strong {
+    font-weight: 500;
+    color: var(--c-ink2);
+  }
+  .c-av-body small {
     font-size: 14px;
     color: var(--c-ink2);
   }
-  .c-notice-main time {
+  .c-av-body time {
     font-size: 12px;
     color: var(--c-ink2);
     opacity: 0.85;
     margin-top: 2px;
+  }
+  .c-av-link .c-chev {
+    display: none;
+  }
+
+  /* ver, limpar */
+  .c-av-acts {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 6px;
+  }
+  .c-av-acts button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--c-ink2);
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .c-av-acts button:hover {
+    background: var(--c-sunk);
+    color: var(--c-ink);
+  }
+  .c-av-acts button:first-child:not(:last-child):hover {
+    color: var(--c-ok);
+  }
+
+  /* tudo em dia */
+  .c-av-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 36px 16px;
+  }
+  .c-av-empty h3 {
+    font: 700 20px var(--c-f-display);
+    margin-top: 8px;
+  }
+  .c-av-empty p {
+    margin: 0 0 8px;
+    color: var(--c-ink2);
+    max-width: 30ch;
+  }
+  .c-av-art {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+  }
+  .c-av-art svg {
+    overflow: visible;
+  }
+  .c-av-bellart {
+    transform-origin: 36px 18px;
+    animation: c-bell-ring 3.2s 0.6s ease-in-out infinite;
+  }
+
+  /* desfazer */
+  .c-av-undo {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 8px 6px 16px;
+    min-height: 48px;
+    border-radius: var(--c-r-md);
+    background: var(--c-ink);
+    color: var(--c-bg);
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+    animation: c-slideup 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .c-av-undo button {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: var(--c-r-sm);
+    color: var(--c-brand);
+    font-weight: 700;
+  }
+  .c-av-undo button:hover {
+    background: rgb(127 127 127 / 0.18);
   }
 }
 

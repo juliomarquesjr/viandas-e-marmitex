@@ -16,30 +16,44 @@ export interface Notice {
 }
 
 /**
- * Os avisos do cliente, em um lugar só: o sino do cabeçalho e o do menu lateral leem daqui,
- * então a busca acontece uma vez e os dois mostram o mesmo número.
+ * Os avisos do cliente, em um lugar só: o sino do cabeçalho, o do menu lateral e a folha de
+ * avisos leem daqui, então a busca acontece uma vez e todos mostram o mesmo número.
  *
- * Quais avisos já foram vistos fica no aparelho (localStorage), guardado como "visto até
- * esta hora" por cliente. Na primeira vez que o aparelho entra, vale o último dia.
+ * O que o cliente já viu e o que ele limpou fica no aparelho (localStorage), por cliente e por
+ * aviso: tocar num aviso, marcá-lo como visto ou limpá-lo mexe só nele, e a contagem do sino
+ * acompanha. Num aparelho novo, o que tem mais de um dia já entra como visto.
  */
 interface State {
   items: Notice[];
   loaded: boolean;
-  seenAt: string;
+  /** Avisos de antes disto entram como vistos (primeira visita do aparelho). */
+  baseline: string;
+  read: ReadonlySet<string>;
+  dismissed: ReadonlySet<string>;
+  /** O que o último "limpar" tirou, para o "Desfazer". */
+  lastCleared: readonly string[];
 }
 
 const POLL_MS = 60_000;
 const FIRST_VISIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** O feed cobre 30 dias; guardar mais que isso de ids só incharia o armazenamento. */
+const MAX_STORED = 300;
 
-let state: State = { items: [], loaded: false, seenAt: "" };
+const EMPTY: State = {
+  items: [],
+  loaded: false,
+  baseline: "",
+  read: new Set(),
+  dismissed: new Set(),
+  lastCleared: [],
+};
+
+let state: State = EMPTY;
 let customerKey = "";
 let timer: number | null = null;
 let consumers = 0;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
-
-// O React compara o valor do servidor entre chamadas: precisa ser sempre o mesmo objeto
-const SERVER_STATE: State = state;
 
 function emit(next: State) {
   state = next;
@@ -51,26 +65,51 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 const getSnapshot = () => state;
-const getServerSnapshot = () => SERVER_STATE;
+// O React compara o valor do servidor entre chamadas: precisa ser sempre o mesmo objeto
+const getServerSnapshot = () => EMPTY;
 
-const storageKey = () => `customer:notices-seen:${customerKey}`;
+const storageKey = () => `customer:notices:${customerKey}`;
 
-function readSeenAt(): string {
-  try {
-    const stored = window.localStorage.getItem(storageKey());
-    if (stored) return stored;
-  } catch {
-    // sem armazenamento (janela privada): vale só nesta visita
-  }
-  return new Date(Date.now() - FIRST_VISIT_WINDOW_MS).toISOString();
+interface Stored {
+  baseline: string;
+  read: string[];
+  dismissed: string[];
 }
 
-function writeSeenAt(value: string) {
+function readStored(): Pick<State, "baseline" | "read" | "dismissed"> {
   try {
-    window.localStorage.setItem(storageKey(), value);
+    const raw = window.localStorage.getItem(storageKey());
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Stored>;
+      if (typeof parsed.baseline === "string") {
+        return {
+          baseline: parsed.baseline,
+          read: new Set(Array.isArray(parsed.read) ? parsed.read : []),
+          dismissed: new Set(Array.isArray(parsed.dismissed) ? parsed.dismissed : []),
+        };
+      }
+    }
   } catch {
-    // sem armazenamento: o aviso volta como novo na próxima visita
+    // sem armazenamento ou conteúdo estragado: começa do zero
   }
+  return { baseline: new Date(Date.now() - FIRST_VISIT_WINDOW_MS).toISOString(), read: new Set(), dismissed: new Set() };
+}
+
+const lastN = (ids: ReadonlySet<string>) => [...ids].slice(-MAX_STORED);
+
+function persist(next: State) {
+  try {
+    const stored: Stored = { baseline: next.baseline, read: lastN(next.read), dismissed: lastN(next.dismissed) };
+    window.localStorage.setItem(storageKey(), JSON.stringify(stored));
+  } catch {
+    // sem armazenamento: o que foi visto volta como novo na próxima visita
+  }
+}
+
+function update(patch: Partial<State>) {
+  const next = { ...state, ...patch };
+  persist(next);
+  emit(next);
 }
 
 /** Busca os avisos; chamadas repetidas enquanto uma está em andamento aproveitam a mesma. */
@@ -88,19 +127,48 @@ export function loadNotices(): Promise<void> {
   return inflight;
 }
 
-/** Marca tudo o que existe agora como visto. */
-export function markNoticesSeen() {
-  const newest = state.items[0]?.at;
-  if (!newest || newest <= state.seenAt) return;
-  writeSeenAt(newest);
-  emit({ ...state, seenAt: newest });
+export const isNoticeUnread = (s: Pick<State, "baseline" | "read" | "dismissed">, notice: Notice) =>
+  !s.dismissed.has(notice.id) && !s.read.has(notice.id) && notice.at > s.baseline;
+
+/** Marca um aviso como visto (tocar nele ou usar o botão de visto). */
+export function markNoticeRead(id: string) {
+  if (state.read.has(id)) return;
+  update({ read: new Set(state.read).add(id) });
+}
+
+/** Marca todos os avisos de agora como vistos. */
+export function markAllNoticesRead() {
+  const read = new Set(state.read);
+  state.items.forEach((notice) => read.add(notice.id));
+  update({ read });
+}
+
+/** Limpa um aviso (ele some da lista; "Desfazer" traz de volta). */
+export function dismissNotice(id: string) {
+  update({ dismissed: new Set(state.dismissed).add(id), lastCleared: [id] });
+}
+
+/** Limpa todos os avisos da lista. */
+export function dismissAllNotices() {
+  const ids = state.items.filter((notice) => !state.dismissed.has(notice.id)).map((notice) => notice.id);
+  if (ids.length === 0) return;
+  const dismissed = new Set(state.dismissed);
+  ids.forEach((id) => dismissed.add(id));
+  update({ dismissed, lastCleared: ids });
+}
+
+/** Desfaz o último "limpar". */
+export function undoClearNotices() {
+  if (state.lastCleared.length === 0) return;
+  const dismissed = new Set(state.dismissed);
+  state.lastCleared.forEach((id) => dismissed.delete(id));
+  update({ dismissed, lastCleared: [] });
 }
 
 /** Esquece o que sabe, para a próxima conta que entrar não ver os avisos da anterior. */
 export function resetNotices() {
   customerKey = "";
-  state = { items: [], loaded: false, seenAt: "" };
-  listeners.forEach((listener) => listener());
+  emit(EMPTY);
 }
 
 function start() {
@@ -116,8 +184,9 @@ function stop() {
 }
 
 /**
- * `customerId` separa o "visto" de cada cliente no mesmo aparelho. Enquanto o sino estiver
- * na tela, os avisos se atualizam sozinhos a cada minuto e quando o aplicativo volta ao primeiro plano.
+ * `customerId` separa o "visto" e o "limpo" de cada cliente no mesmo aparelho. Enquanto o sino
+ * estiver na tela, os avisos se atualizam sozinhos a cada minuto e quando o aplicativo volta ao
+ * primeiro plano.
  */
 export function useNotices(customerId: string | undefined) {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -126,7 +195,7 @@ export function useNotices(customerId: string | undefined) {
     if (!customerId) return;
     if (customerKey !== customerId) {
       customerKey = customerId;
-      emit({ items: [], loaded: false, seenAt: readSeenAt() });
+      emit({ ...EMPTY, ...readStored() });
     }
     consumers += 1;
     start();
@@ -146,6 +215,14 @@ export function useNotices(customerId: string | undefined) {
     };
   }, [customerId]);
 
-  const unread = snapshot.items.filter((item) => item.at > snapshot.seenAt).length;
-  return { items: snapshot.items, loaded: snapshot.loaded, seenAt: snapshot.seenAt, unread };
+  const items = snapshot.items.filter((notice) => !snapshot.dismissed.has(notice.id));
+  const unread = items.filter((notice) => isNoticeUnread(snapshot, notice)).length;
+  return {
+    items,
+    loaded: snapshot.loaded,
+    unread,
+    canUndo: snapshot.lastCleared.length > 0,
+    clearedCount: snapshot.lastCleared.length,
+    isUnread: (notice: Notice) => isNoticeUnread(snapshot, notice),
+  };
 }
