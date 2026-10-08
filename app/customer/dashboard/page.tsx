@@ -45,6 +45,7 @@ export default function CustomerDashboardPage() {
   const intents = useCustomerData<CustomerPaymentIntentsResponse>(PAYMENT_INTENTS_URL);
   useRealtimeEvent("ficha.updated", expenses.reload);
   useRealtimeEvent("pre-order.updated", preOrders.reload);
+  useRealtimeEvent("payment-intent.reviewed", intents.reload);
   const [pixOpen, setPixOpen] = React.useState(false);
   const closePix = React.useCallback(() => setPixOpen(false), []);
 

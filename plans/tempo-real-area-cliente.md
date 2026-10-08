@@ -1,7 +1,7 @@
 # Plano de Implementação — Atualização em tempo real na área do cliente
 
 > Data: 2026-10-02 · revisado em 2026-10-08
-> Status: Planejamento (não implementado)
+> Status: Fases 1 e 2 implementadas (Fase 3, mapa do entregador, não)
 > Depende de: nova área do cliente (`feat/area-cliente-v2`); a Fase 2 depende também do centro de notificações do admin (`feat/notificacoes-intencao-pagamento`)
 
 ---
@@ -33,7 +33,7 @@ O feed de avisos do cliente é **derivado** de pedidos e ficha (não há tabela 
 
 | Canal | Evento | Quando publicar | Efeito |
 |---|---|---|---|
-| `staff:notifications` | `notification.created` | `POST /api/customer/payment-intents` (cliente informa o PIX) | o sino do admin chama `refresh()` na hora, em vez de esperar até 30 s |
+| `staff:notifications` | `notification.changed` | `POST /api/customer/payment-intents` (cliente informa o PIX), `confirm` e `reject` | o sino do admin chama `refresh()` na hora, em vez de esperar até 30 s |
 | `customer:{id}` | `ficha.updated` | `POST /api/payment-intents/[id]/confirm` (o operador confirma e o pagamento entra na ficha) | saldo, Ficha e avisos do cliente se atualizam sozinhos |
 | `customer:{id}` | `payment-intent.updated` | `confirm` e `reject` | a tela de PIX do cliente sai de "em análise" sem recarregar |
 
@@ -50,13 +50,20 @@ Um endpoint "pulso" (`GET /api/customer/pulse`, devolvendo só um número de ver
 - **Token.** `GET /api/customer/realtime-token` devolve um token de 1 hora que só permite **ouvir** `customer:{id}`. O navegador pede outro 5 minutos antes de vencer e, se a conexão cair, tenta de novo com espera crescente.
 - **A chave do servidor precisa de permissão de publicar.** A chave "somente assinar" que o Ably cria por padrão emite tokens, mas não publica: o servidor recebe "Unauthorized to publish to channel" (registrado no log, sem derrubar a rota).
 
+### Como ficou a Fase 2 (implementada em 08/10/2026)
+
+- **Evento `notification.changed`** (e não `created`): o sino também precisa mudar quando outro operador resolve o aviso, então o sinal vale para nascer e para resolver. Publicado em `POST /api/customer/payment-intents`, `confirm` e `reject`.
+- **Cliente:** `confirm` e `reject` publicam `payment-intent.reviewed` no canal do cliente (o cartão do Início muda na hora); `confirm` publica também `ficha.updated`, porque o saldo mudou.
+- **Token dos funcionários:** `GET /api/realtime/staff-token`, só com `requireStaff()`. O token só ouve `staff:notifications`; um token de cliente não ouve esse canal e um token de funcionário não ouve canal de cliente (o Ably nega com 40160).
+- **Navegador:** a conexão por `EventSource` virou um helper compartilhado, `lib/realtime-stream.ts`, usado pela área do cliente e pelo sino do admin. Com a conexão aberta, a consulta do sino sobe de 30 s para 2 min.
+
 ### Fases
 
 | Fase | Entrega | O que o cliente percebe |
 |---|---|---|
 | **1. Cliente** | `lib/realtime.ts`, rota de token, provedor no `CustomerShell`, publicação nas rotas de pedido, ficha e pagamento; Pedidos, Início, Ficha e o sino passam a reagir | o pedido muda de etapa, o saldo e o selo do sino mudam sozinhos em até ~2 s |
 | **2. Operador** | rota de token de staff (`requireStaff()`), canal `staff:notifications`, `refresh()` do sino do admin ligado | o aviso de "cliente informou PIX" aparece na hora para quem está no painel |
-| **3. Mapa** (opcional) | posição do entregador em tempo real | o ponto se move sem esperar 15 s; outra conta de mensagens, decidir depois |
+| **3. Mapa** (futura, só documentada) | posição do entregador em tempo real | o ponto se move sem esperar 5 s ou 15 s; ver a seção "Fase 3" abaixo |
 
 Cada fase é independente e, sem `ABLY_API_KEY`, tudo continua funcionando com o polling atual.
 
@@ -67,7 +74,6 @@ Cada fase é independente e, sem `ABLY_API_KEY`, tudo continua funcionando com o
 3. **A Fase 2 entra junto com a 1 ou depois?** Recomendo depois, para a PR da Fase 1 ficar pequena e só do cliente.
 
 ---
-- o cliente toca "Já paguei" no PIX e o sino do painel do admin recebe o aviso na hora (hoje o aviso já existe, mas chega por consulta a cada 30 s).
 
 ## Como é hoje
 
@@ -137,13 +143,10 @@ sequenceDiagram
 |---|---|---|---|---|
 | `customer:{customerId}` | `pre-order.updated` | `{ id }` | o cliente | Pedidos e Início chamam `reload()`; o detalhe aberto se atualiza |
 | `customer:{customerId}` | `ficha.updated` | `{}` | o cliente | Início e Ficha chamam `reload()`; o saldo conta até o novo valor |
-| `staff:notifications` | `notification.created` | `{}` | admin logado | o sino do admin chama `refresh()` (ver a revisão de 08/10) |
-
-O aviso de PIX para o operador, que aqui era uma dúvida, já existe na PR #47; falta só ligá-lo ao tempo real (Fase 2).
-| `staff:notifications` | `notification.created` | `{ id }` | admin e PDV logados | o sino chama `reload()` e mostra o aviso na hora, em vez de esperar os 30 s |
+| `staff:notifications` | `notification.changed` | `{ id }` | admin e PDV logados | o sino chama `refresh()` e mostra o aviso na hora, em vez de esperar os 30 s |
 | `customer:{customerId}` | `payment-intent.reviewed` | `{ id }` | o cliente | o cartão "aguardando confirmação" do Início vira "confirmado" ou "recusado" na hora |
 
-O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` e uma `Notification` (ver `app/api/customer/payment-intents/route.ts`), e o operador revisa pelo sino do admin. O que falta aqui é só trocar a consulta de 30 s por esses dois eventos.
+O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` e uma `Notification` (ver `app/api/customer/payment-intents/route.ts`), e o operador revisa pelo sino do admin. O que faltava era trocar a consulta de 30 s por esses dois eventos (Fase 2).
 
 ## Onde publicar
 
@@ -154,7 +157,7 @@ O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` 
 | `app/api/orders/route.ts` | `POST` | quando a venda for para a ficha (`paymentMethod: invoice`, status `pending`) e tiver `customerId` | `ficha.updated` |
 | `app/api/orders/route.ts` | `PUT`, `DELETE` | quando o pedido alterado for de um cliente | `ficha.updated` |
 | `app/api/ficha-payments/route.ts` | `POST`, `DELETE` | sempre (pagamento sempre tem `customerId`) | `ficha.updated` |
-| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.created` (canal dos funcionários) |
+| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.changed` (canal dos funcionários) |
 | `app/api/payment-intents/[id]/confirm` e `reject` | `POST` | depois de revisar | `payment-intent.reviewed` (canal do cliente) e, no confirmar, também `ficha.updated` |
 
 O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
@@ -212,6 +215,81 @@ O Ably conta mensagens publicadas e entregues. Uma estimativa folgada para a ope
 - Com compras e pagamentos na ficha, algo como 1.000 mensagens/dia ≈ **30 mil/mês**, cerca de 0,5% do gratuito (6 milhões).
 
 O limite que pode apertar primeiro é o de **conexões simultâneas** (200). Se for atingido, novas conexões são recusadas e essas telas ficam no polling de 30 s. O painel do Ably mostra o pico; se passar de ~150 com frequência, é hora de rever o plano.
+
+## Fase 3 (futura): posição do entregador no mapa em tempo real
+
+> Status: só documentada, não implementada. Depende das Fases 1 e 2 em produção.
+
+### Como é hoje
+
+| Parte | Comportamento |
+|---|---|
+| App do entregador (`app/delivery/tracking/[id]/page.tsx`) | envia a posição a cada 10 s, com `PUT /api/pre-orders/[id]/delivery` (`{ latitude, longitude }`) |
+| Rastreio público (`app/tracking/[id]/page.tsx`, link do WhatsApp, sem login) | consulta `GET /api/public/pre-orders/[id]/delivery` a cada 5 s |
+| Rastreio do cliente logado (`app/customer/pre-orders/[id]/tracking/page.tsx`) | consulta a mesma API a cada 15 s |
+
+Hoje o ponto no mapa anda aos saltos, com atraso de até 5 s (público) ou 15 s (logado), e cada espectador faz uma requisição por ciclo mesmo sem nada novo.
+
+### Objetivo
+
+O ponto do entregador se move assim que a posição chega, sem esperar o próximo ciclo, e o polling vira só rede de segurança.
+
+### Diferenças em relação às Fases 1 e 2
+
+1. **Canal por pedido, não por cliente.** `tracking:{preOrderId}`. O link público do WhatsApp é aberto por quem recebe, sem login, então o canal do cliente não serve.
+2. **Token público.** Nova rota `GET /api/public/tracking/[id]/realtime-token`, sem sessão, que só emite token de **assinar** aquele canal. A exposição é a mesma de hoje: quem tem o id (UUID, só circula pelo link) já vê a posição pela API pública. Com limite de pedidos por IP (`lib/rate-limit.ts`) e só enquanto o pedido estiver em entrega (`out_for_delivery` ou `in_transit`).
+3. **A mensagem leva a posição.** Aqui o "sinal, não dado" muda: cada mensagem carrega `{ lat, lng, at }`. É o mesmo dado que a API pública já devolve, e buscar de novo a cada 10 s por espectador gastaria mais do que a própria mensagem. O canal só existe durante a entrega e some quando o pedido é entregue ou cancelado.
+
+### Eventos
+
+| Canal | Evento | Dados | Quando publicar |
+|---|---|---|---|
+| `tracking:{preOrderId}` | `position` | `{ lat, lng, at }` | no `PUT /api/pre-orders/[id]/delivery`, quando vier latitude e longitude, depois de gravar o `DeliveryTracking` |
+| `tracking:{preOrderId}` | `status` | `{ status }` | na mudança de status (a página fecha o mapa em "entregue" ou "cancelado") |
+
+A mudança de status continua publicando também em `customer:{id}`, como na Fase 1.
+
+### Arquivos
+
+- `lib/realtime.ts`: `publishPosition(preOrderId, { lat, lng, at })` e `publishTrackingStatus(...)`, com as mesmas regras (nunca lança erro, 2 s de limite, no-op sem chave).
+- `app/api/public/tracking/[id]/realtime-token/route.ts` (novo): token de assinatura do canal do pedido.
+- `app/api/pre-orders/[id]/delivery/route.ts`: publicar a posição (hoje esta rota publica só quando o status muda).
+- `app/tracking/[id]/page.tsx` e `app/customer/pre-orders/[id]/tracking/page.tsx`: abrir o canal com `openEventStream` (`lib/realtime-stream.ts`, já existente), mover o marcador a cada `position` e subir o polling de 5 s ou 15 s para 60 s enquanto conectado.
+- `app/components/DeliveryTrackingMap.tsx`: animar o marcador entre dois pontos (10 s de intervalo) em vez de pular, e mostrar "atualizado há N s".
+
+### Custo estimado
+
+O Ably conta mensagens publicadas e entregues.
+
+- Uma entrega de 30 min com envio a cada 10 s: 180 mensagens publicadas, mais 180 por espectador conectado.
+- 20 entregas por dia com 2 espectadores em média: 20 × 180 × 3 = 10.800 mensagens por dia, cerca de **324 mil por mês, 5,4% dos 6 milhões gratuitos**.
+- Conexões simultâneas: uma por espectador do mapa, só durante a entrega. A área do cliente já usa uma; abrir o mapa soma uma.
+- Se a operação crescer, o ajuste é enviar a posição a cada 15 ou 20 s (muda só o app do entregador).
+
+### Segurança e privacidade
+
+- A posição do entregador sai do canal assim que o pedido deixa de estar em entrega; nada fica guardado no Ably (o histórico segue só no banco, como hoje).
+- O token público só assina, só um canal, só enquanto o pedido está em entrega, e vale 1 hora.
+- O canal não aceita publicação de navegador: só o servidor publica, depois de autenticar o entregador ou o admin.
+
+### Como testar
+
+1. Pedido em `out_for_delivery`, entregador enviando posição; abrir o rastreio público e o do cliente logado: o marcador anda a cada 10 s, sem consulta de 5 s ou 15 s.
+2. Mudar para `delivered`: o mapa fecha na hora e nenhuma posição nova é publicada.
+3. Token público de um pedido que não está em entrega: recusado.
+4. Token de um pedido tentando ouvir o canal de outro: o Ably recusa (40160).
+5. Sem `ABLY_API_KEY`, ou com a rede caída: o mapa segue com o polling atual.
+
+### Estimativa
+
+Cerca de 1 dia: a rota de token público, as duas publicações, o hook nas duas telas e a animação do marcador.
+
+### Em aberto
+
+- Intervalo de envio da posição (10 s hoje) depois de medir o consumo real das Fases 1 e 2.
+- Mostrar o mapa em tempo real também no PDV/admin (quem acompanha as entregas)? Seria um canal `staff:tracking`, fora desta fase.
+
+---
 
 ## Como testar
 

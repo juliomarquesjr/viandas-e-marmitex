@@ -2,6 +2,7 @@ import { getCustomerBalance } from '@/lib/customer-balance';
 import { createFichaPaymentOrder } from '@/lib/ficha-payment';
 import { resolveNotificationsFor } from '@/lib/notifications';
 import prisma from '@/lib/prisma';
+import { publishToCustomer, publishToStaff } from '@/lib/realtime';
 import { requireStaff } from '@/lib/staff-session';
 import { NextResponse } from 'next/server';
 
@@ -62,6 +63,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 409 }
       );
     }
+
+    // Outros operadores veem o aviso resolvido; o cliente vê o PIX confirmado e o saldo novo
+    await Promise.all([
+      publishToStaff('notification.changed', { id }),
+      publishToCustomer(intent.customerId, 'payment-intent.reviewed', { id }),
+      publishToCustomer(intent.customerId, 'ficha.updated'),
+    ]);
 
     const { balanceCents } = await getCustomerBalance(intent.customerId);
     return NextResponse.json({ success: true, paymentOrderId: result.id, confirmedAmountCents: amountCents, currentBalanceCents: balanceCents });
