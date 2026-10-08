@@ -1,6 +1,7 @@
 import { getCustomerSession } from '@/lib/customer-auth';
 import { getCustomerBalance } from '@/lib/customer-balance';
 import { createNotification } from '@/lib/notifications';
+import { publishToStaff } from '@/lib/realtime';
 import {
   PAYMENT_INTENT_MAX_PENDING,
   PAYMENT_INTENT_MIN_CENTS,
@@ -142,6 +143,9 @@ export async function POST(request: Request) {
       );
       return created;
     });
+
+    // O sino do admin mostra o aviso na hora, sem esperar a próxima consulta
+    await publishToStaff('notification.changed', { id: intent.id });
 
     const response: CreatePaymentIntentResponse = { intent: toDTO(intent), duplicate: false };
     return NextResponse.json(response, { status: 201 });

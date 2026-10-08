@@ -1,5 +1,6 @@
 import { resolveNotificationsFor } from '@/lib/notifications';
 import prisma from '@/lib/prisma';
+import { publishToCustomer, publishToStaff } from '@/lib/realtime';
 import { requireStaff } from '@/lib/staff-session';
 import { NextResponse } from 'next/server';
 
@@ -17,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = (await request.json().catch(() => null)) ?? {};
     const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, MAX_REASON_LENGTH) : '';
 
-    const intent = await prisma.paymentIntent.findUnique({ where: { id }, select: { id: true } });
+    const intent = await prisma.paymentIntent.findUnique({ where: { id }, select: { id: true, customerId: true } });
     if (!intent) {
       return NextResponse.json({ error: 'Intenção de pagamento não encontrada' }, { status: 404 });
     }
@@ -48,6 +49,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 409 }
       );
     }
+
+    await Promise.all([
+      publishToStaff('notification.changed', { id }),
+      publishToCustomer(intent.customerId, 'payment-intent.reviewed', { id }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,7 +1,7 @@
 # Plano de Implementação — Atualização em tempo real na área do cliente
 
 > Data: 2026-10-02 · revisado em 2026-10-08
-> Status: Planejamento (não implementado)
+> Status: Fases 1 e 2 implementadas (Fase 3, mapa do entregador, não)
 > Depende de: nova área do cliente (`feat/area-cliente-v2`); a Fase 2 depende também do centro de notificações do admin (`feat/notificacoes-intencao-pagamento`)
 
 ---
@@ -49,6 +49,13 @@ Um endpoint "pulso" (`GET /api/customer/pulse`, devolvendo só um número de ver
 - **Navegador sem biblioteca.** O pacote `ably` no navegador não passa no build do Next (o SWC quebra um `super()` dentro de função de seta no construtor). Em vez disso o navegador usa o canal de eventos nativo do Ably (`EventSource` em `realtime.ably.io/event-stream`), que também reconecta sozinho. O `ably` fica só no servidor.
 - **Token.** `GET /api/customer/realtime-token` devolve um token de 1 hora que só permite **ouvir** `customer:{id}`. O navegador pede outro 5 minutos antes de vencer e, se a conexão cair, tenta de novo com espera crescente.
 - **A chave do servidor precisa de permissão de publicar.** A chave "somente assinar" que o Ably cria por padrão emite tokens, mas não publica: o servidor recebe "Unauthorized to publish to channel" (registrado no log, sem derrubar a rota).
+
+### Como ficou a Fase 2 (implementada em 08/10/2026)
+
+- **Evento `notification.changed`** (e não `created`): o sino também precisa mudar quando outro operador resolve o aviso, então o sinal vale para nascer e para resolver. Publicado em `POST /api/customer/payment-intents`, `confirm` e `reject`.
+- **Cliente:** `confirm` e `reject` publicam `payment-intent.reviewed` no canal do cliente (o cartão do Início muda na hora); `confirm` publica também `ficha.updated`, porque o saldo mudou.
+- **Token dos funcionários:** `GET /api/realtime/staff-token`, só com `requireStaff()`. O token só ouve `staff:notifications`; um token de cliente não ouve esse canal e um token de funcionário não ouve canal de cliente (o Ably nega com 40160).
+- **Navegador:** a conexão por `EventSource` virou um helper compartilhado, `lib/realtime-stream.ts`, usado pela área do cliente e pelo sino do admin. Com a conexão aberta, a consulta do sino sobe de 30 s para 2 min.
 
 ### Fases
 
@@ -136,7 +143,7 @@ sequenceDiagram
 |---|---|---|---|---|
 | `customer:{customerId}` | `pre-order.updated` | `{ id }` | o cliente | Pedidos e Início chamam `reload()`; o detalhe aberto se atualiza |
 | `customer:{customerId}` | `ficha.updated` | `{}` | o cliente | Início e Ficha chamam `reload()`; o saldo conta até o novo valor |
-| `staff:notifications` | `notification.created` | `{ id }` | admin e PDV logados | o sino chama `refresh()` e mostra o aviso na hora, em vez de esperar os 30 s |
+| `staff:notifications` | `notification.changed` | `{ id }` | admin e PDV logados | o sino chama `refresh()` e mostra o aviso na hora, em vez de esperar os 30 s |
 | `customer:{customerId}` | `payment-intent.reviewed` | `{ id }` | o cliente | o cartão "aguardando confirmação" do Início vira "confirmado" ou "recusado" na hora |
 
 O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` e uma `Notification` (ver `app/api/customer/payment-intents/route.ts`), e o operador revisa pelo sino do admin. O que faltava era trocar a consulta de 30 s por esses dois eventos (Fase 2).

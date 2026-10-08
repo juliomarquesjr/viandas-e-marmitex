@@ -3,9 +3,14 @@
 import * as React from "react";
 import { useToast } from "@/app/components/Toast";
 import type { NotificationDTO, NotificationListResponse } from "@/lib/notification-types";
+import { openEventStream } from "@/lib/realtime-stream";
 
 /** De quanto em quanto tempo o sino consulta o servidor (só com a aba visível). */
 export const NOTIFICATIONS_POLL_MS = 30_000;
+/** Com o tempo real conectado, a consulta só cobre um aviso que se perdeu. */
+const SAFETY_POLL_MS = 120_000;
+/** Vários eventos seguidos viram uma consulta só. */
+const REALTIME_DEBOUNCE_MS = 250;
 /** Quantas a consulta do sino traz; o painel mostra só as mais recentes. */
 const FETCH_LIMIT = 20;
 /** Acima disso, os avisos na hora viram um só, para não empilhar toasts. */
@@ -34,7 +39,8 @@ function isListResponse(value: unknown): value is NotificationListResponse {
 }
 
 /**
- * Notificações do sino por consulta periódica (sem WebSocket).
+ * Notificações do sino: o servidor avisa pelo tempo real (Ably) e a consulta periódica fica como
+ * rede de segurança (30 s sem conexão, 2 min com ela).
  * Falha de rede nunca derruba nada: mantém o último dado e tenta de novo no ciclo seguinte.
  */
 export function useNotifications(): UseNotificationsResult {
@@ -44,6 +50,7 @@ export function useNotifications(): UseNotificationsResult {
   const [pendingCount, setPendingCount] = React.useState(0);
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const [realtime, setRealtime] = React.useState(false);
 
   const mountedRef = React.useRef(true);
   const inflightRef = React.useRef<Promise<void> | null>(null);
@@ -104,7 +111,7 @@ export function useNotifications(): UseNotificationsResult {
 
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, NOTIFICATIONS_POLL_MS);
+    }, realtime ? SAFETY_POLL_MS : NOTIFICATIONS_POLL_MS);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") void refresh();
@@ -115,6 +122,24 @@ export function useNotifications(): UseNotificationsResult {
       mountedRef.current = false;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refresh, realtime]);
+
+  // Tempo real: o servidor avisa quando uma notificação nasce ou é resolvida (ver lib/realtime.ts)
+  React.useEffect(() => {
+    let timer: number | undefined;
+    const stop = openEventStream({
+      tokenUrl: "/api/realtime/staff-token",
+      onConnectedChange: setRealtime,
+      onEvent: (name) => {
+        if (name !== "notification.changed") return;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => void refresh(), REALTIME_DEBOUNCE_MS);
+      },
+    });
+    return () => {
+      window.clearTimeout(timer);
+      stop();
     };
   }, [refresh]);
 

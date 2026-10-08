@@ -2,9 +2,10 @@
 
 import { useSession } from "next-auth/react";
 import * as React from "react";
+import { openEventStream } from "@/lib/realtime-stream";
 
 /** Mesmos nomes de lib/realtime.ts (o servidor). O sinal só diz "mudou"; os dados vêm das APIs de sempre. */
-export type CustomerEvent = "pre-order.updated" | "ficha.updated";
+export type CustomerEvent = "pre-order.updated" | "ficha.updated" | "payment-intent.reviewed";
 
 type Listener = (event: CustomerEvent) => void;
 
@@ -16,26 +17,11 @@ interface RealtimeValue {
 
 const RealtimeContext = React.createContext<RealtimeValue>({ connected: false, subscribe: () => () => undefined });
 
-const EVENTS: CustomerEvent[] = ["pre-order.updated", "ficha.updated"];
-
-/** Canal de eventos do Ably (Server-Sent Events): o navegador ouve direto, sem biblioteca. */
-const ABLY_EVENT_STREAM = "https://realtime.ably.io/event-stream";
-/** Pede outro token um pouco antes de o atual vencer. */
-const RENEW_MARGIN_MS = 5 * 60 * 1000;
-const RETRY_MIN_MS = 5_000;
-const RETRY_MAX_MS = 60_000;
-
-interface TokenResponse {
-  token: string;
-  expires: number;
-  channel: string;
-}
+const EVENTS: CustomerEvent[] = ["pre-order.updated", "ficha.updated", "payment-intent.reviewed"];
 
 /**
- * Uma conexão com o Ably para a área do cliente inteira, pelo canal de eventos nativo (EventSource,
- * que o navegador já reconecta sozinho). O token só deixa ouvir o canal do próprio cliente. Sem a
- * chave no servidor (a rota de token responde 204), ou se qualquer coisa falhar, nada muda e as
- * telas seguem com o polling de sempre.
+ * Uma conexão com o Ably para a área do cliente inteira (ver lib/realtime-stream.ts). Sem a chave
+ * no servidor, ou se qualquer coisa falhar, nada muda e as telas seguem com o polling de sempre.
  */
 export function CustomerRealtimeProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -46,69 +32,13 @@ export function CustomerRealtimeProvider({ children }: { children: React.ReactNo
 
   React.useEffect(() => {
     if (!customerId) return;
-
-    let stopped = false;
-    let source: EventSource | null = null;
-    let timer: number | undefined;
-    let retryMs = RETRY_MIN_MS;
-
-    const disconnect = () => {
-      source?.close();
-      source = null;
-      window.clearTimeout(timer);
-    };
-
-    const connect = async () => {
-      disconnect();
-      try {
-        const response = await fetch("/api/customer/realtime-token", { cache: "no-store" });
-        // Sem chave configurada (204) ou sem sessão: sem tempo real, e não adianta tentar de novo
-        if (response.status === 204 || response.status === 401) return;
-        if (!response.ok) throw new Error(`token ${response.status}`);
-        const { token, expires, channel } = (await response.json()) as TokenResponse;
-        if (stopped) return;
-
-        const url = `${ABLY_EVENT_STREAM}?${new URLSearchParams({ channels: channel, v: "1.2", accessToken: token })}`;
-        const es = new EventSource(url);
-        source = es;
-
-        es.onopen = () => {
-          retryMs = RETRY_MIN_MS;
-          setConnected(true);
-        };
-        es.onmessage = (message) => {
-          try {
-            const name = (JSON.parse(message.data) as { name?: string }).name as CustomerEvent;
-            if (EVENTS.includes(name)) listeners.current.forEach((listener) => listener(name));
-          } catch {
-            // mensagem que não é nossa: ignora
-          }
-        };
-        // Token vencido ou rede caída: fecha, avisa as telas (voltam ao polling rápido) e tenta de novo
-        es.onerror = () => {
-          setConnected(false);
-          disconnect();
-          if (stopped) return;
-          timer = window.setTimeout(connect, retryMs);
-          retryMs = Math.min(retryMs * 2, RETRY_MAX_MS);
-        };
-
-        // Renova antes de o token vencer
-        timer = window.setTimeout(connect, Math.max(RETRY_MIN_MS, expires - Date.now() - RENEW_MARGIN_MS));
-      } catch {
-        if (stopped) return;
-        timer = window.setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 2, RETRY_MAX_MS);
-      }
-    };
-
-    void connect();
-
-    return () => {
-      stopped = true;
-      disconnect();
-      setConnected(false);
-    };
+    return openEventStream({
+      tokenUrl: "/api/customer/realtime-token",
+      onConnectedChange: setConnected,
+      onEvent: (name) => {
+        if (EVENTS.includes(name as CustomerEvent)) listeners.current.forEach((listener) => listener(name as CustomerEvent));
+      },
+    });
   }, [customerId]);
 
   const value = React.useMemo<RealtimeValue>(
