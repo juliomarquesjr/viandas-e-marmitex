@@ -4,12 +4,15 @@ import { ChevronRight, MapPin, Navigation } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import * as React from "react";
+import type { CustomerPaymentIntentsResponse } from "@/lib/notification-types";
 import { MovementRow } from "../components/ficha/MovementRow";
 import { buildMovements } from "../components/ficha/movements";
 import { ErrorState, EmptyState, LoadingRows, Money, PixIcon, StatusArt, Stepper, cx } from "../components/kit";
+import { PaymentIntentCards } from "../components/pagamento/PaymentIntentCards";
 import { PixPaymentSheet } from "../components/PixPaymentSheet";
 import { firstName, formatBRL, formatTime, formatTodayLabel, greeting } from "../lib/format";
 import { fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
+import { PAYMENT_INTENTS_URL } from "../lib/payment-intents";
 import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreOrdersResponse } from "../lib/types";
 import { useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
@@ -38,10 +41,38 @@ export default function CustomerDashboardPage() {
   const expenses = useCustomerData<ExpensesResponse>("/api/customer/expenses");
   const preOrders = useCustomerData<PreOrdersResponse>("/api/customer/pre-orders");
   const profile = useCustomerData<CustomerProfile>("/api/customer/profile");
+  // Secundária: se falhar, o Início segue sem o andamento dos pagamentos
+  const intents = useCustomerData<CustomerPaymentIntentsResponse>(PAYMENT_INTENTS_URL);
   useRealtimeEvent("ficha.updated", expenses.reload);
   useRealtimeEvent("pre-order.updated", preOrders.reload);
   const [pixOpen, setPixOpen] = React.useState(false);
   const closePix = React.useCallback(() => setPixOpen(false), []);
+
+  const reloadExpenses = expenses.reload;
+  const reloadPreOrders = preOrders.reload;
+  const reloadIntents = intents.reload;
+
+  // Depois de "Já paguei", mostra o aviso na hora e confere o saldo
+  const onInformed = React.useCallback(() => {
+    reloadIntents();
+    reloadExpenses();
+  }, [reloadIntents, reloadExpenses]);
+
+  // Ao voltar para a aba (ex.: depois de ver o app do banco), busca tudo de novo
+  // para a confirmação do pagamento aparecer sem sair da tela.
+  const lastRefresh = React.useRef(Date.now());
+  React.useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefresh.current < 5000) return;
+      lastRefresh.current = Date.now();
+      reloadIntents();
+      reloadExpenses();
+      reloadPreOrders();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [reloadIntents, reloadExpenses, reloadPreOrders]);
 
   const failed = Boolean(expenses.error || preOrders.error);
   const loading = (expenses.loading && !expenses.data) || (preOrders.loading && !preOrders.data);
@@ -87,6 +118,7 @@ export default function CustomerDashboardPage() {
       </div>
 
       <div className="c-home-col">
+        {intents.data && <PaymentIntentCards intents={intents.data.intents ?? []} rise={rise(2)} />}
         {!failed && loading && <ActiveSkeleton />}
         {!failed && !loading && preOrders.data && <ActiveOrders orders={preOrders.data.data ?? []} />}
 
@@ -112,7 +144,12 @@ export default function CustomerDashboardPage() {
       </div>
 
       {expenses.data && expenses.data.balanceCents > 0 && (
-        <PixPaymentSheet open={pixOpen} onClose={closePix} balanceCents={expenses.data.balanceCents} />
+        <PixPaymentSheet
+          open={pixOpen}
+          onClose={closePix}
+          balanceCents={expenses.data.balanceCents}
+          onInformed={onInformed}
+        />
       )}
     </div>
   );

@@ -4,8 +4,10 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { loadPixCharge, type PixCharge, type PixSettings } from "@/lib/pix-qr";
 import { formatAmount, formatBRL } from "../lib/format";
+import { informPayment } from "../lib/payment-intents";
 import "./ficha/pix.css";
 import { Money, Sheet, SheetHeader, cx } from "./kit";
+import "./pagamento/pagamento.css";
 
 const MIN_CENTS = 100;
 const QUICK_VALUES = [5000, 10000, 15000];
@@ -17,31 +19,49 @@ type Step = "choose" | "loading" | "error" | "qr" | "done";
 
 /**
  * Pagar a ficha por PIX: escolher o valor, gerar o QR no servidor e, depois
- * de pagar, avisar que o saldo muda quando o estabelecimento confirmar.
- * Nada aqui avisa o estabelecimento: quem confirma é ele, ao ver o PIX entrar.
+ * de pagar, avisar o estabelecimento ("Já paguei"). O aviso não mexe no saldo:
+ * quem confirma é o estabelecimento, depois de ver o PIX entrar no banco.
+ * `onInformed` roda quando o aviso foi registrado, para a tela buscar de novo
+ * o andamento dos pagamentos.
  */
 export function PixPaymentSheet({
   open,
   onClose,
   balanceCents,
+  onInformed,
 }: {
   open: boolean;
   onClose: () => void;
   balanceCents: number;
+  onInformed?: () => void;
 }) {
   return (
     <Sheet open={open} onClose={onClose} label="Pagar com PIX">
       {/* montado só com a folha aberta: cada abertura começa do primeiro passo */}
-      <PixFlow balanceCents={Math.max(0, balanceCents)} onClose={onClose} />
+      <PixFlow balanceCents={Math.max(0, balanceCents)} onClose={onClose} onInformed={onInformed} />
     </Sheet>
   );
 }
 
-function PixFlow({ balanceCents, onClose }: { balanceCents: number; onClose: () => void }) {
+function PixFlow({
+  balanceCents,
+  onClose,
+  onInformed,
+}: {
+  balanceCents: number;
+  onClose: () => void;
+  onInformed?: () => void;
+}) {
   const [step, setStep] = React.useState<Step>("choose");
   const [mode, setMode] = React.useState<Mode>("total");
   const [partialCents, setPartialCents] = React.useState(() => Math.min(balanceCents, 5000));
   const [result, setResult] = React.useState<{ settings: PixSettings; charge: PixCharge } | null>(null);
+  const [sending, setSending] = React.useState(false);
+  const [informError, setInformError] = React.useState<string | null>(null);
+  const [informedCents, setInformedCents] = React.useState(0);
+  const sendingRef = React.useRef(false);
+  const onInformedRef = React.useRef(onInformed);
+  onInformedRef.current = onInformed;
 
   const wrap = React.useRef<HTMLDivElement>(null);
   const request = React.useRef(0);
@@ -94,6 +114,34 @@ function PixFlow({ balanceCents, onClose }: { balanceCents: number; onClose: () 
     setStep(res ? "qr" : "error");
   };
 
+  // Toque em "Já paguei": avisa o estabelecimento com o valor que está na tela.
+  // A trava em ref vale já no primeiro toque, antes de a tela re-renderizar.
+  const inform = async () => {
+    if (sendingRef.current || cents <= 0) return;
+    sendingRef.current = true;
+    setSending(true);
+    setInformError(null);
+    const res = await informPayment(cents);
+    sendingRef.current = false;
+    if (res.ok) {
+      // a tela de trás busca de novo mesmo que a folha tenha sido fechada nesse meio tempo
+      onInformedRef.current?.();
+    }
+    if (!alive.current) return;
+    setSending(false);
+    if (res.ok) {
+      setInformedCents(res.intent.amountCents);
+      setStep("done");
+    } else {
+      setInformError(res.error);
+    }
+  };
+
+  const changeValue = () => {
+    setInformError(null);
+    setStep("choose");
+  };
+
   return (
     <div ref={wrap} className={cx("c-pix-step", step === "done" && "is-done")}>
       {step === "choose" && (
@@ -143,15 +191,17 @@ function PixFlow({ balanceCents, onClose }: { balanceCents: number; onClose: () 
           cents={cents}
           settings={result.settings}
           charge={result.charge}
-          onBack={() => setStep("choose")}
-          onPaid={() => setStep("done")}
+          onBack={changeValue}
+          onPaid={inform}
+          sending={sending}
+          error={informError}
           onClose={onClose}
         />
       )}
 
       {step === "done" && (
         <>
-          <SheetHeader title="Tudo certo por aqui" onClose={onClose} />
+          <SheetHeader title="Avisamos o estabelecimento" onClose={onClose} />
           <span className="c-art is-done c-pix-done-art" style={{ width: 96, height: 96 }} aria-hidden="true">
             <svg viewBox="0 0 72 72" width="96" height="96">
               <circle cx="36" cy="36" r="20" fill="currentColor" />
@@ -168,9 +218,12 @@ function PixFlow({ balanceCents, onClose }: { balanceCents: number; onClose: () 
           </span>
           <div className="c-qr-amt">
             <p className="c-pix-k">Valor do PIX</p>
-            <Money cents={cents} />
+            <Money cents={informedCents || cents} />
           </div>
-          <p className="c-pixnote">Assim que o estabelecimento confirmar o recebimento, o valor sai da sua ficha.</p>
+          <p className="c-pixnote">
+            Assim que eles conferirem o pagamento no banco, ele sai da sua ficha. Isso costuma levar alguns minutos no
+            horário de funcionamento.
+          </p>
           <button type="button" className="c-btn is-primary" onClick={onClose}>
             Entendi
           </button>
@@ -321,6 +374,8 @@ function QrStep({
   charge,
   onBack,
   onPaid,
+  sending,
+  error,
   onClose,
 }: {
   cents: number;
@@ -328,6 +383,8 @@ function QrStep({
   charge: PixCharge;
   onBack: () => void;
   onPaid: () => void;
+  sending: boolean;
+  error: string | null;
   onClose: () => void;
 }) {
   const [copied, setCopied] = React.useState(false);
@@ -423,14 +480,41 @@ function QrStep({
         </li>
       </ol>
 
-      <p className="c-pixnote">O saldo da sua ficha é atualizado quando o estabelecimento confirmar o recebimento.</p>
+      <p className="c-pixnote">
+        Depois de pagar, toque em “Já paguei” para avisar o estabelecimento. O saldo da sua ficha muda quando eles
+        conferirem o pagamento no banco.
+      </p>
+
+      {error && (
+        <p className="c-alert" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="c-actions">
-        <button type="button" className="c-btn is-ghost" onClick={onBack}>
+        <button type="button" className="c-btn is-ghost" onClick={onBack} disabled={sending}>
           Mudar o valor
         </button>
-        <button type="button" className="c-btn is-primary" onClick={onPaid}>
-          Já paguei
+        <button
+          type="button"
+          className="c-btn is-primary"
+          onClick={onPaid}
+          aria-disabled={sending || undefined}
+          aria-busy={sending || undefined}
+        >
+          {sending ? (
+            <>
+              <span className="c-spin" aria-hidden="true" />
+              Avisando…
+            </>
+          ) : error ? (
+            <>
+              <RefreshCw size={18} aria-hidden="true" />
+              Tentar de novo
+            </>
+          ) : (
+            "Já paguei"
+          )}
         </button>
       </div>
     </>

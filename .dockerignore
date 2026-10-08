@@ -1,0 +1,28 @@
+# Segredos: nunca entram na imagem
+.env
+.env.*
+
+# Dependências e builds locais (a imagem instala e compila por conta própria)
+node_modules
+.next
+out
+build
+dist
+coverage
+*.tsbuildinfo
+
+# Client Prisma gerado no host (a imagem gera o seu, com o motor do Debian)
+lib/generated
+
+# App desktop (Tauri) e ferramentas de desenvolvimento
+src-tauri
+.playwright-mcp
+.kilocode
+.vscode
+.github
+.git
+.gitignore
+docs
+plans
+*.md
+npm-debug.log*

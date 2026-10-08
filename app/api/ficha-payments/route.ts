@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { createFichaPaymentOrder } from '@/lib/ficha-payment';
 import prisma from '@/lib/prisma';
 import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
@@ -47,45 +48,13 @@ export async function POST(request: Request) {
     }
 
     // Criar um pedido especial para registrar o pagamento
-    const paymentData: any = {
+    const paymentOrder = await createFichaPaymentOrder({
       customerId: body.customerId,
-      status: 'pending',
-      subtotalCents: body.amountCents,
-      discountCents: 0,
-      deliveryFeeCents: 0,
-      totalCents: body.amountCents,
-      paymentMethod: 'ficha_payment', // Tipo especial para pagamentos de ficha
-      items: {
-        create: []
-      }
-    };
-
-    // Definir createdAt com base na data de pagamento fornecida, ou usar a data atual
-    if (body.paymentDate) {
-      // Converter a string de data (YYYY-MM-DD) para Date, ajustando para timezone Brasil (UTC-3)
-      // Para evitar problemas de fuso horário, criamos a data com hora meio-dia (12:00) no horário UTC
-      const [year, month, day] = body.paymentDate.split('-').map(Number);
-      paymentData.createdAt = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-    }
-
-    // Adicionar dados específicos do método de pagamento
-    if (body.paymentMethod === 'cash' && body.cashReceivedCents !== undefined) {
-      paymentData.cashReceivedCents = body.cashReceivedCents;
-      paymentData.changeCents = body.changeCents || 0;
-    }
-
-    const paymentOrder = await prisma.order.create({
-      data: paymentData,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true
-          }
-        },
-        items: true
-      }
+      amountCents: body.amountCents,
+      paymentMethod: body.paymentMethod,
+      paymentDate: body.paymentDate,
+      cashReceivedCents: body.cashReceivedCents,
+      changeCents: body.changeCents,
     });
 
     await publishToCustomer(paymentOrder.customerId, 'ficha.updated');

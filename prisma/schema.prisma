@@ -30,6 +30,7 @@ model User {
 
   // Relacionamentos
   deliveryPreOrders PreOrder[] // Pré-pedidos atribuídos para entrega
+  reviewedPaymentIntents PaymentIntent[] @relation("PaymentIntentReviewer")
 }
 
 // Modelo de Cliente
@@ -53,6 +54,8 @@ model Customer {
   preOrders  PreOrder[]
   budgets    CustomerBudget[] // Orçamentos salvos para este cliente
   passwordResetTokens CustomerPasswordResetToken[]
+  paymentIntents PaymentIntent[]
+  notifications Notification[]
 }
 
 // Token de redefinição de senha do cliente (só o hash é armazenado; uso único)
@@ -358,4 +361,47 @@ model DeliveryTracking {
 
   @@index([preOrderId])
   @@index([timestamp])
+}
+
+// Centro de notificações dos funcionários (admin e PDV). Genérico: cada tipo diz o
+// que é o item referenciado em refType/refId e para onde o clique leva.
+model Notification {
+  id         String    @id @default(uuid())
+  type       String    // payment_intent (novos tipos entram aqui)
+  title      String
+  message    String?
+  customerId String?   // cliente a que o aviso se refere, quando houver
+  refType    String?   // ex.: "PaymentIntent"
+  refId      String?   // id do item referenciado
+  readAt     DateTime? // alguém já abriu
+  resolvedAt DateTime? // a ação pedida já foi tomada (some da fila de pendências)
+  createdAt  DateTime  @default(now())
+
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([readAt])
+  @@index([refType, refId])
+}
+
+// Intenção de pagamento: o cliente diz que pagou a ficha por PIX. O sistema não
+// recebe aviso do banco, então um operador confere no banco e confirma ou recusa.
+model PaymentIntent {
+  id                   String    @id @default(uuid())
+  customerId           String
+  amountCents          Int       // valor que o cliente informou
+  balanceCents         Int       // saldo devedor da ficha no momento em que ele informou
+  status               String    @default("pending") // pending, confirmed, rejected
+  confirmedAmountCents Int?      // valor que o operador confirmou (pode diferir do informado)
+  rejectionReason      String?
+  reviewedById         String?
+  reviewedAt           DateTime?
+  paymentOrderId       String?   @unique // pagamento de ficha criado ao confirmar
+  createdAt            DateTime  @default(now())
+
+  customer             Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reviewedBy           User?     @relation("PaymentIntentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([customerId, status])
+  @@index([status, createdAt])
 }

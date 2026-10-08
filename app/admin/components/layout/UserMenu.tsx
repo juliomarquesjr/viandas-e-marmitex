@@ -3,29 +3,16 @@
 import * as React from "react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-  Bell,
   Calculator,
   ChevronDown,
-  Construction,
-  Info,
   LogOut,
   Printer,
   ScanBarcode,
   ShoppingCart,
   User,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/app/components/ui/dialog";
 import { ExpenseInvoiceLookupDialog } from "@/app/admin/expenses/components/ExpenseInvoiceLookupDialog";
 import { CalculatorModal } from "@/app/components/CalculatorModal";
 import { UserFormDialog } from "@/app/components/UserFormDialog";
@@ -33,6 +20,7 @@ import { useToast } from "@/app/components/Toast";
 import { isDesktopRuntime } from "@/lib/runtime/capabilities";
 import { AdminThemeSelector } from "./AdminThemeSelector";
 import { DesktopPrintManagerDialog } from "./DesktopPrintManagerDialog";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 /**
  * UserMenu - Design System
@@ -296,240 +284,8 @@ export function UserMenu() {
   );
 }
 
-// Placeholder de notificações (substituir por dados reais futuramente)
-const PLACEHOLDER_NOTIFICATIONS = [
-  {
-    id: "1",
-    title: "Novo pedido recebido",
-    description: "Pedido #1042 aguarda confirmação.",
-    time: "há 5 min",
-  },
-  {
-    id: "2",
-    title: "Estoque baixo",
-    description: "Produto \"Marmita G\" com apenas 3 unidades.",
-    time: "há 1 hora",
-  },
-  {
-    id: "3",
-    title: "Pré-venda confirmada",
-    description: "Cliente João Silva confirmou pré-venda.",
-    time: "há 2 horas",
-  },
-];
-
-/**
- * Cobre conteúdo placeholder com desfoque e mensagem de recurso em desenvolvimento.
- */
-function NotificationsDevelopmentOverlay({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("relative overflow-hidden", className)}>
-      {/* Desfoque no próprio conteúdo (evita o “véu branco” do backdrop-blur) */}
-      <div
-        className="pointer-events-none select-none absolute inset-0 overflow-hidden blur-[3px]"
-        aria-hidden
-      >
-        {children}
-      </div>
-      <div
-        className="absolute inset-0 z-10 flex items-center justify-center bg-transparent p-4"
-        role="status"
-        aria-live="polite"
-      >
-        <div className="max-w-[15rem] rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] px-4 py-3 text-center shadow-lg">
-          <Construction className="mx-auto h-7 w-7 shrink-0 text-primary" aria-hidden />
-          <p className="mt-2 text-sm font-semibold text-[color:var(--foreground)]">Em fase de desenvolvimento</p>
-          <p className="mt-1 text-xs leading-snug text-[color:var(--muted-foreground)]">
-            As notificações reais do sistema serão exibidas aqui em uma versão futura.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * NotificationBell - Sino de notificações com painel dropdown + modal de histórico
- */
-export function NotificationBell() {
-  const [panelOpen, setPanelOpen] = React.useState(false);
-  const [historyOpen, setHistoryOpen] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  // Fechar painel ao clicar fora
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setPanelOpen(false);
-      }
-    }
-    if (panelOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [panelOpen]);
-
-  // Fechar painel com Escape
-  React.useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setPanelOpen(false);
-    }
-    if (panelOpen) {
-      document.addEventListener("keydown", handleEscape);
-    }
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [panelOpen]);
-
-  const handleShowMore = () => {
-    setPanelOpen(false);
-    setHistoryOpen(true);
-  };
-
-  return (
-    <>
-      <div className="relative" ref={containerRef}>
-        {/* Botão sino */}
-        <button
-          onClick={() => setPanelOpen((prev) => !prev)}
-          className={cn(
-            "relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200",
-            "hover:bg-[color:var(--muted)] focus:outline-none focus:ring-2 focus:ring-primary/20",
-            "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
-            panelOpen && "bg-[color:var(--muted)] text-[color:var(--foreground)]"
-          )}
-          aria-label="Notificações"
-          aria-expanded={panelOpen}
-        >
-          <Bell className="h-5 w-5" />
-          {/* Badge */}
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </button>
-
-        {/* Painel dropdown deslizante */}
-        {panelOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className={cn(
-              "absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-lg"
-            )}
-          >
-            {/* Header do painel */}
-            <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-[color:var(--foreground)]">Notificações</span>
-              </div>
-              <span className="inline-flex items-center rounded-full border border-[color:var(--border)] bg-[color:var(--muted)] px-2 py-0.5 text-xs font-medium text-[color:var(--muted-foreground)]">
-                Em breve
-              </span>
-            </div>
-
-            {/* Lista de notificações (placeholder visual + overlay) */}
-            <NotificationsDevelopmentOverlay className="min-h-[200px]">
-              <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                {PLACEHOLDER_NOTIFICATIONS.map((n) => (
-                  <div
-                    key={n.id}
-                    className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-[color:var(--muted)]"
-                  >
-                    <div
-                      className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
-                      style={{
-                        background: "var(--modal-header-icon-bg)",
-                        outline: "1px solid var(--modal-header-icon-ring)",
-                      }}
-                    >
-                      <Info className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-[color:var(--foreground)]">{n.title}</p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-[color:var(--muted-foreground)]">{n.description}</p>
-                    </div>
-                    <span className="mt-0.5 flex-shrink-0 text-xs text-[color:var(--muted-foreground)]">{n.time}</span>
-                  </div>
-                ))}
-              </div>
-            </NotificationsDevelopmentOverlay>
-
-            {/* Botão "Mostrar mais" */}
-            <div className="border-t border-[color:var(--border)]">
-              <button
-                onClick={handleShowMore}
-                className="w-full px-4 py-3 text-sm font-medium text-primary hover:bg-primary/5 transition-colors text-center"
-              >
-                Mostrar histórico completo
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Modal de histórico completo */}
-      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-lg border-t-[3px] border-t-primary">
-          <DialogHeader>
-            <DialogTitle>
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0"
-                style={{
-                  background: "var(--modal-header-icon-bg)",
-                  outline: "1px solid var(--modal-header-icon-ring)",
-                }}
-              >
-                <Bell className="h-5 w-5 text-primary" />
-              </div>
-              Histórico de Notificações
-            </DialogTitle>
-            <DialogDescription>
-              Todos os alertas e avisos do sistema
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Body */}
-          <NotificationsDevelopmentOverlay className="mx-6 h-96 overflow-hidden rounded-lg">
-            <div className="divide-y px-4 py-1" style={{ borderColor: "var(--border)" }}>
-              {PLACEHOLDER_NOTIFICATIONS.map((n) => (
-                <div key={n.id} className="flex items-start gap-3 py-3">
-                  <div
-                    className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl"
-                    style={{
-                      background: "var(--modal-header-icon-bg)",
-                      outline: "1px solid var(--modal-header-icon-ring)",
-                    }}
-                  >
-                    <Info className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-[color:var(--foreground)]">{n.title}</p>
-                      <span className="flex-shrink-0 text-xs text-[color:var(--muted-foreground)]">{n.time}</span>
-                    </div>
-                    <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">{n.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </NotificationsDevelopmentOverlay>
-
-          <DialogFooter>
-            <p className="text-xs text-[color:var(--muted-foreground)]">Histórico completo disponível em versão futura</p>
-            <Button variant="outline" onClick={() => setHistoryOpen(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
+// O sino de notificações mora em ../notifications; reexportado aqui para quem já o importa daqui
+export { NotificationBell } from "../notifications/NotificationBell";
 
 /**
  * UserAvatar - Componente de avatar simples

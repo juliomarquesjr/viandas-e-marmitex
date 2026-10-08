@@ -67,6 +67,7 @@ Cada fase é independente e, sem `ABLY_API_KEY`, tudo continua funcionando com o
 3. **A Fase 2 entra junto com a 1 ou depois?** Recomendo depois, para a PR da Fase 1 ficar pequena e só do cliente.
 
 ---
+- o cliente toca "Já paguei" no PIX e o sino do painel do admin recebe o aviso na hora (hoje o aviso já existe, mas chega por consulta a cada 30 s).
 
 ## Como é hoje
 
@@ -139,6 +140,10 @@ sequenceDiagram
 | `staff:notifications` | `notification.created` | `{}` | admin logado | o sino do admin chama `refresh()` (ver a revisão de 08/10) |
 
 O aviso de PIX para o operador, que aqui era uma dúvida, já existe na PR #47; falta só ligá-lo ao tempo real (Fase 2).
+| `staff:notifications` | `notification.created` | `{ id }` | admin e PDV logados | o sino chama `reload()` e mostra o aviso na hora, em vez de esperar os 30 s |
+| `customer:{customerId}` | `payment-intent.reviewed` | `{ id }` | o cliente | o cartão "aguardando confirmação" do Início vira "confirmado" ou "recusado" na hora |
+
+O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` e uma `Notification` (ver `app/api/customer/payment-intents/route.ts`), e o operador revisa pelo sino do admin. O que falta aqui é só trocar a consulta de 30 s por esses dois eventos.
 
 ## Onde publicar
 
@@ -149,6 +154,8 @@ O aviso de PIX para o operador, que aqui era uma dúvida, já existe na PR #47; 
 | `app/api/orders/route.ts` | `POST` | quando a venda for para a ficha (`paymentMethod: invoice`, status `pending`) e tiver `customerId` | `ficha.updated` |
 | `app/api/orders/route.ts` | `PUT`, `DELETE` | quando o pedido alterado for de um cliente | `ficha.updated` |
 | `app/api/ficha-payments/route.ts` | `POST`, `DELETE` | sempre (pagamento sempre tem `customerId`) | `ficha.updated` |
+| `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.created` (canal dos funcionários) |
+| `app/api/payment-intents/[id]/confirm` e `reject` | `POST` | depois de revisar | `payment-intent.reviewed` (canal do cliente) e, no confirmar, também `ficha.updated` |
 
 O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
 
@@ -222,6 +229,7 @@ Esforço pequeno, cerca de 1 dia de desenvolvimento e testes: um helper no servi
 
 ## Em aberto
 
+- **Canal dos funcionários:** `staff:notifications` precisa de uma rota de token própria, que só emite token com a sessão de funcionário (perfil `admin` ou `pdv`, ver `lib/staff-session.ts`).
 - **Ably ou Pusher:** a recomendação é Ably; a escolha final é de quem criar a conta.
 - **Fase 2 junto ou depois da 1:** ver "Decisões que dependem de você" na revisão de 08/10.
 - **Aviso de PIX recusado para o cliente:** o feed de avisos é derivado de pedidos e ficha, então a recusa não aparece como aviso. Se for desejado, o aviso passa a ser derivado também de `PaymentIntent`, uma mudança pequena no feed, independente do tempo real.

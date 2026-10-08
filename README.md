@@ -82,6 +82,19 @@ O sistema utiliza códigos de barras para identificação rápida de produtos e 
 8. **Acesse a aplicação:**
    Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
+### Rodando com Docker (build de produção)
+
+Sobe o Postgres, aplica as migrations e inicia a aplicação já compilada, sem `npm run dev`:
+
+```bash
+docker compose up -d --build
+```
+
+- Acesse em [http://localhost:3470](http://localhost:3470). Para trocar a porta, defina `APP_PORT` no `.env`.
+- O container usa sempre o Postgres do próprio compose (volume `postgres-data`), nunca o `DATABASE_URL` do `.env`.
+- Exige `NEXTAUTH_SECRET` no `.env`. Para acessar por outro endereço (ex.: IP na rede), defina `DOCKER_NEXTAUTH_URL`.
+- Após mudar o código, rode o comando de novo para reconstruir a imagem. Logs: `docker compose logs -f app`.
+
 ## Credenciais de Acesso
 
 Após executar o seed, as seguintes credenciais estarão disponíveis:
