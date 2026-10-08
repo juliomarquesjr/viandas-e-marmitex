@@ -20,6 +20,46 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
+  # Aplica as migrations no banco do container e termina
+  migrate:
+    build:
+      context: .
+      target: builder
+    image: viandas-migrate
+    container_name: viandas-migrate
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: &database_url postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-viandas}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    image: viandas-app
+    container_name: viandas-app
+    restart: unless-stopped
+    ports:
+      # Porta do host: 3470 por padrão (evita 3000/3010 e as de outros projetos); mude com APP_PORT no .env
+      - "${APP_PORT:-3470}:3000"
+    environment:
+      # O banco é sempre o do container; o DATABASE_URL do .env (Neon) nunca é usado aqui
+      DATABASE_URL: *database_url
+      NEXTAUTH_URL: ${DOCKER_NEXTAUTH_URL:-http://localhost:${APP_PORT:-3470}}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?defina NEXTAUTH_SECRET no .env}
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Sem isso o container roda em UTC e os relatórios por dia mudam de fronteira
+      TZ: ${TZ:-America/Sao_Paulo}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   postgres-data:
 
