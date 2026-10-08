@@ -1,0 +1,159 @@
+/*
+ * Perfil: cabeçalho com avatar; seções em chips 2×2 no celular e navegação
+ * lateral no computador. A barra de salvar gruda no pé da área que rola.
+ */
+
+@layer components {
+  .c-profile {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+  .c-phead {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 16px 8px;
+    animation: c-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .c-phead > div {
+    min-width: 0;
+  }
+  .c-phead .c-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+  }
+  [data-customer-scope] .c-phead h1 {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .c-phead small {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+  .c-pbody {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .c-ptabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 16px;
+  }
+  .c-ptabs .c-chip {
+    min-height: 44px;
+    padding: 0 8px;
+    font-size: 14px;
+    text-align: center;
+  }
+  .c-pnav {
+    display: none;
+  }
+  .c-pmain {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .c-pform {
+    padding: 8px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    animation: c-up 0.5s 0.06s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .c-pform > .c-btn.is-ghost {
+    align-self: flex-start;
+  }
+  .c-psec-t {
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .c-psec-p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+  .c-pout {
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 1px solid var(--c-line);
+  }
+  .c-pout .c-btn {
+    width: 100%;
+  }
+  /* com a barra de salvar na tela, o aviso sobe para não cobrir os botões */
+  .c-profile:has(.c-savebar) .c-toast {
+    bottom: calc(172px + env(safe-area-inset-bottom, 0px));
+  }
+  .c-pskel {
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 720px;
+  }
+
+  @media (min-width: 860px) {
+    .c-profile {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .c-phead {
+      grid-column: 1 / -1;
+      padding: 32px 44px 12px;
+    }
+    .c-pbody {
+      display: contents;
+    }
+    .c-ptabs {
+      display: none;
+    }
+    .c-pnav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 8px 24px 0 44px;
+      position: sticky;
+      top: 0;
+      align-self: start;
+    }
+    .c-pnav .c-chip {
+      border: 0;
+      background: none;
+      text-align: left;
+      border-radius: var(--c-r-sm);
+      min-height: 46px;
+    }
+    .c-pnav .c-chip:hover {
+      background: var(--c-sunk);
+    }
+    .c-pnav .c-chip[aria-pressed="true"] {
+      background: var(--c-brand-soft);
+      color: var(--c-brand-text);
+    }
+    .c-pform {
+      padding: 8px 44px 24px 24px;
+      max-width: 660px;
+    }
+    .c-pmain .c-savebar {
+      padding-inline: 24px;
+    }
+    .c-pout .c-btn {
+      width: auto;
+    }
+    .c-pskel {
+      padding: 32px 44px;
+    }
+    .c-profile:has(.c-savebar) .c-toast {
+      bottom: 96px;
+    }
+  }
+}

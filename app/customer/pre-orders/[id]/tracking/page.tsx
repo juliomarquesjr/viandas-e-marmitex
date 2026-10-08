@@ -14,6 +14,7 @@ import { shareTrackingLink, openWhatsApp } from "@/lib/whatsapp";
 type DeliveryStatus = 
   | "pending" 
   | "preparing" 
+  | "ready"
   | "out_for_delivery" 
   | "in_transit" 
   | "delivered" 

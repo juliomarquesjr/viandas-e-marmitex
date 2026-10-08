@@ -1,0 +1,28 @@
+/* Ajustes da tela de Pedidos sobre o kit (customer.css). Só tokens --c-*. */
+@layer components {
+  .c-orders-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .c-orders-intro p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+
+  /* pedido com item por peso: a coluna da quantidade cabe "0,650 kg" e alinha os nomes */
+  .c-items.has-kg .c-q {
+    min-width: 82px;
+  }
+
+  /* espera do detalhe enquanto a lista chega */
+  .c-dskel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .c-dskel .c-skel {
+    border-radius: var(--c-r-lg);
+  }
+}

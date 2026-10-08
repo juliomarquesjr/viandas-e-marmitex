@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '@/lib/customer-password-reset';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@/lib/generated/prisma';
 
@@ -53,6 +54,20 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     const { name, phone, email, doc, address, password } = body;
+
+    // Senha nova: mesmo intervalo da redefinição por email (bcrypt só usa 72 bytes)
+    if (password !== undefined && password !== null && password !== '') {
+      if (
+        typeof password !== 'string' ||
+        password.length < MIN_PASSWORD_LENGTH ||
+        password.length > MAX_PASSWORD_LENGTH
+      ) {
+        return NextResponse.json(
+          { error: `A senha deve ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Preparar dados para atualização
     const updateData: any = {};

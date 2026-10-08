@@ -1,0 +1,117 @@
+/*
+ * Início. No celular é uma coluna só, na ordem: saudação, saldo, em andamento,
+ * movimentações e endereço. No computador vira duas colunas (saldo e
+ * movimentações | em andamento e endereço).
+ */
+@layer components {
+  .c-home > .c-home-col {
+    display: contents;
+  }
+  .c-home .c-greet {
+    order: 1;
+  }
+  .c-home .c-hero,
+  .c-home .c-hero-skel {
+    order: 2;
+  }
+  .c-home .c-home-act {
+    order: 3;
+  }
+  .c-home .c-home-mov {
+    order: 4;
+  }
+  .c-home .c-home-addr {
+    order: 5;
+  }
+  .c-home .c-home-err {
+    order: 2;
+  }
+
+  .c-greet h1 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    min-height: 1.1em;
+  }
+  .c-greet .c-eyebrow {
+    display: none;
+    margin-top: 8px;
+  }
+
+  .c-home .c-link {
+    min-height: 44px;
+  }
+  .c-home-act {
+    gap: 12px;
+  }
+
+  /* entrega a caminho */
+  .c-live {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-color: var(--c-brand);
+    border-width: 1.5px;
+  }
+  .c-live-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .c-live-top > div {
+    min-width: 0;
+  }
+  .c-live h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* endereço de entrega */
+  .c-home-addr {
+    padding: 16px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .c-home-addr p {
+    margin: 2px 0 0;
+    color: var(--c-ink2);
+    overflow-wrap: anywhere;
+  }
+
+  /* esqueletos */
+  .c-hero-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .c-act-skel {
+    cursor: default;
+  }
+  .c-act-skel:hover {
+    background: var(--c-surface);
+  }
+
+  @media (min-width: 860px) {
+    .c-page.c-home {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+      column-gap: 32px;
+      align-items: start;
+    }
+    .c-home > .c-home-col {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      min-width: 0;
+    }
+    .c-greet h1 {
+      font-size: 40px;
+    }
+    .c-greet .c-eyebrow {
+      display: block;
+    }
+  }
+}

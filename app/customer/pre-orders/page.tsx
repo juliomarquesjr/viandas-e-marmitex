@@ -1,181 +1,280 @@
 "use client";
 
-import { Card, CardContent } from "@/app/components/ui/card";
-import { PreOrderCard } from "../components/PreOrderCard";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { Button } from "@/app/components/ui/button";
-import { useEffect, useState } from "react";
-import { Calendar, Filter, Loader2, Package } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type MouseEvent,
+} from "react";
+import { EmptyState, ErrorState, LoadingRows, Toast } from "../components/kit";
+import { OrderDetail } from "../components/pedidos/OrderDetail";
+import { OrderRow } from "../components/pedidos/OrderRow";
+import { isFinished } from "../lib/order-status";
+import type { PreOrder, PreOrdersResponse } from "../lib/types";
+import { useCustomerData } from "../lib/useCustomerData";
+import "./pre-orders.css";
 
-interface PreOrder {
-  id: string;
-  totalCents: number;
-  subtotalCents: number;
-  discountCents: number;
-  deliveryFeeCents: number;
-  notes?: string | null;
-  createdAt: string;
-  items: Array<{
-    quantity: number;
-    priceCents: number;
-    weightKg?: number | string | null;
-    product: {
-      id: string;
-      name: string;
-      imageUrl?: string | null;
-    };
-  }>;
+type Filter = "all" | "open" | "done";
+
+const FILTERS: Array<{ value: Filter; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "open", label: "Em andamento" },
+  { value: "done", label: "Concluídos" },
+];
+
+/** "Concluídos" reúne tudo o que já terminou: entregue, retirado ou cancelado. */
+const matches = (order: PreOrder, filter: Filter) =>
+  filter === "all" ? true : filter === "open" ? !isFinished(order) : isFinished(order);
+
+const REFRESH_MS = 30_000;
+const DESKTOP_QUERY = "(min-width: 860px)";
+
+function subscribeDesktop(onChange: () => void) {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }
 
-export default function CustomerPreOrdersPage() {
-  const [loading, setLoading] = useState(true);
-  const [preOrders, setPreOrders] = useState<PreOrder[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [filtering, setFiltering] = useState(false);
+/** Computador (lista e detalhe lado a lado), no mesmo corte do customer.css. */
+function useIsDesktop() {
+  return useSyncExternalStore(
+    subscribeDesktop,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => false
+  );
+}
 
-  const loadPreOrders = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-
-      const response = await fetch(`/api/customer/pre-orders?${params.toString()}`);
-      if (!response.ok) throw new Error('Erro ao carregar pré-pedidos');
-
-      const data = await response.json();
-      setPreOrders(data.data || []);
-    } catch (err) {
-      setError('Erro ao carregar pré-pedidos');
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setFiltering(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPreOrders();
-  }, []);
-
-  const handleFilter = () => {
-    setFiltering(true);
-    loadPreOrders();
-  };
-
-  const handleClearFilter = () => {
-    setStartDate('');
-    setEndDate('');
-    setFiltering(true);
-    loadPreOrders();
-  };
-
-  if (loading && preOrders.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-      </div>
-    );
-  }
-
+function ListHeader({ chips }: { chips?: React.ReactNode }) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Meus Pré-Pedidos</h1>
-        <p className="text-gray-600">Acompanhe todos os seus pré-pedidos solicitados</p>
+    <header className="c-list-head">
+      <div className="c-orders-intro">
+        <h1 className="c-page-title">Meus pedidos</h1>
+        <p>Pedidos feitos com o estabelecimento e o andamento de cada um.</p>
       </div>
+      {chips}
+    </header>
+  );
+}
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-end gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px] space-y-2">
-              <Label htmlFor="startDate" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Data Inicial
-              </Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="flex-1 min-w-[200px] space-y-2">
-              <Label htmlFor="endDate" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Data Final
-              </Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleFilter}
-                disabled={filtering}
-                className="gap-2 bg-orange-500 hover:bg-orange-600"
-              >
-                {filtering ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Filter className="h-4 w-4" />
-                )}
-                Filtrar
-              </Button>
-              {(startDate || endDate) && (
-                <Button
-                  onClick={handleClearFilter}
-                  variant="outline"
-                  disabled={filtering}
-                >
-                  Limpar
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="py-8 text-center text-red-700">
-            {error}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lista de pré-pedidos */}
-      {preOrders.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {preOrders.map((preOrder) => (
-            <PreOrderCard key={preOrder.id} preOrder={preOrder} />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-medium">
-              Nenhum pré-pedido encontrado
-            </p>
-            <p className="text-gray-400 text-sm mt-2">
-              {startDate || endDate
-                ? 'Tente ajustar os filtros de data'
-                : 'Você ainda não possui pré-pedidos'}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+function DetailSkeleton() {
+  return (
+    <div className="c-dskel" aria-hidden="true">
+      <span className="c-skel" style={{ height: 196 }} />
+      <span className="c-skel" style={{ height: 280 }} />
     </div>
   );
 }
 
+function PreOrdersScreen() {
+  const router = useRouter();
+  const pathname = usePathname() ?? "/customer/pre-orders";
+  const searchParams = useSearchParams();
+  const itemId = searchParams.get("item");
+
+  const { data, error, reload } = useCustomerData<PreOrdersResponse>("/api/customer/pre-orders");
+  const orders = useMemo<PreOrder[]>(() => (Array.isArray(data?.data) ? data.data : []), [data]);
+  const loaded = data !== null;
+
+  const [filter, setFilter] = useState<Filter>("all");
+  const [notice, setNotice] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
+
+  const visible = useMemo(() => orders.filter((order) => matches(order, filter)), [orders, filter]);
+  const picked = itemId ? orders.find((order) => order.id === itemId) ?? null : null;
+  // Com ?item o celular mostra o detalhe; um id que não existe mais volta para a lista.
+  const hasSelection = Boolean(itemId) && (picked !== null || (!loaded && !error));
+  // No computador, sem ?item, o detalhe já mostra o primeiro pedido da lista.
+  const shown = picked ?? (isDesktop ? visible[0] ?? null : null);
+
+  /* ---------- URL: ?item=<id> ---------- */
+
+  const pushedRef = useRef(false);
+  const listRef = useRef<HTMLElement>(null);
+  const detailRef = useRef<HTMLElement>(null);
+  const savedListScroll = useRef<number | null>(null);
+
+  const hrefFor = useCallback(
+    (id: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (id) params.set("item", id);
+      else params.delete("item");
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams]
+  );
+
+  const openOrder = (id: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    // Clique com Ctrl/Cmd/Shift ou botão do meio fica com o navegador (nova aba).
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    if (id === itemId) {
+      event.preventDefault();
+      return;
+    }
+    pushedRef.current = true;
+    if (!isDesktop && listRef.current) savedListScroll.current = listRef.current.scrollTop;
+  };
+
+  const goBack = () => {
+    if (pushedRef.current) {
+      pushedRef.current = false;
+      router.back();
+    } else {
+      router.replace(hrefFor(null), { scroll: false });
+    }
+  };
+
+  useEffect(() => {
+    if (!itemId) pushedRef.current = false;
+  }, [itemId]);
+
+  // De volta à lista no celular, a rolagem fica onde estava.
+  useLayoutEffect(() => {
+    if (hasSelection || savedListScroll.current === null || !listRef.current) return;
+    listRef.current.scrollTop = savedListScroll.current;
+    savedListScroll.current = null;
+  }, [hasSelection]);
+
+  // Outro pedido no detalhe começa do topo.
+  const shownId = shown?.id ?? null;
+  useEffect(() => {
+    detailRef.current?.scrollTo({ top: 0 });
+  }, [shownId]);
+
+  const chooseFilter = (next: Filter) => {
+    setFilter(next);
+    // O pedido aberto sai do filtro: o detalhe passa para o primeiro da nova lista.
+    if (picked && !matches(picked, next)) router.replace(hrefFor(null), { scroll: false });
+  };
+
+  /* ---------- atualização enquanto houver pedido andando ---------- */
+
+  const hasOpenOrders = orders.some((order) => !isFinished(order));
+  useEffect(() => {
+    if (!hasOpenOrders) return;
+    const tick = window.setInterval(() => {
+      if (document.visibilityState === "visible") reload();
+    }, REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(tick);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [hasOpenOrders, reload]);
+
+  const clearNotice = useCallback(() => setNotice(null), []);
+
+  /* ---------- lista ---------- */
+
+  const chips =
+    orders.length > 0 ? (
+      <div className="c-chips" role="group" aria-label="Filtrar pedidos">
+        {FILTERS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="c-chip"
+            aria-pressed={filter === option.value}
+            onClick={() => chooseFilter(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  let list: React.ReactNode;
+  if (!loaded && error) {
+    list = <ErrorState message={error} onRetry={reload} />;
+  } else if (!loaded) {
+    list = <LoadingRows />;
+  } else if (orders.length === 0) {
+    list = (
+      <EmptyState
+        title="Você ainda não tem pedidos"
+        text="Quando o estabelecimento registrar um pedido para você, ele aparece aqui."
+      />
+    );
+  } else if (visible.length === 0) {
+    list = (
+      <EmptyState title={filter === "open" ? "Nenhum pedido em andamento" : "Nenhum pedido concluído"}>
+        <button type="button" className="c-btn is-ghost" onClick={() => chooseFilter("all")}>
+          Ver todos
+        </button>
+      </EmptyState>
+    );
+  } else {
+    list = (
+      <div className="c-rows">
+        {visible.map((order) => (
+          <OrderRow
+            key={order.id}
+            order={order}
+            href={hrefFor(order.id)}
+            current={order.id === shownId}
+            onOpen={openOrder(order.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  /* ---------- detalhe ---------- */
+
+  let detail: React.ReactNode = null;
+  if (shown) detail = <OrderDetail key={shown.id} order={shown} onNotice={setNotice} />;
+  else if (!loaded && !error) detail = <DetailSkeleton />;
+
+  return (
+    <>
+      <div className="c-split" data-has-selection={hasSelection ? "true" : undefined}>
+        <section ref={listRef} className="c-pane c-list" aria-label="Lista de pedidos">
+          <ListHeader chips={chips} />
+          {list}
+        </section>
+        <section ref={detailRef} className="c-pane c-detail" aria-label="Detalhes do pedido">
+          <button type="button" className="c-back" onClick={goBack}>
+            <ChevronLeft size={20} aria-hidden="true" />
+            Pedidos
+          </button>
+          <div className="c-dpad">{detail}</div>
+        </section>
+      </div>
+      <Toast message={notice} onDone={clearNotice} />
+    </>
+  );
+}
+
+function PreOrdersFallback() {
+  return (
+    <div className="c-split">
+      <section className="c-pane c-list" aria-label="Lista de pedidos">
+        <ListHeader />
+        <LoadingRows />
+      </section>
+      <section className="c-pane c-detail" aria-label="Detalhes do pedido">
+        <div className="c-dpad">
+          <DetailSkeleton />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function CustomerPreOrdersPage() {
+  return (
+    <Suspense fallback={<PreOrdersFallback />}>
+      <PreOrdersScreen />
+    </Suspense>
+  );
+}

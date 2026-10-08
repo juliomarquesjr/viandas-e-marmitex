@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 type DeliveryStatus = 
   | "pending" 
   | "preparing" 
+  | "ready"
   | "out_for_delivery" 
   | "in_transit" 
   | "delivered" 
@@ -139,6 +140,8 @@ export default function PublicTrackingPage() {
       case "pending":
       case "preparing":
         return "bg-yellow-500";
+      case "ready":
+        return "bg-teal-500";
       case "out_for_delivery":
       case "in_transit":
         return "bg-blue-500";
@@ -157,6 +160,8 @@ export default function PublicTrackingPage() {
         return "Pendente";
       case "preparing":
         return "Preparando";
+      case "ready":
+        return "Pronto para retirar";
       case "out_for_delivery":
         return "Saiu para Entrega";
       case "in_transit":

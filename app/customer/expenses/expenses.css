@@ -1,0 +1,35 @@
+/* Ficha: só o que o kit (customer.css) não cobre. */
+@layer components {
+  /* chips de período com alvo de toque de 44px */
+  .c-ficha .c-chips .c-chip {
+    min-height: 44px;
+  }
+  .c-ficha .c-list-head .c-page-title {
+    font-size: 28px;
+  }
+  .c-ficha-skel {
+    display: block;
+  }
+  .c-ficha-receipt-skel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--c-surface);
+    border: 1px solid var(--c-line);
+    border-radius: var(--c-r-lg);
+    padding: 22px;
+  }
+  .c-ficha-period-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .c-ficha-period-actions .c-btn {
+    flex: 1 1 140px;
+  }
+  .c-ficha-period {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+}
