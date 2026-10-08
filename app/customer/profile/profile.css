@@ -19,10 +19,35 @@
   .c-phead > div {
     min-width: 0;
   }
-  .c-phead .c-avatar {
-    width: 64px;
-    height: 64px;
-    font-size: 22px;
+  /* avatar com o botão de câmera no canto inferior direito */
+  .c-pavatar {
+    position: relative;
+    flex: none;
+    width: 88px;
+    height: 88px;
+  }
+  .c-pavatar-pic {
+    display: block;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .c-pavatar-cam {
+    position: absolute;
+    right: -8px;
+    bottom: -8px;
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--c-brand);
+    color: var(--c-brand-ink);
+    border: 3px solid var(--c-bg);
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  .c-pavatar-cam:active {
+    transform: scale(0.94);
   }
   [data-customer-scope] .c-phead h1 {
     font-size: 26px;
@@ -109,6 +134,11 @@
     .c-phead {
       grid-column: 1 / -1;
       padding: 32px 44px 12px;
+      gap: 20px;
+    }
+    .c-pavatar {
+      width: 96px;
+      height: 96px;
     }
     .c-pbody {
       display: contents;

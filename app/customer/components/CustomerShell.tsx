@@ -4,7 +4,8 @@ import { Home, LogOut, ReceiptText, ShoppingBag, User } from "lucide-react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { initials } from "../lib/format";
+import { resetCustomerAvatar, useCustomerAvatar } from "../lib/avatar-store";
+import { CustomerAvatar } from "./Avatar";
 import { CustomerThemeProvider } from "./CustomerTheme";
 import { BrandMark, ThemeButton, useBranding } from "./kit";
 
@@ -54,10 +55,12 @@ function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: session } = useSession();
   const branding = useBranding();
+  const avatar = useCustomerAvatar();
 
   if (isBareRoute(pathname)) return <>{children}</>;
 
   const logout = async () => {
+    resetCustomerAvatar();
     await signOut({ redirect: false });
     router.push("/customer/login");
   };
@@ -73,8 +76,8 @@ function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         <div className="c-top-actions">
           <ThemeButton />
-          <Link href="/customer/profile" className="c-avatar" aria-label="Meu perfil">
-            {session?.user?.name ? initials(session.user.name) : <User size={20} aria-hidden="true" />}
+          <Link href="/customer/profile" className="c-avatar-link" aria-label="Meu perfil">
+            <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={40} />
           </Link>
         </div>
       </header>
