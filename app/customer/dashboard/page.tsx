@@ -14,8 +14,9 @@ import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreO
 import { useCustomerData } from "../lib/useCustomerData";
 import "./dashboard.css";
 
-/** A Início mostra só o mais recente de cada assunto; o resto fica a um toque (e nos avisos). */
-const HOME_LIMIT = 1;
+/** A Início mostra só o começo de cada assunto; o resto fica a um toque (e nos avisos). */
+const HOME_MOVEMENTS = 5;
+const HOME_ORDERS = 1;
 
 /** "Mais 5 lançamentos" no fim de um bloco que mostrou só o último. */
 function MoreLink({ href, count, one, many }: { href: string; count: number; one: string; many: string }) {
@@ -76,7 +77,7 @@ export default function CustomerDashboardPage() {
               </Link>
             </div>
             <div className="c-card">
-              {loading || !expenses.data ? <LoadingRows rows={1} /> : <RecentMovements data={expenses.data} />}
+              {loading || !expenses.data ? <LoadingRows rows={HOME_MOVEMENTS} /> : <RecentMovements data={expenses.data} />}
             </div>
           </section>
         )}
@@ -198,7 +199,7 @@ function HeroSkeleton() {
 
 function RecentMovements({ data }: { data: ExpensesResponse }) {
   const all = buildMovements(data);
-  const recent = all.slice(0, HOME_LIMIT);
+  const recent = all.slice(0, HOME_MOVEMENTS);
   if (recent.length === 0) {
     return <EmptyState title="Nada na ficha ainda" text="Suas compras e pagamentos na ficha aparecem aqui." />;
   }
@@ -234,14 +235,14 @@ function ActiveOrders({ orders }: { orders: PreOrder[] }) {
           Ver pedidos
         </Link>
       </div>
-      {active.slice(0, HOME_LIMIT).map((o) =>
+      {active.slice(0, HOME_ORDERS).map((o) =>
         o.deliveryStatus === "out_for_delivery" || o.deliveryStatus === "in_transit" ? (
           <OnTheWayCard key={o.id} order={o} />
         ) : (
           <ActiveCard key={o.id} order={o} />
         )
       )}
-      <MoreLink href="/customer/pre-orders" count={active.length - HOME_LIMIT} one="pedido em andamento" many="pedidos em andamento" />
+      <MoreLink href="/customer/pre-orders" count={active.length - HOME_ORDERS} one="pedido em andamento" many="pedidos em andamento" />
     </section>
   );
 }
