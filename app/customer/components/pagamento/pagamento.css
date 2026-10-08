@@ -1,0 +1,90 @@
+/* Andamento dos pagamentos informados, no Início: só o que o kit (customer.css) não cobre. */
+@layer components {
+  .c-home .c-home-pay {
+    order: 3;
+  }
+  .c-pay-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .c-pay-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--c-r-lg);
+    background: var(--c-surface);
+    border: 1px solid var(--c-line);
+  }
+  .c-pay-card:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+  .c-pay-ic {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+  }
+  .c-pay-card.is-pending .c-pay-ic {
+    background: var(--c-warn-soft);
+    color: var(--c-warn);
+  }
+  .c-pay-card.is-pending {
+    border-color: var(--c-warn);
+  }
+  .c-pay-card.is-confirmed .c-pay-ic {
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+  }
+  .c-pay-card.is-rejected .c-pay-ic {
+    background: var(--c-brand-soft);
+    color: var(--c-brand-text);
+  }
+  .c-pay-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 2px;
+  }
+  .c-pay-main strong {
+    font: 700 17px/1.25 var(--c-f-display);
+    letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
+  }
+  .c-pay-main small {
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .c-pay-dismiss {
+    align-self: flex-start;
+    min-height: 44px;
+    min-width: 44px;
+    margin: 0 0 -6px -8px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--c-ink2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .c-pay-dismiss:hover {
+    color: var(--c-ink);
+  }
+
+  /* botão travado enquanto o aviso é enviado: continua focável */
+  .c-btn[aria-disabled="true"] {
+    opacity: 0.7;
+    cursor: progress;
+  }
+  .c-btn[aria-disabled="true"]:active {
+    transform: none;
+  }
+}
