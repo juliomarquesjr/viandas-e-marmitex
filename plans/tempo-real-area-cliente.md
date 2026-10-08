@@ -63,7 +63,7 @@ Um endpoint "pulso" (`GET /api/customer/pulse`, devolvendo só um número de ver
 |---|---|---|
 | **1. Cliente** | `lib/realtime.ts`, rota de token, provedor no `CustomerShell`, publicação nas rotas de pedido, ficha e pagamento; Pedidos, Início, Ficha e o sino passam a reagir | o pedido muda de etapa, o saldo e o selo do sino mudam sozinhos em até ~2 s |
 | **2. Operador** | rota de token de staff (`requireStaff()`), canal `staff:notifications`, `refresh()` do sino do admin ligado | o aviso de "cliente informou PIX" aparece na hora para quem está no painel |
-| **3. Mapa** (opcional) | posição do entregador em tempo real | o ponto se move sem esperar 15 s; outra conta de mensagens, decidir depois |
+| **3. Mapa** (futura, só documentada) | posição do entregador em tempo real | o ponto se move sem esperar 5 s ou 15 s; ver a seção "Fase 3" abaixo |
 
 Cada fase é independente e, sem `ABLY_API_KEY`, tudo continua funcionando com o polling atual.
 
@@ -215,6 +215,81 @@ O Ably conta mensagens publicadas e entregues. Uma estimativa folgada para a ope
 - Com compras e pagamentos na ficha, algo como 1.000 mensagens/dia ≈ **30 mil/mês**, cerca de 0,5% do gratuito (6 milhões).
 
 O limite que pode apertar primeiro é o de **conexões simultâneas** (200). Se for atingido, novas conexões são recusadas e essas telas ficam no polling de 30 s. O painel do Ably mostra o pico; se passar de ~150 com frequência, é hora de rever o plano.
+
+## Fase 3 (futura): posição do entregador no mapa em tempo real
+
+> Status: só documentada, não implementada. Depende das Fases 1 e 2 em produção.
+
+### Como é hoje
+
+| Parte | Comportamento |
+|---|---|
+| App do entregador (`app/delivery/tracking/[id]/page.tsx`) | envia a posição a cada 10 s, com `PUT /api/pre-orders/[id]/delivery` (`{ latitude, longitude }`) |
+| Rastreio público (`app/tracking/[id]/page.tsx`, link do WhatsApp, sem login) | consulta `GET /api/public/pre-orders/[id]/delivery` a cada 5 s |
+| Rastreio do cliente logado (`app/customer/pre-orders/[id]/tracking/page.tsx`) | consulta a mesma API a cada 15 s |
+
+Hoje o ponto no mapa anda aos saltos, com atraso de até 5 s (público) ou 15 s (logado), e cada espectador faz uma requisição por ciclo mesmo sem nada novo.
+
+### Objetivo
+
+O ponto do entregador se move assim que a posição chega, sem esperar o próximo ciclo, e o polling vira só rede de segurança.
+
+### Diferenças em relação às Fases 1 e 2
+
+1. **Canal por pedido, não por cliente.** `tracking:{preOrderId}`. O link público do WhatsApp é aberto por quem recebe, sem login, então o canal do cliente não serve.
+2. **Token público.** Nova rota `GET /api/public/tracking/[id]/realtime-token`, sem sessão, que só emite token de **assinar** aquele canal. A exposição é a mesma de hoje: quem tem o id (UUID, só circula pelo link) já vê a posição pela API pública. Com limite de pedidos por IP (`lib/rate-limit.ts`) e só enquanto o pedido estiver em entrega (`out_for_delivery` ou `in_transit`).
+3. **A mensagem leva a posição.** Aqui o "sinal, não dado" muda: cada mensagem carrega `{ lat, lng, at }`. É o mesmo dado que a API pública já devolve, e buscar de novo a cada 10 s por espectador gastaria mais do que a própria mensagem. O canal só existe durante a entrega e some quando o pedido é entregue ou cancelado.
+
+### Eventos
+
+| Canal | Evento | Dados | Quando publicar |
+|---|---|---|---|
+| `tracking:{preOrderId}` | `position` | `{ lat, lng, at }` | no `PUT /api/pre-orders/[id]/delivery`, quando vier latitude e longitude, depois de gravar o `DeliveryTracking` |
+| `tracking:{preOrderId}` | `status` | `{ status }` | na mudança de status (a página fecha o mapa em "entregue" ou "cancelado") |
+
+A mudança de status continua publicando também em `customer:{id}`, como na Fase 1.
+
+### Arquivos
+
+- `lib/realtime.ts`: `publishPosition(preOrderId, { lat, lng, at })` e `publishTrackingStatus(...)`, com as mesmas regras (nunca lança erro, 2 s de limite, no-op sem chave).
+- `app/api/public/tracking/[id]/realtime-token/route.ts` (novo): token de assinatura do canal do pedido.
+- `app/api/pre-orders/[id]/delivery/route.ts`: publicar a posição (hoje esta rota publica só quando o status muda).
+- `app/tracking/[id]/page.tsx` e `app/customer/pre-orders/[id]/tracking/page.tsx`: abrir o canal com `openEventStream` (`lib/realtime-stream.ts`, já existente), mover o marcador a cada `position` e subir o polling de 5 s ou 15 s para 60 s enquanto conectado.
+- `app/components/DeliveryTrackingMap.tsx`: animar o marcador entre dois pontos (10 s de intervalo) em vez de pular, e mostrar "atualizado há N s".
+
+### Custo estimado
+
+O Ably conta mensagens publicadas e entregues.
+
+- Uma entrega de 30 min com envio a cada 10 s: 180 mensagens publicadas, mais 180 por espectador conectado.
+- 20 entregas por dia com 2 espectadores em média: 20 × 180 × 3 = 10.800 mensagens por dia, cerca de **324 mil por mês, 5,4% dos 6 milhões gratuitos**.
+- Conexões simultâneas: uma por espectador do mapa, só durante a entrega. A área do cliente já usa uma; abrir o mapa soma uma.
+- Se a operação crescer, o ajuste é enviar a posição a cada 15 ou 20 s (muda só o app do entregador).
+
+### Segurança e privacidade
+
+- A posição do entregador sai do canal assim que o pedido deixa de estar em entrega; nada fica guardado no Ably (o histórico segue só no banco, como hoje).
+- O token público só assina, só um canal, só enquanto o pedido está em entrega, e vale 1 hora.
+- O canal não aceita publicação de navegador: só o servidor publica, depois de autenticar o entregador ou o admin.
+
+### Como testar
+
+1. Pedido em `out_for_delivery`, entregador enviando posição; abrir o rastreio público e o do cliente logado: o marcador anda a cada 10 s, sem consulta de 5 s ou 15 s.
+2. Mudar para `delivered`: o mapa fecha na hora e nenhuma posição nova é publicada.
+3. Token público de um pedido que não está em entrega: recusado.
+4. Token de um pedido tentando ouvir o canal de outro: o Ably recusa (40160).
+5. Sem `ABLY_API_KEY`, ou com a rede caída: o mapa segue com o polling atual.
+
+### Estimativa
+
+Cerca de 1 dia: a rota de token público, as duas publicações, o hook nas duas telas e a animação do marcador.
+
+### Em aberto
+
+- Intervalo de envio da posição (10 s hoje) depois de medir o consumo real das Fases 1 e 2.
+- Mostrar o mapa em tempo real também no PDV/admin (quem acompanha as entregas)? Seria um canal `staff:tracking`, fora desta fase.
+
+---
 
 ## Como testar
 
