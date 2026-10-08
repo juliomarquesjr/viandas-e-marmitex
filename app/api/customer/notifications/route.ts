@@ -65,7 +65,7 @@ export async function GET() {
     const notices: Notice[] = [];
 
     for (const po of preOrders) {
-      const href = `/customer/pre-orders?item=${encodeURIComponent(po.id)}`;
+      const href = `/pre-orders?item=${encodeURIComponent(po.id)}`;
       const base = { id: `po:${po.id}:${po.deliveryStatus}`, kind: 'order' as const, href };
       switch (po.deliveryStatus) {
         case 'ready':
@@ -104,7 +104,7 @@ export async function GET() {
           title: 'Pagamento recebido',
           text: `${brl(order.totalCents)} abatidos da sua ficha.`,
           at: order.createdAt.toISOString(),
-          href: `/customer/expenses?item=${encodeURIComponent(order.id)}`,
+          href: `/expenses?item=${encodeURIComponent(order.id)}`,
         });
       } else {
         notices.push({
@@ -114,7 +114,7 @@ export async function GET() {
           title: 'Compra lançada na ficha',
           text: `${brl(order.totalCents)} somados ao seu saldo.`,
           at: order.createdAt.toISOString(),
-          href: `/customer/expenses?item=${encodeURIComponent(order.id)}`,
+          href: `/expenses?item=${encodeURIComponent(order.id)}`,
         });
       }
     }

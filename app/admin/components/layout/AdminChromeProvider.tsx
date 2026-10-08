@@ -17,13 +17,18 @@ type AdminChromeValue = {
   immersive: boolean;
   toggleImmersive: () => void;
   exitImmersive: () => void;
+  /** Esconde a barra lateral e o cabeçalho sem pedir tela cheia ao navegador (ver useImmersiveLayout). */
+  setImmersiveChrome: (value: boolean) => void;
 };
 
 const AdminChromeContext = React.createContext<AdminChromeValue | undefined>(undefined);
 
 export function AdminChromeProvider({ children }: { children: React.ReactNode }) {
   const [fullBleed, setFullBleed] = React.useState(false);
-  const [immersive, setImmersive] = React.useState(false);
+  const [immersiveByUser, setImmersive] = React.useState(false);
+  // Páginas que são a própria área de trabalho (PDV) travam o modo; sair da tela cheia não o desliga
+  const [immersiveLocked, setImmersiveLocked] = React.useState(false);
+  const immersive = immersiveByUser || immersiveLocked;
 
   // Sair pelo Esc ou pelo F11 dispara o evento do navegador; o estado segue.
   React.useEffect(() => {
@@ -61,7 +66,7 @@ export function AdminChromeProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const value = React.useMemo(
-    () => ({ fullBleed, setFullBleed, immersive, toggleImmersive, exitImmersive }),
+    () => ({ fullBleed, setFullBleed, immersive, toggleImmersive, exitImmersive, setImmersiveChrome: setImmersiveLocked }),
     [fullBleed, immersive, toggleImmersive, exitImmersive],
   );
 
@@ -89,4 +94,22 @@ export function useFullBleedLayout(): void {
     setFullBleed(true);
     return () => setFullBleed(false);
   }, [setFullBleed]);
+}
+
+/**
+ * Para páginas que são a própria área de trabalho (o PDV): ocupam a tela toda, sem barra lateral
+ * nem cabeçalho do admin. Diferente de `toggleImmersive`, não pede tela cheia ao navegador, e
+ * liga antes da primeira pintura para a barra lateral não piscar. Ao sair, o layout volta ao normal.
+ */
+export function useImmersiveLayout(): void {
+  const { setFullBleed, setImmersiveChrome } = useAdminChrome();
+
+  React.useLayoutEffect(() => {
+    setFullBleed(true);
+    setImmersiveChrome(true);
+    return () => {
+      setFullBleed(false);
+      setImmersiveChrome(false);
+    };
+  }, [setFullBleed, setImmersiveChrome]);
 }

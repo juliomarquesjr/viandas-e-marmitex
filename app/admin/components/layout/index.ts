@@ -13,5 +13,6 @@ export {
   AdminChromeProvider,
   useAdminChrome,
   useFullBleedLayout,
+  useImmersiveLayout,
 } from "./AdminChromeProvider";
 export { DesktopPrintManagerDialog } from "./DesktopPrintManagerDialog";

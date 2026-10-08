@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
         const token = await createPasswordResetToken(id);
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-        const resetUrl = `${baseUrl}/customer/reset-password?token=${token}`;
+        const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
         await emailService.sendEmail({
           to,

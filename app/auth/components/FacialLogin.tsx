@@ -209,7 +209,7 @@ export function FacialLogin({ profile, onCancel }: FacialLoginProps) {
 
       stopWebcam();
       await new Promise((resolve) => setTimeout(resolve, 300));
-      window.location.href = user.role === "pdv" ? "/pdv" : "/admin";
+      window.location.href = user.role === "pdv" ? "/admin/pdv" : "/admin";
     },
     [profile, stopWebcam]
   );

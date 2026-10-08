@@ -1,5 +1,5 @@
 import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/app/components/AuthThemeProvider";
-import { CUSTOMER_THEME_BOOTSTRAP_SCRIPT } from "@/app/customer/lib/theme";
+import { CUSTOMER_THEME_BOOTSTRAP_SCRIPT } from "@/app/(customer)/lib/theme";
 import { Providers } from "@/app/components/Providers";
 import { DesktopWindowFrame } from "@/app/components/DesktopWindowFrame";
 import type { Metadata } from "next";
@@ -19,6 +19,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Viandas",
   description: "PDV e gerenciamento para delivery de marmitas",
+  // Sistema privado: nenhum mecanismo de busca indexa, guarda cópia ou segue links (ver app/robots.ts)
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    noarchive: true,
+    nosnippet: true,
+    noimageindex: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      nosnippet: true,
+      noimageindex: true,
+    },
+  },
   icons: {
     icon: [
       { url: "/img/icon.png", type: "image/png" },

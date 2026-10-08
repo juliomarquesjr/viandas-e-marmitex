@@ -18,7 +18,7 @@
 
 3. **Frontend**
    - ✅ Página de rastreamento admin (`/admin/pre-orders/[id]/tracking`)
-   - ✅ Página de rastreamento cliente (`/customer/pre-orders/[id]/tracking`)
+   - ✅ Página de rastreamento cliente (`/pre-orders/[id]/tracking`)
    - ✅ Componente `DeliveryTrackingMap` com Leaflet
    - ✅ Componente `DeliveryStatusBadge`
    - ✅ Componente `DeliveryTimeline`
@@ -62,9 +62,9 @@
 **O que fazer:**
 - Adicionar botão/link "Rastrear Entrega" no `PreOrderCard`
 - Mostrar badge de status
-- Link para `/customer/pre-orders/[id]/tracking`
+- Link para `/pre-orders/[id]/tracking`
 
-**Arquivo:** `app/customer/components/PreOrderCard.tsx`
+**Arquivo:** `app/(customer)/components/pedidos/OrderDetail.tsx` (o antigo `PreOrderCard` foi substituído)
 
 ### 4. Testes Funcionais
 

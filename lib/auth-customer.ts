@@ -143,7 +143,7 @@ export const customerAuthOptions: AuthOptions = {
     }
   },
   pages: {
-    signIn: "/customer/login",
+    signIn: "/login",
   },
   session: {
     strategy: "jwt",

@@ -32,4 +32,22 @@ Base URL: `/api`
 - GET `/reports/by-customer?customer_id=...&from=...&to=...`
 - GET `/reports/summary?from=...&to=...`
 
+### Área do cliente (`/api/customer/**`)
+Exigem a sessão do cliente (NextAuth em `/api/auth/customer`) e só devolvem dados do próprio cliente. Lista completa e descrição em [area-cliente.md](./area-cliente.md).
 
+- GET/PUT `/api/customer/profile` · POST/DELETE `/api/customer/profile/photo`
+- GET `/api/customer/expenses` (saldo, compras e pagamentos; filtro `startDate` e `endDate`)
+- GET `/api/customer/pre-orders` · GET `/api/customer/pre-orders/:id/delivery` e `/tracking`
+- GET `/api/customer/notifications` (avisos derivados de pedidos e ficha)
+- GET/POST `/api/customer/payment-intents` ("Já paguei")
+- POST `/api/customer/forgot-password` e `/reset-password`
+- GET `/api/customer/realtime-token` (204 sem `ABLY_API_KEY`)
+
+### Funcionários: notificações e PIX informado
+- GET `/api/notifications` · POST `/api/notifications/:id/read` e `/read-all`
+- GET `/api/payment-intents/:id` · POST `/api/payment-intents/:id/confirm` (aceita `amountCents`) e `/reject` (aceita `reason`)
+- GET `/api/realtime/staff-token` (só funcionário; 204 sem `ABLY_API_KEY`)
+
+### Público (sem login)
+- GET `/api/public/pre-orders/:id/delivery` e `/tracking` (usados pelo rastreio por link)
+- GET `/api/version`

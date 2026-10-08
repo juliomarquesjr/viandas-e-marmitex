@@ -23,7 +23,7 @@ function isThemeMode(value: unknown): value is AuthThemeMode {
 
 /**
  * Roda antes da primeira pintura e escreve o tema em <html>. Fica no layout raiz
- * porque a splash (`/` e `/redirect`) também usa o escopo; sozinho o atributo não
+ * porque a splash (`/redirect`) também usa o escopo; sozinho o atributo não
  * muda nada — só vale onde existe um `[data-auth-theme-scope]`.
  *
  * Sem escolha salva o tema é claro, independente do tema do sistema operacional:
