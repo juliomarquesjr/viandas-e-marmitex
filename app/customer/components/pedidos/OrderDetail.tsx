@@ -8,6 +8,8 @@ import { formatBRL, formatDayMonth, formatKg, formatTime } from "../../lib/forma
 import { canTrack, fulfillmentOf, headline, toneOf } from "../../lib/order-status";
 import type { PreOrder, PreOrderItem } from "../../lib/types";
 import { StatusArt, Stepper, cx } from "../kit";
+import { ProductThumb } from "./ProductThumb";
+import { uniqueProducts } from "./ThumbStack";
 
 /** Atraso da entrada em cena de cada bloco (c-rise). */
 const rise = (i: number) => ({ ["--c-i" as string]: i }) as CSSProperties;
@@ -32,11 +34,14 @@ function shippingLine(order: PreOrder): { label: string; fee: number } | null {
   }
 }
 
+/** A faixa de fotos só ajuda em pedidos grandes; com poucos produtos a lista logo abaixo já mostra as fotos grandes. */
+const STRIP_MIN_PRODUCTS = 4;
+
 export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (message: string) => void }) {
   const tone = toneOf(order);
   const { title, text } = headline(order);
   const shipping = shippingLine(order);
-  const hasKg = order.items.some((item) => weightOf(item) > 0);
+  const products = uniqueProducts(order.items);
   const trackable = canTrack(order);
   let block = 0;
 
@@ -65,14 +70,35 @@ export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (m
             Pedido de {formatDayMonth(order.createdAt)} às {formatTime(order.createdAt)}
           </p>
         </div>
+        {products.length >= STRIP_MIN_PRODUCTS && (
+          <div className="c-strip" aria-hidden="true">
+            <p className="c-eyebrow">Neste pedido</p>
+            <ul className="c-strip-list">
+              {products.map((product) => (
+                <li key={product.id}>
+                  <ProductThumb product={product} size="md" />
+                  <span className="c-strip-name">{product.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {order.items.length > 0 && (
-          <ul className={cx("c-items", hasKg && "has-kg")}>
+          <ul className="c-items has-thumbs">
             {order.items.map((item) => {
               const kg = weightOf(item);
               return (
                 <li key={item.id}>
-                  <span className="c-q">{kg > 0 ? formatKg(kg) : `${item.quantity}×`}</span>
-                  <span className="c-n">{item.product.name}</span>
+                  <span className="c-li-media">
+                    <ProductThumb product={item.product} size="lg" />
+                    {kg === 0 && item.quantity > 1 && <span className="c-li-qty">{item.quantity}×</span>}
+                  </span>
+                  <span className="c-li-body">
+                    <span className="c-li-name">{item.product.name}</span>
+                    <span className="c-li-sub c-num">
+                      {kg > 0 ? formatKg(kg) : `${item.quantity} × ${formatBRL(item.priceCents)}`}
+                    </span>
+                  </span>
                   <span className="c-p">{formatBRL(item.priceCents * item.quantity)}</span>
                 </li>
               );

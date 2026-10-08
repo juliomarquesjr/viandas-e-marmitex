@@ -1,11 +1,13 @@
 "use client";
 
-import { Eye, EyeOff, LogOut, Pencil } from "lucide-react";
+import { Camera, Eye, EyeOff, LogOut, Pencil } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { CustomerAvatar } from "../components/Avatar";
 import { ErrorState, Toast, ThemeChoice } from "../components/kit";
-import { initials } from "../lib/format";
+import { ProfilePhotoSheet } from "../components/perfil/ProfilePhotoSheet";
+import { useCustomerAvatar } from "../lib/avatar-store";
 import type { CustomerAddress, CustomerProfile } from "../lib/types";
 import { useCustomerData } from "../lib/useCustomerData";
 import {
@@ -69,6 +71,15 @@ function toDraft(profile: CustomerProfile): Draft {
 
 const NO_CONNECTION = "Sem conexão. Confira a internet e tente de novo.";
 
+// Mesmo ponto de corte do layout de computador (profile.css)
+const DESKTOP_QUERY = "(min-width: 860px)";
+const subscribeDesktop = (listener: () => void) => {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", listener);
+  return () => mq.removeEventListener("change", listener);
+};
+const isDesktop = () => window.matchMedia(DESKTOP_QUERY).matches;
+
 /* ------------------------------------------------------------ campos */
 
 function Info({ label, value }: { label: string; value?: string | null }) {
@@ -103,7 +114,7 @@ function ProfileSkeleton() {
   return (
     <div className="c-pskel" aria-busy="true" aria-label="Carregando">
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <span className="c-skel" style={{ width: 64, height: 64, borderRadius: "50%", flex: "none" }} />
+        <span className="c-skel" style={{ width: 88, height: 88, borderRadius: "50%", flex: "none" }} />
         <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="c-skel" style={{ height: 22, width: "60%" }} />
           <span className="c-skel" style={{ height: 14, width: "40%" }} />
@@ -141,6 +152,17 @@ export default function CustomerProfilePage() {
   const [toast, setToast] = useState<string | null>(null);
   const clearToast = useCallback(() => setToast(null), []);
   const busy = useRef(false);
+
+  const { imageUrl } = useCustomerAvatar();
+  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => false);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const cameraRef = useRef<HTMLButtonElement>(null);
+  const openPhoto = useCallback(() => setPhotoOpen(true), []);
+  const closePhoto = useCallback(() => {
+    setPhotoOpen(false);
+    // o Sheet devolve o foco a quem estava focado; ao tocar no avatar não era o botão
+    window.requestAnimationFrame(() => cameraRef.current?.focus({ preventScroll: true }));
+  }, []);
 
   if (!profile && (loading || !loadError)) return <ProfileSkeleton />;
   if (!profile) {
@@ -458,9 +480,15 @@ export default function CustomerProfilePage() {
   return (
     <div className="c-profile">
       <header className="c-phead">
-        <span className="c-avatar" aria-hidden="true">
-          {initials(profile.name)}
-        </span>
+        <div className="c-pavatar">
+          {/* tocar na foto também abre a folha; para teclado e leitor de tela vale o botão da câmera */}
+          <span className="c-pavatar-pic" onClick={openPhoto}>
+            <CustomerAvatar name={profile.name} imageUrl={imageUrl} size={desktop ? 96 : 88} />
+          </span>
+          <button ref={cameraRef} type="button" className="c-pavatar-cam" aria-label="Alterar foto do perfil" onClick={openPhoto}>
+            <Camera size={20} aria-hidden="true" />
+          </button>
+        </div>
         <div>
           <h1>{profile.name}</h1>
           <small>{profile.email || displayPhone(profile.phone)}</small>
@@ -511,6 +539,7 @@ export default function CustomerProfilePage() {
         </form>
       </div>
 
+      <ProfilePhotoSheet open={photoOpen} onClose={closePhoto} name={profile.name} onToast={setToast} />
       <Toast message={toast} onDone={clearToast} />
     </div>
   );

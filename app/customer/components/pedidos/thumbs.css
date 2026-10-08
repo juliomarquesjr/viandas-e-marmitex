@@ -1,0 +1,222 @@
+/* Miniaturas de produtos (ProductThumb, ThumbStack e o detalhe do pedido). Só tokens --c-*. */
+@layer components {
+  /* ---------- miniatura ---------- */
+  .c-th {
+    --th: 48px;
+    --th-r: var(--c-r-md);
+    position: relative;
+    display: block;
+    flex: none;
+    width: var(--th);
+    height: var(--th);
+    border-radius: var(--th-r);
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--c-sunk);
+  }
+  .c-th.is-sm {
+    --th: 40px;
+    --th-r: var(--c-r-sm);
+  }
+  .c-th.is-lg {
+    --th: 56px;
+  }
+  @media (min-width: 860px) {
+    .c-th.is-lg {
+      --th: 64px;
+    }
+  }
+
+  /* anel de 1 px por cima da foto: a borda não "vaza" no tema escuro */
+  .c-th::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px var(--c-line);
+    pointer-events: none;
+  }
+
+  .c-th > img {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .c-th.is-loaded > img {
+    opacity: 1;
+  }
+
+  /* esqueleto enquanto a foto chega (mesma animação do kit) */
+  .c-th.is-loading {
+    background: linear-gradient(90deg, var(--c-sunk) 25%, var(--c-line) 50%, var(--c-sunk) 75%);
+    background-size: 200% 100%;
+    animation: c-shimmer 1.4s linear infinite;
+  }
+
+  /* sem foto (ou foto que falhou): ladrilho tingido, cor fixa por produto */
+  .c-th.is-ph {
+    display: grid;
+    place-items: center;
+  }
+  .c-th.is-ph > svg {
+    position: relative;
+    z-index: 1;
+  }
+  .c-th.tone-0 {
+    background: var(--c-brand-soft);
+    color: var(--c-brand-text);
+  }
+  .c-th.tone-1 {
+    background: var(--c-warn-soft);
+    color: var(--c-warn);
+  }
+  .c-th.tone-2 {
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+  }
+  .c-th.tone-3 {
+    background: var(--c-sunk);
+    color: var(--c-ink2);
+  }
+
+  /* ladrilho "+N" da pilha */
+  .c-th.c-th-more {
+    display: grid;
+    place-items: center;
+    background: var(--c-surface);
+    color: var(--c-ink2);
+    font: 700 15px var(--c-f-body);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .c-th.is-loading {
+      animation: none;
+    }
+    .c-th > img {
+      transition: none;
+    }
+  }
+
+  /* ---------- pilha na linha da lista ---------- */
+  /* cor de fundo da linha, usada no anel das miniaturas sobrepostas */
+  .c-row {
+    --c-ring: var(--c-bg);
+  }
+  .c-row:hover {
+    --c-ring: var(--c-sunk);
+  }
+  .c-row[aria-current="true"] {
+    --c-ring: var(--c-brand-soft);
+  }
+
+  .c-ts {
+    display: flex;
+    flex: none;
+    isolation: isolate;
+  }
+  .c-ts-i {
+    position: relative;
+    display: block;
+    flex: none;
+    border-radius: var(--c-r-md);
+    box-shadow: 0 0 0 2px var(--c-ring);
+    transition: box-shadow 0.15s;
+  }
+  .c-ts-i + .c-ts-i {
+    margin-left: -12px;
+  }
+
+  /* ---------- detalhe: faixa "Neste pedido" ---------- */
+  .c-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .c-strip-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 2px;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .c-strip-list li {
+    flex: none;
+    width: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .c-strip-name {
+    display: block;
+    max-width: 100%;
+    font: 500 12px/1.2 var(--c-f-body);
+    color: var(--c-ink2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- detalhe: itens com miniatura ---------- */
+  .c-items.has-thumbs {
+    gap: 14px;
+  }
+  .c-items.has-thumbs li {
+    align-items: center;
+    gap: 14px;
+  }
+  .c-li-media {
+    position: relative;
+    flex: none;
+  }
+  .c-li-qty {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    z-index: 3;
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--c-line);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font: 700 12px/18px var(--c-f-body);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .c-li-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .c-li-name {
+    font-weight: 600;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .c-li-sub {
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+  .c-items.has-thumbs .c-p {
+    align-self: center;
+    font-weight: 600;
+  }
+}

@@ -11,11 +11,6 @@
     color: var(--c-ink2);
   }
 
-  /* pedido com item por peso: a coluna da quantidade cabe "0,650 kg" e alinha os nomes */
-  .c-items.has-kg .c-q {
-    min-width: 82px;
-  }
-
   /* espera do detalhe enquanto a lista chega */
   .c-dskel {
     display: flex;
