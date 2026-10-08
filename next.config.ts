@@ -29,6 +29,16 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+  // Vale para TODA resposta (páginas, APIs, imagens, PDFs): é o que impede a indexação mesmo de
+  // quem ignora o robots.txt ou chega por um link direto (rastreio, e-mail de recuperar senha)
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet, noimageindex" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
