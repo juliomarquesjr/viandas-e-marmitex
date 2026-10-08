@@ -3,25 +3,35 @@ import { getToken } from "next-auth/jwt";
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+/**
+ * Páginas da área do cliente. Ficam na raiz do site, então a lista é explícita: as demais
+ * rotas (/admin, /auth, /tracking, /print...) não são do cliente.
+ */
+const CUSTOMER_PATHS = ["/login", "/forgot-password", "/reset-password", "/dashboard", "/expenses", "/pre-orders", "/profile"];
+
+function isCustomerPath(pathname: string) {
+  return CUSTOMER_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
+}
+
 export default withAuth(
   async function middleware(req) {
     const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
     
-    // Rotas de cliente - verificar sessão de cliente separadamente
-    if (pathname.startsWith("/customer")) {
+    // Rotas de cliente (a área do cliente vive na raiz do site) - verificar sessão de cliente separadamente
+    if (isCustomerPath(pathname)) {
       // Se está tentando acessar login, permitir
       if (
-        pathname === "/customer/login" ||
-        pathname === "/customer/forgot-password" ||
-        pathname === "/customer/reset-password"
+        pathname === "/login" ||
+        pathname === "/forgot-password" ||
+        pathname === "/reset-password"
       ) {
         return NextResponse.next();
       }
       
       // Permitir acesso público à página de rastreamento (tracking)
       // Isso permite que links compartilhados funcionem sem autenticação
-      if (pathname.match(/^\/customer\/pre-orders\/[^\/]+\/tracking$/)) {
+      if (pathname.match(/^\/pre-orders\/[^\/]+\/tracking$/)) {
         return NextResponse.next();
       }
       
@@ -39,7 +49,7 @@ export default withAuth(
       
       // Se não tem token de cliente e não está na página de login, redirecionar
       if (!customerToken || !(customerToken as any).customerId) {
-        return NextResponse.redirect(new URL("/customer/login", req.url));
+        return NextResponse.redirect(new URL("/login", req.url));
       }
       
       return NextResponse.next();
@@ -62,8 +72,8 @@ export default withAuth(
       return NextResponse.next();
     }
     
-    // Rotas de admin/PDV - lógica existente
-    if (pathname.startsWith("/admin") || pathname.startsWith("/pdv")) {
+    // Rotas de admin e PDV (o PDV é /admin/pdv)
+    if (pathname.startsWith("/admin")) {
       // Se não tem token, redireciona para login
       if (!token) {
         return NextResponse.redirect(new URL("/auth/login", req.url));
@@ -99,11 +109,11 @@ export default withAuth(
         
         // Para rotas de cliente, não usar a autorização padrão do withAuth
         // Vamos verificar manualmente no middleware
-        if (pathname.startsWith("/customer")) {
+        if (isCustomerPath(pathname)) {
           return true; // Sempre permitir, verificaremos manualmente
         }
         
-        // Para rotas admin/pdv, usar verificação padrão
+        // Para rotas admin (o PDV é /admin/pdv), usar verificação padrão
         return !!token;
       }
     }
@@ -113,9 +123,14 @@ export default withAuth(
 export const config = {
   matcher: [
     "/admin/:path*",
-    "/pdv/:path*",
-    "/customer/:path*",
-    "/delivery/:path*"
-    // /tracking não está no matcher, então é público por padrão
+    "/delivery/:path*",
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+    "/dashboard/:path*",
+    "/expenses/:path*",
+    "/pre-orders/:path*",
+    "/profile/:path*",
+    // / (a entrada do cliente decide sozinha) e /tracking (público) não estão no matcher
   ]
 };

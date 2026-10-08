@@ -101,7 +101,7 @@ function BootScreen() {
         if (cancelled) return;
 
         if (sessionData?.user) {
-          destination = sessionData.user.role === "pdv" ? "/pdv" : "/admin";
+          destination = sessionData.user.role === "pdv" ? "/admin/pdv" : "/admin";
         }
 
         setSteps((current) => ({ ...current, session: "done" }));

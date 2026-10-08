@@ -1,4 +1,4 @@
-import type { Product } from "@/app/pdv/types";
+import type { Product } from "@/app/admin/pdv/types";
 
 /** Remove acentos e caixa para comparação — "Feijão" casa com "feijao". */
 export function normalizeText(value: string): string {

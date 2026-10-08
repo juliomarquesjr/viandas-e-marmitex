@@ -1,4 +1,4 @@
-import type { CartItem, Product } from "@/app/pdv/types";
+import type { CartItem, Product } from "@/app/admin/pdv/types";
 
 export function totalQtyInCartForProduct(
   cart: CartItem[],

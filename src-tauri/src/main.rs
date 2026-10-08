@@ -802,8 +802,11 @@ fn main() {
                 .get_webview_window("main")
                 .ok_or_else(|| "Janela principal não encontrada".to_string())?;
 
+            // A raiz do site é a área do cliente; o desktop é dos funcionários e abre pela tela de abertura
+            let start_url = format!("{}/redirect", server_url.trim_end_matches('/'));
+
             window
-                .navigate(Url::parse(&server_url).map_err(|err| format!("URL inválida: {err}"))?)
+                .navigate(Url::parse(&start_url).map_err(|err| format!("URL inválida: {err}"))?)
                 .map_err(|err| format!("Falha ao navegar para app local: {err}"))?;
 
             window
