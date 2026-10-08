@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { useStandardCalculator } from "../pdv/hooks/useStandardCalculator";
+import { useStandardCalculator } from "../admin/pdv/hooks/useStandardCalculator";
 
 interface CalculatorModalProps {
   open: boolean;

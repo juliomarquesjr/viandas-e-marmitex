@@ -50,7 +50,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.push(session?.user?.role === "pdv" ? "/pdv" : "/admin");
+      router.push(session?.user?.role === "pdv" ? "/admin/pdv" : "/admin");
     }
   }, [status, session, router]);
 
@@ -148,7 +148,7 @@ export default function LoginPage() {
 
       let redirectUrl = callbackUrl;
       if (user?.role === "pdv") {
-        redirectUrl = "/pdv";
+        redirectUrl = "/admin/pdv";
       } else if (!redirectUrl || redirectUrl === "/auth/login") {
         redirectUrl = "/admin";
       }

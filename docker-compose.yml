@@ -51,6 +51,8 @@ services:
       NEXTAUTH_URL: ${DOCKER_NEXTAUTH_URL:-http://localhost:${APP_PORT:-3470}}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?defina NEXTAUTH_SECRET no .env}
       BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+      # Tempo real (Ably). Sem a chave a área do cliente segue só com a consulta periódica.
+      ABLY_API_KEY: ${ABLY_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # Sem isso o container roda em UTC e os relatórios por dia mudam de fronteira
       TZ: ${TZ:-America/Sao_Paulo}

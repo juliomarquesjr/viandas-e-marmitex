@@ -26,6 +26,7 @@ Implementados no backend Rust e disponíveis para evolução no frontend:
 
 ## Segurança
 - Navegação da WebView restringida a `http://127.0.0.1:*` e `about:blank`.
+- A janela abre em `/redirect` (tela de abertura dos funcionários), não na raiz: a raiz do site (`/`) é a área do cliente. Ver [rotas.md](./rotas.md).
 - Secrets não são embutidos no binário; usar `.env` no ambiente de execução.
 - Dependências críticas continuam externas: Postgres, token de blob storage, SMTP, chaves auth.
 

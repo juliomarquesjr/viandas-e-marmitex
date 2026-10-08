@@ -243,7 +243,7 @@ export function UserMenu() {
               )}
 
               <Link
-                href="/pdv"
+                href="/admin/pdv"
                 className="flex items-center gap-3 px-4 py-2 text-sm text-[color:var(--foreground)] transition-colors hover:bg-[color:var(--muted)]"
                 role="menuitem"
                 onClick={() => setOpen(false)}

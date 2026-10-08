@@ -7,6 +7,8 @@ Este diretório centraliza a documentação funcional e técnica do sistema de p
 - Arquitetura: `docs/arquitetura.md`
 - Modelagem de Dados: `docs/modelagem-dados.md`
 - RBAC (Perfis e Permissões): `docs/rbac.md`
+- Mapa de Rotas (quem acessa o quê): `docs/rotas.md`
+- Área do Cliente: `docs/area-cliente.md`
 - Especificação de APIs: `docs/api.md`
 - UX do PDV: `docs/ux-pdv.md`
 - Relatórios: `docs/relatorios.md`

@@ -26,7 +26,7 @@ npm run dev
 
 1. Acesse: `http://localhost:3000/auth/login`
 2. Use credenciais de um usuário (admin ou pdv)
-3. Após login, você será redirecionado para `/admin` ou `/pdv`
+3. Após login, você será redirecionado para `/admin` ou `/admin/pdv`
 
 ### 3. Atribuir Entregador a um Pré-Pedido
 

@@ -17,7 +17,7 @@ Use as mesmas credenciais de um usuário do sistema (admin ou pdv):
 ### 3. **Redirecionamento Após Login**
 
 Após o login, o sistema redireciona automaticamente:
-- **Se role = "pdv"** → `/pdv`
+- **Se role = "pdv"** → `/admin/pdv`
 - **Se role = "admin"** → `/admin`
 
 ### 4. **Acessar Interface do Entregador**
@@ -30,7 +30,7 @@ http://localhost:3000/delivery/dashboard
 ```
 
 #### Opção B: Navegar Manualmente
-1. Após login, você estará em `/admin` ou `/pdv`
+1. Após login, você estará em `/admin` ou `/admin/pdv`
 2. Digite na barra de endereços: `/delivery/dashboard`
 3. Ou adicione um link no menu (sugestão de melhoria)
 
@@ -48,7 +48,7 @@ http://localhost:3000/delivery/dashboard
 1. Login em /auth/login
    ↓
 2. Redirecionamento automático:
-   - PDV → /pdv
+   - PDV → /admin/pdv
    - Admin → /admin
    ↓
 3. Acessar /delivery/dashboard manualmente
@@ -88,7 +88,7 @@ Criar um role específico "delivery" para entregadores, com redirecionamento aut
 
 4. **Você será redirecionado para:**
    - `/admin` (se for admin)
-   - `/pdv` (se for pdv)
+   - `/admin/pdv` (se for pdv)
 
 5. **Para acessar a interface do entregador:**
    - Digite na barra de endereços: `/delivery/dashboard`

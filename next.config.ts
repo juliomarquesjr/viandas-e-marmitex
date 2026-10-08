@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
       encoding: { browser: emptyBrowserModule },
     },
   },
+  // Endereços antigos continuam valendo (e-mails de recuperar senha já enviados, links salvos):
+  // a área do cliente saiu de /customer para a raiz e o PDV de /pdv para /admin/pdv.
+  async redirects() {
+    return [
+      { source: "/customer", destination: "/", permanent: true },
+      { source: "/customer/:path*", destination: "/:path*", permanent: true },
+      { source: "/pdv", destination: "/admin/pdv", permanent: true },
+      { source: "/pdv/:path*", destination: "/admin/pdv/:path*", permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
       {

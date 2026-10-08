@@ -20,7 +20,7 @@ Desde 02/10 surgiram três consumidores que o plano original não tinha. Todos h
 
 | Consumidor | Hoje | Ponto de encaixe |
 |---|---|---|
-| Sino de avisos do cliente | polling de 60 s e ao voltar para a aba | `loadNotices()` em `app/customer/lib/notifications-store.ts` |
+| Sino de avisos do cliente | polling de 60 s e ao voltar para a aba | `loadNotices()` em `app/(customer)/lib/notifications-store.ts` |
 | Sino do admin (centro de notificações) | polling de 30 s e ao voltar para a aba | `refresh()` em `app/admin/components/notifications/useNotifications.ts` |
 | Pedidos / Início / Ficha | 30 s só em Pedidos; Início e Ficha só ao abrir | `reload()` de `useCustomerData` |
 
@@ -81,10 +81,10 @@ A área do cliente atualiza por consulta periódica (polling):
 
 | Tela | Atualização |
 |---|---|
-| Pedidos (`/customer/pre-orders`) | a cada 30 s enquanto houver pedido em andamento e a aba estiver visível |
+| Pedidos (`/pre-orders`) | a cada 30 s enquanto houver pedido em andamento e a aba estiver visível |
 | Início e Ficha | só ao abrir a tela ou tocar em "Tentar de novo" |
 
-Cada busca usa `useCustomerData` (`app/customer/lib/useCustomerData.ts`), que expõe `reload()`. Esse `reload()` é o ponto de encaixe deste plano.
+Cada busca usa `useCustomerData` (`app/(customer)/lib/useCustomerData.ts`), que expõe `reload()`. Esse `reload()` é o ponto de encaixe deste plano.
 
 ## Por que não WebSocket na própria Vercel
 
@@ -160,7 +160,7 @@ O "Já paguei" **já notifica o estabelecimento**: ele cria uma `PaymentIntent` 
 | `app/api/customer/payment-intents/route.ts` | `POST` | depois de criar a intenção | `notification.changed` (canal dos funcionários) |
 | `app/api/payment-intents/[id]/confirm` e `reject` | `POST` | depois de revisar | `payment-intent.reviewed` (canal do cliente) e, no confirmar, também `ficha.updated` |
 
-O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
+O rastreio no mapa (`/pre-orders/[id]/tracking`) continua com o polling de 15 s que já tem. Levar a posição do entregador para o tempo real é outro passo, com outra conta de mensagens.
 
 ## Arquivos
 
@@ -171,22 +171,25 @@ O rastreio no mapa (`/customer/pre-orders/[id]/tracking`) continua com o polling
   - Sem a variável, vira no-op: o sistema funciona igual a hoje, só com polling.
   - Nunca lança erro para quem chamou.
 - **`app/api/customer/realtime-token/route.ts`** (`GET`): exige `getCustomerSession()`.
-  - Devolve um *token request* do Ably com `clientId` igual ao `customerId`, capacidade `{ "customer:{id}": ["subscribe"] }` e validade de 1 hora (o SDK renova sozinho).
+  - Devolve um token do Ably (`requestToken`) com `clientId` igual ao `customerId`, capacidade `{ "customer:{id}": ["subscribe"] }` e validade de 1 hora (o navegador pede outro antes de vencer).
   - Sem sessão: 401. Sem chave configurada: 204, e o navegador fica só no polling.
-- **`app/customer/lib/useCustomerRealtime.ts`** (navegador): `useCustomerRealtime({ onPreOrder, onFicha })`.
-  - Carrega o SDK do Ably sob demanda (`import()` dinâmico), autentica via `authUrl: "/api/customer/realtime-token"` e assina o canal do cliente.
-  - Devolve `connected`, que as telas usam para ajustar o intervalo do polling.
-  - Fecha a conexão ao sair da área do cliente.
+- **`lib/realtime-stream.ts`** (navegador, compartilhado): `openEventStream({ tokenUrl, onEvent, onConnectedChange })`.
+  - Ouve o canal pelo canal de eventos nativo do Ably (`EventSource`), sem o pacote `ably` no navegador (o SWC do Next quebra o build dele).
+  - Pede o token na rota indicada, renova 5 minutos antes de vencer e tenta de novo com espera crescente se a conexão cair.
+  - Sem chave (204) ou sem sessão (401/403) não conecta, e quem chamou segue só com o polling.
+- **`app/(customer)/lib/realtime.tsx`** (navegador): `CustomerRealtimeProvider`, montado uma vez no `CustomerShell`, e os hooks `useRealtimeEvent(evento, handler)` e `useRealtimeConnected()`. Várias mensagens seguidas viram uma chamada só.
+- **`app/api/realtime/staff-token/route.ts`** (`GET`, Fase 2): só com `requireStaff()`; token só para ouvir `staff:notifications`.
 
 ### Alterados
 
-- As rotas da tabela "Onde publicar": uma chamada a `publishToCustomer` depois da escrita.
-- `app/customer/dashboard/page.tsx`, `app/customer/expenses/page.tsx`, `app/customer/pre-orders/page.tsx`: usar o hook e chamar `reload()` nos eventos. O ideal é o hook viver uma vez no `CustomerShell` e repassar os eventos por contexto, para não abrir uma conexão por tela.
-- `docker-compose.yml`: repassar `ABLY_API_KEY: ${ABLY_API_KEY:-}` ao serviço `app`.
+- As rotas da tabela "Onde publicar": uma chamada a `publishToCustomer` (ou `publishToStaff`) depois da escrita.
+- `app/(customer)/dashboard/page.tsx`, `expenses/page.tsx`, `pre-orders/page.tsx` e o sino de avisos: `useRealtimeEvent(..., reload)`.
+- `app/admin/components/notifications/useNotifications.ts`: o sino do admin abre o canal dos funcionários e consulta de novo a cada `notification.changed`.
+- `docker-compose.yml`: repassa `ABLY_API_KEY: ${ABLY_API_KEY:-}` ao serviço `app`.
 
 ### Dependência
 
-- `ably` (npm): um pacote só para o servidor (REST) e o navegador (Realtime). No navegador ele entra por `import()` dinâmico, para não pesar a primeira carga.
+- `ably` (npm), **só no servidor** (cliente REST). O navegador não usa o pacote.
 
 ## Configuração
 
@@ -226,7 +229,7 @@ O limite que pode apertar primeiro é o de **conexões simultâneas** (200). Se 
 |---|---|
 | App do entregador (`app/delivery/tracking/[id]/page.tsx`) | envia a posição a cada 10 s, com `PUT /api/pre-orders/[id]/delivery` (`{ latitude, longitude }`) |
 | Rastreio público (`app/tracking/[id]/page.tsx`, link do WhatsApp, sem login) | consulta `GET /api/public/pre-orders/[id]/delivery` a cada 5 s |
-| Rastreio do cliente logado (`app/customer/pre-orders/[id]/tracking/page.tsx`) | consulta a mesma API a cada 15 s |
+| Rastreio do cliente logado (`app/(customer)/pre-orders/[id]/tracking/page.tsx`) | consulta a mesma API a cada 15 s |
 
 Hoje o ponto no mapa anda aos saltos, com atraso de até 5 s (público) ou 15 s (logado), e cada espectador faz uma requisição por ciclo mesmo sem nada novo.
 
@@ -254,7 +257,7 @@ A mudança de status continua publicando também em `customer:{id}`, como na Fas
 - `lib/realtime.ts`: `publishPosition(preOrderId, { lat, lng, at })` e `publishTrackingStatus(...)`, com as mesmas regras (nunca lança erro, 2 s de limite, no-op sem chave).
 - `app/api/public/tracking/[id]/realtime-token/route.ts` (novo): token de assinatura do canal do pedido.
 - `app/api/pre-orders/[id]/delivery/route.ts`: publicar a posição (hoje esta rota publica só quando o status muda).
-- `app/tracking/[id]/page.tsx` e `app/customer/pre-orders/[id]/tracking/page.tsx`: abrir o canal com `openEventStream` (`lib/realtime-stream.ts`, já existente), mover o marcador a cada `position` e subir o polling de 5 s ou 15 s para 60 s enquanto conectado.
+- `app/tracking/[id]/page.tsx` e `app/(customer)/pre-orders/[id]/tracking/page.tsx`: abrir o canal com `openEventStream` (`lib/realtime-stream.ts`, já existente), mover o marcador a cada `position` e subir o polling de 5 s ou 15 s para 60 s enquanto conectado.
 - `app/components/DeliveryTrackingMap.tsx`: animar o marcador entre dois pontos (10 s de intervalo) em vez de pular, e mostrar "atualizado há N s".
 
 ### Custo estimado

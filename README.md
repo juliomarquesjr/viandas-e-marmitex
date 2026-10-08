@@ -4,7 +4,8 @@ Sistema de gestão para restaurantes especializados em viandas e marmitas, com P
 
 ## Funcionalidades
 
-- **PDV (Ponto de Venda)**: Interface para realização de vendas
+- **PDV (Ponto de Venda)**: Interface para realização de vendas, em `/admin/pdv`
+- **Área do Cliente**: Na raiz do site (`/`), o cliente acompanha a ficha, os pedidos e os avisos, e informa pagamentos por PIX
 - **Gestão de Produtos**: Cadastro e gerenciamento de produtos e categorias
 - **Gestão de Clientes**: Cadastro e gerenciamento de clientes
 - **Presets de Produtos**: Configuração automática de produtos para clientes frequentes
@@ -80,7 +81,11 @@ O sistema utiliza códigos de barras para identificação rápida de produtos e 
    ```
 
 8. **Acesse a aplicação:**
-   Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
+   Abra [http://localhost:3000](http://localhost:3000) no seu navegador:
+   - `/` é a **área do cliente** (leva ao login do cliente);
+   - a entrada de **admin, PDV e entregador** é `/auth/login` (o PDV fica em `/admin/pdv`).
+
+   O mapa completo de rotas está em [docs/rotas.md](./docs/rotas.md).
 
 ### Rodando com Docker (build de produção)
 
@@ -111,14 +116,15 @@ Após executar o seed, as seguintes credenciais estarão disponíveis:
 
 ```
 app/
-  ├── auth/            # Autenticação
+  ├── (customer)/      # Área do cliente, na raiz do site (/, /login, /dashboard...)
+  ├── auth/            # Autenticação de funcionários
   ├── admin/           # Área administrativa
   │   ├── customers/   # Gestão de clientes
   │   ├── products/    # Gestão de produtos
   │   ├── users/       # Gestão de usuários
   │   ├── orders/      # Gestão de pedidos
   │   └── reports/     # Relatórios
-  ├── pdv/             # Ponto de venda
+  │   └── pdv/         # Ponto de venda (/admin/pdv)
   ├── api/             # APIs REST
   │   └── auth/        # API de autenticação
   └── components/      # Componentes reutilizáveis
@@ -212,6 +218,7 @@ scripts/
 - [Documentação do Prisma](https://www.prisma.io/docs/)
 - [Documentação do Tailwind CSS](https://tailwindcss.com/docs)
 - [Guia Desktop (Tauri)](./docs/desktop.md)
+- [Mapa de rotas](./docs/rotas.md) e [Área do cliente](./docs/area-cliente.md)
 
 ## Contribuição
 
