@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { publishToCustomer } from '@/lib/realtime';
 import { decrementStockForItems, restoreStockForItems } from '@/lib/stock/orderStock';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -280,6 +281,9 @@ export async function POST(request: Request) {
       
       return newOrder;
     });
+
+    // Compra na ficha e pagamento mudam o saldo do cliente
+    await publishToCustomer(order.customerId, 'ficha.updated');
     
     return NextResponse.json(order);
   } catch (error) {
@@ -350,6 +354,8 @@ export async function PUT(request: Request) {
         }
       }
     });
+
+    await publishToCustomer(order.customerId, 'ficha.updated');
     
     return NextResponse.json(order);
   } catch (error) {
@@ -387,6 +393,7 @@ export async function DELETE(request: Request) {
       where: { id },
       select: {
         id: true,
+        customerId: true,
         items: {
           select: {
             productId: true,
@@ -417,6 +424,8 @@ export async function DELETE(request: Request) {
       });
     });
     
+    await publishToCustomer(order.customerId, 'ficha.updated');
+
     return NextResponse.json({ message: 'Order deleted successfully' });
   } catch (error) {
     console.error('Error deleting order:', error);

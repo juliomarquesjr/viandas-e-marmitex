@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -233,6 +234,12 @@ export async function PUT(
         }
       });
     });
+
+    // Só avisa o cliente quando algo que ele vê mudou: a posição do entregador chega a cada poucos
+    // segundos e não entra aqui (gastaria a cota de mensagens à toa).
+    if (updateData.deliveryStatus || updateData.estimatedDeliveryTime) {
+      await publishToCustomer(result?.customer?.id, 'pre-order.updated', { id: preOrderId });
+    }
 
     return NextResponse.json(result);
   } catch (error) {

@@ -5,6 +5,7 @@ import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { resetCustomerAvatar, useCustomerAvatar } from "../lib/avatar-store";
+import { CustomerRealtimeProvider } from "../lib/realtime";
 import { resetNotices } from "../lib/notifications-store";
 import { NotificationBell } from "./avisos/NotificationBell";
 import { CustomerAvatar } from "./Avatar";
@@ -126,7 +127,9 @@ export function CustomerShell({ children, fontClassName }: { children: React.Rea
     <SessionProvider basePath="/api/auth/customer">
       <CustomerThemeProvider>
         <div data-customer-scope="" className={fontClassName}>
-          <Shell>{children}</Shell>
+          <CustomerRealtimeProvider>
+            <Shell>{children}</Shell>
+          </CustomerRealtimeProvider>
         </div>
       </CustomerThemeProvider>
     </SessionProvider>

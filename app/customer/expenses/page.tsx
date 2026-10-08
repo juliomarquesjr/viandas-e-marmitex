@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, LoadingRows, Money, PixIcon, Sheet, SheetHeader
 import { PixPaymentSheet } from "../components/PixPaymentSheet";
 import { endOfDayISO, formatBRL, formatDayMonth, formatMonthLabel, monthKey, startOfDayISO } from "../lib/format";
 import type { ExpensesResponse } from "../lib/types";
+import { useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
 import "./expenses.css";
 import { Receipt } from "./Receipt";
@@ -129,6 +130,7 @@ function FichaScreen() {
   const closePix = React.useCallback(() => setPixOpen(false), []);
 
   const { data, error, loading, reload } = useCustomerData<ExpensesResponse>(expensesUrl(filter));
+  useRealtimeEvent("ficha.updated", reload);
   const movements = React.useMemo(() => (data ? buildMovements(data) : []), [data]);
   const listReady = Boolean(data) && !loading && !error;
 

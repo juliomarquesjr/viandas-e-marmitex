@@ -11,6 +11,7 @@ import { PixPaymentSheet } from "../components/PixPaymentSheet";
 import { firstName, formatBRL, formatTime, formatTodayLabel, greeting } from "../lib/format";
 import { fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
 import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreOrdersResponse } from "../lib/types";
+import { useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
 import "./dashboard.css";
 
@@ -37,6 +38,8 @@ export default function CustomerDashboardPage() {
   const expenses = useCustomerData<ExpensesResponse>("/api/customer/expenses");
   const preOrders = useCustomerData<PreOrdersResponse>("/api/customer/pre-orders");
   const profile = useCustomerData<CustomerProfile>("/api/customer/profile");
+  useRealtimeEvent("ficha.updated", expenses.reload);
+  useRealtimeEvent("pre-order.updated", preOrders.reload);
   const [pixOpen, setPixOpen] = React.useState(false);
   const closePix = React.useCallback(() => setPixOpen(false), []);
 

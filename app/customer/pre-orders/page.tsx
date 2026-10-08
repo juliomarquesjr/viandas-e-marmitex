@@ -18,6 +18,7 @@ import { OrderDetail } from "../components/pedidos/OrderDetail";
 import { OrderRow } from "../components/pedidos/OrderRow";
 import { isFinished } from "../lib/order-status";
 import type { PreOrder, PreOrdersResponse } from "../lib/types";
+import { useRealtimeConnected, useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
 import "./pre-orders.css";
 
@@ -34,6 +35,8 @@ const matches = (order: PreOrder, filter: Filter) =>
   filter === "all" ? true : filter === "open" ? !isFinished(order) : isFinished(order);
 
 const REFRESH_MS = 30_000;
+/** Com o tempo real conectado, o polling só cobre um aviso perdido. */
+const SAFETY_REFRESH_MS = 120_000;
 const DESKTOP_QUERY = "(min-width: 860px)";
 
 function subscribeDesktop(onChange: () => void) {
@@ -156,12 +159,16 @@ function PreOrdersScreen() {
 
   /* ---------- atualização enquanto houver pedido andando ---------- */
 
+  // Conectado ao tempo real, o aviso do servidor atualiza a tela e o polling vira só rede de segurança
+  const realtime = useRealtimeConnected();
+  useRealtimeEvent("pre-order.updated", reload);
+
   const hasOpenOrders = orders.some((order) => !isFinished(order));
   useEffect(() => {
     if (!hasOpenOrders) return;
     const tick = window.setInterval(() => {
       if (document.visibilityState === "visible") reload();
-    }, REFRESH_MS);
+    }, realtime ? SAFETY_REFRESH_MS : REFRESH_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") reload();
     };
@@ -170,7 +177,7 @@ function PreOrdersScreen() {
       window.clearInterval(tick);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [hasOpenOrders, reload]);
+  }, [hasOpenOrders, realtime, reload]);
 
   const clearNotice = useCallback(() => setNotice(null), []);
 
