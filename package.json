@@ -24,7 +24,7 @@
     "seed:customers": "npx tsx scripts/seed-customers.ts",
     "seed:users": "npx tsx scripts/seed-users.ts",
     "seed:all": "npm run seed:categories && npm run seed:products && npm run seed:customers && npm run seed:users",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "npx tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

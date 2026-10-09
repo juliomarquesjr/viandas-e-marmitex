@@ -66,7 +66,14 @@ export async function GET() {
       }));
 
     const awaitingCount = await prisma.preOrder
-      .count({ where: { customerId, source: 'online', approval: 'awaiting' } })
+      .count({
+        where: {
+          customerId,
+          source: 'online',
+          approval: 'awaiting',
+          createdAt: { gte: new Date(Date.now() - ORDERING.TTL_MINUTES * 60_000) },
+        },
+      })
       .catch(() => 0);
 
     return NextResponse.json(

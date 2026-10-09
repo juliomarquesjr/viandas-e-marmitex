@@ -98,8 +98,16 @@ try {
   check('virar venda (convert) → 409', (await admin.f('/api/pre-orders?convert=true', json('POST', { preOrderId: first, paymentMethod: 'cash', receivedCents: 100000 }))).status === 409);
 
   console.log('\n— limite de pendentes (3) e cancelar');
-  const second = (await order([{ productId: pa.id, quantity: 1 }])).b.id; const third = (await order([{ productId: pb.id, quantity: 1 }])).b.id;
+  const so = await order([{ productId: pa.id, quantity: 1 }]); const to = await order([{ productId: pb.id, quantity: 1 }]); const second = so.b.id; const third = to.b.id;
   o = await order([{ productId: pa.id, quantity: 1 }]); check('4º pedido pendente → 429 TOO_MANY_PENDING', o.r.status === 429 && o.b.code === 'TOO_MANY_PENDING');
+  // pedido que a loja não respondeu em 20 min está expirado: não ocupa vaga do limite
+  const secondRow = await p.preOrder.findUniqueOrThrow({ where: { id: second } });
+  await p.preOrder.update({ where: { id: second }, data: { createdAt: new Date(Date.now() - 25 * 60_000) } });
+  o = await order([{ productId: pa.id, quantity: 1 }]);
+  check('com 1 expirado, novo pedido passa (não é 429)', o.r.status === 201, String(o.r.status));
+  await p.preOrder.update({ where: { id: second }, data: { createdAt: secondRow.createdAt } });
+  // apaga o pedido extra: ele não pode pesar no limite de 10 por hora dos testes seguintes
+  if (o.b?.id) { await p.preOrderItem.deleteMany({ where: { preOrderId: o.b.id } }); await p.preOrder.delete({ where: { id: o.b.id } }); }
   const cancel = await cust.f(`/api/customer/pre-orders/${third}/cancel`, { method: 'POST' });
   check('cliente cancela o aguardando → 200', cancel.status === 200);
   const c2 = await p.preOrder.findUniqueOrThrow({ where: { id: third } });

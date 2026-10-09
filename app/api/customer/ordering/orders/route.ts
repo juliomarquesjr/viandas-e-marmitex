@@ -172,7 +172,11 @@ export async function POST(request: Request) {
           }
         }
 
-        const awaiting = await tx.preOrder.count({ where: { customerId, source: 'online', approval: 'awaiting' } });
+        // pedido que a loja não respondeu em 20 min já está expirado: não ocupa vaga
+        const awaitingSince = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
+        const awaiting = await tx.preOrder.count({
+          where: { customerId, source: 'online', approval: 'awaiting', createdAt: { gte: awaitingSince } },
+        });
         if (awaiting >= ORDERING.MAX_PENDING_PER_CUSTOMER) {
           throw new OrderError('TOO_MANY_PENDING', 429, 'Você já tem pedidos esperando a loja confirmar. Aguarde a resposta para enviar outro.');
         }

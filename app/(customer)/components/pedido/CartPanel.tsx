@@ -113,7 +113,7 @@ export function CartPanel({
         <div className="c-cart-body">
           <ErrorState
             title="Sem conexão"
-            message="Seu pedido não foi enviado. O carrinho está guardado: confira a internet e tente de novo."
+            message="Não conseguimos confirmar o envio. Seu carrinho está guardado: toque em tentar de novo, o pedido não será duplicado."
             onRetry={onSend}
           />
           <button type="button" className="c-btn is-quiet" onClick={onDismissNetwork}>

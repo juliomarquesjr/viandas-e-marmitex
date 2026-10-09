@@ -29,9 +29,10 @@ export function MenuProductRow({
 }) {
   const orderable = canOrder && product.availableNow && !product.soldOut;
   const when =
-    !product.soldOut && !orderable
+    // loja fechada/pausada: a faixa do topo já explica, o produto não repete
+    !product.soldOut && !product.availableNow
       ? product.schedule.length > 0
-        ? `Só ${product.schedule.join(" · ")}`
+        ? `Disponível: ${product.schedule.join(" · ")}`
         : "Indisponível agora"
       : null;
 

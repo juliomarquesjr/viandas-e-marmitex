@@ -15,7 +15,7 @@ O cliente monta o pedido em `/pre-orders/novo` e envia. O admin libera o recurso
 | Retirada | v1 só retirada, "o mais rápido": ao aceitar, o admin informa a previsão (15/30/45/60 min ou sem previsão) |
 | Preço | Lido do cadastro no momento do envio e congelado no item; preço, desconto, taxa e status vindos do cliente são ignorados |
 | Estoque | Checagem de melhor esforço (estoque menos o que está em pedidos abertos **de hoje**, sem cancelados, entregues nem expirados) só para produtos com estoque controlado; a baixa real continua na conversão em venda |
-| Limites | até 3 pedidos aguardando por cliente, 10 por hora, 10 produtos por pedido, 20 de cada, observação de até 200 letras |
+| Limites | até 3 pedidos aguardando por cliente (o expirado não conta), 10 por hora, 10 produtos por pedido, 20 de cada, observação de até 200 letras |
 | Duplo toque | `Idempotency-Key` por tentativa: repetir devolve o mesmo pedido (200, `duplicate: true`) |
 | Expiração | Pedido sem resposta fica **expirado** depois de 20 min (e nunca passa do dia): só dá para recusar. Calculado na leitura, sem cron |
 | Cancelar | O cliente cancela enquanto a loja não respondeu |
