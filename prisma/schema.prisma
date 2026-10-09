@@ -55,6 +55,7 @@ model Customer {
   budgets    CustomerBudget[] // Orçamentos salvos para este cliente
   passwordResetTokens CustomerPasswordResetToken[]
   paymentIntents PaymentIntent[]
+  dismissals     CustomerDismissal[]
   notifications Notification[]
 }
 
@@ -441,4 +442,17 @@ model PaymentIntent {
 
   @@index([customerId, status])
   @@index([status, createdAt])
+}
+
+// Avisos e cartões que o cliente dispensou (ex.: "po:<id>:ready", "intent:<id>").
+// Fica no servidor para valer em todos os aparelhos e não voltar quando o navegador limpa o armazenamento.
+model CustomerDismissal {
+  customerId String
+  key        String
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, key])
+  @@index([customerId, createdAt])
 }

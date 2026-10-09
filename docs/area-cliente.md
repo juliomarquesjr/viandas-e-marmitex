@@ -33,12 +33,15 @@ Todas exigem a sessão do cliente e devolvem só dados do próprio cliente.
 | `GET /api/customer/pre-orders/[id]/delivery` e `/tracking` | Entrega e posição do entregador |
 | `GET /api/customer/notifications` | Feed de avisos, montado na hora a partir dos pedidos e da ficha (sem tabela própria) |
 | `GET` e `POST /api/customer/payment-intents` | "Já paguei": o cliente informa um PIX e o operador confere |
+| `POST` e `DELETE /api/customer/dismissals` | Guarda (ou desfaz) o que o cliente dispensou: avisos e cartões de pagamento |
 | `GET /api/customer/realtime-token` | Token para ouvir o canal do cliente (ver abaixo) |
 | `POST /api/customer/forgot-password`, `/reset-password` | Recuperação de senha |
 
 ### Avisos
 
-O que o cliente já viu ou limpou fica no aparelho (`localStorage`), por aviso e por cliente: tocar no aviso, marcar como visto ou limpar diminui o contador do sino. "Limpar tudo" tem desfazer. Num aparelho novo, o que tem mais de um dia já entra como visto.
+O que o cliente já **viu** fica no aparelho (`localStorage`), por aviso e por cliente: tocar no aviso ou marcar como visto diminui o contador do sino. Num aparelho novo, o que tem mais de um dia já entra como visto.
+
+O que o cliente **limpa ou dispensa** (avisos do sino e cartões de "pagamento informado" no Início) fica **no servidor**, na tabela `CustomerDismissal` (chave = id do aviso, ou `intent:<id>`): vale em todos os aparelhos e não volta quando o navegador limpa o armazenamento. As APIs de avisos e de pagamentos já devolvem a lista sem o que foi dispensado. O envio usa uma fila local (`lib/dismissals.ts`) que tenta de novo a cada busca; dispensas antigas, feitas só no aparelho, sobem uma vez. "Limpar tudo" tem desfazer (`DELETE /api/customer/dismissals`). Sem a tabela (migration pendente) tudo segue funcionando só com o armazenamento local.
 
 ### PIX
 
