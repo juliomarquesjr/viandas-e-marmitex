@@ -4,10 +4,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { AlertCircle, ShieldAlert } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 export default function UnauthorizedPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  // O perfil PDV só entra em /admin/pdv: mandar para /admin o traria de volta para cá
+  const home = session?.user?.role === "pdv" ? "/admin/pdv" : "/admin";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
@@ -39,9 +42,9 @@ export default function UnauthorizedPage() {
               Voltar
             </Button>
             <Button 
-              onClick={() => router.push("/admin")}
+              onClick={() => router.push(home)}
             >
-              Ir para o Dashboard
+              {session?.user?.role === "pdv" ? "Ir para o PDV" : "Ir para o Dashboard"}
             </Button>
             <Button 
               variant="ghost"

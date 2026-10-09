@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
 import { parseCustomerDateRange } from '@/lib/customer-date-range';
+import { isOrderExpired } from '@/lib/ordering';
 
 // GET - Pré-pedidos do cliente autenticado
 export async function GET(request: Request) {
@@ -33,6 +34,11 @@ export async function GET(request: Request) {
         estimatedDeliveryTime: true,
         deliveryStartedAt: true,
         deliveredAt: true,
+        // Pedido feito pelo cliente: andamento da aprovação da loja
+        source: true,
+        approval: true,
+        respondedAt: true,
+        rejectReason: true,
         // Só serve para saber se o pedido vai por entrega; quem é o entregador não sai daqui
         deliveryPersonId: true,
         items: {
@@ -43,9 +49,12 @@ export async function GET(request: Request) {
       },
     });
 
+    const now = new Date();
     const data = preOrders.map(({ deliveryPersonId, ...preOrder }) => ({
       ...preOrder,
       hasCourier: deliveryPersonId !== null,
+      // Aguardando a loja além do prazo: a tela mostra "a loja não respondeu a tempo"
+      expired: preOrder.source === 'online' && preOrder.approval === 'awaiting' && isOrderExpired(preOrder.createdAt, now),
     }));
 
     return NextResponse.json({ data, total: data.length });

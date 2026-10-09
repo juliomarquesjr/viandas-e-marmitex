@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { convertToCents, formatCurrencyInput } from "../utils";
+import { todaySP } from "@/lib/date-range";
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -63,7 +64,7 @@ const emptyForm: ExpenseFormData = {
   paymentMethodId: "",
   amountCents: 0,
   description: "",
-  date: new Date().toISOString().split("T")[0],
+  date: todaySP(),
   nfChaveAcesso: "",
 };
 

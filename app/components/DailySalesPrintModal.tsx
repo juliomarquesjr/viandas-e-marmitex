@@ -11,6 +11,7 @@ import {
 } from "@/app/components/ui/dialog";
 import { Calendar, ExternalLink, FileText, Printer } from "lucide-react";
 import { useState } from "react";
+import { todaySP } from "@/lib/date-range";
 
 interface DailySalesPrintModalProps {
   open: boolean;
@@ -33,7 +34,7 @@ export function DailySalesPrintModal({
   onOpenChange,
 }: DailySalesPrintModalProps) {
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+    todaySP()
   );
 
   const handlePrintThermal = () => {

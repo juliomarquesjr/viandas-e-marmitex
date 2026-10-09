@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
@@ -102,7 +103,9 @@ export async function PUT(
         id: true,
         deliveryPersonId: true,
         deliveryStatus: true,
-        deliveryStartedAt: true
+        deliveryStartedAt: true,
+        source: true,
+        approval: true
       }
     });
 
@@ -120,6 +123,15 @@ export async function PUT(
         { error: 'Forbidden' },
         { status: 403 }
       );
+    }
+
+    // Pedido do cliente aguardando resposta só sai daí por Aceitar/Recusar (POST /api/pre-orders/[id]/respond);
+    // recusado ou cancelado não reabre
+    if (isAwaitingApproval(preOrder)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+    if (isClosedOnline(preOrder)) {
+      return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
     }
 
     const updateData: any = {};

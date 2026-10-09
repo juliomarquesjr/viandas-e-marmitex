@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
@@ -44,6 +45,14 @@ export async function POST(
       return NextResponse.json(
         { error: 'Pre-order not found' },
         { status: 404 }
+      );
+    }
+
+    // Pedido do cliente aguardando resposta (ou já recusado/cancelado) não recebe entregador
+    if (isAwaitingApproval(preOrder) || isClosedOnline(preOrder)) {
+      return NextResponse.json(
+        { error: isAwaitingApproval(preOrder) ? AWAITING_MESSAGE : CLOSED_MESSAGE },
+        { status: 409 }
       );
     }
 

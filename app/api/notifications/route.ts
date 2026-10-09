@@ -1,3 +1,4 @@
+import { loadAwaitingOrders } from '@/lib/online-ordering';
 import { loadNotificationDTOs } from '@/lib/notifications';
 import type { NotificationListResponse } from '@/lib/notification-types';
 import prisma from '@/lib/prisma';
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
       ...(onlyPending ? { resolvedAt: null } : {}),
     };
 
-    const [rows, badgeCount, pendingCount] = await Promise.all([
+    const [rows, notificationBadge, notificationPending, awaiting] = await Promise.all([
       prisma.notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
       }),
       prisma.notification.count({ where: { OR: [{ readAt: null }, { resolvedAt: null }] } }),
       prisma.notification.count({ where: { resolvedAt: null } }),
+      loadAwaitingOrders(),
     ]);
 
     const hasMore = rows.length > limit;
@@ -45,8 +47,11 @@ export async function GET(request: Request) {
 
     const response: NotificationListResponse = {
       notifications: await loadNotificationDTOs(page),
-      badgeCount,
-      pendingCount,
+      // O pedido do cliente aguardando conta no sino e na home pela mesma fonte (o próprio pedido)
+      badgeCount: notificationBadge + awaiting.count,
+      pendingCount: notificationPending + awaiting.count,
+      awaitingOrders: awaiting.items,
+      awaitingOrdersCount: awaiting.count,
       nextBefore: hasMore ? page[page.length - 1].createdAt.toISOString() : null,
     };
     return NextResponse.json(response);

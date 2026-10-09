@@ -20,12 +20,24 @@ export default withAuth(
     
     // Rotas de cliente (a área do cliente vive na raiz do site) - verificar sessão de cliente separadamente
     if (isCustomerPath(pathname)) {
-      // Se está tentando acessar login, permitir
-      if (
-        pathname === "/login" ||
-        pathname === "/forgot-password" ||
-        pathname === "/reset-password"
-      ) {
+      // Sessão de cliente: cookie próprio, separado do de funcionário. Um funcionário logado no mesmo
+      // navegador não atrapalha: cada área olha só para a sua sessão.
+      const customerToken = await getToken({
+        req,
+        secret: process.env.NEXTAUTH_SECRET,
+        cookieName: CUSTOMER_SESSION_COOKIE,
+      });
+      const customerLoggedIn = !!customerToken && !!(customerToken as any).customerId;
+
+      // Login: quem já está logado vai direto para o Início
+      if (pathname === "/login") {
+        return customerLoggedIn
+          ? NextResponse.redirect(new URL("/dashboard", req.url))
+          : NextResponse.next();
+      }
+
+      // Recuperar e redefinir a senha: públicas
+      if (pathname === "/forgot-password" || pathname === "/reset-password") {
         return NextResponse.next();
       }
       
@@ -35,20 +47,8 @@ export default withAuth(
         return NextResponse.next();
       }
       
-      // Verificar se tem token de admin (não deve acessar área de cliente)
-      if (token && 'role' in token) {
-        return NextResponse.redirect(new URL("/unauthorized", req.url));
-      }
-      
-      // Sessão de cliente: cookie próprio, separado do de funcionário
-      const customerToken = await getToken({
-        req,
-        secret: process.env.NEXTAUTH_SECRET,
-        cookieName: CUSTOMER_SESSION_COOKIE,
-      });
-      
-      // Se não tem token de cliente e não está na página de login, redirecionar
-      if (!customerToken || !(customerToken as any).customerId) {
+      // Sem sessão de cliente, volta para o login
+      if (!customerLoggedIn) {
         return NextResponse.redirect(new URL("/login", req.url));
       }
       

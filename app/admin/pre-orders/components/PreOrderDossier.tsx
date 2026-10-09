@@ -1,11 +1,13 @@
 "use client";
 
 import { EmptyState } from "@/app/admin/components/data-display/EmptyState";
+import { OrderResponseButtons } from "@/app/admin/components/online-orders/OrderResponse";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Ban,
   CheckCircle2,
+  Hourglass,
   MapPin,
   MoreVertical,
   Pencil,
@@ -19,22 +21,32 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AWAITING_HINT,
   formatCurrency,
   formatDateTime,
+  formatTime,
+  describeItems,
   formatWhen,
   fulfillmentOf,
   initialsOf,
+  isAwaiting,
+  isClosedOnline,
+  isExpiredAwaiting,
+  isOnline,
   stageOf,
   stageVars,
   weightOf,
   type Fulfillment,
   type PreOrder,
 } from "../lib/preOrderView";
+import { AwaitingWait, OnlineBadge } from "./OnlineBadge";
 import { PreOrderTimeline } from "./PreOrderTimeline";
 import { StagePicker } from "./StagePicker";
 import { ThermalTicket } from "./ThermalTicket";
+
+const CLOSED_HINT = "Pedido encerrado";
 
 type Action =
   | { kind: "status"; next: string; label: string; icon: typeof Truck }
@@ -108,6 +120,8 @@ interface PreOrderDossierProps {
   onCancel: () => void;
   onTrack: () => void;
   onDelete: () => void;
+  /** Depois de aceitar ou recusar: a lista precisa ser recarregada. */
+  onResponded: () => void;
 }
 
 type Tab = "itens" | "historico" | "entrega";
@@ -123,6 +137,7 @@ export function PreOrderDossier({
   onCancel,
   onTrack,
   onDelete,
+  onResponded,
 }: PreOrderDossierProps) {
   const [tab, setTab] = useState<Tab>("itens");
   const stage = stageOf(preOrder);
@@ -130,6 +145,12 @@ export function PreOrderDossier({
   const { primary, secondary } = actionsFor(preOrder);
   const cancelled = stage === "cancelado";
   const due = stage === "cobrar";
+  const awaiting = isAwaiting(preOrder);
+  const expired = isExpiredAwaiting(preOrder, now);
+  const closedOnline = isClosedOnline(preOrder);
+  // Por que Editar está desligado: o botão aponta para este texto (aria-describedby).
+  const lockHintId = `dossier-lock-hint-${preOrder.id}`;
+  const editHint = awaiting ? AWAITING_HINT : closedOnline ? CLOSED_HINT : null;
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-[color:var(--background)]" style={stageVars(stage)}>
@@ -143,9 +164,12 @@ export function PreOrderDossier({
         </span>
 
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-xl font-bold tracking-tight text-[color:var(--foreground)]">
-            {preOrder.customer?.name ?? "Venda avulsa"}
-          </h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-xl font-bold tracking-tight text-[color:var(--foreground)]">
+              {preOrder.customer?.name ?? "Venda avulsa"}
+            </h2>
+            {isOnline(preOrder) && <OnlineBadge className="text-xs" />}
+          </div>
 
           <p className="mt-1.5 truncate font-mono text-xs text-[color:var(--muted-foreground-strong)]">
             {[
@@ -157,24 +181,36 @@ export function PreOrderDossier({
               .join(" · ")}
           </p>
 
-          {/* A observação sobe para o cabeçalho: é instrução de entrega, não histórico. */}
+          {/* A observação sobe para o cabeçalho: é instrução de entrega, não histórico.
+              No pedido que o cliente escreveu e ainda espera resposta, ela é o
+              que decide aceitar ou recusar, então ganha rótulo e peso. */}
           {preOrder.notes?.trim() && (
             <p
-              className="mt-2 flex items-start gap-2 rounded-lg border border-l-[3px] border-[color:var(--border)] bg-[color:var(--muted)] px-3 py-2 text-[12.5px] leading-snug text-[color:var(--foreground)]"
+              className={cn(
+                "mt-2 flex items-start gap-2 rounded-lg border border-l-[3px] border-[color:var(--border)] bg-[color:var(--muted)] px-3 py-2 leading-snug text-[color:var(--foreground)]",
+                awaiting ? "text-[14px] font-medium" : "text-[12.5px]",
+              )}
               style={{ borderLeftColor: "var(--state-pronto)" }}
             >
               <StickyNote
                 className="mt-0.5 h-3.5 w-3.5 flex-none text-[color:var(--muted-foreground-strong)]"
                 aria-hidden="true"
               />
-              <span className="min-w-0">{preOrder.notes}</span>
+              <span className="min-w-0 break-words">
+                {isOnline(preOrder) && (
+                  <span className="mb-0.5 block text-[10.5px] font-bold uppercase tracking-[0.08em] text-[color:var(--muted-foreground-strong)]">
+                    O cliente escreveu
+                  </span>
+                )}
+                {preOrder.notes}
+              </span>
             </p>
           )}
         </div>
 
         {/* Etapa e modalidade empilhadas, ao lado do bloco de identificação. */}
         <div className="flex flex-none flex-col items-start gap-2 self-center">
-          <StagePicker stage={stage} disabled={advancing} onChange={onAdvance} />
+          <StagePicker stage={stage} disabled={advancing} locked={awaiting || closedOnline} onChange={onAdvance} />
           {fulfillment !== "unknown" && (
             <span className="inline-flex h-9 items-center gap-2 rounded-full border border-[color:var(--border)] px-3.5 text-[13px] font-bold text-[color:var(--muted-foreground-strong)]">
               {fulfillment === "pickup" ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
@@ -196,6 +232,8 @@ export function PreOrderDossier({
           </p>
         </div>
       </header>
+
+      <OnlineStatusBanner preOrder={preOrder} now={now} awaiting={awaiting} expired={expired} />
 
       <div
         role="tablist"
@@ -230,6 +268,17 @@ export function PreOrderDossier({
       </div>
 
       <footer className="flex flex-wrap items-center gap-2.5 border-t border-[color:var(--border)] bg-[color:var(--card)] px-5 py-3.5">
+        {awaiting && (
+          <OrderResponseButtons
+            orderId={preOrder.id}
+            customerName={preOrder.customer?.name}
+            summary={describeItems(preOrder.items, 6)}
+            totalCents={preOrder.totalCents}
+            expired={expired}
+            size="default"
+            onResponded={onResponded}
+          />
+        )}
         {primary && (
           <Button
             size="lg"
@@ -258,32 +307,159 @@ export function PreOrderDossier({
             {secondary.label}
           </Button>
         )}
-        <Button variant="ghost" onClick={onEdit} leftIcon={<Pencil className="h-4 w-4" />}>
-          Editar
-        </Button>
+        <Gate hint={editHint}>
+          <Button
+            variant="ghost"
+            disabled={Boolean(editHint)}
+            title={editHint ?? undefined}
+            aria-describedby={editHint ? lockHintId : undefined}
+            onClick={onEdit}
+            leftIcon={<Pencil className="h-4 w-4" />}>
+            Editar
+          </Button>
+        </Gate>
 
         {/* Cancelar existe em toda etapa: um pedido pode cair a qualquer
             momento, e cancelado é estado — não some do banco e dá para
-            reabrir. Por isso fica visível, mas sem peso de ação primária. */}
-        <Button
-          variant="ghost"
-          onClick={onCancel}
-          leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-          className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
-        >
-          {cancelled ? "Reabrir" : "Cancelar"}
-        </Button>
-        <OverflowMenu onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
-        <p className="ml-auto hidden w-[220px] shrink-0 text-right text-[11.5px] leading-snug text-[color:var(--muted-foreground-strong)] 2xl:block">
-          {primary?.kind === "receive"
-            ? "Abre o terminal de recebimento. A venda só é criada depois da sua confirmação."
-            : primary
-              ? "Registra o horário. Não mexe em estoque nem em caixa."
-              : "Este pedido já foi encerrado."}
-        </p>
+            reabrir. Por isso fica visível, mas sem peso de ação primária.
+            Pedido recusado ou cancelado pelo cliente não reabre: o cliente já
+            foi avisado do desfecho. */}
+        {!closedOnline && (
+          <Gate hint={awaiting ? AWAITING_HINT : null}>
+            <Button
+              variant="ghost"
+              disabled={awaiting}
+              title={awaiting ? AWAITING_HINT : undefined}
+              aria-describedby={awaiting ? lockHintId : undefined}
+              onClick={onCancel}
+              leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+              className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
+            >
+              {cancelled ? "Reabrir" : "Cancelar"}
+            </Button>
+          </Gate>
+        )}
+        {closedOnline && (
+          <span id={lockHintId} className="sr-only">
+            {CLOSED_HINT}
+          </span>
+        )}
+        <OverflowMenu locked={awaiting} onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
+        {awaiting ? (
+          <p
+            id={lockHintId}
+            className="flex w-full items-center gap-1.5 text-[12px] font-semibold leading-snug"
+            style={{ color: "var(--state-pronto-fg)" }}
+          >
+            <Hourglass className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+            {AWAITING_HINT}. Editar, cancelar, imprimir e apagar ficam liberados depois.
+          </p>
+        ) : (
+          <p className="ml-auto hidden w-[220px] shrink-0 text-right text-[11.5px] leading-snug text-[color:var(--muted-foreground-strong)] 2xl:block">
+            {primary?.kind === "receive"
+              ? "Abre o terminal de recebimento. A venda só é criada depois da sua confirmação."
+              : primary
+                ? "Registra o horário. Não mexe em estoque nem em caixa."
+                : "Este pedido já foi encerrado."}
+          </p>
+        )}
       </footer>
     </div>
   );
+}
+
+/** Botão desligado precisa dizer por quê: o tooltip vai no invólucro, porque botão desabilitado não recebe o mouse. */
+function Gate({ hint, children }: { hint: string | null; children: React.ReactNode }) {
+  if (!hint) return <>{children}</>;
+  return (
+    <span title={hint} className="inline-flex">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * A faixa abaixo do cabeçalho conta a situação do pedido do cliente: esperando
+ * resposta, recusado (com o motivo), cancelado por ele ou aceito.
+ */
+function OnlineStatusBanner({
+  preOrder,
+  now,
+  awaiting,
+  expired,
+}: {
+  preOrder: PreOrder;
+  now: Date;
+  awaiting: boolean;
+  expired: boolean;
+}) {
+  if (preOrder.source !== "online") return null;
+
+  if (awaiting) {
+    return (
+      <div
+        role="status"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[color:var(--border)] px-5 py-2.5 text-[13px]"
+        style={{ background: "var(--state-pronto-bg)", color: "var(--state-pronto-fg)" }}
+      >
+        <Hourglass className="h-4 w-4 flex-none" aria-hidden="true" />
+        <span className="font-bold">Aguardando a sua resposta</span>
+        <AwaitingWait preOrder={preOrder} now={now} />
+        <span className="font-medium">
+          {expired
+            ? "Passou do prazo: só dá para recusar, e o cliente é avisado."
+            : "Aceite para entrar na fila ou recuse com um motivo."}
+        </span>
+      </div>
+    );
+  }
+
+  if (preOrder.approval === "rejected") {
+    return (
+      <div
+        role="status"
+        className="flex items-start gap-2 border-b border-[color:var(--border)] px-5 py-2.5 text-[13px]"
+        style={{ background: "var(--state-cobrar-bg)", color: "var(--state-cobrar-fg)" }}
+      >
+        <Ban className="mt-0.5 h-4 w-4 flex-none" aria-hidden="true" />
+        <span className="min-w-0 break-words">
+          <span className="font-bold">Pedido recusado</span>
+          {preOrder.respondedAt && ` às ${formatTime(preOrder.respondedAt)}`}
+          {" · "}
+          Motivo: {preOrder.rejectReason?.trim() || "não informado"}
+        </span>
+      </div>
+    );
+  }
+
+  if (preOrder.approval === "cancelled") {
+    return (
+      <div
+        role="status"
+        className="flex items-center gap-2 border-b border-[color:var(--border)] px-5 py-2.5 text-[13px]"
+        style={{ background: "var(--state-cancelado-bg)", color: "var(--state-cancelado-fg)" }}
+      >
+        <Ban className="h-4 w-4 flex-none" aria-hidden="true" />
+        <span className="font-bold">O cliente cancelou este pedido.</span>
+      </div>
+    );
+  }
+
+  if (preOrder.approval === "accepted" && preOrder.respondedAt) {
+    return (
+      <div
+        role="status"
+        className="flex items-center gap-2 border-b border-[color:var(--border)] px-5 py-2.5 text-[13px]"
+        style={{ background: "var(--state-producao-bg)", color: "var(--state-producao-fg)" }}
+      >
+        <CheckCircle2 className="h-4 w-4 flex-none" aria-hidden="true" />
+        <span className="font-bold">Pedido aceito às {formatTime(preOrder.respondedAt)}</span>
+        {preOrder.estimatedDeliveryTime && <span>· previsão {formatTime(preOrder.estimatedDeliveryTime)}</span>}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function TabButton({
@@ -450,19 +626,37 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 function OverflowMenu({
+  locked,
   onPrint,
   onTrack,
   onDelete,
 }: {
+  /** Pedido do cliente aguardando resposta: imprimir e apagar ficam desligados. */
+  locked: boolean;
   onPrint: () => void;
   onTrack: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Esc fecha o menu mesmo com o foco fora dele (o clique no botão não move o foco para dentro).
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open]);
 
   return (
     <div className="relative">
       <Button
+        ref={triggerRef}
         variant="outline"
         size="icon"
         aria-label="Mais ações"
@@ -482,7 +676,13 @@ function OverflowMenu({
               if (event.key === "Escape") setOpen(false);
             }}
           >
+            {locked && (
+              <p className="px-3 pb-1.5 pt-1 text-[11.5px] font-semibold leading-snug" style={{ color: "var(--state-pronto-fg)" }}>
+                {AWAITING_HINT}.
+              </p>
+            )}
             <MenuItem
+              disabledHint={locked ? AWAITING_HINT : undefined}
               onClick={() => {
                 setOpen(false);
                 onPrint();
@@ -503,6 +703,7 @@ function OverflowMenu({
             <div className="my-1 border-t border-[color:var(--border)]" />
             <MenuItem
               destructive
+              disabledHint={locked ? AWAITING_HINT : undefined}
               onClick={() => {
                 setOpen(false);
                 onDelete();
@@ -523,19 +724,25 @@ function MenuItem({
   icon,
   onClick,
   destructive,
+  disabledHint,
 }: {
   children: React.ReactNode;
   icon: React.ReactNode;
   onClick: () => void;
   destructive?: boolean;
+  /** Quando existe, o item fica desligado e este texto explica por quê. */
+  disabledHint?: string;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
+      disabled={Boolean(disabledHint)}
+      title={disabledHint}
       className={cn(
-        "flex w-full items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
+        "flex min-h-[44px] w-full items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
+        "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent",
         destructive
           ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
           : "text-[color:var(--foreground)] hover:bg-[color:var(--muted)]",
@@ -570,16 +777,18 @@ export function TicketColumn({
           <h3 className="flex-1 text-center text-[11px] font-bold uppercase tracking-[0.11em] text-[color:var(--muted-foreground-strong)]">
             Comanda
           </h3>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={onPrint}
-            title="Imprimir comanda"
-            aria-label="Imprimir comanda"
-            className="h-8 w-8 shrink-0"
-          >
-            <Printer className="h-4 w-4" />
-          </Button>
+          <span title={isAwaiting(preOrder) ? AWAITING_HINT : "Imprimir comanda"} className="inline-flex">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={onPrint}
+              disabled={isAwaiting(preOrder)}
+              aria-label={isAwaiting(preOrder) ? `Imprimir comanda. ${AWAITING_HINT}` : "Imprimir comanda"}
+              className="h-8 w-8 shrink-0"
+            >
+              <Printer className="h-4 w-4" />
+            </Button>
+          </span>
         </div>
       )}
       {preOrder ? (

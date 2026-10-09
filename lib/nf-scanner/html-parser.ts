@@ -2,6 +2,7 @@
 
 import { InvoiceData, InvoiceItem } from './types';
 import { extractUFFromChave, normalizeChaveAcesso } from './utils';
+import { todaySP } from '@/lib/date-range';
 
 /**
  * Extrai texto de um elemento HTML usando regex simples
@@ -377,7 +378,7 @@ export function parseRSHTML(html: string, chaveAcesso: string): InvoiceData | nu
     
     // Extrair data de emissão
     const dataMatch = html.match(/Data[^<]*<strong>([^<]+)<\/strong>/i);
-    let dataEmissao = new Date().toISOString().split('T')[0];
+    let dataEmissao = todaySP();
     if (dataMatch) {
       const dataStr = cleanText(dataMatch[1]);
       // Tenta parsear data no formato brasileiro (DD/MM/YYYY)

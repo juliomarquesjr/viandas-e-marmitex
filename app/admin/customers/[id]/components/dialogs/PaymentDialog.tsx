@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../../../components/ui/dialog";
+import { todaySP } from "@/lib/date-range";
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -131,7 +132,7 @@ export function PaymentDialog({
                 value={paymentDate}
                 disabled={isProcessingPayment}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
+                max={todaySP()}
                 className="w-full h-[52px] px-3 border border-slate-200 rounded-xl text-base text-slate-900 bg-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               />
               <p className="text-xs text-slate-400">Deixe em branco para usar a data atual</p>

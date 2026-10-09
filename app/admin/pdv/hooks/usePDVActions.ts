@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type { CartItem, Customer } from "../types";
+import { todaySP } from "@/lib/date-range";
 
 interface UsePDVActionsProps {
   cart: CartItem[];
@@ -42,8 +43,7 @@ export function usePDVActions({
   const [customSaleDate, setCustomSaleDate] = useState<string>("");
 
   const getTodayDate = useCallback(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
+    return todaySP();
   }, []);
 
   const formatDisplayDate = useCallback((dateStr: string) => {

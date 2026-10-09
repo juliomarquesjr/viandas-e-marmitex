@@ -1,6 +1,7 @@
 import { authOptions } from '@/lib/auth';
 import { createFichaPaymentOrder } from '@/lib/ficha-payment';
 import prisma from '@/lib/prisma';
+import { noonOfDaySP } from '@/lib/date-range';
 import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -17,6 +18,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+
+    // Data do pagamento (opcional): precisa ser um dia de verdade
+    if (body.paymentDate && !noonOfDaySP(body.paymentDate)) {
+      return NextResponse.json({ error: 'Data do pagamento inválida' }, { status: 400 });
+    }
 
     // Validação básica
     if (!body.customerId || !body.amountCents || body.amountCents <= 0) {

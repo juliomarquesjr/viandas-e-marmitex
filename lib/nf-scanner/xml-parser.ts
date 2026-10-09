@@ -3,6 +3,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { InvoiceData, InvoiceItem, InvoiceEmitent, InvoiceTotals } from './types';
 import { extractUFFromChave } from './utils';
+import { dateStringSP, todaySP } from '@/lib/date-range';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -250,17 +251,18 @@ function parseValorPago(pag: any): number | undefined {
  * Formata data do formato XML para ISO string
  */
 function formatDate(dateStr: string | undefined): string {
-  if (!dateStr) return new Date().toISOString().split('T')[0];
+  if (!dateStr) return todaySP();
   
   // Formato: 2024-01-15T10:30:00-03:00 ou 2024-01-15
   try {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
-      return new Date().toISOString().split('T')[0];
+      return todaySP();
     }
-    return date.toISOString().split('T')[0];
+    // O dia da nota é o dia em Brasília (a emissão vem com -03:00; em UTC, 22h viraria o dia seguinte)
+    return dateStringSP(date);
   } catch {
-    return new Date().toISOString().split('T')[0];
+    return todaySP();
   }
 }
 

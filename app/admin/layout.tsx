@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { SidebarProvider, ModernSidebar, MobileSidebar, HeaderActions } from "./components/layout";
 import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminChromeProvider";
 import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
+import { NotificationsProvider } from "./components/notifications/NotificationsProvider";
 
 /**
  * AdminLayout - Design System
@@ -45,12 +47,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() as { data: ExtendedSession | null };
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { fullBleed, immersive } = useAdminChrome();
+  const chrome = useAdminChrome();
+  // O PDV é a tela toda desde o primeiro quadro (inclusive no HTML do servidor): sem isso a barra
+  // lateral do admin aparece por um instante, até a página ligar o modo imersivo
+  const isPdv = (usePathname() ?? "").startsWith("/admin/pdv");
+  const fullBleed = chrome.fullBleed || isPdv;
+  const immersive = chrome.immersive || isPdv;
 
   const userRole = session?.user?.role;
 
   return (
-    <>
+    // Um só estado de notificações para o sino, a tela inicial, o título da aba e a barra lateral.
+    // No PDV o sino não existe, então nada é consultado. A tela cheia da Mesa de Pedido (modo imersivo do
+    // usuário) continua recebendo os avisos: é onde o operador fica enquanto os pedidos chegam.
+    <NotificationsProvider enabled={!isPdv}>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -97,7 +107,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               {fullBleed ? (
                 children
               ) : (
-                <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">{children}</div>
+                <div className="container mx-auto px-4 lg:px-6 pt-6 pb-24 lg:pb-6 max-w-7xl">{children}</div>
               )}
             </main>
           </div>
@@ -105,6 +115,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
         {!immersive && <RoAssistant />}
-    </>
+    </NotificationsProvider>
   );
 }

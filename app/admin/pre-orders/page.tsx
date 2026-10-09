@@ -12,6 +12,7 @@ import {
   printBitmapToDesktopPrinter,
 } from "@/lib/runtime/capabilities";
 import type { ThermalAutoPrintModuleKey } from "@/lib/runtime/printing";
+import { openEventStream } from "@/lib/realtime-stream";
 import { cn } from "@/lib/utils";
 import {
   Loader2,
@@ -41,6 +42,7 @@ import {
   STAGE_ORDER,
   aggregateItems,
   formatCurrency,
+  isAwaiting,
   stageOf,
   type PreOrder,
   type PreOrderStage,
@@ -75,6 +77,10 @@ type ThermalDocKind = keyof typeof THERMAL_DOCS;
 const PAGE_SIZE = 200;
 const RAIL_PREF_KEY = "admin-pre-orders-show-rail";
 const CANCELLED_PREF_KEY = "admin-pre-orders-show-cancelled";
+/** Vários avisos seguidos viram uma recarga só. */
+const REALTIME_DEBOUNCE_MS = 250;
+/** Sem tempo real conectado, a lista se confere de vez em quando (só com a aba à vista). */
+const FALLBACK_REFRESH_MS = 60_000;
 
 type RangeKey = "today" | "week" | "all";
 
@@ -119,6 +125,19 @@ async function errorMessageOf(response: Response, fallback: string): Promise<str
     // resposta sem corpo JSON: fica o texto padrão
   }
   return fallback;
+}
+
+/** Lê o erro do servidor; `awaiting` marca o 409 de pedido do cliente que ainda não foi aceito. */
+async function readFailure(response: Response, fallback: string): Promise<{ message: string; awaiting: boolean }> {
+  try {
+    const body = await response.json();
+    return {
+      message: typeof body?.error === "string" && body.error.trim() ? body.error : fallback,
+      awaiting: response.status === 409 && body?.code === "AWAITING_APPROVAL",
+    };
+  } catch {
+    return { message: fallback, awaiting: false };
+  }
 }
 
 function emptyTally(): StageTally {
@@ -228,6 +247,44 @@ export default function AdminPreOrdersPage() {
     loadPreOrders();
   }, [loadPreOrders]);
 
+  // Pedido novo do cliente, resposta de outro operador, cliente que cancelou: o
+  // servidor avisa pelo canal dos funcionários (o mesmo do sino) e a lista se
+  // atualiza sozinha, sem tirar a seleção nem piscar.
+  const reloadRef = useRef(loadPreOrders);
+  reloadRef.current = loadPreOrders;
+  const [realtime, setRealtime] = useState(false);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const stop = openEventStream({
+      tokenUrl: "/api/realtime/staff-token",
+      onConnectedChange: setRealtime,
+      onEvent: (name) => {
+        if (name !== "notification.changed") return;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => void reloadRef.current({ silent: true }), REALTIME_DEBOUNCE_MS);
+      },
+    });
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
+  }, []);
+
+  // Rede de segurança calma: sem o tempo real a lista ainda se confere a cada
+  // minuto e ao voltar para a aba.
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void reloadRef.current({ silent: true });
+    };
+    const interval = realtime ? undefined : window.setInterval(refreshIfVisible, FALLBACK_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      if (interval) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [realtime]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("openModal") === "true") {
@@ -302,17 +359,29 @@ export default function AdminPreOrdersPage() {
   }, [scoped]);
 
   const grouped = useMemo(() => {
-    return STAGE_ORDER.map((stage) => ({
-      stage,
-      items: visible.filter((preOrder) => stageOf(preOrder) === stage),
-    })).filter((group) => group.items.length > 0);
+    return STAGE_ORDER.map((stage) => {
+      const items = visible.filter((preOrder) => stageOf(preOrder) === stage);
+      // Quem espera resposta há mais tempo vem primeiro (mesma ordem da home):
+      // o que está perto de expirar é o mais urgente. As outras etapas seguem
+      // do mais novo para o mais antigo.
+      if (stage === "aprovacao") {
+        items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      }
+      return { stage, items };
+    }).filter((group) => group.items.length > 0);
   }, [visible]);
 
   const ordered = useMemo(() => grouped.flatMap((group) => group.items), [grouped]);
 
   // A visão de itens da trilha acompanha o que está na lista: filtrar por etapa
   // passa a responder "o que a cozinha tem em mãos".
-  const itemTally = useMemo(() => aggregateItems(visible), [visible]);
+  // Pedido que ainda espera aprovação não é produção: fora da conta, a menos que
+  // o operador tenha filtrado justamente por eles.
+  const produced = useMemo(
+    () => (stageFilter === "aprovacao" ? visible : visible.filter((preOrder) => !isAwaiting(preOrder))),
+    [visible, stageFilter],
+  );
+  const itemTally = useMemo(() => aggregateItems(produced), [produced]);
 
   const selected = useMemo(
     () => preOrders.find((preOrder) => preOrder.id === selectedId) ?? null,
@@ -339,6 +408,11 @@ export default function AdminPreOrdersPage() {
         : null,
     [nextToCharge],
   );
+
+  // Respondeu o último pedido aguardando: o filtro apontaria para uma etapa vazia.
+  useEffect(() => {
+    if (stageFilter === "aprovacao" && tally.aprovacao.count === 0) setStageFilter(null);
+  }, [stageFilter, tally.aprovacao.count]);
 
   // Mantém sempre um pedido em foco, sem escolher um que o filtro escondeu.
   useEffect(() => {
@@ -483,9 +557,20 @@ export default function AdminPreOrdersPage() {
     [showToast, tryDirectThermalPrint],
   );
 
+  const preOrdersRef = useRef(preOrders);
+  preOrdersRef.current = preOrders;
+
   const printTicket = useCallback(
-    (preOrderId: string) => printThermal("preOrder", preOrderId),
-    [printThermal],
+    (preOrderId: string) => {
+      // Comanda é ordem para a cozinha: pedido do cliente só imprime depois de aceito.
+      const target = preOrdersRef.current.find((preOrder) => preOrder.id === preOrderId);
+      if (target && isAwaiting(target)) {
+        showToast("Aceite ou recuse o pedido antes de imprimir a comanda.", "warning");
+        return Promise.resolve();
+      }
+      return printThermal("preOrder", preOrderId);
+    },
+    [printThermal, showToast],
   );
 
   useEffect(() => {
@@ -519,9 +604,17 @@ export default function AdminPreOrdersPage() {
         });
 
         if (!response.ok) {
-          throw new Error(
-            await errorMessageOf(response, "Não foi possível mudar a etapa. Verifique a conexão e tente de novo."),
+          const failure = await readFailure(
+            response,
+            "Não foi possível mudar a etapa. Verifique a conexão e tente de novo.",
           );
+          if (failure.awaiting) {
+            // Outro operador (ou a rede) deixou a tela desatualizada: mostra o motivo e se atualiza.
+            showToast(failure.message, "warning");
+            await loadPreOrders({ silent: true });
+            return;
+          }
+          throw new Error(failure.message);
         }
 
         await loadPreOrders({ silent: true });
@@ -566,9 +659,13 @@ export default function AdminPreOrdersPage() {
             showToast("Este pedido já foi convertido por outra pessoa.", "warning");
             return null;
           }
-          throw new Error(
-            await errorMessageOf(response, "Não foi possível concluir o recebimento. Nada foi alterado."),
-          );
+          const failure = await readFailure(response, "Não foi possível concluir o recebimento. Nada foi alterado.");
+          if (failure.awaiting) {
+            setReceivingOrder(null);
+            showToast(failure.message, "warning");
+            return null;
+          }
+          throw new Error(failure.message);
         }
 
         const order = await response.json();
@@ -594,24 +691,38 @@ export default function AdminPreOrdersPage() {
     [loadPreOrders, receivingOrder, showToast],
   );
 
+  /** Aceitou ou recusou um pedido do cliente: o pedido muda de etapa, então a lista se atualiza. */
+  const handleResponded = useCallback(() => {
+    void loadPreOrders({ silent: true });
+  }, [loadPreOrders]);
+
   const confirmDelete = useCallback(async () => {
     if (!deleteId) return;
     setDeleting(true);
 
     try {
       const response = await fetch(`/api/pre-orders?id=${deleteId}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Falha ao excluir.");
+      if (!response.ok) {
+        const failure = await readFailure(response, "Não foi possível excluir o pré-pedido.");
+        if (failure.awaiting) {
+          setDeleteId(null);
+          showToast(failure.message, "warning");
+          await loadPreOrders({ silent: true });
+          return;
+        }
+        throw new Error(failure.message);
+      }
 
       setPreOrders((current) => current.filter((preOrder) => preOrder.id !== deleteId));
       setDeleteId(null);
       showToast("Pré-pedido excluído.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Não foi possível excluir o pré-pedido.", "error");
+      showToast(error instanceof Error ? error.message : "Não foi possível excluir o pré-pedido.", "error");
     } finally {
       setDeleting(false);
     }
-  }, [deleteId, showToast]);
+  }, [deleteId, loadPreOrders, showToast]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -626,7 +737,7 @@ export default function AdminPreOrdersPage() {
         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary">
           <ShoppingCart className="h-5 w-5" />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <h1 className="truncate text-xl font-semibold text-[color:var(--foreground)]">Pré-Pedidos</h1>
           <p className="text-xs text-[color:var(--muted-foreground)]">
             {loading
@@ -640,7 +751,7 @@ export default function AdminPreOrdersPage() {
 
         <MoneyBoard openCents={money.open} dueCents={money.due} />
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:ml-auto md:w-auto md:flex-nowrap md:shrink-0">
           <div
             role="group"
             aria-label="Período"
@@ -665,13 +776,14 @@ export default function AdminPreOrdersPage() {
             ))}
           </div>
 
+          <div className="order-first w-full min-w-0 md:order-none md:w-56 md:min-w-[160px] md:shrink">
           <Input
             ref={searchRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cliente, telefone, produto"
+            placeholder="Cliente, telefone, produto, recado"
             aria-label="Buscar pré-pedido"
-            className="w-56 min-w-[160px] shrink"
+            className="w-full"
             leftIcon={<Search className="h-4 w-4" />}
             rightIcon={
               search ? (
@@ -681,6 +793,7 @@ export default function AdminPreOrdersPage() {
               ) : undefined
             }
           />
+          </div>
 
           <Button
             onClick={() => {
@@ -690,7 +803,8 @@ export default function AdminPreOrdersPage() {
             leftIcon={<Plus className="h-4 w-4" />}
             className="shrink-0"
           >
-            Novo pré-pedido
+            <span className="max-sm:hidden">Novo pré-pedido</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
 
           <ViewSettings
@@ -742,14 +856,15 @@ export default function AdminPreOrdersPage() {
           onStageChange={setStageFilter}
           billedCents={money.billed}
           items={itemTally}
-          itemsOrderCount={visible.length}
+          itemsOrderCount={produced.length}
+          itemsNotAccepted={stageFilter === "aprovacao"}
         />
       )}
 
       {/* Altura travada: cada coluna rola por dentro, como no PDV. A terceira
           coluna, o cupom, só entra quando há largura para ela. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_368px]">
-        <div className="scroll-slim flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] lg:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden max-lg:flex-none rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_368px]">
+        <div className="scroll-slim flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] max-lg:max-h-[60vh] lg:border-r">
           {loading && preOrders.length === 0 ? (
             <ListSkeleton />
           ) : ordered.length === 0 ? (
@@ -815,6 +930,7 @@ export default function AdminPreOrdersPage() {
                       selected={preOrder.id === selectedId}
                       now={now}
                       onSelect={(next) => setSelectedId(next.id)}
+                      onResponded={handleResponded}
                     />
                   ))}
                 </section>
@@ -845,6 +961,7 @@ export default function AdminPreOrdersPage() {
             onTrack={() => router.push(`/admin/pre-orders/${selected.id}/tracking`)}
             onCancel={() => setCancelTarget(selected)}
             onDelete={() => setDeleteId(selected.id)}
+            onResponded={handleResponded}
           />
         ) : (
           <div className="hidden items-start justify-center bg-[color:var(--background)] pt-16 lg:flex">

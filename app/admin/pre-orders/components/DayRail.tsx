@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Layers, Package, Scale } from "lucide-react";
+import { Hourglass, Layers, Package, Scale } from "lucide-react";
 import * as React from "react";
 import {
   RAIL_ORDER,
@@ -27,6 +27,8 @@ interface DayRailProps {
   billedCents: number;
   items: ItemTally[];
   itemsOrderCount: number;
+  /** O recorte são pedidos que ainda esperam aprovação: não é produção confirmada. */
+  itemsNotAccepted?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export function DayRail({
   billedCents,
   items,
   itemsOrderCount,
+  itemsNotAccepted = false,
 }: DayRailProps) {
   // A tela abre em "Itens": a primeira pergunta do dia é o que produzir.
   const [view, setView] = React.useState<RailView>("items");
@@ -68,6 +71,7 @@ export function DayRail({
     }
   };
 
+  const awaiting = tally.aprovacao;
   const stages = RAIL_ORDER.filter((stage) => tally[stage].count > 0);
   const totalOrders = stages.reduce((sum, stage) => sum + tally[stage].count, 0);
 
@@ -85,6 +89,29 @@ export function DayRail({
       className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] px-4 py-3 shadow-card"
     >
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {/* Pedido do cliente esperando resposta é urgente em qualquer exibição
+            da trilha: o contador fica fixo à esquerda e filtra como uma etapa. */}
+        {awaiting.count > 0 && (
+          <button
+            type="button"
+            onClick={() => onStageChange(activeStage === "aprovacao" ? null : "aprovacao")}
+            aria-pressed={activeStage === "aprovacao"}
+            title={`${awaiting.count} aguardando aprovação · ${formatCurrency(awaiting.totalCents)}`}
+            style={{ backgroundColor: "var(--state-pronto-solid)", color: "var(--state-pronto-on)" }}
+            className={cn(
+              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-xs font-bold",
+              "transition-all duration-200 hover:brightness-110",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2",
+              activeStage === "aprovacao" &&
+                "ring-2 ring-[color:var(--foreground)] ring-offset-2 ring-offset-[color:var(--card)]",
+            )}
+          >
+            <Hourglass className="h-4 w-4" aria-hidden="true" />
+            <span className="text-sm tabular-nums">{awaiting.count}</span>
+            aguardando aprovação
+          </button>
+        )}
+
         <h2 className="text-[11px] font-bold uppercase tracking-[0.11em] text-[color:var(--muted-foreground-strong)]">
           O dia
         </h2>
@@ -105,7 +132,7 @@ export function DayRail({
         <p className="text-xs text-[color:var(--muted-foreground-strong)]">
           {view === "stages"
             ? `${totalOrders} pedido${totalOrders !== 1 ? "s" : ""}`
-            : `${items.length} produto${items.length !== 1 ? "s" : ""} em ${itemsOrderCount} pedido${itemsOrderCount !== 1 ? "s" : ""}`}
+            : `${items.length} produto${items.length !== 1 ? "s" : ""} em ${itemsOrderCount} pedido${itemsOrderCount !== 1 ? "s" : ""}${itemsNotAccepted ? " ainda não aceitos" : ""}`}
         </p>
 
         {billedCents > 0 && (
@@ -155,7 +182,7 @@ export function DayRail({
       )}
 
       {view === "items" && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
+        <div className="scroll-slim mt-2.5 flex gap-2 max-sm:overflow-x-auto max-sm:pb-1 sm:flex-wrap">
           {shownItems.length === 0 && (
             <p className="py-2 text-xs text-[color:var(--muted-foreground-strong)]">
               Nenhum item nos pedidos deste recorte.
@@ -167,7 +194,7 @@ export function DayRail({
           {restItems.length > 0 && (
             <span
               title={restItems.map((item) => `${item.name}: ${formatTallyAmount(item)}`).join("\n")}
-              className="flex min-w-[110px] flex-1 items-center justify-center rounded-lg border border-dashed border-[color:var(--border-dark)] px-2.5 py-2 text-xs font-semibold text-[color:var(--muted-foreground-strong)]"
+              className="flex min-w-[110px] flex-1 items-center justify-center max-sm:flex-none rounded-lg border border-dashed border-[color:var(--border-dark)] px-2.5 py-2 text-xs font-semibold text-[color:var(--muted-foreground-strong)]"
             >
               +{restItems.length} produto{restItems.length !== 1 ? "s" : ""}
             </span>
@@ -190,7 +217,7 @@ function ItemTile({ item, max }: { item: ItemTally; max: number }) {
   return (
     <span
       title={`${item.name}: ${formatTallyAmount(item)}`}
-      className="flex min-w-[132px] max-w-[220px] flex-1 flex-col gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)] px-2.5 py-1.5"
+      className="flex min-w-[132px] max-w-[220px] flex-1 flex-col max-sm:flex-none gap-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)] px-2.5 py-1.5"
     >
       <span className="flex items-baseline gap-1.5">
         {item.byWeight && (

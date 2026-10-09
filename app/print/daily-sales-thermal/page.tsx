@@ -140,7 +140,11 @@ function DailySalesThermalContent() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // "AAAA-MM-DD" é um dia, não um instante: new Date() o leria como meia-noite UTC e mostraria o dia anterior
+    const dayOnly = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = dayOnly
+      ? new Date(Number(dayOnly[1]), Number(dayOnly[2]) - 1, Number(dayOnly[3]))
+      : new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',

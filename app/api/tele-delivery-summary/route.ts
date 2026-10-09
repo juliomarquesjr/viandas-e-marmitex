@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { dateStringSP, endOfDaySP, startOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 
 interface TeleDeliverySale {
@@ -29,18 +30,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validar e parsear datas como locais (evita off-by-one por UTC)
-    const parseLocalDate = (dateStr: string, endOfDay: boolean): Date => {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      if (endOfDay) {
-        return new Date(y, m - 1, d, 23, 59, 59, 999);
-      }
-      return new Date(y, m - 1, d, 0, 0, 0, 0);
-    };
-    const start = parseLocalDate(startDate, false);
-    const end = parseLocalDate(endDate, true);
+    // O dia é o dia em Brasília (ver lib/date-range.ts)
+    const start = startOfDaySP(startDate);
+    const end = endOfDaySP(endDate);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (!start || !end) {
       return NextResponse.json(
         { error: 'Datas inválidas' },
         { status: 400 }
@@ -79,9 +73,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Formatar data em YYYY-MM-DD no fuso local (evita deslocamento ao agrupar)
-    const toLocalDateKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    // Dia da venda em Brasília (o servidor roda em UTC; ver lib/date-range.ts)
+    const toLocalDateKey = (d: Date) => dateStringSP(d);
 
     // Processar dados
     const sales: TeleDeliverySale[] = orders.flatMap((order: any) =>

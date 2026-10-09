@@ -40,6 +40,7 @@ Exigem a sessão do cliente (NextAuth em `/api/auth/customer`) e só devolvem da
 - GET `/api/customer/pre-orders` · GET `/api/customer/pre-orders/:id/delivery` e `/tracking`
 - GET `/api/customer/notifications` (avisos derivados de pedidos e ficha)
 - GET/POST `/api/customer/payment-intents` ("Já paguei")
+- GET `/api/customer/ordering/menu` · POST `/api/customer/ordering/orders` (header `Idempotency-Key`) · POST `/api/customer/pre-orders/:id/cancel` (pedido online; ver [pedido-online.md](./pedido-online.md))
 - POST `/api/customer/forgot-password` e `/reset-password`
 - GET `/api/customer/realtime-token` (204 sem `ABLY_API_KEY`)
 
@@ -47,6 +48,10 @@ Exigem a sessão do cliente (NextAuth em `/api/auth/customer`) e só devolvem da
 - GET `/api/notifications` · POST `/api/notifications/:id/read` e `/read-all`
 - GET `/api/payment-intents/:id` · POST `/api/payment-intents/:id/confirm` (aceita `amountCents`) e `/reject` (aceita `reason`)
 - GET `/api/realtime/staff-token` (só funcionário; 204 sem `ABLY_API_KEY`)
+
+### Pedido online (admin)
+- GET/PUT `/api/admin/customer-ordering` (só admin: interruptor, pausa, "esgotou hoje" e janelas de horário)
+- POST `/api/pre-orders/:id/respond` (só admin: `accept` com previsão ou `reject` com motivo)
 
 ### Público (sem login)
 - GET `/api/public/pre-orders/:id/delivery` e `/tracking` (usados pelo rastreio por link)

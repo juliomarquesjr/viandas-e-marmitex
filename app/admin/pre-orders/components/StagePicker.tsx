@@ -8,6 +8,8 @@ import { STAGE_META, STATUS_OF_STAGE, selectableStages, type PreOrderStage } fro
 interface StagePickerProps {
   stage: PreOrderStage;
   disabled?: boolean;
+  /** Etapa só de leitura: pedido recusado ou cancelado pelo cliente não muda mais. */
+  locked?: boolean;
   onChange: (status: string) => void;
 }
 
@@ -16,13 +18,13 @@ interface StagePickerProps {
  * caminho normal — daqui dá para ir para qualquer ponto, inclusive voltar um
  * pedido para a fila ou marcar direto como entregue.
  */
-export function StagePicker({ stage, disabled, onChange }: StagePickerProps) {
+export function StagePicker({ stage, disabled, locked, onChange }: StagePickerProps) {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
   const meta = STAGE_META[stage];
   const options = selectableStages();
-  const closed = STATUS_OF_STAGE[stage] === null;
+  const closed = locked || STATUS_OF_STAGE[stage] === null;
 
   React.useEffect(() => {
     if (!open) return;

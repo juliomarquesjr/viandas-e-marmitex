@@ -14,6 +14,7 @@ import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Calendar, ExternalLink, FileText, Package, Printer, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { localDateString, todaySP } from "@/lib/date-range";
 
 interface TeleDeliverySummaryModalProps {
   open: boolean;
@@ -36,12 +37,10 @@ export function TeleDeliverySummaryModal({
   onOpenChange,
 }: TeleDeliverySummaryModalProps) {
   const [startDate, setStartDate] = useState<string>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split("T")[0]
+    localDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   );
   const [endDate, setEndDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+    todaySP()
   );
   const [dateError, setDateError] = useState<string>("");
   const [selectedPreset, setSelectedPreset] = useState<"current" | "previous" | null>("current");
@@ -85,8 +84,8 @@ export function TeleDeliverySummaryModal({
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    setStartDate(firstDay.toISOString().split("T")[0]);
-    setEndDate(lastDay.toISOString().split("T")[0]);
+    setStartDate(localDateString(firstDay));
+    setEndDate(localDateString(lastDay));
     setDateError("");
     setSelectedPreset("current");
   };
@@ -95,8 +94,8 @@ export function TeleDeliverySummaryModal({
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-    setStartDate(firstDay.toISOString().split("T")[0]);
-    setEndDate(lastDay.toISOString().split("T")[0]);
+    setStartDate(localDateString(firstDay));
+    setEndDate(localDateString(lastDay));
     setDateError("");
     setSelectedPreset("previous");
   };

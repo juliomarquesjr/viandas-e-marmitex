@@ -29,3 +29,13 @@ export async function requireStaff(): Promise<{ staff: StaffSession } | { error:
   }
   return { staff: { userId: session.user.id, name: session.user.name ?? '', role } };
 }
+
+/** Só o administrador (o perfil PDV não passa). */
+export async function requireAdmin(): Promise<{ staff: StaffSession } | { error: NextResponse }> {
+  const auth = await requireStaff();
+  if ('error' in auth) return auth;
+  if (auth.staff.role !== 'admin') {
+    return { error: NextResponse.json({ error: 'Apenas o administrador pode fazer isso' }, { status: 403 }) };
+  }
+  return auth;
+}

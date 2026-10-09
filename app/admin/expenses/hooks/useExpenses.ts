@@ -9,6 +9,7 @@ import {
 } from "@/lib/types";
 import { useToast } from "@/app/components/Toast";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { localDateString } from "@/lib/date-range";
 
 export type ViewMode = "list" | "calendar";
 
@@ -183,8 +184,8 @@ export function useExpenses(): ExpensesState {
       if (viewMode === "calendar") {
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
-        normalized.startDate = new Date(year, month, 1).toISOString().split("T")[0];
-        normalized.endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+        normalized.startDate = localDateString(new Date(year, month, 1));
+        normalized.endDate = localDateString(new Date(year, month + 1, 0));
         limit = 1000;
       } else {
         limit = 10000;
@@ -308,7 +309,7 @@ export function useExpenses(): ExpensesState {
   };
 
   const getExpensesForDate = (date: Date): ExpenseWithRelations[] => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = localDateString(date);
     return expenses.filter((e) => new Date(e.date).toISOString().split("T")[0] === dateStr);
   };
 

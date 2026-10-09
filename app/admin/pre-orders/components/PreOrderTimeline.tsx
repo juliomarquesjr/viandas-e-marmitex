@@ -47,7 +47,7 @@ export function PreOrderTimeline({ preOrder, now }: { preOrder: PreOrder; now: D
     {
       key: "created",
       at: new Date(preOrder.createdAt),
-      title: CREATED_EVENT.title,
+      title: preOrder.source === "online" ? "Pedido feito pelo cliente" : CREATED_EVENT.title,
       detail: `${preOrder.items.length} item${preOrder.items.length !== 1 ? "s" : ""}`,
       icon: CREATED_EVENT.icon,
       token: CREATED_EVENT.token,
@@ -71,6 +71,31 @@ export function PreOrderTimeline({ preOrder, now }: { preOrder: PreOrder; now: D
       icon: event?.icon ?? ClipboardList,
       token: event?.token ?? "fila",
     });
+  }
+
+  // A resposta do operador ao pedido do cliente também faz parte da história.
+  if (preOrder.source === "online" && preOrder.respondedAt) {
+    if (preOrder.approval === "accepted") {
+      events.push({
+        key: "accepted",
+        at: new Date(preOrder.respondedAt),
+        title: "Pedido aceito",
+        detail: preOrder.estimatedDeliveryTime
+          ? `Previsão para ${formatTime(preOrder.estimatedDeliveryTime)}`
+          : "Sem previsão informada",
+        icon: CheckCircle2,
+        token: "producao",
+      });
+    } else if (preOrder.approval === "rejected") {
+      events.push({
+        key: "rejected",
+        at: new Date(preOrder.respondedAt),
+        title: "Pedido recusado",
+        detail: preOrder.rejectReason?.trim() || "Sem motivo informado",
+        icon: XCircle,
+        token: "cancelado",
+      });
+    }
   }
 
   events.sort((a, b) => a.at.getTime() - b.at.getTime());

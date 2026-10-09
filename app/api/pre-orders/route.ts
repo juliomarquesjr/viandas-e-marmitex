@@ -1,6 +1,9 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { parseDayRange } from '@/lib/date-range';
+import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
+import { requireStaff } from '@/lib/staff-session';
 import {
   isCashMethod,
   isPaymentMethod,
@@ -113,6 +116,10 @@ function buildPreOrderItems(
 
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
+  // Telefone, endereço e itens dos clientes: só para funcionário logado (a lista e o pedido por id)
+  const auth = await requireStaff();
+  if ('error' in auth) return auth.error;
+
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   
@@ -137,23 +144,13 @@ export async function GET(request: Request) {
       where.customerId = customerId;
     }
     
-    // Filtro por data
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        // Criar data no fuso horário local e ajustar para UTC
-        const [year, month, day] = startDate.split('-').map(Number);
-        const startDateTimeLocal = new Date(year, month - 1, day, 0, 0, 0, 0);
-        const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
-        where.createdAt.gte = startDateTime;
-      }
-      if (endDate) {
-        // Criar data no fuso horário local e ajustar para UTC
-        const [year, month, day] = endDate.split('-').map(Number);
-        const endDateTimeLocal = new Date(year, month - 1, day, 23, 59, 59, 999);
-        const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
-        where.createdAt.lte = endDateTime;
-      }
+    // Filtro por data: o dia é o dia em Brasília (ver lib/date-range.ts)
+    const range = parseDayRange(startDate, endDate);
+    if (range === 'invalid') {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
+    }
+    if (range) {
+      where.createdAt = range;
     }
     
     const [preOrders, total] = await Promise.all([
@@ -175,6 +172,11 @@ export async function GET(request: Request) {
           estimatedDeliveryTime: true,
           deliveryStartedAt: true,
           deliveredAt: true,
+          // Pedido feito pelo cliente: a Mesa mostra o selo Online e a aprovação
+          source: true,
+          approval: true,
+          respondedAt: true,
+          rejectReason: true,
           customer: {
             select: preOrderCustomerSelect
           },
@@ -222,7 +224,9 @@ async function getPreOrderById(id: string) {
     const preOrder = await prisma.preOrder.findUnique({
       where: { id },
       include: {
-        customer: true,
+        customer: {
+          select: preOrderCustomerSelect
+        },
         items: {
           include: {
             product: true
@@ -399,6 +403,14 @@ async function convertPreOrderToOrder(request: Request) {
         { error: 'Pre-order not found' },
         { status: 404 }
       );
+    }
+
+    // Pedido do cliente que o admin ainda não aceitou não vira venda
+    if (isAwaitingApproval(preOrder)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+    if (isClosedOnline(preOrder)) {
+      return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
     }
     
     // Sem valor digitado, dinheiro contado é o valor exato da comanda.
@@ -594,6 +606,15 @@ export async function PUT(request: Request) {
     const deliveryFeeCents = body.deliveryFeeCents || 0;
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
     
+    // Pedido do cliente aguardando resposta não é editado: o admin aceita ou recusa antes
+    const current = await prisma.preOrder.findUnique({ where: { id: body.id }, select: { source: true, approval: true } });
+    if (current && isAwaitingApproval(current)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+    if (current && isClosedOnline(current)) {
+      return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
+    }
+
     // Atualizar pré-pedido
     const preOrder = await prisma.preOrder.update({
       where: { id: body.id },
@@ -656,7 +677,10 @@ export async function DELETE(request: Request) {
       );
     }
     
-    const owner = await prisma.preOrder.findUnique({ where: { id }, select: { customerId: true } });
+    const owner = await prisma.preOrder.findUnique({ where: { id }, select: { customerId: true, source: true, approval: true } });
+    if (owner && isAwaitingApproval(owner)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
 
     // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
     // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos
