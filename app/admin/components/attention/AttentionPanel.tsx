@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Banknote, BellRing, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Banknote, BellRing, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AwaitingOrderDTO, NotificationDTO } from "@/lib/notification-types";
@@ -133,8 +133,12 @@ export function AttentionPanel() {
 
   const sectionRef = React.useRef<HTMLElement>(null);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
+  const clearRef = React.useRef<HTMLParagraphElement>(null);
 
   const total = awaitingOrdersCount + pendingPaymentsCount;
+  const totalRef = React.useRef(total);
+  totalRef.current = total;
+  const expiredCount = awaitingOrders.filter((o) => o.expired).length;
 
   // A preferência de recolher vem do navegador; o painel só aparece depois da primeira carga,
   // então ler aqui não causa salto na tela
@@ -205,7 +209,10 @@ export function AttentionPanel() {
 
   const answered = async (rowIndex: number) => {
     await refresh();
-    focusAfterAnswer(sectionRef.current, rowIndex, headingRef.current);
+    // Sem mais nada esperando, o painel vira "Tudo em dia": o foco vai para a faixa
+    focusAfterAnswer(sectionRef.current, rowIndex, () =>
+      totalRef.current === 0 ? clearRef.current : headingRef.current
+    );
   };
 
   const handleOrderResponded = (order: AwaitingOrderDTO) => {
@@ -284,6 +291,19 @@ export function AttentionPanel() {
                       <span aria-hidden>·</span>
                       <span className="sr-only">, </span>
                       <span>{plural(pendingPaymentsCount, "pagamento para conferir", "pagamentos para conferir")}</span>
+                    </>
+                  )}
+                  {expiredCount > 0 && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span className="sr-only">, </span>
+                      <span
+                        className="inline-flex items-center gap-1 font-bold"
+                        style={{ color: "var(--state-cobrar-fg)" }}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {plural(expiredCount, "expirado", "expirados")}
+                      </span>
                     </>
                   )}
                 </h2>
@@ -381,7 +401,9 @@ export function AttentionPanel() {
         {loaded && total === 0 && (
           <motion.div key="all-clear" className="mt-6" {...enter}>
             <p
-              className="flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
+              ref={clearRef}
+              tabIndex={-1}
+              className="flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary"
               style={{ background: "var(--state-faturado-bg)", color: "var(--state-faturado-fg)" }}
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />

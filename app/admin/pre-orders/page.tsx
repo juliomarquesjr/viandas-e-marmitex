@@ -359,10 +359,16 @@ export default function AdminPreOrdersPage() {
   }, [scoped]);
 
   const grouped = useMemo(() => {
-    return STAGE_ORDER.map((stage) => ({
-      stage,
-      items: visible.filter((preOrder) => stageOf(preOrder) === stage),
-    })).filter((group) => group.items.length > 0);
+    return STAGE_ORDER.map((stage) => {
+      const items = visible.filter((preOrder) => stageOf(preOrder) === stage);
+      // Quem espera resposta há mais tempo vem primeiro (mesma ordem da home):
+      // o que está perto de expirar é o mais urgente. As outras etapas seguem
+      // do mais novo para o mais antigo.
+      if (stage === "aprovacao") {
+        items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      }
+      return { stage, items };
+    }).filter((group) => group.items.length > 0);
   }, [visible]);
 
   const ordered = useMemo(() => grouped.flatMap((group) => group.items), [grouped]);
@@ -731,7 +737,7 @@ export default function AdminPreOrdersPage() {
         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary">
           <ShoppingCart className="h-5 w-5" />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <h1 className="truncate text-xl font-semibold text-[color:var(--foreground)]">Pré-Pedidos</h1>
           <p className="text-xs text-[color:var(--muted-foreground)]">
             {loading
@@ -745,7 +751,7 @@ export default function AdminPreOrdersPage() {
 
         <MoneyBoard openCents={money.open} dueCents={money.due} />
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:ml-auto md:w-auto md:flex-nowrap md:shrink-0">
           <div
             role="group"
             aria-label="Período"
@@ -770,13 +776,14 @@ export default function AdminPreOrdersPage() {
             ))}
           </div>
 
+          <div className="order-first w-full min-w-0 md:order-none md:w-56 md:min-w-[160px] md:shrink">
           <Input
             ref={searchRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cliente, telefone, produto, recado"
             aria-label="Buscar pré-pedido"
-            className="w-56 min-w-[160px] shrink"
+            className="w-full"
             leftIcon={<Search className="h-4 w-4" />}
             rightIcon={
               search ? (
@@ -786,6 +793,7 @@ export default function AdminPreOrdersPage() {
               ) : undefined
             }
           />
+          </div>
 
           <Button
             onClick={() => {
@@ -795,7 +803,8 @@ export default function AdminPreOrdersPage() {
             leftIcon={<Plus className="h-4 w-4" />}
             className="shrink-0"
           >
-            Novo pré-pedido
+            <span className="max-sm:hidden">Novo pré-pedido</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
 
           <ViewSettings
@@ -848,13 +857,14 @@ export default function AdminPreOrdersPage() {
           billedCents={money.billed}
           items={itemTally}
           itemsOrderCount={produced.length}
+          itemsNotAccepted={stageFilter === "aprovacao"}
         />
       )}
 
       {/* Altura travada: cada coluna rola por dentro, como no PDV. A terceira
           coluna, o cupom, só entra quando há largura para ela. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_368px]">
-        <div className="scroll-slim flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] lg:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden max-lg:flex-none rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_368px]">
+        <div className="scroll-slim flex min-h-0 flex-col overflow-y-auto border-[color:var(--border)] max-lg:max-h-[60vh] lg:border-r">
           {loading && preOrders.length === 0 ? (
             <ListSkeleton />
           ) : ordered.length === 0 ? (

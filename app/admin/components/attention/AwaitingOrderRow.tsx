@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AwaitingOrderDTO } from "@/lib/notification-types";
 import { formatCurrency, formatRelativeTime } from "../notifications/format";
@@ -13,7 +13,10 @@ export function AgeLabel({ createdAt, now, urgency }: { createdAt: string; now: 
   return (
     <time
       dateTime={createdAt}
-      className={cn("text-xs tabular-nums", urgency === "calm" ? "text-[color:var(--muted-foreground)]" : "font-bold")}
+      className={cn(
+        "text-xs tabular-nums",
+        urgency === "calm" ? "text-[color:var(--muted-foreground)]" : "inline-flex items-center gap-1 font-bold"
+      )}
       style={
         urgency === "warning"
           ? { color: "var(--state-pronto-fg)" }
@@ -22,6 +25,7 @@ export function AgeLabel({ createdAt, now, urgency }: { createdAt: string; now: 
             : undefined
       }
     >
+      {urgency === "warning" && <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />}
       {formatRelativeTime(createdAt, now)}
     </time>
   );
@@ -89,6 +93,8 @@ export function AwaitingOrderRow({ order, now, variant = "home", onResponded }: 
       orderId={order.id}
       customerName={order.customerName}
       expired={order.expired}
+      summary={order.summary}
+      totalCents={order.totalCents}
       onResponded={(action) => onResponded(order, action)}
       className={cn("shrink-0 [&>button]:flex-1", compact ? "w-full" : "w-full sm:w-auto sm:[&>button]:flex-none")}
     />

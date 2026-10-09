@@ -67,15 +67,16 @@ export function NotificationBell() {
   // Clique fora fecha o painel
   React.useEffect(() => {
     if (!panelOpen) return;
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: PointerEvent) {
       // Um diálogo aberto a partir do painel (aceitar/recusar) vive fora dele: clicar nele não fecha o painel
       if (hasOpenDialog()) return;
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setPanelOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Na captura, para checar o diálogo ANTES de ele se fechar com o mesmo clique
+    document.addEventListener("pointerdown", handleClickOutside, true);
+    return () => document.removeEventListener("pointerdown", handleClickOutside, true);
   }, [panelOpen]);
 
   // Esc fecha o painel e devolve o foco ao sino
@@ -84,8 +85,10 @@ export function NotificationBell() {
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape" && !hasOpenDialog()) closePanel(true);
     }
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    // Na captura: o diálogo (Radix) fecha no Esc e some do DOM antes de o nosso ouvinte comum rodar,
+    // e o Esc fecharia os dois
+    document.addEventListener("keydown", handleEscape, true);
+    return () => document.removeEventListener("keydown", handleEscape, true);
   }, [panelOpen, closePanel]);
 
   // Ao abrir, o foco vai para o painel (o Tab segue para o primeiro item)

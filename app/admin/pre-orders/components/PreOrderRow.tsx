@@ -9,6 +9,7 @@ import {
   describeItems,
   formatCurrency,
   formatElapsed,
+  formatTime,
   initialsOf,
   isAwaiting,
   isExpiredAwaiting,
@@ -138,6 +139,8 @@ export function PreOrderRow({ preOrder, selected, onSelect, now, onResponded }: 
           <OrderResponseButtons
             orderId={preOrder.id}
             customerName={preOrder.customer?.name}
+            summary={describeItems(preOrder.items, 6)}
+            totalCents={preOrder.totalCents}
             expired={isExpiredAwaiting(preOrder, now)}
             onResponded={() => onResponded?.()}
           />
@@ -177,6 +180,23 @@ function RowTick({
   }
 
   const elapsed = formatElapsed(preOrder.createdAt, now);
-  if (!elapsed) return null;
-  return <span className="text-[11px] text-[color:var(--muted-foreground-strong)]">{elapsed}</span>;
+
+  // Pedido do cliente já aceito: a hora prometida é o que o operador precisa ver.
+  const promised =
+    preOrder.source === "online" &&
+    preOrder.approval === "accepted" &&
+    preOrder.estimatedDeliveryTime &&
+    (stage === "fila" || stage === "producao" || stage === "pronto" || stage === "rota");
+
+  if (!promised && !elapsed) return null;
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-[color:var(--muted-foreground-strong)]">
+      {promised && (
+        <span className="font-bold tabular-nums text-[color:var(--foreground)]">
+          previsão {formatTime(preOrder.estimatedDeliveryTime as string)}
+        </span>
+      )}
+      {elapsed}
+    </span>
+  );
 }

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/app/components/ui/textarea";
 import { useToast } from "@/app/components/Toast";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "../notifications/format";
 
 /**
  * Aceitar e Recusar um pedido que o cliente fez pela área dele (POST /api/pre-orders/[id]/respond).
@@ -43,6 +44,10 @@ interface ButtonsProps {
   customerName?: string | null;
   /** Ficou sem resposta além do prazo: só dá para recusar. */
   expired?: boolean;
+  /** O que o cliente pediu ("2 × Marmita M, 1 × Suco"), mostrado dentro dos diálogos para decidir sem sair dali. */
+  summary?: string | null;
+  /** Valor do pedido, em centavos, mostrado nos diálogos. */
+  totalCents?: number | null;
   /** Depois de aceitar ou recusar com sucesso (ou se o pedido já tinha sido respondido). */
   onResponded?: (action: "accept" | "reject") => void;
   className?: string;
@@ -50,9 +55,45 @@ interface ButtonsProps {
 }
 
 /** [Recusar] [Aceitar]: Aceitar pergunta a previsão; Recusar pergunta o motivo. */
-export function OrderResponseButtons({ orderId, customerName, expired, onResponded, className, size = "sm" }: ButtonsProps) {
+export function OrderResponseButtons({
+  orderId,
+  customerName,
+  expired,
+  summary,
+  totalCents,
+  onResponded,
+  className,
+  size = "sm",
+}: ButtonsProps) {
+  const { showToast } = useToast();
   const [dialog, setDialog] = React.useState<"accept" | "reject" | null>(null);
   const who = customerName?.trim() || "o cliente";
+
+  // Se o pedido sai da tela com um diálogo aberto e não fomos nós que respondemos (outra pessoa
+  // respondeu), o diálogo some junto: avisa, para o operador não achar que o clique foi perdido
+  const openRef = React.useRef<"accept" | "reject" | null>(null);
+  const whoRef = React.useRef(customerName?.trim() || null);
+  const toastRef = React.useRef(showToast);
+  React.useEffect(() => {
+    openRef.current = dialog;
+    whoRef.current = customerName?.trim() || null;
+    toastRef.current = showToast;
+  });
+  React.useEffect(
+    () => () => {
+      if (openRef.current === null) return;
+      const name = whoRef.current;
+      toastRef.current(
+        name ? `O pedido de ${name} já foi respondido por outra pessoa.` : "Este pedido já foi respondido por outra pessoa.",
+        "info"
+      );
+    },
+    []
+  );
+  const closeDialog = () => {
+    openRef.current = null;
+    setDialog(null);
+  };
 
   return (
     <>
@@ -73,13 +114,15 @@ export function OrderResponseButtons({ orderId, customerName, expired, onRespond
         open={dialog === "accept"}
         orderId={orderId}
         who={who}
-        onClose={() => setDialog(null)}
+        summary={summary}
+        totalCents={totalCents}
+        onClose={closeDialog}
         onDone={() => {
-          setDialog(null);
+          closeDialog();
           onResponded?.("accept");
         }}
         onAlreadyAnswered={() => {
-          setDialog(null);
+          closeDialog();
           onResponded?.("accept");
         }}
       />
@@ -88,13 +131,15 @@ export function OrderResponseButtons({ orderId, customerName, expired, onRespond
         orderId={orderId}
         who={who}
         expired={expired}
-        onClose={() => setDialog(null)}
+        summary={summary}
+        totalCents={totalCents}
+        onClose={closeDialog}
         onDone={() => {
-          setDialog(null);
+          closeDialog();
           onResponded?.("reject");
         }}
         onAlreadyAnswered={() => {
-          setDialog(null);
+          closeDialog();
           onResponded?.("reject");
         }}
       />
@@ -107,13 +152,37 @@ interface DialogProps {
   orderId: string;
   who: string;
   expired?: boolean;
+  summary?: string | null;
+  totalCents?: number | null;
   onClose: () => void;
   onDone: () => void;
   /** O pedido já tinha sido respondido (outro operador ou o cliente cancelou): só atualiza a tela. */
   onAlreadyAnswered: () => void;
 }
 
-export function AcceptOrderDialog({ open, orderId, who, onClose, onDone, onAlreadyAnswered }: DialogProps) {
+/** Diálogos ficam acima do botão flutuante do assistente (z-90) e do painel dele (z-100). */
+const DIALOG_OVERLAY_Z = "z-[110]";
+const DIALOG_CONTENT_Z = "z-[111]";
+const DIALOG_FOOTER = "gap-2 border-[color:var(--border)] bg-[color:var(--muted)]";
+const CHIP_BASE =
+  "inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
+/** Quem pediu, quanto e o quê: o dono decide sem fechar o diálogo para conferir. */
+function OrderRecap({ who, summary, totalCents }: { who: string; summary?: string | null; totalCents?: number | null }) {
+  const hasValue = typeof totalCents === "number";
+  if (!summary && !hasValue) return null;
+  return (
+    <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--muted)] px-3 py-2.5 text-sm">
+      <p className="font-semibold text-[color:var(--foreground)]">
+        {who}
+        {hasValue && <span className="tabular-nums"> · {formatCurrency(totalCents)}</span>}
+      </p>
+      {summary && <p className="mt-0.5 text-[color:var(--muted-foreground)]">{summary}</p>}
+    </div>
+  );
+}
+
+export function AcceptOrderDialog({ open, orderId, who, summary, totalCents, onClose, onDone, onAlreadyAnswered }: DialogProps) {
   const { showToast } = useToast();
   const [minutes, setMinutes] = React.useState<number | null>(30);
   const [busy, setBusy] = React.useState(false);
@@ -136,11 +205,13 @@ export function AcceptOrderDialog({ open, orderId, who, onClose, onDone, onAlrea
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !busy && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className={`max-w-sm bg-[color:var(--card)] ${DIALOG_CONTENT_Z}`} overlayClassName={DIALOG_OVERLAY_Z}>
         <DialogHeader>
           <DialogTitle>Aceitar o pedido de {who}</DialogTitle>
           <DialogDescription>Em quanto tempo fica pronto? O cliente vê a previsão na área dele.</DialogDescription>
         </DialogHeader>
+        <div className="space-y-4 px-6 py-5 text-[color:var(--foreground)]">
+        <OrderRecap who={who} summary={summary} totalCents={totalCents} />
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Previsão de preparo">
           {ACCEPT_MINUTES.map((value) => (
             <button
@@ -150,7 +221,7 @@ export function AcceptOrderDialog({ open, orderId, who, onClose, onDone, onAlrea
               aria-checked={minutes === value}
               onClick={() => setMinutes(value)}
               className={cn(
-                "inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border px-4 text-sm font-semibold transition-colors",
+                CHIP_BASE,
                 minutes === value
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-[color:var(--border)] bg-[color:var(--card)] hover:bg-[color:var(--muted)]"
@@ -166,14 +237,15 @@ export function AcceptOrderDialog({ open, orderId, who, onClose, onDone, onAlrea
             aria-checked={minutes === null}
             onClick={() => setMinutes(null)}
             className={cn(
-              "inline-flex min-h-[44px] items-center rounded-lg border px-4 text-sm font-semibold transition-colors",
+              CHIP_BASE,
               minutes === null ? "border-primary bg-primary text-primary-foreground" : "border-[color:var(--border)] bg-[color:var(--card)] hover:bg-[color:var(--muted)]"
             )}
           >
             Sem previsão
           </button>
         </div>
-        <DialogFooter className="gap-2">
+        </div>
+        <DialogFooter className={DIALOG_FOOTER}>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Voltar
           </Button>
@@ -186,7 +258,7 @@ export function AcceptOrderDialog({ open, orderId, who, onClose, onDone, onAlrea
   );
 }
 
-export function RejectOrderDialog({ open, orderId, who, expired, onClose, onDone, onAlreadyAnswered }: DialogProps) {
+export function RejectOrderDialog({ open, orderId, who, expired, summary, totalCents, onClose, onDone, onAlreadyAnswered }: DialogProps) {
   const { showToast } = useToast();
   const [chip, setChip] = React.useState<string | null>(null);
   const [text, setText] = React.useState("");
@@ -218,11 +290,13 @@ export function RejectOrderDialog({ open, orderId, who, expired, onClose, onDone
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !busy && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className={`max-w-sm bg-[color:var(--card)] ${DIALOG_CONTENT_Z}`} overlayClassName={DIALOG_OVERLAY_Z}>
         <DialogHeader>
           <DialogTitle>Recusar o pedido de {who}</DialogTitle>
           <DialogDescription>O cliente vê o motivo na área dele. Escolha um ou escreva.</DialogDescription>
         </DialogHeader>
+        <div className="space-y-4 px-6 py-5 text-[color:var(--foreground)]">
+        <OrderRecap who={who} summary={summary} totalCents={totalCents} />
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Motivo da recusa">
           {REJECT_REASONS.map((value) => (
             <button
@@ -232,7 +306,7 @@ export function RejectOrderDialog({ open, orderId, who, expired, onClose, onDone
               aria-checked={chip === value}
               onClick={() => setChip(chip === value ? null : value)}
               className={cn(
-                "inline-flex min-h-[44px] items-center rounded-lg border px-4 text-sm font-semibold transition-colors",
+                CHIP_BASE,
                 chip === value ? "border-primary bg-primary text-primary-foreground" : "border-[color:var(--border)] bg-[color:var(--card)] hover:bg-[color:var(--muted)]"
               )}
             >
@@ -247,7 +321,8 @@ export function RejectOrderDialog({ open, orderId, who, expired, onClose, onDone
           rows={3}
           aria-label="Recado para o cliente"
         />
-        <DialogFooter className="gap-2">
+        </div>
+        <DialogFooter className={DIALOG_FOOTER}>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Voltar
           </Button>

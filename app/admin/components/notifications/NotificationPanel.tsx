@@ -101,7 +101,7 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
         className={cn(
-          "absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-lg outline-none",
+          "fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] shadow-lg outline-none",
           className
         )}
       >
@@ -121,7 +121,7 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
           )}
         </div>
 
-        <div className="max-h-[26rem] min-h-[120px] overflow-y-auto">
+        <div className="max-h-[min(26rem,calc(100dvh-20rem))] min-h-[120px] overflow-y-auto">
           {loaded && awaitingOrdersCount > 0 && (
             <section aria-labelledby={`${id}-needs-you`} className="border-b border-[color:var(--border)] bg-[color:var(--muted)]/40 px-3 py-3">
               <h3

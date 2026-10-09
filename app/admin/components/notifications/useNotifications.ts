@@ -150,11 +150,19 @@ export function useNotificationsEngine({ enabled = true }: UseNotificationsOptio
     return run;
   }, [announceNew]);
 
+  // A primeira consulta acontece uma vez só, ao montar (mudar de polling quando o tempo real conecta
+  // não pode disparar outra)
   React.useEffect(() => {
     if (!enabled) return;
     mountedRef.current = true;
     void refresh();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [refresh, enabled]);
 
+  React.useEffect(() => {
+    if (!enabled) return;
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
     }, realtime ? SAFETY_POLL_MS : NOTIFICATIONS_POLL_MS);
@@ -165,7 +173,6 @@ export function useNotificationsEngine({ enabled = true }: UseNotificationsOptio
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      mountedRef.current = false;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };

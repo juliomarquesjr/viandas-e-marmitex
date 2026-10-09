@@ -21,12 +21,13 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AWAITING_HINT,
   formatCurrency,
   formatDateTime,
   formatTime,
+  describeItems,
   formatWhen,
   fulfillmentOf,
   initialsOf,
@@ -44,6 +45,8 @@ import { AwaitingWait, OnlineBadge } from "./OnlineBadge";
 import { PreOrderTimeline } from "./PreOrderTimeline";
 import { StagePicker } from "./StagePicker";
 import { ThermalTicket } from "./ThermalTicket";
+
+const CLOSED_HINT = "Pedido encerrado";
 
 type Action =
   | { kind: "status"; next: string; label: string; icon: typeof Truck }
@@ -145,6 +148,9 @@ export function PreOrderDossier({
   const awaiting = isAwaiting(preOrder);
   const expired = isExpiredAwaiting(preOrder, now);
   const closedOnline = isClosedOnline(preOrder);
+  // Por que Editar está desligado: o botão aponta para este texto (aria-describedby).
+  const lockHintId = `dossier-lock-hint-${preOrder.id}`;
+  const editHint = awaiting ? AWAITING_HINT : closedOnline ? CLOSED_HINT : null;
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-[color:var(--background)]" style={stageVars(stage)}>
@@ -266,6 +272,8 @@ export function PreOrderDossier({
           <OrderResponseButtons
             orderId={preOrder.id}
             customerName={preOrder.customer?.name}
+            summary={describeItems(preOrder.items, 6)}
+            totalCents={preOrder.totalCents}
             expired={expired}
             size="default"
             onResponded={onResponded}
@@ -299,8 +307,14 @@ export function PreOrderDossier({
             {secondary.label}
           </Button>
         )}
-        <Gate locked={awaiting}>
-          <Button variant="ghost" disabled={awaiting} onClick={onEdit} leftIcon={<Pencil className="h-4 w-4" />}>
+        <Gate hint={editHint}>
+          <Button
+            variant="ghost"
+            disabled={Boolean(editHint)}
+            title={editHint ?? undefined}
+            aria-describedby={editHint ? lockHintId : undefined}
+            onClick={onEdit}
+            leftIcon={<Pencil className="h-4 w-4" />}>
             Editar
           </Button>
         </Gate>
@@ -311,10 +325,12 @@ export function PreOrderDossier({
             Pedido recusado ou cancelado pelo cliente não reabre: o cliente já
             foi avisado do desfecho. */}
         {!closedOnline && (
-          <Gate locked={awaiting}>
+          <Gate hint={awaiting ? AWAITING_HINT : null}>
             <Button
               variant="ghost"
               disabled={awaiting}
+              title={awaiting ? AWAITING_HINT : undefined}
+              aria-describedby={awaiting ? lockHintId : undefined}
               onClick={onCancel}
               leftIcon={cancelled ? <RotateCcw className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
               className={cn(!cancelled && "text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40")}
@@ -323,9 +339,15 @@ export function PreOrderDossier({
             </Button>
           </Gate>
         )}
+        {closedOnline && (
+          <span id={lockHintId} className="sr-only">
+            {CLOSED_HINT}
+          </span>
+        )}
         <OverflowMenu locked={awaiting} onPrint={onPrint} onTrack={onTrack} onDelete={onDelete} />
         {awaiting ? (
           <p
+            id={lockHintId}
             className="flex w-full items-center gap-1.5 text-[12px] font-semibold leading-snug"
             style={{ color: "var(--state-pronto-fg)" }}
           >
@@ -347,10 +369,10 @@ export function PreOrderDossier({
 }
 
 /** Botão desligado precisa dizer por quê: o tooltip vai no invólucro, porque botão desabilitado não recebe o mouse. */
-function Gate({ locked, children }: { locked: boolean; children: React.ReactNode }) {
-  if (!locked) return <>{children}</>;
+function Gate({ hint, children }: { hint: string | null; children: React.ReactNode }) {
+  if (!hint) return <>{children}</>;
   return (
-    <span title={AWAITING_HINT} className="inline-flex">
+    <span title={hint} className="inline-flex">
       {children}
     </span>
   );
@@ -616,10 +638,25 @@ function OverflowMenu({
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Esc fecha o menu mesmo com o foco fora dele (o clique no botão não move o foco para dentro).
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open]);
 
   return (
     <div className="relative">
       <Button
+        ref={triggerRef}
         variant="outline"
         size="icon"
         aria-label="Mais ações"

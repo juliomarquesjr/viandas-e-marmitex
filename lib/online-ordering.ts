@@ -117,10 +117,8 @@ export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Pro
     }
 
     const where = { source: 'online', approval: 'awaiting' } as const;
-    const ttlCutoff = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
     const [count, rows] = await Promise.all([
       prisma.preOrder.count({ where }),
-      // Os que ainda dá para aceitar primeiro (o mais antigo no topo); os expirados do dia vêm depois
       prisma.preOrder.findMany({
         where,
         orderBy: [{ createdAt: 'asc' }],
@@ -136,11 +134,11 @@ export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Pro
         },
       }),
     ]);
-    const live = rows.filter((row) => row.createdAt >= ttlCutoff);
-    const stale = rows.filter((row) => row.createdAt < ttlCutoff);
+    // O mais antigo primeiro (os expirados do dia são os mais urgentes de limpar). Os de dias anteriores já foram
+    // recusados acima, então não escondem os pedidos novos.
     return {
       count,
-      items: [...live, ...stale].slice(0, take).map((row) => ({
+      items: rows.slice(0, take).map((row) => ({
         id: row.id,
         customerId: row.customerId,
         customerName: row.customer?.name ?? null,
