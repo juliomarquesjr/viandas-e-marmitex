@@ -57,7 +57,7 @@ export class EmailService {
       smtpSecure: getConfigValue('email_smtp_secure') === 'true',
       smtpUser: getConfigValue('email_smtp_user'),
       smtpPassword: getConfigValue('email_smtp_password'),
-      fromName: getConfigValue('email_from_name', 'Viandas e Marmitex'),
+      fromName: getConfigValue('email_from_name', 'Sabores de Casa'),
       fromAddress: getConfigValue('email_from_address'),
       replyTo: getConfigValue('email_reply_to') || undefined,
       enabled: getConfigValue('email_enabled') === 'true'
@@ -246,12 +246,12 @@ export class EmailService {
    * Envia email de teste
    */
   async sendTestEmail(to: string): Promise<void> {
-    const testSubject = 'Teste de Configuração de Email - Viandas e Marmitex';
+    const testSubject = 'Teste de Configuração de Email - Sabores de Casa';
     const testHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
           <h1 style="margin: 0; font-size: 24px;">✅ Teste de Email</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">Viandas e Marmitex</p>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Sabores de Casa</p>
         </div>
         <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
           <h2 style="color: #374151; margin-top: 0;">Configuração de Email Funcionando!</h2>
@@ -272,7 +272,7 @@ export class EmailService {
     `;
 
     const testText = `
-Teste de Configuração de Email - Viandas e Marmitex
+Teste de Configuração de Email - Sabores de Casa
 
 Configuração de Email Funcionando!
 

@@ -1,5 +1,5 @@
 /**
- * Design Tokens - CRM Viandas e Marmitex
+ * Design Tokens - CRM Sabores de Casa
  * 
  * Este arquivo contém todos os tokens do sistema de design.
  * Baseado no plano de redesign inspirado em HubSpot/Salesforce.

@@ -472,7 +472,7 @@ export class PDFGenerator {
       </head>
       <body>
         <div class="header">
-          <h1>Viandas e Marmitex</h1>
+          <h1>Sabores de Casa</h1>
           <h2>RELATÓRIO DE FECHAMENTO</h2>
           <div class="period">
             Período: ${formatDate(period.startDate)} a ${formatDate(period.endDate)} | 
@@ -554,7 +554,7 @@ export class PDFGenerator {
 
         <div class="footer">
           <p>Relatório gerado em ${formatDateTime(metadata.generatedAt)}</p>
-          <p>Viandas e Marmitex</p>
+          <p>Sabores de Casa</p>
         </div>
       </body>
       </html>

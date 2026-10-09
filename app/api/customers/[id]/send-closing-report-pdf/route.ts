@@ -160,7 +160,7 @@ export async function POST(
     });
 
     const companyInfo = {
-      name: companyConfigs.find(c => c.key === 'branding_system_title')?.value || 'Viandas e Marmitex',
+      name: companyConfigs.find(c => c.key === 'branding_system_title')?.value || 'Sabores de Casa',
       logoUrl: companyConfigs.find(c => c.key === 'branding_logo_url')?.value || undefined,
       address: companyConfigs.find(c => c.key === 'contact_address_street')?.value || undefined,
       phone: companyConfigs.find(c => c.key === 'contact_phone_mobile')?.value || undefined

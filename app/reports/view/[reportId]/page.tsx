@@ -134,7 +134,7 @@ function ReportViewerContent() {
           const brandingConfigs = configs.filter((config: any) => config.category === 'branding');
           const contactConfigs = configs.filter((config: any) => config.category === 'contact');
           
-          const companyName = brandingConfigs.find((c: any) => c.key === 'branding_system_title')?.value || 'Viandas e Marmitex';
+          const companyName = brandingConfigs.find((c: any) => c.key === 'branding_system_title')?.value || 'Sabores de Casa';
           const logoUrl = brandingConfigs.find((c: any) => c.key === 'branding_logo_url')?.value;
           
           // Construir endereço
@@ -301,7 +301,7 @@ function ReportViewerContent() {
                 />
               )}
               <h1 className="text-2xl font-bold text-gray-900 print:text-xl">
-                {companyInfo?.name || 'Viandas e Marmitex'}
+                {companyInfo?.name || 'Sabores de Casa'}
               </h1>
               <h2 className="text-lg font-semibold text-gray-700 mt-2 print:text-base">
                 RELATÓRIO DE FECHAMENTO

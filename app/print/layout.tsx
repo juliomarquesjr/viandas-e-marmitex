@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Relatório de Fechamento - Viandas e Marmitex',
+  title: 'Relatório de Fechamento - Sabores de Casa',
   description: 'Relatório de fechamento do cliente para impressão',
 };
 

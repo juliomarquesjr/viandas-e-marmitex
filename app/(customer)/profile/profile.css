@@ -1,5 +1,5 @@
 /*
- * Perfil: cabeçalho com avatar; seções em chips 2×2 no celular e navegação
+ * Perfil: cabeçalho com avatar; seções em abas de uma linha no celular e navegação
  * lateral no computador. A barra de salvar gruda no pé da área que rola.
  */
 
@@ -12,8 +12,8 @@
   .c-phead {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 20px 16px 8px;
+    gap: 14px;
+    padding: 16px 16px 4px;
     animation: c-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   .c-phead > div {
@@ -23,8 +23,8 @@
   .c-pavatar {
     position: relative;
     flex: none;
-    width: 88px;
-    height: 88px;
+    width: 64px;
+    height: 64px;
   }
   .c-pavatar-pic {
     display: block;
@@ -33,11 +33,11 @@
   }
   .c-pavatar-cam {
     position: absolute;
-    right: -8px;
-    bottom: -8px;
+    right: -6px;
+    bottom: -6px;
     box-sizing: border-box;
-    width: 44px;
-    height: 44px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -50,7 +50,7 @@
     transform: scale(0.94);
   }
   [data-customer-scope] .c-phead h1 {
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 700;
     line-height: 1.15;
     overflow-wrap: anywhere;
@@ -64,17 +64,33 @@
     flex-direction: column;
     flex: 1;
   }
+  /* uma linha só: ícone em cima do texto, a aba ativa ganha o marcador na base */
   .c-ptabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    padding: 8px 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 4px 8px 0;
+    border-bottom: 1px solid var(--c-line);
   }
   .c-ptabs .c-chip {
-    min-height: 44px;
-    padding: 0 8px;
-    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 54px;
+    padding: 6px 2px 8px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    background: none;
+    font-size: 12.5px;
     text-align: center;
+    color: var(--c-ink2);
+  }
+  .c-ptabs .c-chip[aria-pressed="true"] {
+    background: none;
+    color: var(--c-brand-text);
+    border-bottom-color: var(--c-brand);
   }
   .c-pnav {
     display: none;
@@ -99,6 +115,17 @@
   .c-psec-t {
     font-size: 19px;
     font-weight: 700;
+  }
+  .c-psec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .c-psec-edit {
+    min-height: 44px;
+    padding-inline: 14px;
+    flex: none;
   }
   .c-psec-p {
     margin: 4px 0 0;
@@ -140,6 +167,15 @@
       width: 96px;
       height: 96px;
     }
+    .c-pavatar-cam {
+      width: 44px;
+      height: 44px;
+      right: -8px;
+      bottom: -8px;
+    }
+    [data-customer-scope] .c-phead h1 {
+      font-size: 26px;
+    }
     .c-pbody {
       display: contents;
     }
@@ -156,6 +192,9 @@
       align-self: start;
     }
     .c-pnav .c-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       border: 0;
       background: none;
       text-align: left;

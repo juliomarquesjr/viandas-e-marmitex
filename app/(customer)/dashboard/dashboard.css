@@ -1,7 +1,7 @@
 /*
  * Início. No celular é uma coluna só, na ordem: saudação, saldo, em andamento,
  * movimentações e endereço. No computador vira duas colunas (saldo e
- * movimentações | em andamento e endereço).
+ * endereço | em andamento e movimentações). A ordem do celular vem do `order`, não do JSX.
  */
 @layer components {
   .c-home > .c-home-col {

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Viandas",
+  title: "Sabores de Casa",
   description: "PDV e gerenciamento para delivery de marmitas",
   // Sistema privado: nenhum mecanismo de busca indexa, guarda cópia ou segue links (ver app/robots.ts)
   robots: {

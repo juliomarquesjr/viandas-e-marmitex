@@ -106,26 +106,6 @@ export default function CustomerDashboardPage() {
           <BalanceHero data={expenses.data} onPay={() => setPixOpen(true)} />
         )}
 
-        {!failed && (
-          <section className="c-block c-home-mov c-rise" style={rise(3)} aria-labelledby="home-mov-h">
-            <div className="c-block-h">
-              <h2 id="home-mov-h">Últimas movimentações</h2>
-              <Link href="/expenses" className="c-link">
-                Ver ficha
-              </Link>
-            </div>
-            <div className="c-card">
-              {loading || !expenses.data ? <LoadingRows rows={HOME_MOVEMENTS} /> : <RecentMovements data={expenses.data} />}
-            </div>
-          </section>
-        )}
-      </div>
-
-      <div className="c-home-col">
-        {intents.data && <PaymentIntentCards intents={intents.data.intents ?? []} rise={rise(2)} />}
-        {!failed && loading && <ActiveSkeleton />}
-        {!failed && !loading && preOrders.data && <ActiveOrders orders={preOrders.data.data ?? []} />}
-
         {address && (
           <section className="c-card c-home-addr c-rise" style={rise(4)} aria-label="Endereço de entrega">
             <span className="c-oic" aria-hidden="true">
@@ -142,6 +122,26 @@ export default function CustomerDashboardPage() {
                   </>
                 )}
               </p>
+            </div>
+          </section>
+        )}
+      </div>
+
+      <div className="c-home-col">
+        {intents.data && <PaymentIntentCards intents={intents.data.intents ?? []} rise={rise(2)} />}
+        {!failed && loading && <ActiveSkeleton />}
+        {!failed && !loading && preOrders.data && <ActiveOrders orders={preOrders.data.data ?? []} />}
+
+        {!failed && (
+          <section className="c-block c-home-mov c-rise" style={rise(3)} aria-labelledby="home-mov-h">
+            <div className="c-block-h">
+              <h2 id="home-mov-h">Últimas movimentações</h2>
+              <Link href="/expenses" className="c-link">
+                Ver ficha
+              </Link>
+            </div>
+            <div className="c-card">
+              {loading || !expenses.data ? <LoadingRows rows={HOME_MOVEMENTS} /> : <RecentMovements data={expenses.data} />}
             </div>
           </section>
         )}
