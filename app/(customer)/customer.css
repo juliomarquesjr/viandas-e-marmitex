@@ -746,7 +746,7 @@
   }
   .c-chip {
     flex: none;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 16px;
     border-radius: 999px;
     border: 1px solid var(--c-line);

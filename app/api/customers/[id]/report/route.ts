@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { dateStringSP, endOfDaySP, startOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -68,18 +69,12 @@ export async function GET(
       );
     }
 
-    // Parse dates and set time boundaries
-    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-    
-    // Create dates using local timezone and adjust for UTC
-    // Set start of day (00:00:00)
-    const startDateTimeLocal = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-    const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
-    
-    // Set end of day (23:59:59.999)
-    const endDateTimeLocal = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-    const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
+    // O período vai do começo do primeiro dia ao fim do último, em Brasília (ver lib/date-range.ts)
+    const startDateTime = startOfDaySP(startDate);
+    const endDateTime = endOfDaySP(endDate);
+    if (!startDateTime || !endDateTime) {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
+    }
 
     // Get all orders for the customer in the period
     const periodOrders = await prisma.order.findMany({
@@ -238,7 +233,7 @@ export async function GET(
       periodOrders.forEach(order => {
         try {
           const orderDate = new Date(order.createdAt);
-          const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
+          const monthKey = dateStringSP(orderDate).slice(0, 7);
           if (!monthlyGroups.has(monthKey)) {
             monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
           }
@@ -262,7 +257,7 @@ export async function GET(
       fichaPaymentsInPeriod.forEach(payment => {
         try {
           const paymentDate = new Date(payment.createdAt);
-          const monthKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+          const monthKey = dateStringSP(paymentDate).slice(0, 7);
           if (!monthlyGroups.has(monthKey)) {
             monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
           }

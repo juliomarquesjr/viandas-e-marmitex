@@ -15,7 +15,8 @@ FUNÇÕES DE DATA (NUNCA use date(), time(), datetime()):
 - CAST(campo AS DATE) - converte para data
 - CAST(campo AS TIMESTAMP) - converte para timestamp
 - NOW() - data/hora atual
-- CURRENT_DATE - data atual
+- (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - dia de hoje em Brasília (CURRENT_DATE é o dia em UTC: não use)
+- FUSO: o banco guarda em UTC, mas o dia do negócio é o de Brasília. "Hoje" = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date; por dia = DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo'). Nunca use CURRENT_DATE nem CAST("createdAt" AS DATE) direto (viram o dia UTC e vendas depois das 21h caem no dia seguinte).
 - CURRENT_TIMESTAMP - timestamp atual
 - INTERVAL '1 day' - intervalo de 1 dia
 - campo + INTERVAL '1 day' - adicionar 1 dia
@@ -63,22 +64,22 @@ AGRUPAMENTO E ORDENAÇÃO:
 EXEMPLOS PRÁTICOS PARA O SISTEMA ADMINISTRATIVO:
 
 1. Vendas por dia (confirmadas, exclui pagamentos de ficha):
-SELECT DATE_TRUNC('day', "createdAt") as data, 
+SELECT DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as data, 
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order" 
 WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-GROUP BY DATE_TRUNC('day', "createdAt")
+GROUP BY DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
 ORDER BY data DESC
 LIMIT 30
 
 2. Vendas por mês (confirmadas, exclui pagamentos de ficha):
-SELECT DATE_TRUNC('month', "createdAt") as mes, 
+SELECT DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as mes, 
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order"
 WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-GROUP BY DATE_TRUNC('month', "createdAt")
+GROUP BY DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
 ORDER BY mes DESC
 LIMIT 12
 
@@ -113,7 +114,7 @@ SELECT c.name,
        MAX(o."createdAt") as ultimo_pedido
 FROM "Customer" c
 LEFT JOIN "Order" o ON c.id = o."customerId"
-WHERE o."createdAt" < CURRENT_DATE - INTERVAL '30 days' 
+WHERE o."createdAt" < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - INTERVAL '30 days' 
    OR o."createdAt" IS NULL
 GROUP BY c.id, c.name, c.phone, c.email
 ORDER BY ultimo_pedido ASC
@@ -164,14 +165,14 @@ ORDER BY total_gasto DESC
 LIMIT 50
 
 10. Vendas da última semana (confirmadas, exclui pagamentos de ficha):
-SELECT DATE_TRUNC('day', "createdAt") as data,
+SELECT DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as data,
        COUNT(*) as vendas,
        SUM("totalCents")/100.0 as faturamento
 FROM "Order"
-WHERE "createdAt" >= CURRENT_DATE - INTERVAL '7 days'
+WHERE "createdAt" >= ((NOW() AT TIME ZONE 'America/Sao_Paulo')::date - INTERVAL '7 days') AT TIME ZONE 'America/Sao_Paulo'
   AND status = 'confirmed'
   AND "paymentMethod" <> 'ficha_payment'
-GROUP BY DATE_TRUNC('day', "createdAt")
+GROUP BY DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
 ORDER BY data DESC
 
 REGRAS CRÍTICAS:
@@ -208,7 +209,7 @@ export const SQL_VALIDATION_RULES = [
   },
   {
     pattern: /curdate\s*\(/gi,
-    error: "Função curdate() não existe no PostgreSQL. Use CURRENT_DATE",
-    fix: (sql: string) => sql.replace(/curdate\s*\(/gi, 'CURRENT_DATE')
+    error: "Função curdate() não existe no PostgreSQL. Use (NOW() AT TIME ZONE 'America/Sao_Paulo')::date",
+    fix: (sql: string) => sql.replace(/curdate\s*\(\s*\)/gi, "(NOW() AT TIME ZONE 'America/Sao_Paulo')::date")
   }
 ];

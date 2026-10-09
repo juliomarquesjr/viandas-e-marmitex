@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Customer } from "../types";
+import { localDateString } from "@/lib/date-range";
 
 
 export interface ClosingReportConfig {
@@ -38,8 +39,8 @@ export function useClosingReport(customer: Customer | null) {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    setEndDate(today.toISOString().split("T")[0]);
-    setStartDate(thirtyDaysAgo.toISOString().split("T")[0]);
+    setEndDate(localDateString(today));
+    setStartDate(localDateString(thirtyDaysAgo));
   };
 
   const generateReportUrl = (isThermal: boolean) => {

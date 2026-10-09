@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Order } from "../types";
+import { dateStringSP } from "@/lib/date-range";
 
 interface ConsumptionChartProps {
   orders: Order[];
@@ -22,18 +23,15 @@ interface ConsumptionChartProps {
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function buildLast7Days(orders: Order[]) {
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-
   const days: { date: string; label: string; valueCents: number }[] = [];
 
+  // Os 7 dias terminam em hoje, no dia de Brasília (o mesmo corte do servidor)
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = dateStringSP(new Date(Date.now() - i * 24 * 60 * 60 * 1000));
     days.push({
       date: dateStr,
-      label: DAY_NAMES[d.getDay()],
+      // meio-dia UTC do próprio dia: o dia da semana não depende do fuso do aparelho
+      label: DAY_NAMES[new Date(`${dateStr}T12:00:00Z`).getUTCDay()],
       valueCents: 0,
     });
   }
@@ -44,7 +42,7 @@ function buildLast7Days(orders: Order[]) {
   );
 
   for (const order of realOrders) {
-    const orderDate = order.createdAt.split("T")[0];
+    const orderDate = dateStringSP(new Date(order.createdAt));
     const dayEntry = days.find((d) => d.date === orderDate);
     if (dayEntry) {
       dayEntry.valueCents += order.totalCents;

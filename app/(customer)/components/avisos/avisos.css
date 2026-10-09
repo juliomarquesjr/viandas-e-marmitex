@@ -5,25 +5,26 @@
   }
   .c-bell-badge {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    /* canto superior direito do ícone (22px, no centro do botão), sem cobri-lo */
+    top: 3px;
+    left: calc(50% + 4px);
     min-width: 18px;
     height: 18px;
-    padding: 0 5px;
+    padding: 0 4px;
     border-radius: 999px;
     background: var(--c-brand);
     color: var(--c-brand-ink);
     border: 2px solid var(--c-surface);
-    box-sizing: content-box;
-    font: 700 11px/18px var(--c-f-body);
+    box-sizing: border-box;
+    font: 700 10px/14px var(--c-f-body);
     text-align: center;
     white-space: nowrap;
     animation: c-pop-in 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) both;
   }
   /* no trilho o sino cabe numa pílula de 52px: o selo vai para o canto dela */
   .c-nav-ic.c-bell .c-bell-badge {
-    top: -6px;
-    right: 6px;
+    top: -5px;
+    left: calc(50% + 3px);
   }
   .c-bell.has-new svg {
     transform-origin: 50% 4px;
@@ -49,6 +50,10 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+  }
+  .c-sheet.is-avisos .c-x {
+    width: 44px;
+    height: 44px;
   }
   .c-av-head h2 {
     font: 700 26px/1.1 var(--c-f-display);
@@ -86,7 +91,7 @@
     background: var(--c-sunk);
   }
   .c-av-seg button {
-    min-height: 36px;
+    min-height: 40px;
     padding: 0 14px;
     border-radius: 999px;
     font: 600 14px var(--c-f-body);
@@ -111,7 +116,7 @@
     gap: 4px;
   }
   .c-av-bulk button {
-    min-height: 36px;
+    min-height: 44px;
     padding: 0 10px;
     border-radius: var(--c-r-sm);
     display: inline-flex;
@@ -285,12 +290,12 @@
     flex: none;
     display: flex;
     align-items: center;
-    gap: 2px;
-    padding-right: 6px;
+    gap: 0;
+    padding-right: 2px;
   }
   .c-av-acts button {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: grid;
     place-items: center;

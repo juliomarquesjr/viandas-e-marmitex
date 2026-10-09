@@ -38,7 +38,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OrderStatsCards } from "./components/OrderStatsCards";
 import { OrderActionsMenu } from "./components/OrderActionsMenu";
 import { OrderFilterBar } from "./components/OrderFilterBar";
@@ -315,7 +315,11 @@ export default function AdminOrdersPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
+  // Só a última busca vale: trocar as datas rápido não deixa uma resposta antiga sobrescrever a nova
+  const latestRequest = useRef(0);
+
   const loadOrders = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     try {
       setLoading(true);
       setError(null);
@@ -335,11 +339,13 @@ export default function AdminOrdersPage() {
       const response = await fetch(`/api/orders?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch orders");
       const result = await response.json();
+      if (requestId !== latestRequest.current) return;
       setAllOrders(result.data || []);
     } catch (err) {
+      if (requestId !== latestRequest.current) return;
       setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, [filters.dateRange.end, filters.dateRange.start]);
 

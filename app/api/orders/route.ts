@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { noonOfDaySP, parseDayRange, todaySP } from '@/lib/date-range';
 import { publishToCustomer } from '@/lib/realtime';
 import { decrementStockForItems, restoreStockForItems } from '@/lib/stock/orderStock';
 import { getServerSession } from 'next-auth';
@@ -31,25 +32,13 @@ export async function GET(request: Request) {
       where.customerId = customerId;
     }
     
-    // Filtro por data
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        // Criar data no fuso horário local e ajustar para UTC
-        const [year, month, day] = startDate.split('-').map(Number);
-        const startDateTime = new Date(year, month - 1, day, 0, 0, 0, 0);
-        // Ajustar para UTC para evitar problemas de fuso horário
-        const utcStartDateTime = new Date(startDateTime.getTime() - startDateTime.getTimezoneOffset() * 60000);
-        where.createdAt.gte = utcStartDateTime;
-      }
-      if (endDate) {
-        // Criar data no fuso horário local e ajustar para UTC
-        const [year, month, day] = endDate.split('-').map(Number);
-        const endDateTime = new Date(year, month - 1, day, 23, 59, 59, 999);
-        // Ajustar para UTC para evitar problemas de fuso horário
-        const utcEndDateTime = new Date(endDateTime.getTime() - endDateTime.getTimezoneOffset() * 60000);
-        where.createdAt.lte = utcEndDateTime;
-      }
+    // Filtro por data: o dia é o dia em Brasília (ver lib/date-range.ts)
+    const range = parseDayRange(startDate, endDate);
+    if (range === 'invalid') {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
+    }
+    if (range) {
+      where.createdAt = range;
     }
     
     // Excluir pagamentos de ficha da lista de vendas
@@ -219,22 +208,14 @@ export async function POST(request: Request) {
       additionalData.changeCents = body.changeCents;
     }
     
-    // Se uma data customizada foi fornecida (apenas para admins), usar ela
-    if (body.customSaleDate) {
-      // Criar data no fuso horário local e ajustar para UTC
-      const [year, month, day] = body.customSaleDate.split('-').map(Number);
-      const customDate = new Date(year, month - 1, day, 12, 0, 0, 0); // Meio-dia local
-      
-      // Ajustar para UTC para evitar problemas de fuso horário
-      const utcCustomDate = new Date(customDate.getTime() - customDate.getTimezoneOffset() * 60000);
-      
-      // Validar que a data não é futura
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
-      const utcToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
-      
-      if (utcCustomDate <= utcToday) {
-        additionalData.createdAt = utcCustomDate;
+    // Se uma data customizada foi fornecida (apenas para admins), usar ela: meio-dia em Brasília
+    // Só o admin pode informar a data: esconder o seletor na tela não basta, a API também confere
+    if (body.customSaleDate && session.user.role === 'admin') {
+      const customDate = noonOfDaySP(body.customSaleDate);
+
+      // Não aceita data futura nem data inválida
+      if (customDate && body.customSaleDate <= todaySP()) {
+        additionalData.createdAt = customDate;
       }
     }
     
