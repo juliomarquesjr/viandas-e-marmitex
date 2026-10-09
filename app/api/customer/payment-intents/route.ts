@@ -1,4 +1,5 @@
 import { getCustomerSession } from '@/lib/customer-auth';
+import { dismissedAmong } from '@/lib/customer-dismissals';
 import { getCustomerBalance } from '@/lib/customer-balance';
 import { createNotification } from '@/lib/notifications';
 import { publishToStaff } from '@/lib/realtime';
@@ -70,7 +71,14 @@ export async function GET() {
       select,
     });
 
-    const response: CustomerPaymentIntentsResponse = { intents: intents.map(toDTO) };
+    // Cartões revisados que o cliente dispensou (em qualquer aparelho) não voltam
+    const dismissed = await dismissedAmong(
+      session.user.customerId,
+      intents.filter((i) => i.status !== 'pending').map((i) => `intent:${i.id}`)
+    );
+    const visible = intents.filter((i) => i.status === 'pending' || !dismissed.has(`intent:${i.id}`));
+
+    const response: CustomerPaymentIntentsResponse = { intents: visible.map(toDTO) };
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error listing customer payment intents:', error);
