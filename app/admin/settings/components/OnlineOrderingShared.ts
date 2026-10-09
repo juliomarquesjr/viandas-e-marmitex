@@ -55,6 +55,49 @@ export interface DraftWindow {
 
 export const MAX_WINDOWS = 20;
 
+/** Cor de cada horário na grade da semana (a ordem se repete se houver mais de 6). */
+export const WINDOW_COLORS = [
+  { dot: '#2563eb', bg: 'rgba(37,99,235,0.14)', border: 'rgba(37,99,235,0.5)' },
+  { dot: '#7c3aed', bg: 'rgba(124,58,237,0.14)', border: 'rgba(124,58,237,0.5)' },
+  { dot: '#0d9488', bg: 'rgba(13,148,136,0.14)', border: 'rgba(13,148,136,0.5)' },
+  { dot: '#d97706', bg: 'rgba(217,119,6,0.16)', border: 'rgba(217,119,6,0.55)' },
+  { dot: '#db2777', bg: 'rgba(219,39,119,0.13)', border: 'rgba(219,39,119,0.5)' },
+  { dot: '#4f46e5', bg: 'rgba(79,70,229,0.14)', border: 'rgba(79,70,229,0.5)' },
+] as const;
+
+/** Dia da semana (0 = domingo) e minuto do dia, em Brasília, no instante informado. */
+export function nowInSaoPaulo(iso: string): { weekday: number; minute: number } {
+  const date = new Date(iso);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(Number.isNaN(date.getTime()) ? new Date() : date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
+  const hour = Number(get('hour')) % 24;
+  return { weekday: weekday < 0 ? 0 : weekday, minute: hour * 60 + Number(get('minute')) };
+}
+
+/** Texto curto dos dias: "Seg a sex", "Todos os dias", "Sáb e dom", "Ter, qui". */
+export function daysLabel(weekdays: number[]): string {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const names: Record<number, string> = { 0: 'dom', 1: 'seg', 2: 'ter', 3: 'qua', 4: 'qui', 5: 'sex', 6: 'sáb' };
+  const set = new Set(weekdays);
+  if (set.size === 7) return 'Todos os dias';
+  if (set.size === 0) return 'Nenhum dia';
+  const sorted = order.filter((d) => set.has(d));
+  const consecutive = sorted.length > 2 && sorted.every((d, i) => i === 0 || order.indexOf(d) === order.indexOf(sorted[i - 1]) + 1);
+  const text = consecutive
+    ? `${names[sorted[0]]} a ${names[sorted[sorted.length - 1]]}`
+    : sorted.length === 2
+      ? `${names[sorted[0]]} e ${names[sorted[1]]}`
+      : sorted.map((d) => names[d]).join(', ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 // Ordem de exibição: segunda a domingo (0 = domingo no servidor)
 export const WEEKDAY_CHIPS: { value: number; short: string; full: string }[] = [
   { value: 1, short: 'Seg', full: 'Segunda-feira' },
