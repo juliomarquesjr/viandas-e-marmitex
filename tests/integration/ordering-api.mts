@@ -180,7 +180,9 @@ try {
   check('6 pedidos simultâneos → só 3 entram (o resto 429)', okCount === 3 && results.filter((r) => r.r.status === 429).length === 3, `criados=${okCount}`);
 
   console.log('\n— correções da revisão do refutador');
-  await putCfg({ windows: [win(0, 1440)], pause: 'until_tomorrow' });
+  // limpa os pedidos aguardando da corrida anterior (senão o limite de 3 pendentes atrapalha) e libera 2 produtos
+  await p.preOrder.updateMany({ where: { customerId: customer.id, source: 'online', approval: 'awaiting' }, data: { approval: 'rejected', deliveryStatus: 'cancelled' } });
+  await putCfg({ windows: [{ ...win(0, 1440), productIds: [pa.id, pb.id] }], pause: 'until_tomorrow' });
   menu = await (await cust.f('/api/customer/ordering/menu')).json();
   check('pausa: a próxima abertura diz "amanhã" (e não "hoje")', menu.reason === 'paused' && /^amanhã|^\w+ às/.test(menu.nextOpening?.label ?? '') && !/^hoje/.test(menu.nextOpening?.label ?? ''), menu.nextOpening?.label);
   await putCfg({ pause: null });
@@ -210,6 +212,8 @@ try {
   check('o aviso do cliente mostra o motivo da recusa', note.data.some((n: any) => n.title === 'Pedido recusado' && n.text.includes('Teste')));
 
   console.log('\n— estoque: só reserva o que vai para a cozinha');
+  // os pedidos de teste anteriores já passam do limite de 10 por hora: empurra-os para trás para este trecho
+  await p.preOrder.updateMany({ where: { id: { in: created } }, data: { createdAt: new Date(Date.now() - 3 * 3600_000) } });
   const stocked = await p.product.create({ data: { name: 'QA-Estoque', priceCents: 500, stockEnabled: true, stock: 5, productType: 'sellable', active: true } });
   try {
     await putCfg({ windows: [{ name: 'Estoque', weekdays: allDays, startMinute: 0, endMinute: 1440, active: true, productIds: [stocked.id] }] });
