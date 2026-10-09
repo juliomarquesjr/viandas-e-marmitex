@@ -340,7 +340,7 @@ interface Branding {
   logoUrl: string | null;
 }
 
-const DEFAULT_BRANDING: Branding = { title: "Viandas e Marmitex", logoUrl: null };
+const DEFAULT_BRANDING: Branding = { title: "Sabores de Casa", logoUrl: null };
 let brandingCache: Branding | null = null;
 
 /** Nome e logo das configurações públicas do sistema, com o nome padrão enquanto carrega. */

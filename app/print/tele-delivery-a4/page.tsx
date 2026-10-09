@@ -39,7 +39,7 @@ function TeleDeliveryA4Content() {
   const productIdParam = searchParams.get('productId');
 
   const [data, setData] = useState<TeleDeliveryData | null>(null);
-  const [systemTitle, setSystemTitle] = useState<string>('Viandas e Marmitex');
+  const [systemTitle, setSystemTitle] = useState<string>('Sabores de Casa');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

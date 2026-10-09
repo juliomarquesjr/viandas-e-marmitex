@@ -66,7 +66,7 @@ export async function GET(
       where: { category: 'branding' }
     });
 
-    const companyName = companyConfigs.find(c => c.key === 'branding_system_title')?.value || 'Viandas e Marmitex';
+    const companyName = companyConfigs.find(c => c.key === 'branding_system_title')?.value || 'Sabores de Casa';
 
     // Gerar HTML do relatório para PDF
     const htmlContent = generateReportHTML(reportData, companyName);

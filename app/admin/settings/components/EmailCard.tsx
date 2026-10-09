@@ -81,7 +81,7 @@ export function EmailCard({ formData, onFieldChange }: EmailCardProps) {
           <Input
             value={formData.email_from_name}
             onChange={(e) => onFieldChange('email_from_name', e.target.value)}
-            placeholder="Viandas e Marmitex"
+            placeholder="Sabores de Casa"
             className="pl-9 h-9 text-sm rounded-lg border-slate-200"
           />
           <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />

@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
         await emailService.sendEmail({
           to,
-          subject: 'Redefinição de senha - Viandas e Marmitex',
+          subject: 'Redefinição de senha - Sabores de Casa',
           html: EmailTemplates.generatePasswordResetHtml(name, resetUrl, RESET_TOKEN_TTL_MINUTES),
           text: EmailTemplates.generatePasswordResetText(name, resetUrl, RESET_TOKEN_TTL_MINUTES),
         });

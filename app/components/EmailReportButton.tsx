@@ -65,7 +65,7 @@ export function EmailReportButton({
           period,
           summary,
           companyInfo: {
-            name: 'Viandas e Marmitex',
+            name: 'Sabores de Casa',
             // Adicionar outras informações da empresa se necessário
           }
         }),

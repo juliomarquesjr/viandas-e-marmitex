@@ -109,11 +109,11 @@ export function DesktopWindowFrame({ children }: { children: React.ReactNode }) 
           >
             <img
               src="/img/icon.png"
-              alt="Viandas e Marmitex"
+              alt="Sabores de Casa"
               className="desktop-window-brand-icon"
               draggable={false}
             />
-            <span>Viandas e Marmitex</span>
+            <span>Sabores de Casa</span>
           </div>
           <div
             className="desktop-window-titlebar-drag-area"
