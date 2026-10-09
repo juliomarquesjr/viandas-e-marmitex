@@ -2,6 +2,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { parseDayRange } from '@/lib/date-range';
 import { publishToCustomer } from '@/lib/realtime';
+import { requireStaff } from '@/lib/staff-session';
 import {
   isCashMethod,
   isPaymentMethod,
@@ -114,6 +115,10 @@ function buildPreOrderItems(
 
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
+  // Telefone, endereço e itens dos clientes: só para funcionário logado (a lista e o pedido por id)
+  const auth = await requireStaff();
+  if ('error' in auth) return auth.error;
+
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   
