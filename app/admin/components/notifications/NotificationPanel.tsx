@@ -2,17 +2,30 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Bell } from "lucide-react";
+import Link from "next/link";
+import { Bell, BellRing, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { NotificationDTO } from "@/lib/notification-types";
+import { Switch } from "@/app/components/ui/switch";
+import type { AwaitingOrderDTO, NotificationDTO } from "@/lib/notification-types";
+import { AwaitingOrderRow } from "../attention/AwaitingOrderRow";
+import { useNow } from "../attention/useNow";
 import { NotificationItem } from "./NotificationItem";
 
 /** Quantas aparecem no dropdown; o resto fica no histórico. */
 export const PANEL_ITEMS = 8;
+/** Quantos pedidos aguardando aparecem no topo do sino; o resto fica em Pré-Pedidos. */
+export const PANEL_ORDERS = 3;
 
 interface NotificationPanelProps {
   id: string;
   notifications: NotificationDTO[];
+  /** Pedidos do cliente aguardando resposta (o mais antigo primeiro) e o total deles. */
+  awaitingOrders: AwaitingOrderDTO[];
+  awaitingOrdersCount: number;
+  onOrderResponded: (order: AwaitingOrderDTO) => void;
+  soundEnabled: boolean;
+  onSoundChange: (enabled: boolean) => void;
+  onNavigate: () => void;
   loaded: boolean;
   error: boolean;
   onSelect: (notification: NotificationDTO) => void;
@@ -41,9 +54,28 @@ function Skeleton() {
 /** Dropdown do sino: as mais recentes, com atalhos para marcar como lidas e abrir o histórico. */
 export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPanelProps>(
   function NotificationPanel(
-    { id, notifications, loaded, error, onSelect, onMarkAllRead, onShowHistory, onRetry, className },
+    {
+      id,
+      notifications,
+      awaitingOrders,
+      awaitingOrdersCount,
+      onOrderResponded,
+      soundEnabled,
+      onSoundChange,
+      onNavigate,
+      loaded,
+      error,
+      onSelect,
+      onMarkAllRead,
+      onShowHistory,
+      onRetry,
+      className,
+    },
     ref
   ) {
+    const now = useNow();
+    const orders = awaitingOrders.slice(0, PANEL_ORDERS);
+    const hiddenOrders = Math.max(0, awaitingOrdersCount - orders.length);
     const visible = notifications.slice(0, PANEL_ITEMS);
     const hasUnread = notifications.some((n) => !n.readAt);
 
@@ -89,7 +121,38 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
           )}
         </div>
 
-        <div className="max-h-[22rem] min-h-[120px] overflow-y-auto">
+        <div className="max-h-[26rem] min-h-[120px] overflow-y-auto">
+          {loaded && awaitingOrdersCount > 0 && (
+            <section aria-labelledby={`${id}-needs-you`} className="border-b border-[color:var(--border)] bg-[color:var(--muted)]/40 px-3 py-3">
+              <h3
+                id={`${id}-needs-you`}
+                className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--foreground)]"
+              >
+                <BellRing className="h-3.5 w-3.5" style={{ color: "var(--state-pronto)" }} aria-hidden />
+                Precisa de você ({awaitingOrdersCount})
+              </h3>
+              <ul className="space-y-2">
+                {orders.map((order) => (
+                  <AwaitingOrderRow
+                    key={order.id}
+                    order={order}
+                    now={now}
+                    variant="bell"
+                    onResponded={onOrderResponded}
+                  />
+                ))}
+              </ul>
+              {hiddenOrders > 0 && (
+                <Link
+                  href="/admin/pre-orders"
+                  onClick={onNavigate}
+                  className="mt-1 flex min-h-[44px] items-center px-1 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {hiddenOrders === 1 ? "Mais 1 pedido aguardando" : `Mais ${hiddenOrders} pedidos aguardando`}
+                </Link>
+              )}
+            </section>
+          )}
           {!loaded && !error ? (
             <Skeleton />
           ) : !loaded && error ? (
@@ -119,13 +182,37 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
         </div>
 
         <div className="border-t border-[color:var(--border)]">
-          <button
-            type="button"
-            onClick={onShowHistory}
-            className="min-h-[44px] w-full px-4 py-3 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-          >
-            Mostrar histórico completo
-          </button>
+          <div className="grid grid-cols-2 divide-x divide-[color:var(--border)]">
+            <Link
+              href="/admin/pre-orders"
+              onClick={onNavigate}
+              className="flex min-h-[44px] items-center justify-center px-2 py-3 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+            >
+              Ver pedidos
+            </Link>
+            <button
+              type="button"
+              onClick={onShowHistory}
+              className="min-h-[44px] px-2 py-3 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+            >
+              Ver histórico
+            </button>
+          </div>
+          <div className="flex min-h-[44px] items-center justify-between gap-3 border-t border-[color:var(--border)] px-4 py-2">
+            <label
+              htmlFor={`${id}-sound`}
+              className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--foreground)]"
+            >
+              <Volume2 className="h-4 w-4 text-[color:var(--muted-foreground)]" aria-hidden />
+              Avisar com som
+            </label>
+            <Switch
+              id={`${id}-sound`}
+              checked={soundEnabled}
+              onCheckedChange={onSoundChange}
+              aria-label="Avisar com som quando chegar pedido ou pagamento"
+            />
+          </div>
         </div>
       </motion.div>
     );

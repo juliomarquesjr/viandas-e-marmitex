@@ -9,6 +9,7 @@ import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminCh
 import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
+import { NotificationsProvider } from "./components/notifications/NotificationsProvider";
 
 /**
  * AdminLayout - Design System
@@ -56,7 +57,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const userRole = session?.user?.role;
 
   return (
-    <>
+    // Um só estado de notificações para o sino, a tela inicial, o título da aba e a barra lateral.
+    // Nas telas imersivas (PDV) o sino não existe, então nada é consultado.
+    <NotificationsProvider enabled={!immersive}>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -111,6 +114,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
         {!immersive && <RoAssistant />}
-    </>
+    </NotificationsProvider>
   );
 }

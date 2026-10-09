@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { parseDayRange } from '@/lib/date-range';
 import { AWAITING_MESSAGE, isAwaitingApproval } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
+import { requireStaff } from '@/lib/staff-session';
 import {
   isCashMethod,
   isPaymentMethod,
@@ -115,6 +116,10 @@ function buildPreOrderItems(
 
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
+  // Telefone, endereço e itens dos clientes: só para funcionário logado (a lista e o pedido por id)
+  const auth = await requireStaff();
+  if ('error' in auth) return auth.error;
+
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   
@@ -167,6 +172,11 @@ export async function GET(request: Request) {
           estimatedDeliveryTime: true,
           deliveryStartedAt: true,
           deliveredAt: true,
+          // Pedido feito pelo cliente: a Mesa mostra o selo Online e a aprovação
+          source: true,
+          approval: true,
+          respondedAt: true,
+          rejectReason: true,
           customer: {
             select: preOrderCustomerSelect
           },

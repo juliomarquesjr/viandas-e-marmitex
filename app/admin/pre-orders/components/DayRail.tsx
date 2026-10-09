@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Layers, Package, Scale } from "lucide-react";
+import { Hourglass, Layers, Package, Scale } from "lucide-react";
 import * as React from "react";
 import {
   RAIL_ORDER,
@@ -68,6 +68,7 @@ export function DayRail({
     }
   };
 
+  const awaiting = tally.aprovacao;
   const stages = RAIL_ORDER.filter((stage) => tally[stage].count > 0);
   const totalOrders = stages.reduce((sum, stage) => sum + tally[stage].count, 0);
 
@@ -85,6 +86,29 @@ export function DayRail({
       className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] px-4 py-3 shadow-card"
     >
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {/* Pedido do cliente esperando resposta é urgente em qualquer exibição
+            da trilha: o contador fica fixo à esquerda e filtra como uma etapa. */}
+        {awaiting.count > 0 && (
+          <button
+            type="button"
+            onClick={() => onStageChange(activeStage === "aprovacao" ? null : "aprovacao")}
+            aria-pressed={activeStage === "aprovacao"}
+            title={`${awaiting.count} aguardando aprovação · ${formatCurrency(awaiting.totalCents)}`}
+            style={{ backgroundColor: "var(--state-pronto-solid)", color: "var(--state-pronto-on)" }}
+            className={cn(
+              "flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-xs font-bold",
+              "transition-all duration-200 hover:brightness-110",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2",
+              activeStage === "aprovacao" &&
+                "ring-2 ring-[color:var(--foreground)] ring-offset-2 ring-offset-[color:var(--card)]",
+            )}
+          >
+            <Hourglass className="h-4 w-4" aria-hidden="true" />
+            <span className="text-sm tabular-nums">{awaiting.count}</span>
+            aguardando aprovação
+          </button>
+        )}
+
         <h2 className="text-[11px] font-bold uppercase tracking-[0.11em] text-[color:var(--muted-foreground-strong)]">
           O dia
         </h2>

@@ -12,6 +12,7 @@ import {
   printBitmapToDesktopPrinter,
 } from "@/lib/runtime/capabilities";
 import type { ThermalAutoPrintModuleKey } from "@/lib/runtime/printing";
+import { openEventStream } from "@/lib/realtime-stream";
 import { cn } from "@/lib/utils";
 import {
   Loader2,
@@ -41,6 +42,7 @@ import {
   STAGE_ORDER,
   aggregateItems,
   formatCurrency,
+  isAwaiting,
   stageOf,
   type PreOrder,
   type PreOrderStage,
@@ -75,6 +77,10 @@ type ThermalDocKind = keyof typeof THERMAL_DOCS;
 const PAGE_SIZE = 200;
 const RAIL_PREF_KEY = "admin-pre-orders-show-rail";
 const CANCELLED_PREF_KEY = "admin-pre-orders-show-cancelled";
+/** Vários avisos seguidos viram uma recarga só. */
+const REALTIME_DEBOUNCE_MS = 250;
+/** Sem tempo real conectado, a lista se confere de vez em quando (só com a aba à vista). */
+const FALLBACK_REFRESH_MS = 60_000;
 
 type RangeKey = "today" | "week" | "all";
 
@@ -119,6 +125,19 @@ async function errorMessageOf(response: Response, fallback: string): Promise<str
     // resposta sem corpo JSON: fica o texto padrão
   }
   return fallback;
+}
+
+/** Lê o erro do servidor; `awaiting` marca o 409 de pedido do cliente que ainda não foi aceito. */
+async function readFailure(response: Response, fallback: string): Promise<{ message: string; awaiting: boolean }> {
+  try {
+    const body = await response.json();
+    return {
+      message: typeof body?.error === "string" && body.error.trim() ? body.error : fallback,
+      awaiting: response.status === 409 && body?.code === "AWAITING_APPROVAL",
+    };
+  } catch {
+    return { message: fallback, awaiting: false };
+  }
 }
 
 function emptyTally(): StageTally {
@@ -228,6 +247,44 @@ export default function AdminPreOrdersPage() {
     loadPreOrders();
   }, [loadPreOrders]);
 
+  // Pedido novo do cliente, resposta de outro operador, cliente que cancelou: o
+  // servidor avisa pelo canal dos funcionários (o mesmo do sino) e a lista se
+  // atualiza sozinha, sem tirar a seleção nem piscar.
+  const reloadRef = useRef(loadPreOrders);
+  reloadRef.current = loadPreOrders;
+  const [realtime, setRealtime] = useState(false);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const stop = openEventStream({
+      tokenUrl: "/api/realtime/staff-token",
+      onConnectedChange: setRealtime,
+      onEvent: (name) => {
+        if (name !== "notification.changed") return;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => void reloadRef.current({ silent: true }), REALTIME_DEBOUNCE_MS);
+      },
+    });
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
+  }, []);
+
+  // Rede de segurança calma: sem o tempo real a lista ainda se confere a cada
+  // minuto e ao voltar para a aba.
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void reloadRef.current({ silent: true });
+    };
+    const interval = realtime ? undefined : window.setInterval(refreshIfVisible, FALLBACK_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    return () => {
+      if (interval) window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [realtime]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("openModal") === "true") {
@@ -312,7 +369,13 @@ export default function AdminPreOrdersPage() {
 
   // A visão de itens da trilha acompanha o que está na lista: filtrar por etapa
   // passa a responder "o que a cozinha tem em mãos".
-  const itemTally = useMemo(() => aggregateItems(visible), [visible]);
+  // Pedido que ainda espera aprovação não é produção: fora da conta, a menos que
+  // o operador tenha filtrado justamente por eles.
+  const produced = useMemo(
+    () => (stageFilter === "aprovacao" ? visible : visible.filter((preOrder) => !isAwaiting(preOrder))),
+    [visible, stageFilter],
+  );
+  const itemTally = useMemo(() => aggregateItems(produced), [produced]);
 
   const selected = useMemo(
     () => preOrders.find((preOrder) => preOrder.id === selectedId) ?? null,
@@ -339,6 +402,11 @@ export default function AdminPreOrdersPage() {
         : null,
     [nextToCharge],
   );
+
+  // Respondeu o último pedido aguardando: o filtro apontaria para uma etapa vazia.
+  useEffect(() => {
+    if (stageFilter === "aprovacao" && tally.aprovacao.count === 0) setStageFilter(null);
+  }, [stageFilter, tally.aprovacao.count]);
 
   // Mantém sempre um pedido em foco, sem escolher um que o filtro escondeu.
   useEffect(() => {
@@ -483,9 +551,20 @@ export default function AdminPreOrdersPage() {
     [showToast, tryDirectThermalPrint],
   );
 
+  const preOrdersRef = useRef(preOrders);
+  preOrdersRef.current = preOrders;
+
   const printTicket = useCallback(
-    (preOrderId: string) => printThermal("preOrder", preOrderId),
-    [printThermal],
+    (preOrderId: string) => {
+      // Comanda é ordem para a cozinha: pedido do cliente só imprime depois de aceito.
+      const target = preOrdersRef.current.find((preOrder) => preOrder.id === preOrderId);
+      if (target && isAwaiting(target)) {
+        showToast("Aceite ou recuse o pedido antes de imprimir a comanda.", "warning");
+        return Promise.resolve();
+      }
+      return printThermal("preOrder", preOrderId);
+    },
+    [printThermal, showToast],
   );
 
   useEffect(() => {
@@ -519,9 +598,17 @@ export default function AdminPreOrdersPage() {
         });
 
         if (!response.ok) {
-          throw new Error(
-            await errorMessageOf(response, "Não foi possível mudar a etapa. Verifique a conexão e tente de novo."),
+          const failure = await readFailure(
+            response,
+            "Não foi possível mudar a etapa. Verifique a conexão e tente de novo.",
           );
+          if (failure.awaiting) {
+            // Outro operador (ou a rede) deixou a tela desatualizada: mostra o motivo e se atualiza.
+            showToast(failure.message, "warning");
+            await loadPreOrders({ silent: true });
+            return;
+          }
+          throw new Error(failure.message);
         }
 
         await loadPreOrders({ silent: true });
@@ -566,9 +653,13 @@ export default function AdminPreOrdersPage() {
             showToast("Este pedido já foi convertido por outra pessoa.", "warning");
             return null;
           }
-          throw new Error(
-            await errorMessageOf(response, "Não foi possível concluir o recebimento. Nada foi alterado."),
-          );
+          const failure = await readFailure(response, "Não foi possível concluir o recebimento. Nada foi alterado.");
+          if (failure.awaiting) {
+            setReceivingOrder(null);
+            showToast(failure.message, "warning");
+            return null;
+          }
+          throw new Error(failure.message);
         }
 
         const order = await response.json();
@@ -594,24 +685,38 @@ export default function AdminPreOrdersPage() {
     [loadPreOrders, receivingOrder, showToast],
   );
 
+  /** Aceitou ou recusou um pedido do cliente: o pedido muda de etapa, então a lista se atualiza. */
+  const handleResponded = useCallback(() => {
+    void loadPreOrders({ silent: true });
+  }, [loadPreOrders]);
+
   const confirmDelete = useCallback(async () => {
     if (!deleteId) return;
     setDeleting(true);
 
     try {
       const response = await fetch(`/api/pre-orders?id=${deleteId}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Falha ao excluir.");
+      if (!response.ok) {
+        const failure = await readFailure(response, "Não foi possível excluir o pré-pedido.");
+        if (failure.awaiting) {
+          setDeleteId(null);
+          showToast(failure.message, "warning");
+          await loadPreOrders({ silent: true });
+          return;
+        }
+        throw new Error(failure.message);
+      }
 
       setPreOrders((current) => current.filter((preOrder) => preOrder.id !== deleteId));
       setDeleteId(null);
       showToast("Pré-pedido excluído.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Não foi possível excluir o pré-pedido.", "error");
+      showToast(error instanceof Error ? error.message : "Não foi possível excluir o pré-pedido.", "error");
     } finally {
       setDeleting(false);
     }
-  }, [deleteId, showToast]);
+  }, [deleteId, loadPreOrders, showToast]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -669,7 +774,7 @@ export default function AdminPreOrdersPage() {
             ref={searchRef}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Cliente, telefone, produto"
+            placeholder="Cliente, telefone, produto, recado"
             aria-label="Buscar pré-pedido"
             className="w-56 min-w-[160px] shrink"
             leftIcon={<Search className="h-4 w-4" />}
@@ -742,7 +847,7 @@ export default function AdminPreOrdersPage() {
           onStageChange={setStageFilter}
           billedCents={money.billed}
           items={itemTally}
-          itemsOrderCount={visible.length}
+          itemsOrderCount={produced.length}
         />
       )}
 
@@ -815,6 +920,7 @@ export default function AdminPreOrdersPage() {
                       selected={preOrder.id === selectedId}
                       now={now}
                       onSelect={(next) => setSelectedId(next.id)}
+                      onResponded={handleResponded}
                     />
                   ))}
                 </section>
@@ -845,6 +951,7 @@ export default function AdminPreOrdersPage() {
             onTrack={() => router.push(`/admin/pre-orders/${selected.id}/tracking`)}
             onCancel={() => setCancelTarget(selected)}
             onDelete={() => setDeleteId(selected.id)}
+            onResponded={handleResponded}
           />
         ) : (
           <div className="hidden items-start justify-center bg-[color:var(--background)] pt-16 lg:flex">

@@ -1,13 +1,14 @@
 "use client";
 
-import { Share2, Truck } from "lucide-react";
+import { Share2, Truck, X } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import { openWhatsApp, shareTrackingLink } from "@/lib/whatsapp";
 import { formatBRL, formatDayMonth, formatKg, formatTime } from "../../lib/format";
-import { canTrack, fulfillmentOf, headline, toneOf } from "../../lib/order-status";
+import { cancelOrder } from "../../lib/order-api";
+import { canTrack, fulfillmentOf, headline, isAwaitingStore, isFinished, isOnline, onlineState, toneOf } from "../../lib/order-status";
 import type { PreOrder, PreOrderItem } from "../../lib/types";
-import { StatusArt, Stepper, cx } from "../kit";
+import { Sheet, SheetHeader, StatusArt, Stepper, cx } from "../kit";
 import { ProductThumb } from "./ProductThumb";
 import { uniqueProducts } from "./ThumbStack";
 
@@ -37,9 +38,44 @@ function shippingLine(order: PreOrder): { label: string; fee: number } | null {
 /** A faixa de fotos só ajuda em pedidos grandes; com poucos produtos a lista logo abaixo já mostra as fotos grandes. */
 const STRIP_MIN_PRODUCTS = 4;
 
-export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (message: string) => void }) {
+export function OrderDetail({
+  order,
+  onNotice,
+  onChanged,
+}: {
+  order: PreOrder;
+  onNotice: (message: string) => void;
+  /** Busca os pedidos de novo (depois de cancelar, ou se a loja respondeu antes). */
+  onChanged?: () => void;
+}) {
   const tone = toneOf(order);
   const { title, text } = headline(order);
+  const rejected = onlineState(order) === "rejected";
+  const canCancel = isAwaitingStore(order);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const closeConfirm = useCallback(() => setConfirmOpen(false), []);
+
+  const cancel = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    const result = await cancelOrder(order.id);
+    setCancelling(false);
+    if (result.ok) {
+      setConfirmOpen(false);
+      onNotice("Pedido cancelado.");
+      onChanged?.();
+    } else if (result.kind === "auth") {
+      window.location.href = "/login";
+    } else {
+      setCancelError(result.message);
+      // A loja pode ter respondido no meio do caminho: a lista mostra o estado de agora
+      if (result.kind === "conflict") onChanged?.();
+    }
+  };
   const shipping = shippingLine(order);
   const products = uniqueProducts(order.items);
   const trackable = canTrack(order);
@@ -58,7 +94,7 @@ export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (m
           <StatusArt order={order} size={84} />
           <div aria-live="polite">
             <h2>{title}</h2>
-            <p>{text}</p>
+            {rejected ? <p className="c-reject">{text}</p> : <p>{text}</p>}
           </div>
         </div>
         {order.deliveryStatus !== "cancelled" && <Stepper order={order} />}
@@ -130,12 +166,29 @@ export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (m
           <span>Total</span>
           <span className="c-num">{formatBRL(order.totalCents)}</span>
         </div>
+        {isOnline(order) && !isFinished(order) && <p className="c-foot">Você paga na retirada.</p>}
       </article>
 
       {order.notes?.trim() && (
         <p className="c-note c-rise" style={rise(block++)}>
           <b>Observação:</b> {order.notes.trim()}
         </p>
+      )}
+
+      {canCancel && (
+        <div className="c-actions c-rise" style={rise(block++)}>
+          <button
+            type="button"
+            className="c-btn is-ghost"
+            onClick={() => {
+              setCancelError(null);
+              setConfirmOpen(true);
+            }}
+          >
+            <X size={18} aria-hidden="true" />
+            Cancelar pedido
+          </button>
+        </div>
       )}
 
       {trackable && (
@@ -150,6 +203,43 @@ export function OrderDetail({ order, onNotice }: { order: PreOrder; onNotice: (m
           </button>
         </div>
       )}
+
+      <Sheet open={confirmOpen} onClose={closeConfirm} label="Cancelar pedido">
+        <SheetHeader title="Cancelar este pedido?" onClose={closeConfirm} focusTitle />
+        <p className="c-confirm-text">
+          {onlineState(order) === "expired"
+            ? "A loja não respondeu a tempo. Ao cancelar, você libera espaço para fazer um novo pedido."
+            : "A loja ainda não respondeu. Se você cancelar, ela não vai preparar este pedido."}
+        </p>
+        {cancelError && (
+          <p className="c-alert" role="alert">
+            {cancelError}
+          </p>
+        )}
+        <div className="c-actions">
+          <button type="button" className="c-btn is-ghost" onClick={closeConfirm} disabled={cancelling}>
+            {cancelError ? "Fechar" : "Não, manter"}
+          </button>
+          {!(cancelError && !canCancel) && (
+            <button
+              type="button"
+              className="c-btn is-primary"
+              onClick={cancel}
+              aria-disabled={cancelling || undefined}
+              aria-busy={cancelling || undefined}
+            >
+              {cancelling ? (
+                <>
+                  <span className="c-spin" aria-hidden="true" />
+                  Cancelando…
+                </>
+              ) : (
+                "Sim, cancelar"
+              )}
+            </button>
+          )}
+        </div>
+      </Sheet>
     </>
   );
 }

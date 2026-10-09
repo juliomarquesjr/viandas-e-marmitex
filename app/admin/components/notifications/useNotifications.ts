@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useToast } from "@/app/components/Toast";
-import type { NotificationDTO, NotificationListResponse } from "@/lib/notification-types";
+import type { AwaitingOrderDTO, NotificationDTO, NotificationListResponse } from "@/lib/notification-types";
 import { openEventStream } from "@/lib/realtime-stream";
 
 /** De quanto em quanto tempo o sino consulta o servidor (só com a aba visível). */
@@ -18,8 +18,18 @@ const MAX_INDIVIDUAL_TOASTS = 3;
 
 export interface UseNotificationsResult {
   notifications: NotificationDTO[];
+  /** O número do sino, da aba e da barra lateral: pedidos aguardando + pagamentos a conferir + avisos não lidos. */
   badgeCount: number;
+  /** Quanto pede ação agora: pedidos aguardando + pagamentos a conferir. */
   pendingCount: number;
+  /** Pedidos do cliente aguardando resposta, o mais antigo primeiro (até 10). */
+  awaitingOrders: AwaitingOrderDTO[];
+  /** Quantos pedidos aguardam (pode passar do tamanho da lista). */
+  awaitingOrdersCount: number;
+  /** Pagamentos informados esperando conferência, o mais antigo primeiro (dentre as notificações carregadas). */
+  pendingPayments: NotificationDTO[];
+  /** Quantos pagamentos aguardam conferência (conta do servidor, pode passar do tamanho da lista). */
+  pendingPaymentsCount: number;
   /** Já houve ao menos uma resposta com sucesso. */
   loaded: boolean;
   /** A última consulta falhou (o último dado bom continua disponível). */
@@ -38,16 +48,29 @@ function isListResponse(value: unknown): value is NotificationListResponse {
   );
 }
 
+/** Pagamento informado que ainda espera conferência (a mesma regra que o sino usa para "Revisar"). */
+export function isPendingPayment(notification: NotificationDTO): boolean {
+  return notification.paymentIntent?.status === "pending" && !notification.resolvedAt;
+}
+
+export interface UseNotificationsOptions {
+  /** Desligado, não consulta nem escuta nada (ex.: telas imersivas sem o sino). */
+  enabled?: boolean;
+}
+
 /**
- * Notificações do sino: o servidor avisa pelo tempo real (Ably) e a consulta periódica fica como
+ * O motor das notificações do admin. Roda UMA vez, no NotificationsProvider; as telas leem dele
+ * por useNotificationsContext. Notificações do sino: o servidor avisa pelo tempo real (Ably) e a consulta periódica fica como
  * rede de segurança (30 s sem conexão, 2 min com ela).
  * Falha de rede nunca derruba nada: mantém o último dado e tenta de novo no ciclo seguinte.
  */
-export function useNotifications(): UseNotificationsResult {
+export function useNotificationsEngine({ enabled = true }: UseNotificationsOptions = {}): UseNotificationsResult {
   const { showToast } = useToast();
   const [notifications, setNotifications] = React.useState<NotificationDTO[]>([]);
   const [badgeCount, setBadgeCount] = React.useState(0);
   const [pendingCount, setPendingCount] = React.useState(0);
+  const [awaitingOrders, setAwaitingOrders] = React.useState<AwaitingOrderDTO[]>([]);
+  const [awaitingOrdersCount, setAwaitingOrdersCount] = React.useState(0);
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
   const [realtime, setRealtime] = React.useState(false);
@@ -58,22 +81,40 @@ export function useNotifications(): UseNotificationsResult {
   const seenRef = React.useRef<Set<string>>(new Set());
   const baselineRef = React.useRef(false);
 
+  const seenOrdersRef = React.useRef<Set<string>>(new Set());
+  const lastAwaitingCountRef = React.useRef(0);
+
   const announceNew = React.useCallback(
-    (list: NotificationDTO[]) => {
+    (list: NotificationDTO[], orders: AwaitingOrderDTO[], ordersCount: number) => {
       const seen = seenRef.current;
-      const fresh = list.filter((n) => !seen.has(n.id) && !n.resolvedAt);
+      const seenOrders = seenOrdersRef.current;
+      const freshPayments = list.filter((n) => !seen.has(n.id) && !n.resolvedAt);
+      const freshOrders = orders.filter((o) => !seenOrders.has(o.id));
       list.forEach((n) => seen.add(n.id));
+      orders.forEach((o) => seenOrders.add(o.id));
+      const previousCount = lastAwaitingCountRef.current;
+      lastAwaitingCountRef.current = ordersCount;
       if (!baselineRef.current) {
         baselineRef.current = true;
         return;
       }
-      if (fresh.length === 0) return;
-      if (fresh.length > MAX_INDIVIDUAL_TOASTS) {
-        showToast("Abra o sino para revisar.", "info", `${fresh.length} novas notificações`);
+      // Há mais pedidos do que a lista traz (só os 10 mais antigos vêm nela): avisa pela contagem
+      const unlistedOrders = freshOrders.length === 0 && ordersCount > previousCount ? ordersCount - previousCount : 0;
+      const total = freshPayments.length + freshOrders.length + unlistedOrders;
+      if (total === 0) return;
+      if (total > MAX_INDIVIDUAL_TOASTS) {
+        showToast("Abra o sino para responder.", "info", `${total} novidades esperando por você`);
         return;
       }
       // Da mais antiga para a mais nova, para a última chegada ficar por cima
-      [...fresh].reverse().forEach((n) => showToast("Abra o sino para revisar.", "info", n.title));
+      [...freshOrders].reverse().forEach((o) => {
+        const who = o.customerName?.trim();
+        showToast("Veja na tela inicial ou no sino.", "info", who ? `Novo pedido de ${who}` : "Novo pedido");
+      });
+      if (unlistedOrders > 0) {
+        showToast("Veja na tela inicial ou no sino.", "info", unlistedOrders === 1 ? "Novo pedido" : `${unlistedOrders} novos pedidos`);
+      }
+      [...freshPayments].reverse().forEach((n) => showToast("Abra o sino para revisar.", "info", n.title));
     },
     [showToast]
   );
@@ -91,9 +132,13 @@ export function useNotifications(): UseNotificationsResult {
         setNotifications(data.notifications);
         setBadgeCount(data.badgeCount);
         setPendingCount(data.pendingCount);
+        const orders = Array.isArray(data.awaitingOrders) ? data.awaitingOrders : [];
+        const ordersCount = typeof data.awaitingOrdersCount === "number" ? data.awaitingOrdersCount : orders.length;
+        setAwaitingOrders(orders);
+        setAwaitingOrdersCount(ordersCount);
         setLoaded(true);
         setError(false);
-        announceNew(data.notifications);
+        announceNew(data.notifications, orders, ordersCount);
       } catch {
         if (mountedRef.current) setError(true);
       } finally {
@@ -106,6 +151,7 @@ export function useNotifications(): UseNotificationsResult {
   }, [announceNew]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     mountedRef.current = true;
     void refresh();
 
@@ -123,10 +169,11 @@ export function useNotifications(): UseNotificationsResult {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [refresh, realtime]);
+  }, [refresh, realtime, enabled]);
 
   // Tempo real: o servidor avisa quando uma notificação nasce ou é resolvida (ver lib/realtime.ts)
   React.useEffect(() => {
+    if (!enabled) return;
     let timer: number | undefined;
     const stop = openEventStream({
       tokenUrl: "/api/realtime/staff-token",
@@ -141,7 +188,7 @@ export function useNotifications(): UseNotificationsResult {
       window.clearTimeout(timer);
       stop();
     };
-  }, [refresh]);
+  }, [refresh, enabled]);
 
   const markRead = React.useCallback(
     async (id: string) => {
@@ -174,5 +221,28 @@ export function useNotifications(): UseNotificationsResult {
     await refresh();
   }, [pendingCount, refresh]);
 
-  return { notifications, badgeCount, pendingCount, loaded, error, refresh, markRead, markAllRead };
+  const pendingPayments = React.useMemo(
+    () =>
+      notifications
+        .filter(isPendingPayment)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [notifications]
+  );
+  // O servidor conta todos; a lista só tem os carregados. O maior dos dois não subconta.
+  const pendingPaymentsCount = Math.max(pendingPayments.length, pendingCount - awaitingOrdersCount, 0);
+
+  return {
+    notifications,
+    badgeCount,
+    pendingCount,
+    awaitingOrders,
+    awaitingOrdersCount,
+    pendingPayments,
+    pendingPaymentsCount,
+    loaded,
+    error,
+    refresh,
+    markRead,
+    markAllRead,
+  };
 }

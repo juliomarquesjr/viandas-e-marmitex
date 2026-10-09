@@ -11,6 +11,7 @@ Quem usa o sistema entra por portas diferentes. Cada uma tem a sua sessão (cook
 | Cliente | `/dashboard` | Início: saldo, últimas movimentações, pedido em andamento |
 | Cliente | `/expenses` | Ficha: compras e pagamentos, com o comprovante |
 | Cliente | `/pre-orders` | Pedidos, com a lista e o detalhe lado a lado |
+| Cliente | `/pre-orders/novo` | Fazer pedido: cardápio, carrinho e envio (quando o admin libera; ver [pedido-online.md](./pedido-online.md)) |
 | Cliente | `/pre-orders/[id]/tracking` | Rastreio no mapa (público: o link é compartilhado) |
 | Cliente | `/profile` | Perfil, foto, senha e tema |
 | Funcionário | `/auth/login` | Entrada de admin, PDV e entregador |

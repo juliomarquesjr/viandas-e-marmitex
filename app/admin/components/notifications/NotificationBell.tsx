@@ -8,7 +8,7 @@ import { NotificationHistoryDialog } from "./NotificationHistoryDialog";
 import { getPaymentIntentId } from "./NotificationItem";
 import { NotificationPanel } from "./NotificationPanel";
 import { PaymentReviewDialog } from "./PaymentReviewDialog";
-import { useNotifications } from "./useNotifications";
+import { useNotificationsContext } from "./NotificationsProvider";
 
 const PANEL_ID = "admin-notifications-panel";
 
@@ -23,13 +23,31 @@ function badgeText(count: number): string {
   return count > 99 ? "99+" : String(count);
 }
 
+/** Há um diálogo (Radix) aberto por cima da tela, como o de aceitar ou recusar um pedido. */
+function hasOpenDialog(): boolean {
+  return document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null;
+}
+
 /**
  * Sino de notificações do cabeçalho do admin: contador, painel com as mais
  * recentes, histórico completo e revisão dos pagamentos informados.
  */
 export function NotificationBell() {
-  const { notifications, badgeCount, pendingCount, loaded, error, refresh, markRead, markAllRead } =
-    useNotifications();
+  const {
+    notifications,
+    badgeCount,
+    pendingPaymentsCount,
+    awaitingOrders,
+    awaitingOrdersCount,
+    loaded,
+    error,
+    refresh,
+    markRead,
+    markAllRead,
+    soundEnabled,
+    setSoundEnabled,
+    historyRequest,
+  } = useNotificationsContext();
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [historyVersion, setHistoryVersion] = React.useState(0);
@@ -50,6 +68,8 @@ export function NotificationBell() {
   React.useEffect(() => {
     if (!panelOpen) return;
     function handleClickOutside(event: MouseEvent) {
+      // Um diálogo aberto a partir do painel (aceitar/recusar) vive fora dele: clicar nele não fecha o painel
+      if (hasOpenDialog()) return;
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setPanelOpen(false);
       }
@@ -62,7 +82,7 @@ export function NotificationBell() {
   React.useEffect(() => {
     if (!panelOpen) return;
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") closePanel(true);
+      if (event.key === "Escape" && !hasOpenDialog()) closePanel(true);
     }
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
@@ -97,6 +117,26 @@ export function NotificationBell() {
     setHistoryVersion((version) => version + 1);
   }, [refresh]);
 
+  // A tela inicial pede o histórico ("Ver todas as notificações")
+  const lastHistoryRequest = React.useRef(historyRequest);
+  React.useEffect(() => {
+    if (historyRequest === lastHistoryRequest.current) return;
+    lastHistoryRequest.current = historyRequest;
+    setPanelOpen(false);
+    setHistoryOpen(true);
+  }, [historyRequest]);
+
+  const handleOrderResponded = React.useCallback(() => {
+    void refresh().then(() => {
+      // O pedido sai da lista: leva o foco ao painel para o teclado não se perder
+      window.setTimeout(() => {
+        const next = panelRef.current?.querySelector<HTMLElement>("[data-attention-row] button:not([disabled])");
+        (next ?? panelRef.current)?.focus();
+      }, 120);
+    });
+    setHistoryVersion((version) => version + 1);
+  }, [refresh]);
+
   const handleCloseReview = React.useCallback(() => setReview(null), []);
 
   const focusBell = (event: Event) => {
@@ -112,7 +152,7 @@ export function NotificationBell() {
           type="button"
           onClick={togglePanel}
           className={cn(
-            "relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200",
+            "relative flex h-11 w-11 items-center justify-center rounded-lg transition-all duration-200",
             "hover:bg-[color:var(--muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]",
             panelOpen && "bg-[color:var(--muted)] text-[color:var(--foreground)]"
@@ -126,7 +166,7 @@ export function NotificationBell() {
           {badgeCount > 0 && (
             <span
               aria-hidden
-              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ring-2 ring-[color:var(--card)]"
+              className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ring-2 ring-[color:var(--card)]"
               style={{ background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }}
             >
               {badgeText(badgeCount)}
@@ -139,6 +179,12 @@ export function NotificationBell() {
             ref={panelRef}
             id={PANEL_ID}
             notifications={notifications}
+            awaitingOrders={awaitingOrders}
+            awaitingOrdersCount={awaitingOrdersCount}
+            onOrderResponded={handleOrderResponded}
+            soundEnabled={soundEnabled}
+            onSoundChange={setSoundEnabled}
+            onNavigate={() => setPanelOpen(false)}
             loaded={loaded}
             error={error}
             onSelect={(notification) => handleSelect(notification, "panel")}
@@ -156,7 +202,7 @@ export function NotificationBell() {
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         version={historyVersion}
-        pendingCount={pendingCount}
+        pendingCount={pendingPaymentsCount}
         onSelect={(notification) => handleSelect(notification, "history")}
         onCloseAutoFocus={focusBell}
       />

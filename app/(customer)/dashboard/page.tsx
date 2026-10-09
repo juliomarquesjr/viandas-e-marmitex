@@ -9,9 +9,10 @@ import { MovementRow } from "../components/ficha/MovementRow";
 import { buildMovements } from "../components/ficha/movements";
 import { ErrorState, EmptyState, LoadingRows, Money, PixIcon, StatusArt, Stepper, cx } from "../components/kit";
 import { PaymentIntentCards } from "../components/pagamento/PaymentIntentCards";
+import { OrderCta } from "../components/pedido/OrderCta";
 import { PixPaymentSheet } from "../components/PixPaymentSheet";
 import { firstName, formatBRL, formatTime, formatTodayLabel, greeting } from "../lib/format";
-import { fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
+import { activeTitle, fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
 import { PAYMENT_INTENTS_URL } from "../lib/payment-intents";
 import type { CustomerAddress, CustomerProfile, ExpensesResponse, PreOrder, PreOrdersResponse } from "../lib/types";
 import { useRealtimeEvent } from "../lib/realtime";
@@ -89,6 +90,8 @@ export default function CustomerDashboardPage() {
     <div className="c-page c-home">
       <div className="c-home-col">
         <Greeting />
+
+        <OrderCta style={rise(1)} />
 
         {failed ? (
           <div className="c-card c-home-err">
@@ -288,12 +291,6 @@ function ActiveOrders({ orders }: { orders: PreOrder[] }) {
   );
 }
 
-const ACTIVE_TITLE: Partial<Record<PreOrder["deliveryStatus"], string>> = {
-  ready: "Pronto para retirar",
-  preparing: "Em preparo",
-  pending: "Recebido",
-};
-
 function itemsLabel(order: PreOrder) {
   const n = order.items?.length ?? 0;
   return `${n} ${n === 1 ? "item" : "itens"}`;
@@ -310,7 +307,7 @@ function ActiveCard({ order }: { order: PreOrder }) {
     >
       <StatusArt order={order} size={44} />
       <span className="c-row-main">
-        <strong>{ACTIVE_TITLE[order.deliveryStatus] ?? "Em andamento"}</strong>
+        <strong>{activeTitle(order)}</strong>
         <small>{kind ? `${kind} · ${itemsLabel(order)}` : itemsLabel(order)}</small>
         {ready && <small className="c-hint">Retire no balcão e diga o seu nome</small>}
       </span>

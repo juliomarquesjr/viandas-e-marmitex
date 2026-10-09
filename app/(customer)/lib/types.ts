@@ -56,6 +56,12 @@ export interface PreOrderItem {
   product: { id: string; name: string; imageUrl: string | null };
 }
 
+/** Quem criou o pedido: o estabelecimento (balcão) ou o próprio cliente pelo app. */
+export type OrderSource = "staff" | "online";
+
+/** Resposta da loja a um pedido feito pelo cliente. */
+export type OrderApproval = "awaiting" | "accepted" | "rejected" | "cancelled";
+
 export interface PreOrder {
   id: string;
   totalCents: number;
@@ -70,6 +76,14 @@ export interface PreOrder {
   deliveredAt: string | null;
   /** Há um entregador designado (o nome e o contato não vêm para o cliente). */
   hasCourier: boolean;
+  /** Ausente em respostas antigas: tratado como "staff". */
+  source?: OrderSource;
+  /** Só pedidos online têm aprovação; no balcão é `null`. */
+  approval?: OrderApproval | null;
+  respondedAt?: string | null;
+  rejectReason?: string | null;
+  /** Online aguardando a loja além do prazo (20 min). */
+  expired?: boolean;
   items: PreOrderItem[];
 }
 
@@ -96,4 +110,45 @@ export interface CustomerProfile {
   doc: string | null;
   address: CustomerAddress | null;
   imageUrl?: string | null;
+}
+
+/* ---------------------------------------------------------- pedido online */
+
+export type ClosedReason = "disabled" | "paused" | "no_windows" | "closed";
+
+export interface MenuProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  imageUrl: string | null;
+  category: { id: string; name: string } | null;
+  /** Dá para pedir agora (a loja está aberta e o produto está em uma janela aberta). */
+  availableNow: boolean;
+  soldOut: boolean;
+  /** Quando dá para pedir, ex.: "seg–sex 10:00–13:00". */
+  schedule: string[];
+}
+
+export interface OrderingLimits {
+  maxPending: number;
+  maxItems: number;
+  maxQuantity: number;
+  notesMax: number;
+  graceMinutes: number;
+}
+
+/** Resposta de GET /api/customer/ordering/menu. */
+export interface OrderingMenu {
+  enabled: boolean;
+  open: boolean;
+  reason: ClosedReason | null;
+  minutesToClose: number | null;
+  closesAt: string | null;
+  nextOpening: { label: string; at: string } | null;
+  /** Relógio do servidor no momento da resposta: a tela não confia no do aparelho. */
+  serverNow: string;
+  awaitingCount: number;
+  limits: OrderingLimits;
+  products: MenuProduct[];
 }

@@ -4,11 +4,12 @@ import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { ConfigFormData, useSystemConfig } from "@/app/hooks/useSystemConfig";
-import { AlertCircle, Building2, Loader2, Mail, Phone, QrCode, RefreshCw, Save, Settings } from "lucide-react";
+import { AlertCircle, Building2, Loader2, Mail, Phone, QrCode, RefreshCw, Save, Settings, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandingCard } from "./components/BrandingCard";
 import { ContactCard } from "./components/ContactCard";
 import { EmailCard } from "./components/EmailCard";
+import { OnlineOrderingTab } from "./components/OnlineOrderingTab";
 import { PaymentCard } from "./components/PaymentCard";
 import { SettingsPageSkeleton } from "./components/SettingsPageSkeleton";
 
@@ -41,6 +42,13 @@ const navItems = [
     fullDescription: 'Configure os dados de pagamento PIX para recibos',
     icon: QrCode,
   },
+  {
+    id: 'online' as const,
+    label: 'Pedidos online',
+    shortDescription: 'Horários e produtos',
+    fullDescription: 'Defina quando e quais produtos os clientes podem pedir pelo app',
+    icon: ShoppingBag,
+  },
 ];
 
 type SectionId = typeof navItems[number]['id'];
@@ -49,6 +57,8 @@ export default function SettingsPage() {
   const { configs, loading, saving, error, saveConfigs, getFormData } = useSystemConfig();
   const { showToast } = useToast();
   const [activeSection, setActiveSection] = useState<SectionId>('contact');
+  // Depois da primeira visita a aba fica montada (escondida), para não perder horários não salvos
+  const [onlineVisited, setOnlineVisited] = useState(false);
 
   const [formData, setFormData] = useState<ConfigFormData>({
     contact_address_street: '',
@@ -103,6 +113,7 @@ export default function SettingsPage() {
         description="Gerencie as configurações gerais, contato e marca do sistema"
         icon={Settings}
         actions={
+          activeSection === 'online' ? undefined : (
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? (
               <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Salvando...</>
@@ -110,6 +121,7 @@ export default function SettingsPage() {
               <><Save className="h-4 w-4 mr-2" />Salvar Configurações</>
             )}
           </Button>
+          )
         }
       />
 
@@ -137,7 +149,10 @@ export default function SettingsPage() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveSection(item.id)}
+                    onClick={() => {
+                      setActiveSection(item.id);
+                      if (item.id === 'online') setOnlineVisited(true);
+                    }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
                       isActive
                         ? "border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm"
@@ -219,6 +234,11 @@ export default function SettingsPage() {
                     formData={formData}
                     onFieldChange={handleInputChange}
                   />
+                )}
+                {onlineVisited && (
+                  <div hidden={activeSection !== "online"}>
+                    <OnlineOrderingTab active={activeSection === "online"} />
+                  </div>
                 )}
               </div>
             </div>

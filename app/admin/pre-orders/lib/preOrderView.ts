@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
+import { isOrderExpired } from "@/lib/ordering";
 import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
+  Hourglass,
   Package,
   Truck,
   Wallet,
@@ -46,6 +48,14 @@ export type PreOrder = {
   customerId: string | null;
   deliveryStatus?: string | null;
   estimatedDeliveryTime?: string | null;
+  /** Quem criou: "staff" (balcão/admin) ou "online" (o cliente, pela área dele). */
+  source?: string | null;
+  /** Só para pedido online: awaiting | accepted | rejected | cancelled. */
+  approval?: string | null;
+  respondedAt?: string | null;
+  /** Motivo da recusa, escrito pelo operador. */
+  rejectReason?: string | null;
+  idempotencyKey?: string | null;
   deliveryStartedAt?: string | null;
   deliveredAt?: string | null;
   deliveryPerson?: { id: string; name: string } | null;
@@ -71,6 +81,7 @@ export type PreOrder = {
  * pré-pedido deixar de ser deletado na conversão.
  */
 export type PreOrderStage =
+  | "aprovacao"
   | "fila"
   | "producao"
   | "pronto"
@@ -80,6 +91,7 @@ export type PreOrderStage =
   | "cancelado";
 
 export const STAGE_ORDER: PreOrderStage[] = [
+  "aprovacao",
   "cobrar",
   "rota",
   "pronto",
@@ -91,6 +103,7 @@ export const STAGE_ORDER: PreOrderStage[] = [
 
 /** Ordem do fluxo, usada pela trilha do dia (esquerda para a direita). */
 export const RAIL_ORDER: PreOrderStage[] = [
+  "aprovacao",
   "fila",
   "producao",
   "pronto",
@@ -112,6 +125,17 @@ type StageMeta = {
 };
 
 export const STAGE_META: Record<PreOrderStage, StageMeta> = {
+  // Pedido que o cliente fez e o operador ainda não aceitou. Reusa o âmbar de
+  // "pronto" (globals.css está fora do escopo desta tarefa); o rótulo e o ícone
+  // é que distinguem as duas etapas. Não conta como dinheiro em aberto: ainda
+  // pode ser recusado.
+  aprovacao: {
+    label: "Aguardando aprovação",
+    railLabel: "Aprovação",
+    icon: Hourglass,
+    token: "pronto",
+    open: false,
+  },
   fila: { label: "Na fila", railLabel: "Na fila", icon: ClipboardList, token: "fila", open: true },
   producao: { label: "Em produção", railLabel: "Produção", icon: Package, token: "producao", open: true },
   pronto: {
@@ -148,6 +172,8 @@ export function isSupportedStatus(status: string): boolean {
 
 /** O status que o servidor precisa receber para o pedido ficar em cada etapa. */
 export const STATUS_OF_STAGE: Record<PreOrderStage, string | null> = {
+  // Só Aceitar/Recusar tira o pedido daqui; não existe status para escolher.
+  aprovacao: null,
   fila: "pending",
   producao: "preparing",
   pronto: "ready",
@@ -166,7 +192,32 @@ export function selectableStages(): PreOrderStage[] {
   });
 }
 
-export function stageOf(preOrder: Pick<PreOrder, "deliveryStatus">): PreOrderStage {
+/** Pedido do cliente que o operador ainda não aceitou nem recusou. */
+export function isAwaiting(preOrder: Pick<PreOrder, "source" | "approval">): boolean {
+  return preOrder.source === "online" && preOrder.approval === "awaiting";
+}
+
+export function isOnline(preOrder: Pick<PreOrder, "source">): boolean {
+  return preOrder.source === "online";
+}
+
+/** Recusado pelo operador ou cancelado pelo cliente: encerrado, sem volta. */
+export function isClosedOnline(preOrder: Pick<PreOrder, "source" | "approval">): boolean {
+  return preOrder.source === "online" && (preOrder.approval === "rejected" || preOrder.approval === "cancelled");
+}
+
+/** O prazo de resposta passou: a mesma regra do servidor (só dá para recusar). */
+export function isExpiredAwaiting(preOrder: Pick<PreOrder, "source" | "approval" | "createdAt">, now: Date): boolean {
+  return isAwaiting(preOrder) && isOrderExpired(new Date(preOrder.createdAt), now);
+}
+
+export const AWAITING_HINT = "Aceite ou recuse o pedido antes";
+
+export function stageOf(
+  preOrder: Pick<PreOrder, "deliveryStatus"> & Partial<Pick<PreOrder, "source" | "approval">>,
+): PreOrderStage {
+  if (isAwaiting(preOrder)) return "aprovacao";
+
   switch (preOrder.deliveryStatus) {
     case "preparing":
       return "producao";
