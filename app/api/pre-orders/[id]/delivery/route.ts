@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { AWAITING_MESSAGE, isAwaitingApproval } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
@@ -102,7 +103,9 @@ export async function PUT(
         id: true,
         deliveryPersonId: true,
         deliveryStatus: true,
-        deliveryStartedAt: true
+        deliveryStartedAt: true,
+        source: true,
+        approval: true
       }
     });
 
@@ -111,6 +114,11 @@ export async function PUT(
         { error: 'Pre-order not found' },
         { status: 404 }
       );
+    }
+
+    // Pedido do cliente aguardando resposta só sai daí por Aceitar/Recusar (POST /api/pre-orders/[id]/respond)
+    if (isAwaitingApproval(preOrder)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
     }
 
     const isDeliveryPerson = preOrder.deliveryPersonId === session.user.id;

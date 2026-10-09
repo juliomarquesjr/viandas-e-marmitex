@@ -39,13 +39,32 @@ export interface NotificationDTO {
   paymentIntent: NotificationPaymentSummary | null;
 }
 
+/** Pedido feito pelo cliente que espera o admin aceitar ou recusar. */
+export interface AwaitingOrderDTO {
+  id: string;
+  customerId: string | null;
+  customerName: string | null;
+  /** "2 × Marmita M, 1 × Suco": o resumo para decidir sem abrir o pedido. */
+  summary: string;
+  itemCount: number;
+  totalCents: number;
+  notes: string | null;
+  createdAt: string;
+  /** Ficou sem resposta além do prazo: só dá para recusar. */
+  expired: boolean;
+}
+
 /** GET /api/notifications */
 export interface NotificationListResponse {
   notifications: NotificationDTO[];
-  /** Quantas notificações ainda não foram lidas ou ainda pedem ação: é o número do sino. */
+  /** O número do sino: notificações não lidas ou que ainda pedem ação + pedidos do cliente aguardando. */
   badgeCount: number;
-  /** Quantas pedem ação agora (ex.: pagamentos a revisar). */
+  /** Quantas pedem ação agora (pagamentos a revisar + pedidos aguardando). */
   pendingCount: number;
+  /** Pedidos feitos pelo cliente aguardando resposta, o mais antigo primeiro (até 10). */
+  awaitingOrders: AwaitingOrderDTO[];
+  /** Quantos pedidos aguardam (pode ser maior que a lista). */
+  awaitingOrdersCount: number;
   /** Passe em `?before=` para buscar as mais antigas; nulo quando acabou. */
   nextBefore: string | null;
 }

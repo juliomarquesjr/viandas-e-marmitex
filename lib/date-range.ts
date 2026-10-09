@@ -81,3 +81,32 @@ export function localDateString(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
 }
+
+/** Dia da semana (0 = domingo) e minuto do dia (0..1439) de um instante, em Brasília. */
+export function weekdayAndMinuteSP(date: Date): { weekday: number; minute: number } {
+  const day = dateStringSP(date);
+  // meio-dia UTC do próprio dia: o dia da semana não depende do fuso de quem calcula
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  // hourCycle h23 evita o "24:00" da meia-noite
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? '0');
+  return { weekday, minute: get('hour') * 60 + get('minute') };
+}
+
+/** Instante de um minuto do dia ("AAAA-MM-DD" + minutos desde 00:00) em Brasília. */
+export function instantOfMinuteSP(day: string, minute: number): Date | null {
+  const start = startOfDaySP(day);
+  return start ? new Date(start.getTime() + minute * 60_000) : null;
+}
+
+/** "AAAA-MM-DD" do dia seguinte (calendário, sem depender de fuso). */
+export function addDaysToDay(day: string, days: number): string {
+  const date = new Date(`${day}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}

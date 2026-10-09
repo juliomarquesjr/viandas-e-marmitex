@@ -1,6 +1,7 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { parseDayRange } from '@/lib/date-range';
+import { AWAITING_MESSAGE, isAwaitingApproval } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
 import {
   isCashMethod,
@@ -391,6 +392,11 @@ async function convertPreOrderToOrder(request: Request) {
         { status: 404 }
       );
     }
+
+    // Pedido do cliente que o admin ainda não aceitou não vira venda
+    if (isAwaitingApproval(preOrder)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
     
     // Sem valor digitado, dinheiro contado é o valor exato da comanda.
     const settlement = settle(
@@ -585,6 +591,12 @@ export async function PUT(request: Request) {
     const deliveryFeeCents = body.deliveryFeeCents || 0;
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
     
+    // Pedido do cliente aguardando resposta não é editado: o admin aceita ou recusa antes
+    const current = await prisma.preOrder.findUnique({ where: { id: body.id }, select: { source: true, approval: true } });
+    if (current && isAwaitingApproval(current)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+
     // Atualizar pré-pedido
     const preOrder = await prisma.preOrder.update({
       where: { id: body.id },
@@ -647,7 +659,10 @@ export async function DELETE(request: Request) {
       );
     }
     
-    const owner = await prisma.preOrder.findUnique({ where: { id }, select: { customerId: true } });
+    const owner = await prisma.preOrder.findUnique({ where: { id }, select: { customerId: true, source: true, approval: true } });
+    if (owner && isAwaitingApproval(owner)) {
+      return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
 
     // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
     // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos

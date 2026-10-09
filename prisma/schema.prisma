@@ -107,6 +107,7 @@ model Product {
   orderItems      OrderItem[]
   customerPresets CustomerProductPreset[] // Presets de clientes que incluem este produto
   preOrderItems   PreOrderItem[]
+  orderWindows    OrderWindowProduct[] // Janelas em que o cliente pode pedir este produto
 
   @@index([categoryId])
 }
@@ -212,16 +213,52 @@ model PreOrder {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
+  // Pedido feito pelo cliente na área dele (ver docs/pedido-online.md)
+  source              String         @default("staff") // staff (balcão/admin) | online (cliente)
+  approval            String?        // awaiting | accepted | rejected: só para pedidos online
+  respondedAt         DateTime?      // quando o admin aceitou ou recusou
+  rejectReason        String?        // motivo da recusa, mostrado ao cliente
+  idempotencyKey      String?        // evita pedido duplicado por toque duplo
+
   // Relacionamentos
   customer            Customer?      @relation(fields: [customerId], references: [id])
   items               PreOrderItem[]
   deliveryPerson      User?          @relation(fields: [deliveryPersonId], references: [id])
   tracking            DeliveryTracking[]
 
+  @@unique([customerId, idempotencyKey])
   @@index([customerId])
   @@index([createdAt])
   @@index([deliveryStatus])
   @@index([deliveryPersonId])
+  @@index([source, approval])
+}
+
+// Janela em que o cliente pode pedir: dias da semana e horário (em Brasília) + os produtos liberados nela
+model OrderWindow {
+  id          String   @id @default(uuid())
+  name        String
+  weekdays    Int[]    // 0 = domingo ... 6 = sábado
+  startMinute Int      // minutos desde 00:00 (0..1439)
+  endMinute   Int      // exclusivo (1..1440; 1440 = meia-noite)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    OrderWindowProduct[]
+
+  @@index([active])
+}
+
+model OrderWindowProduct {
+  windowId  String
+  productId String
+
+  window    OrderWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([windowId, productId])
+  @@index([productId])
 }
 
 // Modelo de Item do Pré-Pedido
