@@ -19,7 +19,6 @@ import { useCustomerData } from "../../lib/useCustomerData";
 import { useIsDesktop } from "../../lib/useIsDesktop";
 
 /** Mais que isto e a busca aparece; com poucos produtos ela só ocuparia espaço. */
-const SEARCH_MIN_PRODUCTS = 12;
 const MENU_REFRESH_MS = 60_000;
 /** Espaço que as categorias fixas no topo ocupam: a seção que o chip leva pára logo abaixo delas. */
 const CHIPS_OFFSET = 72;
@@ -303,12 +302,17 @@ export default function NewOrderPage() {
   /* ---------- busca e categorias ---------- */
   const [query, setQuery] = React.useState("");
   const products = React.useMemo(() => menu?.products ?? [], [menu]);
-  const searchable = products.length > SEARCH_MIN_PRODUCTS;
-  const needle = searchable ? normalize(query.trim()) : "";
-  const shown = React.useMemo(
-    () => (needle ? products.filter((p) => normalize(`${p.name} ${p.description ?? ""}`).includes(needle)) : products),
-    [products, needle]
-  );
+  // a busca aparece sempre que há produtos, e cada palavra digitada precisa estar no nome ou na descrição
+  const searchable = products.length > 0;
+  const needle = normalize(query.trim());
+  const shown = React.useMemo(() => {
+    const words = needle.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return products;
+    return products.filter((p) => {
+      const text = normalize(`${p.name} ${p.description ?? ""}`);
+      return words.every((word) => text.includes(word));
+    });
+  }, [products, needle]);
   const sections = React.useMemo(() => groupByCategory(shown), [shown]);
 
   const paneRef = React.useRef<HTMLDivElement>(null);
