@@ -530,6 +530,8 @@ export default function NewOrderPage() {
 /** O pedido do servidor tem os mesmos produtos e quantidades do carrinho e foi criado depois da tentativa? */
 function sameOrder(order: PreOrder, lines: CartLine[], startedAt: number): boolean {
   if (order.source !== "online") return false;
+  // Recusado ou cancelado não é "o pedido que eu mandei e a resposta se perdeu": o cliente precisa poder pedir de novo
+  if (order.approval === "rejected" || order.approval === "cancelled") return false;
   if (new Date(order.createdAt).getTime() < startedAt - 5000) return false;
   if (order.items.length !== lines.length) return false;
   return lines.every((line) => order.items.some((item) => item.product.id === line.productId && item.quantity === line.quantity));

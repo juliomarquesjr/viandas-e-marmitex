@@ -14,7 +14,7 @@ O cliente monta o pedido em `/pre-orders/novo` e envia. O admin libera o recurso
 | Quem pode pedir | Qualquer cliente **ativo** (relido do banco a cada pedido: a sessão dura 30 dias) |
 | Retirada | v1 só retirada, "o mais rápido": ao aceitar, o admin informa a previsão (15/30/45/60 min ou sem previsão) |
 | Preço | Lido do cadastro no momento do envio e congelado no item; preço, desconto, taxa e status vindos do cliente são ignorados |
-| Estoque | Checagem de melhor esforço (estoque menos o que está em pedidos abertos) só para produtos com estoque controlado; a baixa real continua na conversão em venda |
+| Estoque | Checagem de melhor esforço (estoque menos o que está em pedidos abertos **de hoje**, sem cancelados, entregues nem expirados) só para produtos com estoque controlado; a baixa real continua na conversão em venda |
 | Limites | até 3 pedidos aguardando por cliente, 10 por hora, 10 produtos por pedido, 20 de cada, observação de até 200 letras |
 | Duplo toque | `Idempotency-Key` por tentativa: repetir devolve o mesmo pedido (200, `duplicate: true`) |
 | Expiração | Pedido sem resposta fica **expirado** depois de 20 min (e nunca passa do dia): só dá para recusar. Calculado na leitura, sem cron |
@@ -33,12 +33,12 @@ cliente envia ─▶ source=online, approval=awaiting, status pending      ("Env
    sem resposta 20 min ─▶ expirado (só Recusar)
 ```
 
-**Guard:** enquanto `awaiting`, o pedido **não** muda de status, não é editado, apagado nem convertido em venda por nenhum outro caminho (`409`, `code: AWAITING_APPROVAL`). Só `POST /api/pre-orders/[id]/respond` tira o pedido de lá. Aceitar e cancelar usam `updateMany` com o estado no `where`: se dois chegam juntos, um leva `409`.
+**Guard:** enquanto `awaiting`, o pedido **não** muda de status, não é editado, apagado, não recebe entregador nem é convertido em venda por nenhum outro caminho (`409`, `code: AWAITING_APPROVAL`). Depois de `rejected`/`cancelled` ele também não reabre nem vira venda (`409`, `ORDER_CLOSED`). Só `POST /api/pre-orders/[id]/respond` tira o pedido de lá. Aceitar e cancelar usam `updateMany` com o estado no `where`: se dois chegam juntos, um leva `409`.
 
 ### Dados (migration `add_online_ordering`, aditiva)
 
 - `PreOrder`: `source` (`staff` | `online`), `approval` (`awaiting` | `accepted` | `rejected` | `cancelled`), `respondedAt`, `rejectReason`, `idempotencyKey` (único por cliente).
-- `OrderWindow` (nome, `weekdays` 0=domingo…6, `startMinute`, `endMinute`, `active`) e `OrderWindowProduct` (janela × produto). Uma `CHECK` em SQL garante dias e horário válidos.
+- `OrderWindow` (nome, `weekdays` 0=domingo…6, `startMinute`, `endMinute`, `active`) e `OrderWindowProduct` (janela × produto). Uma `CHECK` em SQL garante ao menos um dia e horário válido (início antes do fim, dentro das 24 h); os dias 0–6 são validados na API.
 - `SystemConfig` (categoria `ordering`): `online_ordering_enabled`, `online_ordering_paused_until`, `online_ordering_sold_out` (`{ day, ids }`).
 
 ### APIs
@@ -54,7 +54,7 @@ cliente envia ─▶ source=online, approval=awaiting, status pending      ("Env
 
 ### Sino e home do admin
 
-O sino e o painel de atenção da home leem **da mesma fonte** (`/api/notifications`, num provider único): o contador do sino, o título da aba "(N)", o selo de Pré-Pedidos na barra lateral e o painel mostram sempre o mesmo número. O pedido do cliente **não gera `Notification`**: o próprio pedido é a verdade (sem risco de selo preso por um caminho que esqueceu de resolver). Pagamentos PIX informados continuam como antes.
+O sino e o painel de atenção da home leem **da mesma fonte** (`/api/notifications`, num provider único). O contador do sino e o título da aba "(N)" somam o que pede ação (pedidos aguardando e pagamentos para conferir) mais os avisos ainda não lidos; o selo de Pré-Pedidos na barra lateral e o painel mostram cada grupo separado (pedidos / pagamentos). Pedido de um dia anterior que ninguém respondeu é recusado sozinho ("A loja não respondeu a tempo"), para não prender o contador. O pedido do cliente **não gera `Notification`**: o próprio pedido é a verdade (sem risco de selo preso por um caminho que esqueceu de resolver). Pagamentos PIX informados continuam como antes.
 
 ### Deploy em produção (ordem importa)
 
@@ -62,7 +62,7 @@ O sino e o painel de atenção da home leem **da mesma fonte** (`/api/notificati
 2. Deploy do código. O recurso nasce **desligado**.
 3. O admin configura os horários e produtos em Configurações → Pedidos online e liga o interruptor.
 
-Código novo antes da migration: o sino tolera (devolve 0 pedidos aguardando); as rotas novas do pedido online respondem erro até a migration, e a Mesa de Pedido existente pode falhar ao listar pedidos se a coluna `source` ainda não existir. Por isso a migration vem primeiro.
+Código novo antes da migration: só o sino tolera (devolve 0 pedidos aguardando). Qualquer leitura de `PreOrder` sem `select` passa a pedir as colunas novas e falha (P2022): Mesa, conversão em venda, entrega, rastreio e o cardápio do pedido online. **Por isso a migration vem primeiro, sempre.** Rollback do código: desligue o interruptor e resolva os pedidos aguardando antes (a Mesa antiga os trataria como pedidos comuns).
 
 ### Testes
 

@@ -52,6 +52,10 @@ export async function GET() {
           deliveryStartedAt: true,
           deliveredAt: true,
           estimatedDeliveryTime: true,
+          source: true,
+          approval: true,
+          respondedAt: true,
+          rejectReason: true,
         },
       }),
       prisma.order.findMany({
@@ -66,7 +70,41 @@ export async function GET() {
 
     for (const po of preOrders) {
       const href = `/pre-orders?item=${encodeURIComponent(po.id)}`;
-      const base = { id: `po:${po.id}:${po.deliveryStatus}`, kind: 'order' as const, href };
+      // O id muda quando o pedido muda de situação (aprovação ou status): cada passo vira um aviso novo
+      const step = po.source === 'online' && po.approval ? `${po.approval}:${po.deliveryStatus}` : po.deliveryStatus;
+      const base = { id: `po:${po.id}:${step}`, kind: 'order' as const, href };
+
+      if (po.source === 'online') {
+        if (po.approval === 'awaiting') {
+          notices.push({ ...base, tone: 'prog', title: 'Pedido enviado', text: 'Aguardando a loja confirmar.', at: po.createdAt.toISOString() });
+          continue;
+        }
+        if (po.approval === 'rejected') {
+          notices.push({
+            ...base,
+            tone: 'off',
+            title: 'Pedido recusado',
+            text: po.rejectReason ? `Motivo: ${po.rejectReason}` : 'A loja não informou o motivo.',
+            at: (po.respondedAt ?? po.updatedAt).toISOString(),
+          });
+          continue;
+        }
+        if (po.approval === 'cancelled') {
+          notices.push({ ...base, tone: 'off', title: 'Pedido cancelado', text: 'Você cancelou este pedido.', at: (po.respondedAt ?? po.updatedAt).toISOString() });
+          continue;
+        }
+        if (po.approval === 'accepted' && po.deliveryStatus === 'pending') {
+          notices.push({
+            ...base,
+            tone: 'go',
+            title: 'Pedido aceito',
+            text: po.estimatedDeliveryTime ? 'A loja aceitou o seu pedido. Já tem previsão de quando fica pronto.' : 'A loja aceitou o seu pedido.',
+            at: (po.respondedAt ?? po.updatedAt).toISOString(),
+          });
+          continue;
+        }
+      }
+
       switch (po.deliveryStatus) {
         case 'ready':
           notices.push({ ...base, tone: 'go', title: 'Seu pedido está pronto', text: 'Pode retirar no balcão. Diga o seu nome.', at: po.updatedAt.toISOString() });

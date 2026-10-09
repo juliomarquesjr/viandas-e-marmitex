@@ -178,6 +178,54 @@ try {
   const results = await Promise.all(Array.from({ length: 6 }, () => order([{ productId: pa.id, quantity: 1 }])));
   const okCount = results.filter((r) => r.r.status === 201).length;
   check('6 pedidos simultâneos → só 3 entram (o resto 429)', okCount === 3 && results.filter((r) => r.r.status === 429).length === 3, `criados=${okCount}`);
+
+  console.log('\n— correções da revisão do refutador');
+  await putCfg({ windows: [win(0, 1440)], pause: 'until_tomorrow' });
+  menu = await (await cust.f('/api/customer/ordering/menu')).json();
+  check('pausa: a próxima abertura diz "amanhã" (e não "hoje")', menu.reason === 'paused' && /^amanhã|^\w+ às/.test(menu.nextOpening?.label ?? '') && !/^hoje/.test(menu.nextOpening?.label ?? ''), menu.nextOpening?.label);
+  await putCfg({ pause: null });
+
+  const closed = (await order([{ productId: pa.id, quantity: 1 }])).b.id;
+  await admin.f(`/api/pre-orders/${closed}/respond`, json('POST', { action: 'reject', reason: 'Teste' }));
+  const reopen = await admin.f(`/api/pre-orders/${closed}/delivery`, json('PUT', { status: 'pending' }));
+  check('pedido recusado não reabre (delivery PUT → 409 ORDER_CLOSED)', reopen.status === 409 && (await reopen.json()).code === 'ORDER_CLOSED');
+  check('pedido recusado não vira venda (convert → 409)', (await admin.f('/api/pre-orders?convert=true', json('POST', { preOrderId: closed, paymentMethod: 'cash', receivedCents: 100000 }))).status === 409);
+
+  const toAssign = (await order([{ productId: pb.id, quantity: 1 }])).b.id;
+  const adminUser = await p.user.findFirstOrThrow({ where: { email: 'qa.operador@example.com' } });
+  check('entregador não é atribuído a pedido aguardando → 409', (await admin.f(`/api/pre-orders/${toAssign}/delivery/assign`, json('POST', { deliveryPersonId: adminUser.id }))).status === 409);
+  check('perfil PDV recebe 403 (e não 409) ao mexer no status', (await pdv.f(`/api/pre-orders/${toAssign}/delivery`, json('PUT', { status: 'preparing' }))).status === 403);
+  check('GET /api/pre-orders sem login → 401', (await anon.f('/api/pre-orders')).status === 401);
+  const byId = await (await admin.f(`/api/pre-orders?id=${toAssign}`)).json();
+  check('pedido por id não devolve o hash da senha nem o CPF do cliente', byId.customer && !('password' in byId.customer) && !('doc' in byId.customer));
+  const pub = await (await anon.f(`/api/public/pre-orders/${toAssign}/delivery`)).json();
+  check('rota pública do rastreio não expõe a chave de idempotência nem o motivo', !('idempotencyKey' in pub) && !('rejectReason' in pub));
+
+  // de um dia anterior e sem resposta: é recusado sozinho e sai do contador
+  await p.preOrder.update({ where: { id: toAssign }, data: { createdAt: new Date(Date.now() - 26 * 3600_000) } });
+  const afterSweep = await (await admin.f('/api/notifications?limit=5')).json();
+  const swept = await p.preOrder.findUniqueOrThrow({ where: { id: toAssign } });
+  check('pedido sem resposta de ontem é recusado sozinho ("não respondeu a tempo") e não conta no sino', swept.approval === 'rejected' && swept.rejectReason === 'A loja não respondeu a tempo' && !afterSweep.awaitingOrders.some((a: any) => a.id === toAssign));
+  const note = await (await cust.f('/api/customer/notifications')).json();
+  check('o aviso do cliente mostra o motivo da recusa', note.data.some((n: any) => n.title === 'Pedido recusado' && n.text.includes('Teste')));
+
+  console.log('\n— estoque: só reserva o que vai para a cozinha');
+  const stocked = await p.product.create({ data: { name: 'QA-Estoque', priceCents: 500, stockEnabled: true, stock: 5, productType: 'sellable', active: true } });
+  try {
+    await putCfg({ windows: [{ name: 'Estoque', weekdays: allDays, startMinute: 0, endMinute: 1440, active: true, productIds: [stocked.id] }] });
+    o = await order([{ productId: stocked.id, quantity: 6 }]);
+    check('pedir mais que o estoque → 409 OUT_OF_STOCK (sem expor o estoque exato além do limite do pedido)', o.r.status === 409 && o.b.code === 'OUT_OF_STOCK');
+    const stale = await p.preOrder.create({ data: { customerId: customer.id, source: 'online', approval: 'awaiting', deliveryStatus: 'pending', subtotalCents: 2500, totalCents: 2500, items: { create: [{ productId: stocked.id, quantity: 5, priceCents: 500 }] } } });
+    created.push(stale.id);
+    o = await order([{ productId: stocked.id, quantity: 5 }]);
+    check('aguardando recente reserva o estoque → 409', o.r.status === 409 && o.b.code === 'OUT_OF_STOCK');
+    await p.preOrder.update({ where: { id: stale.id }, data: { createdAt: new Date(Date.now() - 40 * 60_000) } });
+    o = await order([{ productId: stocked.id, quantity: 5 }]);
+    check('depois de expirar (40 min), o pedido sem resposta deixa de reservar → 201', o.r.status === 201, `${o.r.status} ${o.b.code ?? ''}`);
+  } finally {
+    await p.preOrderItem.deleteMany({ where: { productId: stocked.id } });
+    await p.product.delete({ where: { id: stocked.id } }).catch(() => undefined);
+  }
 } finally {
   // limpeza
   await p.preOrderItem.deleteMany({ where: { preOrderId: { in: created } } });

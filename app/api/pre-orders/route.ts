@@ -1,7 +1,7 @@
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { parseDayRange } from '@/lib/date-range';
-import { AWAITING_MESSAGE, isAwaitingApproval } from '@/lib/online-ordering';
+import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
 import { requireStaff } from '@/lib/staff-session';
 import {
@@ -224,7 +224,9 @@ async function getPreOrderById(id: string) {
     const preOrder = await prisma.preOrder.findUnique({
       where: { id },
       include: {
-        customer: true,
+        customer: {
+          select: preOrderCustomerSelect
+        },
         items: {
           include: {
             product: true
@@ -406,6 +408,9 @@ async function convertPreOrderToOrder(request: Request) {
     // Pedido do cliente que o admin ainda não aceitou não vira venda
     if (isAwaitingApproval(preOrder)) {
       return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+    if (isClosedOnline(preOrder)) {
+      return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
     }
     
     // Sem valor digitado, dinheiro contado é o valor exato da comanda.
@@ -605,6 +610,9 @@ export async function PUT(request: Request) {
     const current = await prisma.preOrder.findUnique({ where: { id: body.id }, select: { source: true, approval: true } });
     if (current && isAwaitingApproval(current)) {
       return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
+    }
+    if (current && isClosedOnline(current)) {
+      return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
     }
 
     // Atualizar pré-pedido

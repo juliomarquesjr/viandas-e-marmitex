@@ -154,7 +154,7 @@ export async function PUT(request: Request) {
             data: (w.productIds as string[]).map((productId) => ({ windowId: saved.id, productId })),
           });
         }
-      });
+      }, { maxWait: 5000, timeout: 20_000 });
     }
 
     if (typeof body.enabled === 'boolean') await saveEnabled(body.enabled);

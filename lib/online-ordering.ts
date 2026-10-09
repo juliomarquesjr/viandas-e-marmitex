@@ -106,13 +106,25 @@ export { WEEKDAY_NAMES };
 /** Pedidos do cliente aguardando o admin. Tolera a migration ainda não aplicada (devolve vazio). */
 export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Promise<{ count: number; items: AwaitingOrderDTO[] }> {
   try {
+    // Pedido de um dia anterior que ninguém respondeu nunca mais será aceito: é recusado aqui (idempotente), com o
+    // motivo certo para o cliente, e deixa de contar no sino e de esconder os pedidos novos atrás dele.
+    const dayStart = startOfDaySP(dateStringSP(now));
+    if (dayStart) {
+      await prisma.preOrder.updateMany({
+        where: { source: 'online', approval: 'awaiting', createdAt: { lt: dayStart } },
+        data: { approval: 'rejected', deliveryStatus: 'cancelled', respondedAt: now, rejectReason: 'A loja não respondeu a tempo' },
+      });
+    }
+
     const where = { source: 'online', approval: 'awaiting' } as const;
+    const ttlCutoff = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
     const [count, rows] = await Promise.all([
       prisma.preOrder.count({ where }),
+      // Os que ainda dá para aceitar primeiro (o mais antigo no topo); os expirados do dia vêm depois
       prisma.preOrder.findMany({
         where,
-        orderBy: { createdAt: 'asc' },
-        take,
+        orderBy: [{ createdAt: 'asc' }],
+        take: 50,
         select: {
           id: true,
           customerId: true,
@@ -124,9 +136,11 @@ export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Pro
         },
       }),
     ]);
+    const live = rows.filter((row) => row.createdAt >= ttlCutoff);
+    const stale = rows.filter((row) => row.createdAt < ttlCutoff);
     return {
       count,
-      items: rows.map((row) => ({
+      items: [...live, ...stale].slice(0, take).map((row) => ({
         id: row.id,
         customerId: row.customerId,
         customerName: row.customer?.name ?? null,
@@ -149,5 +163,12 @@ export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Pro
 export function isAwaitingApproval(preOrder: { source?: string | null; approval?: string | null }): boolean {
   return preOrder.source === 'online' && preOrder.approval === 'awaiting';
 }
+
+/** Pedido online que a loja recusou ou o cliente cancelou: fica como está (não reabre nem vira venda). */
+export function isClosedOnline(preOrder: { source?: string | null; approval?: string | null }): boolean {
+  return preOrder.source === 'online' && (preOrder.approval === 'rejected' || preOrder.approval === 'cancelled');
+}
+
+export const CLOSED_MESSAGE = 'Este pedido do cliente foi recusado ou cancelado e não pode mais ser alterado.';
 
 export const AWAITING_MESSAGE = 'Este pedido do cliente ainda não foi aceito. Aceite ou recuse antes de continuar.';

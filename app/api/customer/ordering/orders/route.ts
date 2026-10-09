@@ -1,4 +1,5 @@
 import { getCustomerSession } from '@/lib/customer-auth';
+import { dateStringSP, startOfDaySP } from '@/lib/date-range';
 import { OrderError } from '@/lib/online-order-errors';
 import { describeOpening, nextOpening, ORDERING, orderingStatus, productsOpenNow } from '@/lib/ordering';
 import { loadSettings, loadSoldOut, loadWindows, productEligibility } from '@/lib/online-ordering';
@@ -69,6 +70,12 @@ export async function POST(request: Request) {
     const items = parseItems(body?.items);
     const notes = parseNotes(body?.notes);
 
+    // A configuração é lida ANTES de abrir a transação: dentro dela, `prisma` pegaria uma segunda conexão
+    // do pool enquanto a transação segura a primeira (no pico do almoço isso trava o envio).
+    const now = new Date();
+    const [settings, windows, soldOut] = await Promise.all([loadSettings(), loadWindows(), loadSoldOut(now)]);
+    const usable = windows.filter((w) => w.active && w.productIds.length > 0);
+
     const result = await prisma.$transaction(
       async (tx) => {
         // Trava só a linha do cliente: serializa o toque duplo e o limite de pendentes dele,
@@ -86,11 +93,7 @@ export async function POST(request: Request) {
           throw new OrderError('CUSTOMER_INACTIVE', 403, 'Seu cadastro está inativo. Fale com a loja.');
         }
 
-        // O relógio é o do servidor, tomado aqui dentro
-        const now = new Date();
-        const [settings, windows, soldOut] = await Promise.all([loadSettings(), loadWindows(), loadSoldOut(now)]);
-        const usable = windows.filter((w) => w.active && w.productIds.length > 0);
-
+        // O relógio é o do servidor (tomado logo antes da transação), nunca o do cliente
         if (!settings.enabled) {
           throw new OrderError('ORDERING_DISABLED', 409, 'A loja não está recebendo pedidos pelo app agora.');
         }
@@ -141,9 +144,20 @@ export async function POST(request: Request) {
         // É uma checagem de melhor esforço; a definitiva é a conversão em venda, que baixa o estoque.
         const stocked = products.filter((p) => p.stockEnabled);
         if (stocked.length > 0) {
+          // Só reserva o que ainda vai para a cozinha: de hoje (Brasília), nem cancelado nem entregue, e nem pedido
+          // online que ficou sem resposta além do prazo (esse nunca vai ser aceito).
+          const dayStart = startOfDaySP(dateStringSP(now))!;
+          const ttlCutoff = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
           const reserved = await tx.preOrderItem.groupBy({
             by: ['productId'],
-            where: { productId: { in: stocked.map((p) => p.id) }, preOrder: { deliveryStatus: { not: 'cancelled' } } },
+            where: {
+              productId: { in: stocked.map((p) => p.id) },
+              preOrder: {
+                deliveryStatus: { notIn: ['cancelled', 'delivered'] },
+                createdAt: { gte: dayStart },
+                NOT: { source: 'online', approval: 'awaiting', createdAt: { lt: ttlCutoff } },
+              },
+            },
             _sum: { quantity: true },
           });
           const reservedById = new Map(reserved.map((r) => [r.productId, r._sum.quantity ?? 0]));
@@ -151,7 +165,10 @@ export async function POST(request: Request) {
             .map((p) => ({ productId: p.id, name: p.name, available: Math.max(0, (p.stock ?? 0) - (reservedById.get(p.id) ?? 0)) }))
             .filter((p) => items.find((i) => i.productId === p.productId)!.quantity > p.available);
           if (short.length > 0) {
-            throw new OrderError('OUT_OF_STOCK', 409, 'Alguns produtos não têm a quantidade pedida. Ajuste o carrinho e envie de novo.', { products: short });
+            // o estoque exato não sai: só até o máximo que dá para pedir de uma vez
+            throw new OrderError('OUT_OF_STOCK', 409, 'Alguns produtos não têm a quantidade pedida. Ajuste o carrinho e envie de novo.', {
+              products: short.map((p) => ({ ...p, available: Math.min(p.available, ORDERING.MAX_QTY_PER_ITEM) })),
+            });
           }
         }
 

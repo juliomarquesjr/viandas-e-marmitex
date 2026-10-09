@@ -46,6 +46,9 @@ interface StoredCart extends CartState {
 }
 
 const TTL_MS = 24 * 60 * 60 * 1000;
+/** Quanto tempo uma tentativa de envio pode ser repetida com a mesma chave (30 min). */
+const RETRY_KEY_MAX_AGE_MS = 30 * 60 * 1000;
+
 const EMPTY: CartState = { lines: [], notes: "", attempt: null };
 
 const storageKey = (customerId: string) => `viandas:pedido-online:${customerId}`;
@@ -170,8 +173,12 @@ export function useCart(customerId: string | null) {
   const beginAttempt = React.useCallback((): string => {
     const current = latest.current;
     const fingerprint = fingerprintOf(current);
-    const key = current.attempt && current.attempt.fingerprint === fingerprint ? current.attempt.key : newKey();
-    const attempt: SendAttempt = { key, fingerprint, startedAt: Date.now(), unsure: true };
+    // A chave só se repete por um tempo curto: se o admin já aceitou e converteu em venda o pedido de uma tentativa
+    // antiga (o pré-pedido some), reenviar com a mesma chave criaria um pedido duplicado.
+    const previous = current.attempt;
+    const reuse = !!previous && previous.fingerprint === fingerprint && Date.now() - previous.startedAt < RETRY_KEY_MAX_AGE_MS;
+    const key = reuse ? previous!.key : newKey();
+    const attempt: SendAttempt = { key, fingerprint, startedAt: reuse ? previous!.startedAt : Date.now(), unsure: true };
     latest.current = { ...current, attempt };
     setState((prev) => ({ ...prev, attempt }));
     return key;

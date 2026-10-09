@@ -108,6 +108,27 @@ describe('estado da loja', () => {
     const s = orderingStatus([lunch], { enabled: true, pausedUntil: at('2026-10-08T09:00:00') }, at('2026-10-08T11:00:00'));
     assert.equal(s.open, true);
   });
+  it('pausa até amanhã: a próxima abertura diz "amanhã", não "hoje" (bug achado pelo refutador)', () => {
+    const s = orderingStatus([lunch], { enabled: true, pausedUntil: at('2026-10-09T00:00:00') }, at('2026-10-08T11:00:00'));
+    assert.equal(describeOpening(s.nextOpening!), 'amanhã às 10:00');
+  });
+  it('pausa até amanhã e uma janela que abre à meia-noite: abre amanhã às 00:00', () => {
+    const midnight: WindowDef = { ...lunch, startMinute: 0, endMinute: 120 };
+    const s = orderingStatus([midnight], { enabled: true, pausedUntil: at('2026-10-09T00:00:00') }, at('2026-10-08T01:00:00'));
+    assert.equal(describeOpening(s.nextOpening!), 'amanhã às 00:00');
+  });
+  it('pausa até amanhã numa quinta, janela só de segunda a sexta: sexta é "amanhã"; sexta à tarde pausada, volta "segunda"', () => {
+    const s1 = orderingStatus([lunch], { enabled: true, pausedUntil: at('2026-10-09T00:00:00') }, at('2026-10-08T14:00:00'));
+    assert.equal(describeOpening(s1.nextOpening!), 'amanhã às 10:00');
+    const s2 = orderingStatus([lunch], { enabled: true, pausedUntil: at('2026-10-10T00:00:00') }, at('2026-10-09T14:00:00'));
+    assert.equal(describeOpening(s2.nextOpening!), 'segunda às 10:00');
+  });
+  it('janelas contíguas (10–13 e 13–15): às 12:30 fecha às 15:00, não às 13:00', () => {
+    const afternoon: WindowDef = { ...lunch, id: 'w3', startMinute: 780, endMinute: 900 };
+    const s = orderingStatus([lunch, afternoon], settings, at('2026-10-08T12:30:00'));
+    assert.equal(s.open, true);
+    assert.equal(s.minutesToClose, 150);
+  });
   it('janela sem produto não conta', () => {
     assert.equal(orderingStatus([{ ...lunch, productIds: [] }], settings, at('2026-10-08T11:00:00')).reason, 'no_windows');
   });
@@ -133,6 +154,10 @@ describe('validação da janela vinda do admin', () => {
     assert.ok(validateWindowInput({ ...ok, productIds: [] }));
     assert.ok(validateWindowInput({ ...ok, weekdays: [1, 1] }));
     assert.ok(validateWindowInput({ ...ok, weekdays: [7] }));
+  });
+  it('rejeita produtos repetidos e entrada nula', () => {
+    assert.match(validateWindowInput({ ...ok, productIds: ['a', 'a'] })!, /repetidos/);
+    assert.ok(validateWindowInput(null as never));
   });
   it('aceita 24:00 como fim', () => assert.equal(validateWindowInput({ ...ok, startMinute: 1260, endMinute: 1440 }), null));
 });

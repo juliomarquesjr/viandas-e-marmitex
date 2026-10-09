@@ -66,26 +66,32 @@ export interface NextOpening {
   at: Date;
 }
 
-/** Próxima abertura a partir de agora (olha até 7 dias à frente). `null` se nenhuma janela abre. */
-export function nextOpening(windows: WindowDef[], now: Date): NextOpening | null {
+/**
+ * Próxima abertura a partir de agora (olha até 7 dias à frente). `null` se nenhuma janela abre.
+ * `notBefore` impede abrir antes de um instante (a pausa "hoje não" vai até a meia-noite: uma janela das
+ * 00:00 abre amanhã às 00:00). O "hoje/amanhã" é sempre contado a partir de AGORA, em Brasília.
+ */
+export function nextOpening(windows: WindowDef[], now: Date, notBefore?: Date): NextOpening | null {
   const today = dateStringSP(now);
-  const { weekday: todayWeekday, minute: nowMinute } = weekdayAndMinuteSP(now);
+  const todayWeekday = weekdayAndMinuteSP(now).weekday;
   const active = windows.filter((w) => w.active && w.productIds.length > 0);
+  let best: NextOpening | null = null;
 
   for (let offset = 0; offset <= 7; offset++) {
     const weekday = (todayWeekday + offset) % 7;
-    const starts = active
-      .filter((w) => w.weekdays.includes(weekday))
-      .map((w) => w.startMinute)
-      .filter((start) => offset > 0 || start > nowMinute)
-      .sort((a, b) => a - b);
-    if (starts.length > 0) {
-      const day = addDaysToDay(today, offset);
-      const at = instantOfMinuteSP(day, starts[0]);
-      if (at) return { day, weekday, startMinute: starts[0], dayOffset: offset, at };
+    const day = addDaysToDay(today, offset);
+    for (const window of active) {
+      if (!window.weekdays.includes(weekday)) continue;
+      const at = instantOfMinuteSP(day, window.startMinute);
+      if (!at || at.getTime() <= now.getTime()) continue;
+      if (notBefore && at.getTime() < notBefore.getTime()) continue;
+      if (!best || at.getTime() < best.at.getTime()) {
+        best = { day, weekday, startMinute: window.startMinute, dayOffset: offset, at };
+      }
     }
+    if (best) return best;
   }
-  return null;
+  return best;
 }
 
 export type ClosedReason = 'disabled' | 'paused' | 'no_windows' | 'closed';
@@ -106,29 +112,44 @@ export interface OrderingSettings {
   pausedUntil: Date | null;
 }
 
+/**
+ * Quando a loja realmente fecha: o fim da janela aberta, estendido enquanto outra janela do mesmo dia
+ * começar exatamente (ou antes) onde essa termina (10–13 e 13–15 fecham às 15, não às 13).
+ */
+function contiguousEnd(windows: WindowDef[], now: Date, open: WindowDef[]): number {
+  const { weekday } = weekdayAndMinuteSP(now);
+  const today = windows.filter((w) => w.active && w.weekdays.includes(weekday));
+  let end = Math.max(...open.map((w) => w.endMinute));
+  let extended = true;
+  while (extended && end < 1440) {
+    extended = false;
+    for (const w of today) {
+      if (w.startMinute <= end && w.endMinute > end) {
+        end = w.endMinute;
+        extended = true;
+      }
+    }
+  }
+  return end;
+}
+
 /** Estado da loja para o cliente: aberta, ou por que está fechada e quando abre. */
 export function orderingStatus(windows: WindowDef[], settings: OrderingSettings, now: Date): OrderingStatus {
   if (!settings.enabled) return { open: false, reason: 'disabled' };
   const usable = windows.filter((w) => w.active && w.productIds.length > 0);
   if (usable.length === 0) return { open: false, reason: 'no_windows' };
   if (settings.pausedUntil && settings.pausedUntil.getTime() > now.getTime()) {
-    return { open: false, reason: 'paused', nextOpening: nextOpeningAfter(usable, now, settings.pausedUntil) };
+    return { open: false, reason: 'paused', nextOpening: nextOpening(usable, now, settings.pausedUntil) };
   }
 
   const open = openWindows(usable, now);
   if (open.length === 0) return { open: false, reason: 'closed', nextOpening: nextOpening(usable, now) };
 
   const day = dateStringSP(now);
-  const latestEnd = Math.max(...open.map((w) => w.endMinute));
-  const closesAt = instantOfMinuteSP(day, latestEnd) ?? undefined;
+  const closeMinute = contiguousEnd(usable, now, open);
+  const closesAt = instantOfMinuteSP(day, closeMinute) ?? undefined;
   const minutesToClose = closesAt ? Math.max(0, Math.ceil((closesAt.getTime() - now.getTime()) / 60_000)) : undefined;
   return { open: true, closesAt, minutesToClose };
-}
-
-/** Primeira abertura depois de um instante (usado na pausa: a loja volta quando a pausa acaba e há janela). */
-function nextOpeningAfter(windows: WindowDef[], now: Date, after: Date): NextOpening | null {
-  const found = nextOpening(windows, after.getTime() > now.getTime() ? after : now);
-  return found;
 }
 
 /** O pedido online sem resposta expirou? Vale 20 min após o envio e nunca passa do fim do dia em Brasília. */
@@ -158,6 +179,7 @@ export function validateWindowInput(input: {
   endMinute: unknown;
   productIds: unknown;
 }): string | null {
+  if (!input || typeof input !== 'object') return 'Horário inválido.';
   if (typeof input.name !== 'string' || input.name.trim().length === 0 || input.name.trim().length > 60) {
     return 'Dê um nome à janela (até 60 letras).';
   }
@@ -170,5 +192,6 @@ export function validateWindowInput(input: {
   if ((s as number) >= (e as number)) return 'A hora final precisa ser depois da inicial.';
   if (!Array.isArray(input.productIds) || input.productIds.length === 0) return 'Marque pelo menos 1 produto nesta janela.';
   if (input.productIds.length > 200 || !input.productIds.every((id) => typeof id === 'string')) return 'Produtos inválidos.';
+  if (new Set(input.productIds).size !== input.productIds.length) return 'Há produtos repetidos nesta janela.';
   return null;
 }

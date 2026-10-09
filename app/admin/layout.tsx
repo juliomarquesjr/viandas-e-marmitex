@@ -58,8 +58,9 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     // Um só estado de notificações para o sino, a tela inicial, o título da aba e a barra lateral.
-    // Nas telas imersivas (PDV) o sino não existe, então nada é consultado.
-    <NotificationsProvider enabled={!immersive}>
+    // No PDV o sino não existe, então nada é consultado. A tela cheia da Mesa de Pedido (modo imersivo do
+    // usuário) continua recebendo os avisos: é onde o operador fica enquanto os pedidos chegam.
+    <NotificationsProvider enabled={!isPdv}>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
