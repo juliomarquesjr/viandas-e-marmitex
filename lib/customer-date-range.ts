@@ -7,9 +7,9 @@
  * meia-noite UTC cortaria as compras da noite para o dia seguinte.
  */
 
+import { SAO_PAULO_OFFSET } from '@/lib/date-range';
+
 const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-// Brasil sem horário de verão desde 2019: o deslocamento é fixo
-const SAO_PAULO_OFFSET = '-03:00';
 
 function toInstant(value: string, edge: 'start' | 'end'): Date | null {
   const iso = DAY_ONLY.test(value)

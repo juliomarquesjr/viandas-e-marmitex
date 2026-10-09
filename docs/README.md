@@ -14,6 +14,7 @@ Este diretório centraliza a documentação funcional e técnica do sistema de p
 - Relatórios: `docs/relatorios.md`
 - Setup de Desenvolvimento: `docs/setup-dev.md`
 - Indexação em buscadores (bloqueada): `docs/indexacao.md`
+- Fuso horário e "o dia" do negócio: `docs/fuso-horario.md`
 
 ### Convenções Gerais
 - Frontend em Next.js (App Router), UI com shadcn/ui + Radix UI, axios para HTTP.

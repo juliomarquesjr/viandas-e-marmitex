@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { endOfDaySP, startOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -68,18 +69,12 @@ export async function GET(
       );
     }
 
-    // Parse dates and set time boundaries
-    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-    
-    // Create dates using local timezone and adjust for UTC
-    // Set start of day (00:00:00)
-    const startDateTimeLocal = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
-    const startDateTime = new Date(startDateTimeLocal.getTime() - startDateTimeLocal.getTimezoneOffset() * 60000);
-    
-    // Set end of day (23:59:59.999)
-    const endDateTimeLocal = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
-    const endDateTime = new Date(endDateTimeLocal.getTime() - endDateTimeLocal.getTimezoneOffset() * 60000);
+    // O período vai do começo do primeiro dia ao fim do último, em Brasília (ver lib/date-range.ts)
+    const startDateTime = startOfDaySP(startDate);
+    const endDateTime = endOfDaySP(endDate);
+    if (!startDateTime || !endDateTime) {
+      return NextResponse.json({ error: 'Período inválido' }, { status: 400 });
+    }
 
     // Get all orders for the customer in the period
     const periodOrders = await prisma.order.findMany({

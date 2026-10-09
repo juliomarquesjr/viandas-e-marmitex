@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Order } from "../types";
+import { localDateString } from "@/lib/date-range";
 
 interface ConsumptionChartProps {
   orders: Order[];
@@ -30,7 +31,7 @@ function buildLast7Days(orders: Order[]) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = localDateString(d);
     days.push({
       date: dateStr,
       label: DAY_NAMES[d.getDay()],
@@ -44,7 +45,7 @@ function buildLast7Days(orders: Order[]) {
   );
 
   for (const order of realOrders) {
-    const orderDate = order.createdAt.split("T")[0];
+    const orderDate = localDateString(new Date(order.createdAt));
     const dayEntry = days.find((d) => d.date === orderDate);
     if (dayEntry) {
       dayEntry.valueCents += order.totalCents;

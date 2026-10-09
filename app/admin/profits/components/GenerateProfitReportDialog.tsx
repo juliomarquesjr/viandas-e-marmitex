@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../components/ui/dialog";
+import { localDateString } from "@/lib/date-range";
 
 interface GenerateProfitReportDialogProps {
   isOpen: boolean;
@@ -49,8 +50,8 @@ export function GenerateProfitReportDialog({
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-      setStartDate(firstDay.toISOString().split("T")[0]);
-      setEndDate(lastDay.toISOString().split("T")[0]);
+      setStartDate(localDateString(firstDay));
+      setEndDate(localDateString(lastDay));
       setSelectedPeriod("current");
     }
   }, [isOpen]);
@@ -67,8 +68,8 @@ export function GenerateProfitReportDialog({
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    setStartDate(firstDay.toISOString().split("T")[0]);
-    setEndDate(lastDay.toISOString().split("T")[0]);
+    setStartDate(localDateString(firstDay));
+    setEndDate(localDateString(lastDay));
     setSelectedPeriod("current");
   };
 
@@ -77,8 +78,8 @@ export function GenerateProfitReportDialog({
     const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
 
-    setStartDate(firstDay.toISOString().split("T")[0]);
-    setEndDate(lastDay.toISOString().split("T")[0]);
+    setStartDate(localDateString(firstDay));
+    setEndDate(localDateString(lastDay));
     setSelectedPeriod("last");
   };
 
@@ -87,8 +88,8 @@ export function GenerateProfitReportDialog({
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
 
-    setStartDate(thirtyDaysAgo.toISOString().split("T")[0]);
-    setEndDate(today.toISOString().split("T")[0]);
+    setStartDate(localDateString(thirtyDaysAgo));
+    setEndDate(localDateString(today));
     setSelectedPeriod("30days");
   };
 

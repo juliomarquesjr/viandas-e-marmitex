@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { endOfDaySP, startOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -24,11 +25,15 @@ export async function GET(request: Request) {
       );
     }
 
-    // Converter datas para UTC
-    const startDateTime = new Date(startDate + 'T00:00:00.000Z');
-    const endDateTime = new Date(endDate + 'T23:59:59.999Z');
+    // Vendas e pagamentos: o período vai do começo do primeiro dia ao fim do último, em Brasília
+    // (meia-noite UTC cortaria as vendas depois das 21h; ver lib/date-range.ts)
+    const startDateTime = startOfDaySP(startDate);
+    const endDateTime = endOfDaySP(endDate);
+    if (!startDateTime || !endDateTime) {
+      return NextResponse.json({ error: 'Datas inválidas' }, { status: 400 });
+    }
     
-    // Para despesas, usar apenas a data (sem hora) para evitar problemas de timezone
+    // Despesas: o campo é só uma data (guardada à meia-noite UTC), então o corte continua em UTC
     const startDateOnly = new Date(startDate + 'T00:00:00.000Z');
     const endDateOnly = new Date(endDate + 'T23:59:59.999Z');
 

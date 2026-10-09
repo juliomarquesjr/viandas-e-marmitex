@@ -36,6 +36,7 @@ import { Label } from "./ui/label";
 import { DateSummaryModal } from "./DateSummaryModal";
 import { SavedBudgetsPickerDialog, type SavedBudgetLoadData } from "./SavedBudgetsPickerDialog";
 import { SaveBudgetDialog } from "./SaveBudgetDialog";
+import { localDateString, todaySP } from '@/lib/date-range';
 
 type Product = {
     id: string;
@@ -157,8 +158,8 @@ export function BudgetModal({
             const today = new Date();
             const nextMonth = new Date(today);
             nextMonth.setDate(today.getDate() + 30);
-            setStartDate(today.toISOString().split('T')[0]);
-            setEndDate(nextMonth.toISOString().split('T')[0]);
+            setStartDate(localDateString(today));
+            setEndDate(localDateString(nextMonth));
             setCurrentMonth(new Date(today));
         } else {
             setBudgetDates(new Map());
@@ -198,7 +199,7 @@ export function BudgetModal({
         const end = new Date(endDate + 'T23:59:59');
         const current = new Date(start);
         while (current <= end) {
-            dates.push(current.toISOString().split('T')[0]);
+            dates.push(localDateString(current));
             current.setDate(current.getDate() + 1);
         }
         return dates;
@@ -713,7 +714,7 @@ export function BudgetModal({
                                             const dateData = getDateData(date);
                                             const hasProducts = dateData && dateData.items.length > 0;
                                             const hasDiscount = dateData && dateData.discountCents > 0;
-                                            const isToday = date === new Date().toISOString().split('T')[0];
+                                            const isToday = date === todaySP();
                                             const dayTotal = calculateDateTotal(date);
 
                                             return (

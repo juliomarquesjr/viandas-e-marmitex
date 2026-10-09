@@ -1,4 +1,5 @@
 import { authOptions } from '@/lib/auth';
+import { dateStringSP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -34,7 +35,7 @@ export async function GET(
     const date = lastPayment?.createdAt ?? firstOrder?.createdAt ?? null;
 
     return NextResponse.json({
-      lastEntryDate: date ? date.toISOString().split('T')[0] : null,
+      lastEntryDate: date ? dateStringSP(date) : null,
     });
   } catch (error) {
     console.error('Error fetching last entry date:', error);
