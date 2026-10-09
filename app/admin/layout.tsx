@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { SidebarProvider, ModernSidebar, MobileSidebar, HeaderActions } from "./components/layout";
 import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminChromeProvider";
@@ -45,7 +46,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 function AdminShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() as { data: ExtendedSession | null };
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { fullBleed, immersive } = useAdminChrome();
+  const chrome = useAdminChrome();
+  // O PDV é a tela toda desde o primeiro quadro (inclusive no HTML do servidor): sem isso a barra
+  // lateral do admin aparece por um instante, até a página ligar o modo imersivo
+  const isPdv = (usePathname() ?? "").startsWith("/admin/pdv");
+  const fullBleed = chrome.fullBleed || isPdv;
+  const immersive = chrome.immersive || isPdv;
 
   const userRole = session?.user?.role;
 

@@ -209,7 +209,8 @@ export async function POST(request: Request) {
     }
     
     // Se uma data customizada foi fornecida (apenas para admins), usar ela: meio-dia em Brasília
-    if (body.customSaleDate) {
+    // Só o admin pode informar a data: esconder o seletor na tela não basta, a API também confere
+    if (body.customSaleDate && session.user.role === 'admin') {
       const customDate = noonOfDaySP(body.customSaleDate);
 
       // Não aceita data futura nem data inválida
