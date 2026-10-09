@@ -16,6 +16,7 @@ Este diretório centraliza a documentação funcional e técnica do sistema de p
 - Indexação em buscadores (bloqueada): `docs/indexacao.md`
 - Fuso horário e "o dia" do negócio: `docs/fuso-horario.md`
 - Pedido online (o cliente pede pela área dele): `docs/pedido-online.md`
+- Cardápio diário (o admin publica, o cliente consulta): `docs/cardapio-diario.md`
 
 ### Convenções Gerais
 - Frontend em Next.js (App Router), UI com shadcn/ui + Radix UI, axios para HTTP.

@@ -10,6 +10,7 @@ Quem usa o sistema entra por portas diferentes. Cada uma tem a sua sessão (cook
 | Cliente | `/login`, `/forgot-password`, `/reset-password` | Entrar e recuperar a senha (públicas) |
 | Cliente | `/dashboard` | Início: saldo, últimas movimentações, pedido em andamento |
 | Cliente | `/expenses` | Ficha: compras e pagamentos, com o comprovante |
+| Cliente | `/cardapio` | Cardápio de hoje e os anteriores (ver [cardapio-diario.md](./cardapio-diario.md)) |
 | Cliente | `/pre-orders` | Pedidos, com a lista e o detalhe lado a lado |
 | Cliente | `/pre-orders/novo` | Fazer pedido: cardápio, carrinho e envio (quando o admin libera; ver [pedido-online.md](./pedido-online.md)) |
 | Cliente | `/pre-orders/[id]/tracking` | Rastreio no mapa (público: o link é compartilhado) |
@@ -25,7 +26,7 @@ Quem usa o sistema entra por portas diferentes. Cada uma tem a sua sessão (cook
 
 ### Regras de acesso (`middleware.ts`)
 
-- **Cliente** (`/dashboard`, `/expenses`, `/pre-orders`, `/profile`): exige a sessão do cliente. As exceções públicas são `/forgot-password`, `/reset-password` e `/pre-orders/[id]/tracking`. `/login` leva ao Início quem já está logado. Um funcionário logado no mesmo navegador não atrapalha: cada área olha só para a sua sessão.
+- **Cliente** (`/dashboard`, `/cardapio`, `/expenses`, `/pre-orders`, `/profile`): exige a sessão do cliente. As exceções públicas são `/forgot-password`, `/reset-password` e `/pre-orders/[id]/tracking`. `/login` leva ao Início quem já está logado. Um funcionário logado no mesmo navegador não atrapalha: cada área olha só para a sua sessão.
 - **Admin** (`/admin/**`): exige sessão de funcionário. O perfil `pdv` só entra em `/admin/pdv`; `/admin/users` é só do admin. 
 - **Entregador** (`/delivery/**`): qualquer funcionário logado.
 - A lista de páginas do cliente fica em `CUSTOMER_PATHS` no `middleware.ts`: ao criar uma página nova do cliente na raiz, acrescente-a lá e ao `matcher`.

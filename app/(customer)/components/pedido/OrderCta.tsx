@@ -29,6 +29,14 @@ export function useOrderingEnabled(): boolean {
   return useOrderingMenuState()?.enabled === true;
 }
 
+/** Estado da loja em texto curto ("Aberto até 14:00"), para quem mostra um botão de pedido. */
+export function useOrderStatus(): { enabled: boolean; open: boolean; text: string } {
+  const menu = useOrderingMenuState();
+  if (!menu || !menu.enabled) return { enabled: false, open: false, text: "" };
+  const { text, open } = cardStatus(menu);
+  return { enabled: true, open, text };
+}
+
 /** Cartão "Fazer pedido" do Início, com o estado da loja vindo do servidor. */
 export function OrderCta({ style }: { style?: React.CSSProperties }) {
   const menu = useOrderingMenuState();

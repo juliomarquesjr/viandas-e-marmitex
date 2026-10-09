@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { backfillOnce, flushDismissals, syncDismissed, syncUndo } from "./dismissals";
 
 export type NoticeTone = "go" | "prog" | "done" | "off" | "pay";
-export type NoticeKind = "order" | "buy" | "pay";
+export type NoticeKind = "order" | "buy" | "pay" | "menu";
 
 export interface Notice {
   id: string;
