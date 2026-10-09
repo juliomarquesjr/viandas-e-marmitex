@@ -46,7 +46,8 @@ export function PaymentReviewDialog({ intentId, onClose, onResolved, onCloseAuto
     <Dialog open={intentId !== null} onOpenChange={handleOpenChange}>
       <DialogContent
         higherZIndex
-        className="flex max-h-[90vh] max-w-md flex-col gap-0 border-t-[3px] border-t-primary bg-[color:var(--card)] p-0"
+        overlayClassName="z-[110]"
+        className="z-[111] flex max-h-[90vh] max-w-md flex-col gap-0 border-t-[3px] border-t-primary bg-[color:var(--card)] p-0"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>

@@ -11,6 +11,7 @@ import { TopDebtorsCard } from "./components/TopDebtorsCard";
 import { RangeSelector } from "./components/RangeSelector";
 import { CardContent, CardHighlighted } from "../components/ui/card";
 import { SimplePageHeader } from "./components/layout/PageHeader";
+import { AttentionPanel } from "./components/attention/AttentionPanel";
 import "./dashboard.css";
 
 const RANGE_OPTIONS: RangeOption[] = [
@@ -385,6 +386,9 @@ export default function AdminHome() {
                 }
             />
 
+            {/* O que está esperando o dono: pedidos novos e pagamentos para conferir */}
+            <AttentionPanel />
+
             <div className="space-y-6 mt-6">
                 {/* KPI Cards */}
                 <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
@@ -406,9 +410,9 @@ export default function AdminHome() {
                     <KpiCard
                         color="warning"
                         icon={Clock}
-                        label="Pendentes"
+                        label="Vendas em aberto"
                         value={formatCurrency(totalsByStatus.pending)}
-                        subtitle="Aguardando confirmação"
+                        subtitle="Vendas ainda não confirmadas"
                     />
                     <KpiCard
                         color="primary"

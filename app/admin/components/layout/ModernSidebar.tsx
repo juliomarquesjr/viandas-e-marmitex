@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { AdminVersionFooter } from "./AdminVersionFooter";
+import { useNotificationsContext } from "../notifications/NotificationsProvider";
 
 /**
  * ModernSidebar - Design System
@@ -135,6 +136,12 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
   const isActive = pathname === item.href;
   const Icon = item.icon;
 
+  // Pré-Pedidos mostra quantos pedidos do cliente esperam resposta (a mesma conta do sino)
+  const { awaitingOrdersCount } = useNotificationsContext();
+  const badge = item.href === "/admin/pre-orders" ? awaitingOrdersCount : (item.badge ?? 0);
+  const badgeText = badge > 99 ? "99+" : String(badge);
+  const badgeLabel = item.href === "/admin/pre-orders" ? `${badge === 1 ? "1 pedido aguardando" : `${badge} pedidos aguardando`}` : `${badge} novos`;
+
   // Tooltip com o nome do item, só existe no modo recolhido. Fica em portal com
   // position: fixed porque a <nav> tem overflow-y-auto — qualquer coisa
   // posicionada dentro dela seria cortada na borda da sidebar.
@@ -176,7 +183,7 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
           ? "bg-primary/10 text-primary"
           : "text-[color:var(--muted-foreground)] hover:bg-[color:var(--muted)] hover:text-[color:var(--foreground)]"
       )}
-      aria-label={collapsed ? item.label : undefined}
+      aria-label={collapsed ? (badge > 0 ? `${item.label}, ${badgeLabel}` : item.label) : undefined}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
       onFocus={showTooltip}
@@ -196,13 +203,30 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
         )}
       />
 
+      {collapsed && badge > 0 && (
+        <span
+          aria-hidden
+          className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ring-2 ring-[color:var(--card)]"
+          style={{ background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }}
+        >
+          {badgeText}
+        </span>
+      )}
+
       {!collapsed && (
         <>
           <span className="flex-1 truncate">{item.label}</span>
-          {item.badge !== undefined && item.badge > 0 && (
-            <span className="bg-primary text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-              {item.badge > 99 ? "99+" : item.badge}
-            </span>
+          {badge > 0 && (
+            <>
+              <span
+                aria-hidden
+                className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-none"
+                style={{ background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }}
+              >
+                {badgeText}
+              </span>
+              <span className="sr-only">, {badgeLabel}</span>
+            </>
           )}
         </>
       )}
@@ -221,6 +245,7 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
               )}
             >
               {item.label}
+              {badge > 0 && <span className="ml-2 tabular-nums text-[color:var(--muted-foreground)]">({badgeText})</span>}
               <span
                 aria-hidden
                 className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border-b border-l border-[color:var(--border-dark)] bg-[color:var(--card)]"

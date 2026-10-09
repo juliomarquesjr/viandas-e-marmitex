@@ -9,8 +9,7 @@ import { ChefHat, Moon, RefreshCw, Sun, X } from "lucide-react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { formatAmount } from "../lib/format";
-import { isLive, shortLabel, stepIndex, stepNames, toneOf, type StatusTone } from "../lib/order-status";
-import type { PreOrder } from "../lib/types";
+import { artKind, isLive, shortLabel, stepIndex, stepNames, toneOf, type StatusSource, type StatusTone } from "../lib/order-status";
 import { useCustomerTheme, type CustomerThemeChoice } from "./CustomerTheme";
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
@@ -68,10 +67,7 @@ export function Money({ cents, countUp = false, className }: { cents: number; co
 
 /* ---------------------------------------------------------- status do pedido */
 
-type StatusOrder = Pick<
-  PreOrder,
-  "deliveryStatus" | "deliveryFeeCents" | "deliveryStartedAt" | "hasCourier" | "estimatedDeliveryTime" | "deliveredAt"
->;
+type StatusOrder = StatusSource;
 
 const toneClass: Record<StatusTone, string> = { go: "is-go", prog: "is-prog", done: "is-done", off: "is-off" };
 
@@ -119,18 +115,18 @@ export function Stepper({ order, compact = false }: { order: StatusOrder; compac
  * sacola com ondas (pronto), caminhão (a caminho), selo (concluído).
  */
 export function StatusArt({ order, size = 76 }: { order: StatusOrder; size?: number }) {
-  const s = order.deliveryStatus;
+  const kind = artKind(order);
   const tone = toneOf(order);
   let inner: React.ReactNode;
 
-  if (s === "pending") {
+  if (kind === "wait") {
     inner = (
       <g className="c-wait">
         <rect x="22" y="18" width="28" height="36" rx="5" fill="var(--c-surface)" stroke="currentColor" strokeWidth="2.4" />
         <path d="M29 29h14M29 36h14M29 43h8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
       </g>
     );
-  } else if (s === "preparing") {
+  } else if (kind === "preparing") {
     inner = (
       <>
         <path className="c-steam" d="M28 34c-4-4 4-7 0-12" />
@@ -142,7 +138,7 @@ export function StatusArt({ order, size = 76 }: { order: StatusOrder; size?: num
         </g>
       </>
     );
-  } else if (s === "ready") {
+  } else if (kind === "ready") {
     inner = (
       <>
         <circle className="c-ring" cx="36" cy="36" r="24" />
@@ -154,7 +150,7 @@ export function StatusArt({ order, size = 76 }: { order: StatusOrder; size?: num
         </g>
       </>
     );
-  } else if (s === "out_for_delivery" || s === "in_transit") {
+  } else if (kind === "truck") {
     inner = (
       <>
         <path className="c-speed" d="M8 30h10M5 38h12M10 46h8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" opacity=".5" />
@@ -166,7 +162,7 @@ export function StatusArt({ order, size = 76 }: { order: StatusOrder; size?: num
         </g>
       </>
     );
-  } else if (s === "delivered") {
+  } else if (kind === "done") {
     inner = (
       <>
         <circle cx="36" cy="36" r="20" fill="currentColor" />
@@ -227,7 +223,11 @@ export function Sheet({
     };
     document.addEventListener("keydown", onKey);
     const t = window.setTimeout(() => {
-      panel.current?.querySelector<HTMLElement>("button, [href], input, select, textarea")?.focus();
+      // `data-sheet-focus` (ex.: o título da folha) vence o primeiro botão
+      const first =
+        panel.current?.querySelector<HTMLElement>("[data-sheet-focus]") ??
+        panel.current?.querySelector<HTMLElement>("button, [href], input, select, textarea");
+      first?.focus();
     }, 30);
     return () => {
       document.removeEventListener("keydown", onKey);
@@ -254,11 +254,22 @@ export function Sheet({
   );
 }
 
-export function SheetHeader({ title, subtitle, onClose }: { title: string; subtitle?: React.ReactNode; onClose: () => void }) {
+export function SheetHeader({
+  title,
+  subtitle,
+  onClose,
+  focusTitle = false,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  onClose: () => void;
+  /** Ao abrir a folha, o foco vai para o título (leitor de tela começa por ele). */
+  focusTitle?: boolean;
+}) {
   return (
     <div className="c-sheet-h">
       <div>
-        <h2>{title}</h2>
+        <h2 {...(focusTitle ? { tabIndex: -1, "data-sheet-focus": "" } : {})}>{title}</h2>
         {subtitle && <p>{subtitle}</p>}
       </div>
       <button type="button" className="c-x" onClick={onClose} aria-label="Fechar">
@@ -399,10 +410,18 @@ export function LoadingRows({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function ErrorState({
+  message,
+  onRetry,
+  title = "Não deu para carregar",
+}: {
+  message: string;
+  onRetry: () => void;
+  title?: string;
+}) {
   return (
     <div className="c-state" role="alert">
-      <h2>Não deu para carregar</h2>
+      <h2>{title}</h2>
       <p>{message}</p>
       <button type="button" className="c-btn is-ghost" onClick={onRetry}>
         <RefreshCw size={18} />

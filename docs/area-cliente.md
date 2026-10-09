@@ -9,6 +9,7 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 | `/dashboard` | Saldo da ficha (com "Pagar com PIX"), as 5 últimas movimentações, o pedido em andamento mais recente e o endereço de entrega |
 | `/expenses` | Ficha: compras e pagamentos por período. O comprovante tem a ilustração animada (selo no pagamento, sacola na compra), as fotos dos produtos e os valores |
 | `/pre-orders` | Pedidos com miniaturas dos produtos; o detalhe mostra o andamento (recebido, em preparo, pronto, a caminho, entregue) |
+| `/pre-orders/novo` | Fazer pedido: o cliente escolhe os produtos liberados pelo admin para o dia e o horário, envia e acompanha em Pedidos (Enviado, Aceito, Recusado). Ver [pedido-online.md](./pedido-online.md) |
 | `/pre-orders/[id]/tracking` | Mapa da entrega (público, aberto por link) |
 | `/profile` | Dados, foto (a mesma que o admin vê), senha e tema claro, escuro ou automático |
 | Sino de **Avisos** | No cabeçalho (celular) e no menu lateral (computador): pedidos, compras na ficha e pagamentos dos últimos 30 dias |
@@ -27,7 +28,8 @@ Todas exigem a sessão do cliente e devolvem só dados do próprio cliente.
 | `GET /api/customer/profile`, `PUT` | Perfil e dados cadastrais |
 | `POST` e `DELETE /api/customer/profile/photo` | Trocar ou remover a foto (JPEG, PNG, WebP ou GIF até 5 MB; sai em 512 px, WebP) |
 | `GET /api/customer/expenses` | Ficha: saldo, compras e pagamentos (com filtro de período) |
-| `GET /api/customer/pre-orders` | Pedidos, com os produtos e as fotos |
+| `GET /api/customer/pre-orders` | Pedidos, com os produtos e as fotos (e, nos pedidos feitos pelo app, a aprovação da loja) |
+| `GET /api/customer/ordering/menu`, `POST /api/customer/ordering/orders`, `POST /api/customer/pre-orders/[id]/cancel` | Cardápio liberado agora, envio e cancelamento do pedido online |
 | `GET /api/customer/pre-orders/[id]/delivery` e `/tracking` | Entrega e posição do entregador |
 | `GET /api/customer/notifications` | Feed de avisos, montado na hora a partir dos pedidos e da ficha (sem tabela própria) |
 | `GET` e `POST /api/customer/payment-intents` | "Já paguei": o cliente informa um PIX e o operador confere |

@@ -9,6 +9,7 @@ import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminCh
 import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
+import { NotificationsProvider } from "./components/notifications/NotificationsProvider";
 
 /**
  * AdminLayout - Design System
@@ -56,7 +57,10 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const userRole = session?.user?.role;
 
   return (
-    <>
+    // Um só estado de notificações para o sino, a tela inicial, o título da aba e a barra lateral.
+    // No PDV o sino não existe, então nada é consultado. A tela cheia da Mesa de Pedido (modo imersivo do
+    // usuário) continua recebendo os avisos: é onde o operador fica enquanto os pedidos chegam.
+    <NotificationsProvider enabled={!isPdv}>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -103,7 +107,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               {fullBleed ? (
                 children
               ) : (
-                <div className="container mx-auto px-4 lg:px-6 py-6 max-w-7xl">{children}</div>
+                <div className="container mx-auto px-4 lg:px-6 pt-6 pb-24 lg:pb-6 max-w-7xl">{children}</div>
               )}
             </main>
           </div>
@@ -111,6 +115,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
         {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
         {!immersive && <RoAssistant />}
-    </>
+    </NotificationsProvider>
   );
 }

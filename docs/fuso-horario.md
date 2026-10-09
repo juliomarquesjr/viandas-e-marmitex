@@ -24,6 +24,9 @@ Vendas (`/api/orders`, inclusive a data de venda retroativa do PDV), pré-pedido
 
 A área do cliente já seguia a mesma regra (`lib/customer-date-range.ts`).
 
+### Pedido online
+As janelas de horário do pedido online (dia da semana e minuto do dia) são sempre calculadas em Brasília no servidor: `weekdayAndMinuteSP` e `lib/ordering.ts`. Domingo às 21h de Brasília já é segunda 00:00 em UTC, por isso há testes de borda (`npm test`). Ver [pedido-online.md](./pedido-online.md).
+
 ### Exceção
 **Despesas** guardam só uma data (à meia-noite UTC), sem hora. O corte por dia continua em UTC.
 

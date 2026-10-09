@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
@@ -15,6 +16,7 @@ import {
 } from "react";
 import { EmptyState, ErrorState, LoadingRows, Toast } from "../components/kit";
 import { OrderDetail } from "../components/pedidos/OrderDetail";
+import { useOrderingEnabled } from "../components/pedido/OrderCta";
 import { OrderRow } from "../components/pedidos/OrderRow";
 import { isFinished } from "../lib/order-status";
 import type { PreOrder, PreOrdersResponse } from "../lib/types";
@@ -54,12 +56,24 @@ function useIsDesktop() {
   );
 }
 
-function ListHeader({ chips }: { chips?: React.ReactNode }) {
+function NewOrderLink({ className }: { className?: string }) {
+  return (
+    <Link href="/pre-orders/novo" className={className ?? "c-btn is-primary"}>
+      <Plus size={18} aria-hidden="true" />
+      Novo pedido
+    </Link>
+  );
+}
+
+function ListHeader({ chips, canOrder = false }: { chips?: React.ReactNode; canOrder?: boolean }) {
   return (
     <header className="c-list-head">
-      <div className="c-orders-intro">
-        <h1 className="c-page-title">Meus pedidos</h1>
-        <p>Pedidos feitos com o estabelecimento e o andamento de cada um.</p>
+      <div className="c-orders-top">
+        <div className="c-orders-intro">
+          <h1 className="c-page-title">Meus pedidos</h1>
+          <p>Pedidos feitos com o estabelecimento e o andamento de cada um.</p>
+        </div>
+        {canOrder && <NewOrderLink />}
       </div>
       {chips}
     </header>
@@ -82,6 +96,7 @@ function PreOrdersScreen() {
   const itemId = searchParams.get("item");
 
   const { data, error, reload } = useCustomerData<PreOrdersResponse>("/api/customer/pre-orders");
+  const canOrder = useOrderingEnabled();
   const orders = useMemo<PreOrder[]>(() => (Array.isArray(data?.data) ? data.data : []), [data]);
   const loaded = data !== null;
 
@@ -209,8 +224,14 @@ function PreOrdersScreen() {
     list = (
       <EmptyState
         title="Você ainda não tem pedidos"
-        text="Quando o estabelecimento registrar um pedido para você, ele aparece aqui."
-      />
+        text={
+          canOrder
+            ? "Faça um pedido pelo app ou peça ao estabelecimento. Ele aparece aqui."
+            : "Quando o estabelecimento registrar um pedido para você, ele aparece aqui."
+        }
+      >
+        {canOrder && <NewOrderLink />}
+      </EmptyState>
     );
   } else if (visible.length === 0) {
     list = (
@@ -239,14 +260,14 @@ function PreOrdersScreen() {
   /* ---------- detalhe ---------- */
 
   let detail: React.ReactNode = null;
-  if (shown) detail = <OrderDetail key={shown.id} order={shown} onNotice={setNotice} />;
+  if (shown) detail = <OrderDetail key={shown.id} order={shown} onNotice={setNotice} onChanged={reload} />;
   else if (!loaded && !error) detail = <DetailSkeleton />;
 
   return (
     <>
       <div className="c-split" data-has-selection={hasSelection ? "true" : undefined}>
         <section ref={listRef} className="c-pane c-list" aria-label="Lista de pedidos">
-          <ListHeader chips={chips} />
+          <ListHeader chips={chips} canOrder={canOrder} />
           {list}
         </section>
         <section ref={detailRef} className="c-pane c-detail" aria-label="Detalhes do pedido">

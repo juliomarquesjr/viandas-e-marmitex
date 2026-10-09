@@ -12,6 +12,8 @@ export async function GET(
 
     const preOrder = await prisma.preOrder.findUnique({
       where: { id: preOrderId },
+      // Campos internos do pedido online (chave de idempotência, motivo da recusa) não saem por um link público
+      omit: { idempotencyKey: true, rejectReason: true, approval: true, respondedAt: true },
       include: {
         customer: {
           select: {
