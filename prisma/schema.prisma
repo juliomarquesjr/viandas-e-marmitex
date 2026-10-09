@@ -456,3 +456,48 @@ model CustomerDismissal {
   @@id([customerId, key])
   @@index([customerId, createdAt])
 }
+
+// Cardápio do dia: o administrador monta e publica; o cliente vê o de hoje e consulta os anteriores.
+// `date` é o dia em Brasília ("AAAA-MM-DD"), um cardápio por dia.
+model DailyMenu {
+  id              String    @id @default(uuid())
+  date            String    @unique
+  title           String?
+  note            String?
+  status          String    @default("draft") // draft, published
+  showOrderButton Boolean   @default(true)    // mostra "Fazer pedido" no cardápio do cliente
+  notifyCustomers Boolean   @default(false)   // vira aviso no sino do cliente enquanto estiver recente
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sections        DailyMenuSection[]
+
+  @@index([status, date])
+}
+
+model DailyMenuSection {
+  id       String @id @default(uuid())
+  menuId   String
+  name     String
+  position Int
+
+  menu     DailyMenu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  items    DailyMenuItem[]
+
+  @@index([menuId, position])
+}
+
+model DailyMenuItem {
+  id          String  @id @default(uuid())
+  sectionId   String
+  name        String
+  description String?
+  featured    Boolean @default(false)
+  vegetarian  Boolean @default(false)
+  position    Int
+
+  section     DailyMenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, position])
+}

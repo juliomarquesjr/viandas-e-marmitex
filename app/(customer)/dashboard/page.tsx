@@ -6,6 +6,7 @@ import Link from "next/link";
 import * as React from "react";
 import type { CustomerPaymentIntentsResponse } from "@/lib/notification-types";
 import { CustomerAvatar } from "../components/Avatar";
+import { MenuNote } from "../components/cardapio/MenuNote";
 import { MovementRow } from "../components/ficha/MovementRow";
 import { buildMovements } from "../components/ficha/movements";
 import { ErrorState, EmptyState, LoadingRows, Money, PixIcon, StatusArt, Stepper, cx } from "../components/kit";
@@ -107,6 +108,8 @@ export default function CustomerDashboardPage() {
         ) : (
           <BalanceHero data={expenses.data} onPay={() => setPixOpen(true)} />
         )}
+
+        <MenuNote style={rise(2)} />
 
         {address && (
           <section className="c-card c-home-addr c-rise" style={rise(4)} aria-label="Endereço de entrega">

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
 import { dismissedAmong } from '@/lib/customer-dismissals';
+import { lastVisibleDay } from '@/lib/daily-menu';
+import { todaySP } from '@/lib/date-range';
 
 // GET - Avisos do cliente autenticado
 //
@@ -12,9 +14,11 @@ import { dismissedAmong } from '@/lib/customer-dismissals';
 
 const WINDOW_DAYS = 30;
 const MAX_ITEMS = 30;
+/** Quanto tempo um aviso de cardápio publicado fica na lista. */
+const MENU_NOTICE_DAYS = 7;
 
 type Tone = 'go' | 'prog' | 'done' | 'off' | 'pay';
-type Kind = 'order' | 'buy' | 'pay';
+type Kind = 'order' | 'buy' | 'pay' | 'menu';
 
 interface Notice {
   id: string;
@@ -156,6 +160,36 @@ export async function GET() {
           href: `/expenses?item=${encodeURIComponent(order.id)}`,
         });
       }
+    }
+
+    // Cardápio publicado com "avisar o cliente": vira aviso por alguns dias. Sem a tabela (migration
+    // pendente), simplesmente não há aviso de cardápio.
+    try {
+      const menus = await prisma.dailyMenu.findMany({
+        where: {
+          status: 'published',
+          notifyCustomers: true,
+          publishedAt: { gte: new Date(Date.now() - MENU_NOTICE_DAYS * 24 * 60 * 60 * 1000) },
+          date: { lte: lastVisibleDay(todaySP()) },
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 5,
+        select: { date: true, title: true, publishedAt: true },
+      });
+      const today = todaySP();
+      for (const menu of menus) {
+        notices.push({
+          id: `menu:${menu.date}`,
+          kind: 'menu',
+          tone: 'prog',
+          title: menu.date === today ? 'Cardápio de hoje publicado' : 'Cardápio novo publicado',
+          text: menu.title ? `${menu.title}. Toque para ver.` : 'Toque para ver o que tem hoje.',
+          at: (menu.publishedAt ?? new Date()).toISOString(),
+          href: menu.date === today ? '/cardapio' : `/cardapio?dia=${menu.date}`,
+        });
+      }
+    } catch {
+      // sem a tabela de cardápios
     }
 
     // Os que o cliente limpou (em qualquer aparelho) não voltam

@@ -1,0 +1,345 @@
+/* Cardápio do dia (cliente): aviso do Início, faixa de dias, lista de anteriores e o cardápio. */
+@layer components {
+  /* ---------- aviso no Início ---------- */
+  .c-home .c-home-menu {
+    order: 2;
+  }
+  .c-mn-note-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 64px;
+    padding: 10px 12px 10px 14px;
+    border-radius: var(--c-r-lg);
+    background: var(--c-tint);
+    border: 1px solid var(--c-tint-line);
+    color: var(--c-brand-text);
+  }
+  .c-mn-note-link:hover {
+    background: var(--c-brand-soft);
+  }
+  .c-mn-note-ic {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--c-brand-soft);
+  }
+  .c-mn-note-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .c-mn-note-t span {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .c-mn-note-t strong {
+    font: 600 15px/1.3 var(--c-f-body);
+    color: var(--c-ink);
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- página ---------- */
+  .c-mn-page {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "strip" "detail" "list";
+  }
+  .c-mn-page > * {
+    min-width: 0;
+  }
+  .c-mn-top {
+    grid-area: top;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .c-mn-top .c-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .c-mn-date-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .c-mn-strip {
+    grid-area: strip;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding: 2px 16px 6px;
+    scrollbar-width: none;
+  }
+  .c-mn-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .c-mn-chip {
+    flex: none;
+    min-width: 58px;
+    min-height: 64px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: var(--c-r-lg);
+    border: 1px solid var(--c-line);
+    background: var(--c-surface);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-ink2);
+  }
+  .c-mn-chip b {
+    font: 700 20px/1 var(--c-f-display);
+    color: var(--c-ink);
+  }
+  .c-mn-chip[aria-current="date"] {
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+    color: var(--c-brand-ink);
+  }
+  .c-mn-chip[aria-current="date"] b {
+    color: var(--c-brand-ink);
+  }
+  .c-mn-chip.is-more {
+    border-style: dashed;
+    background: transparent;
+    font-weight: 700;
+    text-align: center;
+  }
+  .c-mn-detail {
+    grid-area: detail;
+    min-width: 0;
+  }
+  .c-mn-list {
+    grid-area: list;
+    min-width: 0;
+  }
+
+  /* o cardápio */
+  .c-mn-card {
+    overflow: hidden;
+  }
+  .c-mn-head {
+    padding: 16px;
+  }
+  .c-mn-eyebrow {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-brand-text);
+  }
+  .c-mn-title {
+    margin: 4px 0 0;
+    font: 700 24px/1.15 var(--c-f-display);
+    letter-spacing: -0.015em;
+  }
+  .c-mn-date {
+    margin: 3px 0 0;
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+  .c-mn-past {
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    border-radius: var(--c-r-sm);
+    background: var(--c-sunk);
+    font-size: 13px;
+    color: var(--c-ink2);
+  }
+  .c-mn-sec {
+    border-top: 1px solid var(--c-line);
+    padding-bottom: 4px;
+  }
+  .c-mn-sec h3 {
+    padding: 14px 16px 4px;
+    font: 700 12px/1.2 var(--c-f-body);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-brand-text);
+  }
+  .c-mn-sec ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .c-mn-sec li {
+    padding: 10px 16px;
+    border-top: 1px solid var(--c-line);
+  }
+  .c-mn-sec li:first-child {
+    border-top: 0;
+  }
+  .c-mn-sec li strong {
+    display: block;
+    font: 500 16px/1.3 var(--c-f-body);
+  }
+  .c-mn-sec li.is-featured strong {
+    font-weight: 700;
+  }
+  .c-mn-sec li small {
+    display: block;
+    margin-top: 2px;
+    font-size: 14px;
+    color: var(--c-ink2);
+  }
+  .c-mn-veg {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 99px;
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+    font-size: 12px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .c-mn-note {
+    margin: 0;
+    padding: 12px 16px;
+    border-top: 1px solid var(--c-line);
+    background: var(--c-sunk);
+    font-size: 13px;
+    color: var(--c-ink2);
+  }
+  .c-mn-order {
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--c-line);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  .c-mn-order .c-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .c-mn-order span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-ink2);
+  }
+  .c-mn-order span.is-open {
+    color: var(--c-ok);
+  }
+
+  /* lista de dias / anteriores */
+  .c-mn-group {
+    margin: 4px 0 8px;
+    font: 700 12px/1.2 var(--c-f-body);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-ink2);
+  }
+  .c-mn-rows {
+    overflow: hidden;
+  }
+  .c-mn-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 68px;
+    padding: 10px 12px 10px 14px;
+    border-top: 1px solid var(--c-line);
+    color: inherit;
+  }
+  .c-mn-row:first-child {
+    border-top: 0;
+  }
+  .c-mn-row:hover {
+    background: var(--c-sunk);
+  }
+  .c-mn-row[aria-current="date"] {
+    background: var(--c-brand-soft);
+    box-shadow: inset 3px 0 0 var(--c-brand);
+  }
+  .c-mn-row-d {
+    width: 46px;
+    flex: none;
+    text-align: center;
+  }
+  .c-mn-row-d small {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--c-ink2);
+  }
+  .c-mn-row-d b {
+    font: 700 20px/1 var(--c-f-display);
+  }
+  .c-mn-row-t {
+    flex: 1;
+    min-width: 0;
+  }
+  .c-mn-row-t strong {
+    display: block;
+    font: 600 15px/1.25 var(--c-f-body);
+    overflow-wrap: anywhere;
+  }
+  .c-mn-row-t span {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--c-ink2);
+  }
+  .c-mn-more {
+    margin-top: 14px;
+    width: 100%;
+  }
+
+  @media (min-width: 860px) {
+    .c-mn-page {
+      grid-template-columns: 360px minmax(0, 1fr);
+      grid-template-areas: "top top" "list detail";
+      column-gap: 28px;
+      align-items: start;
+    }
+    .c-mn-strip {
+      display: none;
+    }
+    .c-mn-title {
+      font-size: 30px;
+    }
+    .c-mn-head {
+      padding: 24px 28px 18px;
+    }
+    .c-mn-sec h3 {
+      padding-inline: 28px;
+    }
+    .c-mn-sec li {
+      padding-inline: 28px;
+    }
+    .c-mn-note,
+    .c-mn-order {
+      padding-inline: 28px;
+    }
+    .c-mn-order {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .c-mn-order .c-btn {
+      width: auto;
+      padding-inline: 28px;
+    }
+  }
+}

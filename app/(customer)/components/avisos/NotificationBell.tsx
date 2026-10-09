@@ -9,6 +9,7 @@ import {
   CircleCheck,
   CircleX,
   CookingPot,
+  BookOpen,
   HandCoins,
   PackageCheck,
   ReceiptText,
@@ -42,6 +43,7 @@ function NoticeIcon({ notice }: { notice: Notice }) {
   const props = { size: 22, strokeWidth: 1.8 };
   if (notice.kind === "pay") return <HandCoins {...props} />;
   if (notice.kind === "buy") return <ReceiptText {...props} />;
+  if (notice.kind === "menu") return <BookOpen {...props} />;
   if (notice.tone === "go") return <PackageCheck {...props} />;
   if (notice.tone === "done") return <CircleCheck {...props} />;
   if (notice.tone === "off") return <CircleX {...props} />;

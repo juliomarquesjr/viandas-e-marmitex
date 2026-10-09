@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
+  BookOpen,
   ChefHat,
   ChevronLeft,
   ChevronRight,
@@ -51,6 +52,7 @@ const navigationConfig: NavSection[] = [
     items: [
       { href: "/admin", label: "Dashboard", icon: Gauge },
       { href: "/admin/products", label: "Produtos", icon: Package },
+      { href: "/admin/menus", label: "Cardápios", icon: BookOpen },
       { href: "/admin/customers", label: "Clientes", icon: Users },
     ],
   },
