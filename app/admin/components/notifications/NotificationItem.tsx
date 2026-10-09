@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Banknote, Bell } from "lucide-react";
+import { Banknote, Bell, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NotificationDTO } from "@/lib/notification-types";
 import { formatCurrency, formatRelativeTime } from "./format";
@@ -14,7 +14,7 @@ export function getPaymentIntentId(notification: NotificationDTO): string | null
 }
 
 function TypeIcon({ type, compact }: { type: string; compact: boolean }) {
-  const Icon = type === "payment_intent" ? Banknote : Bell;
+  const Icon = type === "payment_intent" ? Banknote : type === "whatsapp" ? MessageCircle : Bell;
   return (
     <div
       className={cn(
