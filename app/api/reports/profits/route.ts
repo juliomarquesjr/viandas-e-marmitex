@@ -117,7 +117,8 @@ export async function GET(request: Request) {
     const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     
     // Calcular número de dias no período
-    const daysDiff = Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    // Dias do período, contando o primeiro e o último (um dia só = 1; o fim é 23:59:59.999, por isso arredonda)
+    const daysDiff = Math.round((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60 * 24));
     const averageDailyRevenue = daysDiff > 0 ? totalRevenue / daysDiff : 0;
     const averageDailyExpenses = daysDiff > 0 ? expensesTotal / daysDiff : 0;
 
