@@ -37,7 +37,7 @@ export function OrderCta({ style }: { style?: React.CSSProperties }) {
   return (
     <Link href="/pre-orders/novo" className={cx("c-order-cta c-rise", open && "is-open")} style={style}>
       <span className="c-oic is-go" aria-hidden="true">
-        <UtensilsCrossed size={20} />
+        <UtensilsCrossed size={18} />
       </span>
       <span className="c-order-cta-t">
         <strong>Fazer pedido</strong>
@@ -47,7 +47,7 @@ export function OrderCta({ style }: { style?: React.CSSProperties }) {
         </span>
       </span>
       <span className="c-chev" aria-hidden="true">
-        <ChevronRight size={20} />
+        <ChevronRight size={18} />
       </span>
     </Link>
   );

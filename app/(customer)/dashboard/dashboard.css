@@ -27,6 +27,24 @@
     order: 2;
   }
 
+  .c-greet {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .c-greet-ph {
+    flex: none;
+    display: block;
+    border-radius: 50%;
+    line-height: 0;
+  }
+  .c-greet-ph:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 3px;
+  }
+  .c-greet-t {
+    min-width: 0;
+  }
   .c-greet h1 {
     font-size: 24px;
     font-weight: 700;
