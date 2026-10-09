@@ -1,5 +1,5 @@
 import { authOptions } from '@/lib/auth';
-import { endOfDaySP, startOfDaySP } from '@/lib/date-range';
+import { dateStringSP, endOfDaySP, startOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -233,7 +233,7 @@ export async function GET(
       periodOrders.forEach(order => {
         try {
           const orderDate = new Date(order.createdAt);
-          const monthKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
+          const monthKey = dateStringSP(orderDate).slice(0, 7);
           if (!monthlyGroups.has(monthKey)) {
             monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
           }
@@ -257,7 +257,7 @@ export async function GET(
       fichaPaymentsInPeriod.forEach(payment => {
         try {
           const paymentDate = new Date(payment.createdAt);
-          const monthKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+          const monthKey = dateStringSP(paymentDate).slice(0, 7);
           if (!monthlyGroups.has(monthKey)) {
             monthlyGroups.set(monthKey, { purchases: 0, payments: 0 });
           }

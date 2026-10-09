@@ -11,25 +11,30 @@ export const SAO_PAULO_OFFSET = '-03:00';
 
 const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Instante de uma hora de um dia ("AAAA-MM-DD") em Brasília. `null` se não for uma data de verdade:
+ * o JS aceita 2026-02-30 e devolve 02/03, então confere que o dia continua o mesmo.
+ */
+function instantOfDay(day: string, time: string): Date | null {
+  if (!DAY_ONLY.test(day)) return null;
+  const date = new Date(`${day}T${time}${SAO_PAULO_OFFSET}`);
+  if (Number.isNaN(date.getTime())) return null;
+  return dateStringSP(date) === day ? date : null;
+}
+
 /** Instante do começo do dia ("AAAA-MM-DD") em Brasília, ou `null` se não for uma data. */
 export function startOfDaySP(day: string): Date | null {
-  if (!DAY_ONLY.test(day)) return null;
-  const date = new Date(`${day}T00:00:00.000${SAO_PAULO_OFFSET}`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return instantOfDay(day, '00:00:00.000');
 }
 
 /** Instante do fim do dia ("AAAA-MM-DD") em Brasília, ou `null` se não for uma data. */
 export function endOfDaySP(day: string): Date | null {
-  if (!DAY_ONLY.test(day)) return null;
-  const date = new Date(`${day}T23:59:59.999${SAO_PAULO_OFFSET}`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return instantOfDay(day, '23:59:59.999');
 }
 
 /** Meio-dia do dia em Brasília: para datas informadas à mão (venda retroativa), longe das bordas do dia. */
 export function noonOfDaySP(day: string): Date | null {
-  if (!DAY_ONLY.test(day)) return null;
-  const date = new Date(`${day}T12:00:00.000${SAO_PAULO_OFFSET}`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return instantOfDay(day, '12:00:00.000');
 }
 
 export type DayRange = { gte?: Date; lte?: Date };
@@ -54,13 +59,15 @@ export function parseDayRange(startDate: string | null, endDate: string | null):
 
 /** O dia ("AAAA-MM-DD") em que o instante cai em Brasília, em qualquer servidor ou aparelho. */
 export function dateStringSP(date: Date = new Date()): string {
-  // en-CA formata como AAAA-MM-DD
-  return new Intl.DateTimeFormat('en-CA', {
+  // formatToParts não depende do formato do idioma (um Node sem ICU completo mudaria a ordem)
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Sao_Paulo',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date);
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 /** Hoje ("AAAA-MM-DD") em Brasília. Substitui `new Date().toISOString().split("T")[0]`, que é o dia em UTC. */

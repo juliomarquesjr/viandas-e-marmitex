@@ -108,6 +108,7 @@ function generateReportHTML(reportData: any, companyName: string): string {
       });
     }
     return new Date(dateString).toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -116,6 +117,7 @@ function generateReportHTML(reportData: any, companyName: string): string {
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

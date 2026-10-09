@@ -37,9 +37,7 @@ export function TeleDeliverySummaryModal({
   onOpenChange,
 }: TeleDeliverySummaryModalProps) {
   const [startDate, setStartDate] = useState<string>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split("T")[0]
+    localDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   );
   const [endDate, setEndDate] = useState<string>(
     todaySP()

@@ -31,10 +31,10 @@ export async function GET(request: NextRequest) {
     }
 
     // O dia é o dia em Brasília (ver lib/date-range.ts)
-    const start = startOfDaySP(startDate) ?? new Date(NaN);
-    const end = endOfDaySP(endDate) ?? new Date(NaN);
+    const start = startOfDaySP(startDate);
+    const end = endOfDaySP(endDate);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (!start || !end) {
       return NextResponse.json(
         { error: 'Datas inválidas' },
         { status: 400 }

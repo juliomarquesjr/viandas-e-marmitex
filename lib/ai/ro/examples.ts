@@ -2,17 +2,17 @@ export const SQL_EXAMPLES = `
 EXEMPLOS DE CONSULTAS SQL CORRETAS PARA POSTGRESQL:
 
 1. Vendas por dia (confirmadas, exclui pagamentos de ficha):
-   SELECT DATE_TRUNC('day', "createdAt") as data, COUNT(*) as vendas
+   SELECT DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as data, COUNT(*) as vendas
    FROM "Order" 
    WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-   GROUP BY DATE_TRUNC('day', "createdAt")
+   GROUP BY DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
    ORDER BY data DESC
 
 2. Vendas por mês (confirmadas, exclui pagamentos de ficha):
-   SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*) as vendas
+   SELECT DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as mes, COUNT(*) as vendas
    FROM "Order"
    WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-   GROUP BY DATE_TRUNC('month', "createdAt")
+   GROUP BY DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
    ORDER BY mes DESC
 
 3. Produtos mais vendidos (somente vendas reais):
@@ -33,11 +33,11 @@ EXEMPLOS DE CONSULTAS SQL CORRETAS PARA POSTGRESQL:
    ORDER BY total_pedidos DESC
 
 5. Faturamento por período (confirmadas, exclui pagamentos de ficha):
-   SELECT DATE_TRUNC('day', "createdAt") as data,
+   SELECT DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as data,
           SUM("totalCents")/100.0 as faturamento_reais
    FROM "Order"
    WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-   GROUP BY DATE_TRUNC('day', "createdAt")
+   GROUP BY DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
    ORDER BY data DESC
 
 FUNÇÕES POSTGRESQL MAIS USADAS:
@@ -49,7 +49,8 @@ FUNÇÕES POSTGRESQL MAIS USADAS:
 - EXTRACT(year FROM campo) - extrai o ano
 - CAST(campo AS DATE) - converte para data
 - NOW() - data/hora atual
-- CURRENT_DATE - data atual
+- (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - dia de hoje em Brasília (CURRENT_DATE é o dia em UTC: não use)
+- FUSO: o banco guarda em UTC, mas o dia do negócio é o de Brasília. "Hoje" = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date; por dia = DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo'). Nunca use CURRENT_DATE nem CAST("createdAt" AS DATE) direto (viram o dia UTC e vendas depois das 21h caem no dia seguinte).
 - COUNT(*), SUM(), AVG(), MIN(), MAX() - agregações
 - ROUND(valor, 2) - arredondar para 2 casas decimais
 
@@ -58,23 +59,23 @@ LEMBRE-SE: NUNCA use date(), time() ou datetime() - essas funções não existem
 
 export const COMMON_QUERIES = {
   dailySales: `
-    SELECT DATE_TRUNC('day', "createdAt") as data, 
+    SELECT DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as data, 
            COUNT(*) as vendas,
            SUM("totalCents")/100.0 as faturamento
     FROM "Order" 
     WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-    GROUP BY DATE_TRUNC('day', "createdAt")
+    GROUP BY DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
     ORDER BY data DESC
     LIMIT 30
   `,
   
   monthlySales: `
-    SELECT DATE_TRUNC('month', "createdAt") as mes, 
+    SELECT DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as mes, 
            COUNT(*) as vendas,
            SUM("totalCents")/100.0 as faturamento
     FROM "Order"
     WHERE status = 'confirmed' AND "paymentMethod" <> 'ficha_payment'
-    GROUP BY DATE_TRUNC('month', "createdAt")
+    GROUP BY DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')
     ORDER BY mes DESC
     LIMIT 12
   `,
@@ -112,7 +113,7 @@ export const COMMON_QUERIES = {
            MAX(o."createdAt") as ultimo_pedido
     FROM "Customer" c
     LEFT JOIN "Order" o ON c.id = o."customerId"
-    WHERE o."createdAt" < CURRENT_DATE - INTERVAL '30 days' 
+    WHERE o."createdAt" < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date - INTERVAL '30 days' 
        OR o."createdAt" IS NULL
     GROUP BY c.id, c.name, c.phone, c.email
     ORDER BY ultimo_pedido ASC
@@ -196,11 +197,11 @@ export const COMMON_QUERIES = {
     WITH vendas_cash AS (
       SELECT COALESCE(SUM(COALESCE("cashReceivedCents",0) - COALESCE("changeCents",0)),0) AS cash_in
       FROM "Order"
-      WHERE status = 'confirmed' AND "paymentMethod" = 'cash' AND CAST("createdAt" AS DATE) = CURRENT_DATE
+      WHERE status = 'confirmed' AND "paymentMethod" = 'cash' AND CAST("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' AS DATE) = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
     ), ficha_cash AS (
       SELECT COALESCE(SUM(COALESCE("cashReceivedCents",0) - COALESCE("changeCents",0)),0) AS cash_in
       FROM "Order"
-      WHERE "paymentMethod" = 'ficha_payment' AND CAST("createdAt" AS DATE) = CURRENT_DATE
+      WHERE "paymentMethod" = 'ficha_payment' AND CAST("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' AS DATE) = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
     )
     SELECT (vendas_cash.cash_in + ficha_cash.cash_in)/100.0 AS caixa_dinheiro_hoje
     FROM vendas_cash, ficha_cash

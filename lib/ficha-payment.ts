@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@/lib/generated/prisma';
+import { noonOfDaySP } from '@/lib/date-range';
 import prisma from '@/lib/prisma';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -35,9 +36,10 @@ export async function createFichaPaymentOrder(input: FichaPaymentInput, db: Db =
   };
 
   if (input.paymentDate) {
-    // Meio-dia UTC evita que o fuso empurre o pagamento para o dia vizinho
-    const [year, month, day] = input.paymentDate.split('-').map(Number);
-    data.createdAt = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    // Meio-dia de Brasília: longe das bordas do dia, em qualquer fuso (ver lib/date-range.ts)
+    const noon = noonOfDaySP(input.paymentDate);
+    if (!noon) throw new Error('Data do pagamento inválida');
+    data.createdAt = noon;
   }
 
   if (input.paymentMethod === 'cash' && input.cashReceivedCents !== undefined) {
