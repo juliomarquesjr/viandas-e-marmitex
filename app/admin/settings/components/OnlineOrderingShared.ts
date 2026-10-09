@@ -66,10 +66,23 @@ export const WEEKDAY_CHIPS: { value: number; short: string; full: string }[] = [
   { value: 0, short: 'Dom', full: 'Domingo' },
 ];
 
+/** Interruptores com trilha e borda visíveis quando desligados (inclusive no tema escuro). */
+export const SWITCH_OFF_CLASS =
+  'data-[state=unchecked]:bg-[color:var(--muted-foreground)]/45 data-[state=unchecked]:border-[color:var(--muted-foreground)]';
+
+/** Interruptores sobre fundo de alerta (vermelho): ligado usa o tom de alerta, não o azul. */
+export const SWITCH_ALERT_CLASS =
+  'data-[state=checked]:bg-[color:var(--state-cobrar-solid)] data-[state=checked]:border-[color:var(--state-cobrar-solid)]';
+
 export function formatMinute(minute: number): string {
   const h = Math.floor(minute / 60);
   const m = minute % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Texto da hora nos campos: o fim 24:00 aparece como meia-noite. */
+export function minuteLabel(kind: 'start' | 'end', minute: number): string {
+  return kind === 'end' && minute === 1440 ? '24:00 (meia-noite)' : formatMinute(minute);
 }
 
 /** Opções de hora de 30 em 30 minutos; mantém um valor "quebrado" já salvo para não sumir do campo. */
@@ -114,7 +127,7 @@ export function toDraft(w: OOWindow): DraftWindow {
 export function blankWindow(overrides: Partial<DraftWindow> = {}): DraftWindow {
   return {
     key: newKey(),
-    name: 'Novo horário',
+    name: 'Horário novo',
     weekdays: [1, 2, 3, 4, 5],
     startMinute: 600,
     endMinute: 780,
@@ -243,12 +256,13 @@ export function closingTime(preview: { serverNow: string; minutesToClose: number
   const base = new Date(preview.serverNow).getTime();
   if (Number.isNaN(base)) return null;
   const at = new Date(base + preview.minutesToClose * 60_000);
-  return new Intl.DateTimeFormat('pt-BR', {
+  const text = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   }).format(at);
+  return text === '00:00' || text === '24:00' ? 'meia-noite' : text;
 }
 
 export type ApiResult =
@@ -280,4 +294,33 @@ export async function callOrdering(method: 'GET' | 'PUT', body?: unknown): Promi
   } catch {
     return { ok: false, network: true, message: 'Sem conexão. Tente de novo.' };
   }
+}
+
+/** "Bebidas (9), Pratos (1)": quantos produtos do horário há em cada categoria. */
+export function categorySummary(productIds: string[], products: OOProduct[]): string {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const counts = new Map<string, number>();
+  for (const id of productIds) {
+    const p = byId.get(id);
+    if (!p) continue;
+    const name = p.category?.name ?? 'Sem categoria';
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+    .map(([name, n]) => `${name} (${n})`)
+    .join(', ');
+}
+
+/** Quantos horários do rascunho são novos, mudaram ou foram apagados em relação ao salvo. */
+export function countChangedWindows(draft: DraftWindow[], saved: OOWindow[]): number {
+  const savedById = new Map(saved.map((w) => [w.id, w]));
+  let changed = 0;
+  for (const w of draft) {
+    const original = w.id ? savedById.get(w.id) : undefined;
+    if (!original || serializeWindows([w]) !== serializeWindows([original])) changed += 1;
+  }
+  const draftIds = new Set(draft.map((w) => w.id).filter(Boolean));
+  for (const w of saved) if (!draftIds.has(w.id)) changed += 1;
+  return changed;
 }

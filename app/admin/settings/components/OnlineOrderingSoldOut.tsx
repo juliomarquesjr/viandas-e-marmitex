@@ -5,7 +5,8 @@ import { Input } from "@/app/components/ui/input";
 import { Switch } from "@/app/components/ui/switch";
 import { Ban, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { formatPrice, plural, type OOProduct } from "./OnlineOrderingShared";
+import { OnlineOrderingSectionTitle } from "./OnlineOrderingSectionTitle";
+import { formatPrice, plural, SWITCH_ALERT_CLASS, SWITCH_OFF_CLASS, type OOProduct } from "./OnlineOrderingShared";
 
 interface Props {
   products: OOProduct[];
@@ -51,14 +52,9 @@ export function OnlineOrderingSoldOut({ products, soldOutIds, inWindowIds, busyI
 
   return (
     <section aria-labelledby="oo-soldout-title" className="space-y-3">
-      <div>
-        <h3 id="oo-soldout-title" className="text-base font-semibold text-[color:var(--foreground)]">
-          Esgotou hoje
-        </h3>
-        <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">
-          Acabou um produto? Marque aqui e ele sai do app agora. Amanhã ele volta sozinho.
-        </p>
-      </div>
+      <OnlineOrderingSectionTitle icon={Ban} title="Esgotou hoje" id="oo-soldout-title">
+        Acabou um produto? Marque aqui e ele sai do app agora. Amanhã ele volta sozinho.
+      </OnlineOrderingSectionTitle>
 
       {totalCandidates === 0 ? (
         <p className="rounded-xl border border-dashed border-[color:var(--border)] px-4 py-6 text-center text-sm text-[color:var(--muted-foreground)]">
@@ -98,7 +94,7 @@ export function OnlineOrderingSoldOut({ products, soldOutIds, inWindowIds, busyI
                 return (
                   <li
                     key={p.id}
-                    className="flex min-h-[56px] items-center gap-3 px-3 py-2"
+                    className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2"
                     style={sold ? { background: "var(--state-cobrar-bg)" } : undefined}
                   >
                     {p.imageUrl ? (
@@ -117,7 +113,7 @@ export function OnlineOrderingSoldOut({ products, soldOutIds, inWindowIds, busyI
                         {p.name.slice(0, 1).toUpperCase()}
                       </div>
                     )}
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-[8rem] flex-1">
                       <p
                         className="truncate text-sm font-medium"
                         style={{ color: sold ? "var(--state-cobrar-fg)" : "var(--foreground)" }}
@@ -151,6 +147,7 @@ export function OnlineOrderingSoldOut({ products, soldOutIds, inWindowIds, busyI
                         checked={sold}
                         disabled={busyIds.has(p.id)}
                         onCheckedChange={(v) => onToggle(p.id, v)}
+                        className={`${SWITCH_OFF_CLASS} ${SWITCH_ALERT_CLASS}`}
                         aria-label={`${p.name}: esgotou hoje`}
                       />
                     </div>

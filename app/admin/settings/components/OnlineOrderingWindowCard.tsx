@@ -8,16 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/app/components/ui/switch";
 import { AlertCircle, Copy, Info, Package, Trash2 } from "lucide-react";
 import {
-  formatMinute,
+  categorySummary,
+  minuteLabel,
   minuteOptions,
   plural,
+  SWITCH_OFF_CLASS,
   WEEKDAY_CHIPS,
   type DraftWindow,
+  type OOProduct,
   type WindowErrors,
 } from "./OnlineOrderingShared";
 
 interface Props {
   window: DraftWindow;
+  products: OOProduct[];
   index: number;
   errors: WindowErrors;
   overlapsWith: string[];
@@ -39,6 +43,7 @@ function FieldError({ id, children }: { id: string; children: React.ReactNode })
 
 export function OnlineOrderingWindowCard({
   window: w,
+  products,
   index,
   errors,
   overlapsWith,
@@ -50,6 +55,7 @@ export function OnlineOrderingWindowCard({
 }: Props) {
   const uid = `oo-${w.key}`;
   const label = w.name.trim() || `Horário ${index + 1}`;
+  const summary = categorySummary(w.productIds, products);
 
   const toggleDay = (day: number) =>
     onChange({
@@ -59,8 +65,8 @@ export function OnlineOrderingWindowCard({
   return (
     <article
       aria-label={`Horário: ${label}`}
-      className={`rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-4 sm:p-5 ${
-        w.active ? "" : "opacity-90"
+      className={`rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-3 sm:p-5 ${
+        w.active ? "" : "opacity-70"
       }`}
     >
       {/* Nome e ações */}
@@ -89,9 +95,11 @@ export function OnlineOrderingWindowCard({
               id={`${uid}-active`}
               checked={w.active}
               onCheckedChange={(v) => onChange({ active: v })}
+              className={SWITCH_OFF_CLASS}
+              aria-label={`Horário ${label} ${w.active ? "ativo" : "inativo"}`}
             />
             <Label htmlFor={`${uid}-active`} className="cursor-pointer text-sm">
-              {w.active ? "Ativo" : "Pausado"}
+              {w.active ? "Ativo" : "Inativo"}
             </Label>
           </div>
           <Button
@@ -132,7 +140,7 @@ export function OnlineOrderingWindowCard({
         <p id={`${uid}-days`} className="mb-1.5 text-xs font-medium text-[color:var(--muted-foreground)]">
           Dias da semana
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
           {WEEKDAY_CHIPS.map((d) => {
             const on = w.weekdays.includes(d.value);
             return (
@@ -142,7 +150,7 @@ export function OnlineOrderingWindowCard({
                 aria-pressed={on}
                 aria-label={d.full}
                 onClick={() => toggleDay(d.value)}
-                className={`min-h-[44px] min-w-[52px] rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                className={`min-h-[44px] sm:min-w-[52px] rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                   on
                     ? "border-primary bg-primary text-white"
                     : "border-[color:var(--border-dark)] bg-[color:var(--card)] text-[color:var(--foreground)] hover:bg-[color:var(--muted)]"
@@ -168,20 +176,20 @@ export function OnlineOrderingWindowCard({
             <SelectContent>
               {minuteOptions("start", w.startMinute).map((m) => (
                 <SelectItem key={m} value={String(m)}>
-                  {formatMinute(m)}
+                  {minuteLabel("start", m)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <span className="text-sm text-[color:var(--foreground)]">às</span>
           <Select value={String(w.endMinute)} onValueChange={(v) => onChange({ endMinute: Number(v) })}>
-            <SelectTrigger className="min-h-[44px] w-[120px]" aria-label={`Hora final de ${label}`}>
+            <SelectTrigger className="min-h-[44px] w-[185px] max-w-full" aria-label={`Hora final de ${label}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {minuteOptions("end", w.endMinute).map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  {formatMinute(m)}
+                <SelectItem key={m} value={String(m)} disabled={m <= w.startMinute && m !== w.endMinute}>
+                  {minuteLabel("end", m)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -200,10 +208,13 @@ export function OnlineOrderingWindowCard({
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-medium text-[color:var(--muted-foreground)]">Produtos deste horário</p>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2 text-sm font-medium text-[color:var(--foreground)]">
-            <Package className="h-4 w-4 text-[color:var(--muted-foreground)]" aria-hidden="true" />
-            {w.productIds.length === 0 ? "Nenhum produto" : plural(w.productIds.length, "produto", "produtos")}
-          </span>
+          <div className="min-w-0 flex-1 basis-48">
+            <p className="flex items-center gap-2 text-sm font-medium text-[color:var(--foreground)]">
+              <Package className="h-4 w-4 flex-shrink-0 text-[color:var(--muted-foreground)]" aria-hidden="true" />
+              {w.productIds.length === 0 ? "Nenhum produto" : plural(w.productIds.length, "produto", "produtos")}
+            </p>
+            {summary && <p className="mt-0.5 break-words text-xs text-[color:var(--muted-foreground)]">{summary}</p>}
+          </div>
           <Button type="button" variant="outline" className="min-h-[44px]" onClick={onPickProducts}>
             Escolher produtos
           </Button>
@@ -219,7 +230,7 @@ export function OnlineOrderingWindowCard({
         >
           <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
           <span>
-            Este horário se encontra com {overlapsWith.map((n) => `“${n}”`).join(", ")} em algum dia. Tudo bem: os
+            Este horário se sobrepõe a {overlapsWith.map((n) => `“${n}”`).join(", ")} em algum dia. Tudo bem: os
             produtos ficam disponíveis enquanto qualquer um dos horários estiver aberto.
           </span>
         </p>

@@ -54,9 +54,19 @@ function ProductPhoto({ product }: { product: OOProduct }) {
 export function OnlineOrderingProductsDialog({ windowName, products, initialIds, onConfirm, onClose }: Props) {
   const [query, setQuery] = useState("");
   // Só entram na seleção os produtos que o servidor aceita
-  const [selected, setSelected] = useState<Set<string>>(
+  const [initial] = useState<Set<string>>(
     () => new Set(initialIds.filter((id) => products.some((p) => p.id === id && p.eligible)))
   );
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initial));
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const changed = selected.size !== initial.size || [...selected].some((id) => !initial.has(id));
+
+  // Fechar pelo X ou Esc descarta a seleção; se houve mudança, pergunta antes
+  const requestClose = () => {
+    if (changed) setConfirmDiscard(true);
+    else onClose();
+  };
 
   const groups = useMemo<Group[]>(() => {
     const needle = fold(query.trim());
@@ -105,7 +115,7 @@ export function OnlineOrderingProductsDialog({ windowName, products, initialIds,
     });
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && requestClose()}>
       <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
         <DialogHeader>
           <DialogTitle>Escolher produtos</DialogTitle>
@@ -132,7 +142,7 @@ export function OnlineOrderingProductsDialog({ windowName, products, initialIds,
           </div>
           <p className="flex items-start gap-2 text-xs text-[color:var(--muted-foreground)]">
             <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-            Preço e estoque vêm do cadastro de Produtos.
+            Preço e estoque vêm do cadastro de Produtos. A seleção só vale depois de tocar em “Concluir”.
           </p>
         </div>
 
@@ -236,13 +246,36 @@ export function OnlineOrderingProductsDialog({ windowName, products, initialIds,
           )}
         </div>
 
-        <DialogFooter>
-          <p className="text-sm font-medium text-[color:var(--foreground)]" aria-live="polite">
-            {plural(selected.size, "selecionado", "selecionados")}
-          </p>
-          <Button type="button" className="min-h-[44px]" onClick={() => onConfirm([...selected])}>
-            Concluir
-          </Button>
+        <DialogFooter className="flex-wrap">
+          {confirmDiscard ? (
+            <>
+              <p role="alert" className="text-sm font-medium text-[color:var(--foreground)]">
+                Fechar sem concluir? A seleção que você fez será perdida.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => setConfirmDiscard(false)}>
+                  Continuar escolhendo
+                </Button>
+                <Button type="button" variant="destructive" className="min-h-[44px]" onClick={onClose}>
+                  Descartar
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-[color:var(--foreground)]" aria-live="polite">
+                {plural(selected.size, "selecionado", "selecionados")}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" className="min-h-[44px]" onClick={requestClose}>
+                  Cancelar
+                </Button>
+                <Button type="button" className="min-h-[44px]" onClick={() => onConfirm([...selected])}>
+                  Concluir
+                </Button>
+              </div>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

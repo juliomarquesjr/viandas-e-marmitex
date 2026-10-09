@@ -13,18 +13,21 @@ import {
 import { Label } from "@/app/components/ui/label";
 import { Switch } from "@/app/components/ui/switch";
 import { AlertCircle, AlertTriangle, CalendarClock, Loader2, MoonStar, Plus, RefreshCw, Save, Sparkles, Undo2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { OnlineOrderingPreview } from "./OnlineOrderingPreview";
 import { OnlineOrderingProductsDialog } from "./OnlineOrderingProductsDialog";
 import {
   blankWindow,
   callOrdering,
+  countChangedWindows,
   findOverlaps,
   hasErrors,
   MAX_WINDOWS,
   plural,
   PRESETS,
   serializeWindows,
+  SWITCH_OFF_CLASS,
   toDraft,
   toPayload,
   validateDraft,
@@ -32,6 +35,7 @@ import {
   type DraftWindow,
   type OOSnapshot,
 } from "./OnlineOrderingShared";
+import { OnlineOrderingSectionTitle } from "./OnlineOrderingSectionTitle";
 import { OnlineOrderingSoldOut } from "./OnlineOrderingSoldOut";
 import { OnlineOrderingWindowCard } from "./OnlineOrderingWindowCard";
 
@@ -52,22 +56,9 @@ function OnlineOrderingSkeleton() {
   );
 }
 
-function SectionTitle({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-        <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
-      </div>
-      <div>
-        <h3 className="text-base font-semibold text-[color:var(--foreground)]">{title}</h3>
-        {children && <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">{children}</p>}
-      </div>
-    </div>
-  );
-}
-
 export function OnlineOrderingTab({ active }: { active: boolean }) {
   const { showToast } = useToast();
+  const router = useRouter();
 
   const [server, setServer] = useState<OOSnapshot | null>(null);
   const [draft, setDraft] = useState<DraftWindow[]>([]);
@@ -85,6 +76,13 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
   const [removeKey, setRemoveKey] = useState<string | null>(null);
   const [pickKey, setPickKey] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [leaveHref, setLeaveHref] = useState<string | null>(null);
+  const bypassGuard = useRef(false);
+
+  // Área de conteúdo: o rodapé de salvar fica exatamente dentro dela
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
 
   // Respostas que chegam fora de ordem não podem desfazer uma mais nova
   const seq = useRef(0);
@@ -141,6 +139,42 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
+
+  // Links internos (menu lateral etc.): pergunta antes de sair com horários não salvos
+  useEffect(() => {
+    if (!dirty) return;
+    const onClick = (e: MouseEvent) => {
+      if (bypassGuard.current || e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || (anchor.target && anchor.target !== "_self") || anchor.hasAttribute("download")) return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveHref(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!active) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0) setBar({ left: r.left + 12, width: Math.max(r.width - 24, 0) });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [active, loading]);
 
   const eligibleIds = useMemo(
     () => new Set((server?.products ?? []).filter((p) => p.eligible).map((p) => p.id)),
@@ -259,10 +293,24 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
     setSaving(false);
   };
 
-  const discard = () => {
+  const doDiscard = () => {
     if (!server) return;
     setSaveError(null);
     setDraft(server.windows.map(toDraft));
+    setConfirmDiscard(false);
+  };
+
+  const discard = () => {
+    if (server && countChangedWindows(draft, server.windows) > 1) setConfirmDiscard(true);
+    else doDiscard();
+  };
+
+  const leaveNow = () => {
+    if (!leaveHref) return;
+    bypassGuard.current = true;
+    const href = leaveHref;
+    setLeaveHref(null);
+    router.push(href);
   };
 
   if (loading && !server) return <OnlineOrderingSkeleton />;
@@ -294,7 +342,7 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
   const atLimit = draft.length >= MAX_WINDOWS;
 
   return (
-    <div className={`space-y-8 px-8 py-6 ${dirty ? "pb-28" : ""}`}>
+    <div ref={rootRef} className={`space-y-8 px-3 py-5 sm:px-8 sm:py-6 ${dirty || saving ? "pb-48 sm:pb-32" : ""}`}>
       {actionError && (
         <div
           role="alert"
@@ -325,6 +373,7 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
                 id="oo-enabled"
                 checked={server.enabled}
                 disabled={busyMaster}
+                className={SWITCH_OFF_CLASS}
                 onCheckedChange={(v) => (v ? void setEnabled(true) : setConfirmOff(true))}
               />
             </div>
@@ -334,14 +383,14 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
           </p>
         </div>
 
-        <OnlineOrderingPreview preview={server.preview} dirty={dirty} />
+        <OnlineOrderingPreview preview={server.preview} dirty={dirty} soldOutCount={server.soldOutToday.length} />
       </div>
 
       {/* Hoje não */}
       <section aria-label="Hoje não" className="space-y-3">
-        <SectionTitle icon={MoonStar} title="Hoje não">
+        <OnlineOrderingSectionTitle icon={MoonStar} title="Hoje não">
           Não vai dar para atender hoje? Pause e os pedidos voltam sozinhos amanhã.
-        </SectionTitle>
+        </OnlineOrderingSectionTitle>
         {paused ? (
           <div
             className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3"
@@ -433,8 +482,9 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
             style={{ background: "var(--state-pronto-bg)", color: "var(--state-pronto-fg)" }}
           >
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            Os pedidos estão ligados, mas nenhum horário está ativo em algum dia. Enquanto for assim, o cliente vai
-            ver “fechado”.
+            {draft.length === 0
+              ? "Nenhum horário cadastrado: o cliente vê a loja fechada."
+              : "Nenhum horário ativo em algum dia: o cliente vê a loja fechada."}
           </p>
         )}
 
@@ -471,6 +521,7 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
               <OnlineOrderingWindowCard
                 key={w.key}
                 window={w}
+                products={server.products}
                 index={i}
                 errors={errorsByKey.get(w.key) ?? {}}
                 overlapsWith={[...new Set(overlaps.get(w.key) ?? [])]}
@@ -533,6 +584,48 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
         </DialogContent>
       </Dialog>
 
+      {/* Confirmação: sair com alterações */}
+      <Dialog open={leaveHref !== null} onOpenChange={(open) => !open && setLeaveHref(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sair sem salvar?</DialogTitle>
+            <DialogDescription>Você mudou os horários de pedidos online e ainda não salvou.</DialogDescription>
+          </DialogHeader>
+          <div className="px-6 py-5 text-sm text-[color:var(--foreground)]">
+            Se sair agora, essas mudanças serão perdidas.
+          </div>
+          <DialogFooter className="flex-wrap">
+            <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => setLeaveHref(null)}>
+              Continuar editando
+            </Button>
+            <Button type="button" variant="destructive" className="min-h-[44px]" onClick={leaveNow}>
+              Sair sem salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmação: descartar várias alterações */}
+      <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Descartar as alterações?</DialogTitle>
+            <DialogDescription>Os horários voltam para o que está salvo.</DialogDescription>
+          </DialogHeader>
+          <div className="px-6 py-5 text-sm text-[color:var(--foreground)]">
+            Você mexeu em mais de um horário. Tudo o que não foi salvo será perdido.
+          </div>
+          <DialogFooter className="flex-wrap">
+            <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => setConfirmDiscard(false)}>
+              Continuar editando
+            </Button>
+            <Button type="button" variant="destructive" className="min-h-[44px]" onClick={doDiscard}>
+              Descartar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmação: remover horário */}
       <Dialog open={Boolean(removeWindowDraft)} onOpenChange={(open) => !open && setRemoveKey(null)}>
         <DialogContent className="max-w-md">
@@ -578,9 +671,12 @@ export function OnlineOrderingTab({ active }: { active: boolean }) {
 
       {/* Rodapé de salvar horários */}
       {active && (dirty || saving) && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+        <div
+          className="pointer-events-none fixed bottom-4 z-40"
+          style={bar ? { left: bar.left, width: bar.width } : { left: 16, right: 16 }}
+        >
           <div
-            className="pointer-events-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--border-dark)] bg-[color:var(--card)] px-4 py-3 shadow-2xl"
+            className="pointer-events-auto flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--border-dark)] bg-[color:var(--card)] px-4 py-3 shadow-2xl"
             role="region"
             aria-label="Salvar horários"
           >

@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye } from "lucide-react";
-import { closingTime, type OOPreview } from "./OnlineOrderingShared";
+import { closingTime, plural, type OOPreview } from "./OnlineOrderingShared";
 
 type Tone = "faturado" | "cobrar" | "pronto" | "cancelado";
 
@@ -33,9 +33,9 @@ function describe(preview: OOPreview): { tone: Tone; label: string; detail: stri
       };
     case "no_windows":
       return {
-        tone: "cancelado",
-        label: "SEM HORÁRIOS",
-        detail: "Cadastre um horário abaixo para os clientes poderem pedir.",
+        tone: "cobrar",
+        label: "FECHADO — sem horários",
+        detail: "Nenhum horário cadastrado: o cliente vê a loja fechada.",
       };
     default:
       return {
@@ -46,7 +46,7 @@ function describe(preview: OOPreview): { tone: Tone; label: string; detail: stri
   }
 }
 
-export function OnlineOrderingPreview({ preview, dirty }: { preview: OOPreview; dirty: boolean }) {
+export function OnlineOrderingPreview({ preview, dirty, soldOutCount }: { preview: OOPreview; dirty: boolean; soldOutCount: number }) {
   const { tone, label, detail } = describe(preview);
   return (
     <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-4">
@@ -67,6 +67,11 @@ export function OnlineOrderingPreview({ preview, dirty }: { preview: OOPreview; 
           {label}
         </span>
         <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{detail}</p>
+        {soldOutCount > 0 && (
+          <p className="mt-1 text-sm font-medium" style={{ color: "var(--state-cobrar-fg)" }}>
+            {plural(soldOutCount, "produto esgotado", "produtos esgotados")} hoje
+          </p>
+        )}
       </div>
       {dirty && (
         <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">

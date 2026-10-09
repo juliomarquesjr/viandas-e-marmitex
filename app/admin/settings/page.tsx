@@ -53,12 +53,50 @@ const navItems = [
 
 type SectionId = typeof navItems[number]['id'];
 
+// Nome de cada aba na URL (?tab=...), para recarregar ou voltar e cair na mesma aba
+const TAB_SLUGS: Record<SectionId, string> = {
+  contact: 'contato',
+  branding: 'marca',
+  email: 'email',
+  payment: 'pagamento',
+  online: 'pedidos-online',
+};
+
+function sectionFromUrl(): SectionId | null {
+  if (typeof window === 'undefined') return null;
+  const slug = new URLSearchParams(window.location.search).get('tab');
+  const found = (Object.keys(TAB_SLUGS) as SectionId[]).find((id) => TAB_SLUGS[id] === slug);
+  return found ?? null;
+}
+
 export default function SettingsPage() {
   const { configs, loading, saving, error, saveConfigs, getFormData } = useSystemConfig();
   const { showToast } = useToast();
   const [activeSection, setActiveSection] = useState<SectionId>('contact');
   // Depois da primeira visita a aba fica montada (escondida), para não perder horários não salvos
   const [onlineVisited, setOnlineVisited] = useState(false);
+
+  const selectSection = (id: SectionId) => {
+    setActiveSection(id);
+    if (id === 'online') setOnlineVisited(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', TAB_SLUGS[id]);
+    if (url.search !== window.location.search) {
+      window.history.pushState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
+  };
+
+  // Restaura a aba da URL ao abrir, recarregar e ao usar voltar/avançar
+  useEffect(() => {
+    const restore = () => {
+      const id = sectionFromUrl() ?? 'contact';
+      setActiveSection(id);
+      if (id === 'online') setOnlineVisited(true);
+    };
+    restore();
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
 
   const [formData, setFormData] = useState<ConfigFormData>({
     contact_address_street: '',
@@ -138,22 +176,24 @@ export default function SettingsPage() {
 
           {/* Settings Panel */}
           <div
-            className="flex overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]"
+            className="flex flex-col lg:flex-row overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]"
             style={{ minHeight: 580 }}
           >
             {/* Sidebar navigation */}
-            <nav className="w-52 flex-shrink-0 space-y-0.5 border-r border-[color:var(--border)] bg-[color:var(--muted)]/60 p-2">
+            <nav
+              aria-label="Seções das configurações"
+              className="flex lg:block gap-1 overflow-x-auto lg:overflow-visible w-full lg:w-52 flex-shrink-0 lg:space-y-0.5 border-b lg:border-b-0 lg:border-r border-[color:var(--border)] bg-[color:var(--muted)]/60 p-2"
+            >
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => {
-                      setActiveSection(item.id);
-                      if (item.id === 'online') setOnlineVisited(true);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
+                    type="button"
+                    onClick={() => selectSection(item.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`flex-shrink-0 lg:w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl text-left transition-all duration-150 ${
                       isActive
                         ? "border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm"
                         : "hover:bg-[color:var(--accent)]/70"
@@ -172,13 +212,13 @@ export default function SettingsPage() {
                     </div>
                     <div className="min-w-0">
                       <p
-                        className={`text-sm font-semibold leading-tight ${
+                        className={`whitespace-nowrap lg:whitespace-normal text-sm font-semibold leading-tight ${
                           isActive ? "text-[color:var(--foreground)]" : "text-[color:var(--muted-foreground)]"
                         }`}
                       >
                         {item.label}
                       </p>
-                      <p className="mt-0.5 truncate text-xs leading-tight text-[color:var(--muted-foreground)]">
+                      <p className="mt-0.5 hidden lg:block truncate text-xs leading-tight text-[color:var(--muted-foreground)]">
                         {item.shortDescription}
                       </p>
                     </div>
@@ -190,7 +230,7 @@ export default function SettingsPage() {
             {/* Content area */}
             <div className="flex-1 min-w-0 flex flex-col">
               {/* Section header — sticky */}
-              <div className="sticky top-0 z-10 flex-shrink-0 border-b border-[color:var(--border)] bg-[color:var(--card)] px-8 py-4">
+              <div className="sticky top-0 z-10 flex-shrink-0 border-b border-[color:var(--border)] bg-[color:var(--card)] px-4 lg:px-8 py-4">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
                     <activeNavItem.icon className="h-4 w-4 text-primary" />
