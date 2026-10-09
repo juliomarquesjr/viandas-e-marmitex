@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { MovementRow } from "../components/ficha/MovementRow";
+import { RangeCalendar } from "../components/ficha/RangeCalendar";
 import { buildMovements, type Movement } from "../components/ficha/movements";
 import { EmptyState, ErrorState, LoadingRows, Money, PixIcon, Sheet, SheetHeader } from "../components/kit";
 import { PixPaymentSheet } from "../components/PixPaymentSheet";
@@ -11,6 +12,7 @@ import { endOfDayISO, formatBRL, formatDayMonth, formatMonthLabel, monthKey, sta
 import type { ExpensesResponse } from "../lib/types";
 import { useRealtimeEvent } from "../lib/realtime";
 import { useCustomerData } from "../lib/useCustomerData";
+import "../components/ficha/calendar.css";
 import "./expenses.css";
 import { Receipt } from "./Receipt";
 
@@ -76,7 +78,9 @@ function expensesUrl(filter: Filter): string {
 function customLabel(filter: Filter): string {
   const start = filter.startInput ? parseInputDate(filter.startInput) : null;
   const end = filter.endInput ? parseInputDate(filter.endInput) : null;
-  if (start && end) return `${formatDayMonth(start)} a ${formatDayMonth(end)}`;
+  if (start && end) {
+    return start.getTime() === end.getTime() ? formatDayMonth(start) : `${formatDayMonth(start)} a ${formatDayMonth(end)}`;
+  }
   if (start) return `Desde ${formatDayMonth(start)}`;
   if (end) return `Até ${formatDayMonth(end)}`;
   return "Período…";
@@ -391,69 +395,30 @@ function PeriodForm({
 }) {
   const [start, setStart] = React.useState(initialStart);
   const [end, setEnd] = React.useState(initialEnd);
-  const [problem, setProblem] = React.useState<string | null>(null);
-  const startId = React.useId();
-  const endId = React.useId();
-  const errId = React.useId();
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const s = parseInputDate(start);
-    const t = parseInputDate(end);
-    if (!s && !t) {
-      setProblem("Escolha pelo menos uma das datas.");
-      return;
-    }
-    if (s && t && s.getTime() > t.getTime()) {
-      setProblem("A data de início vem depois da data de fim.");
-      return;
-    }
-    onApply(s ? start : "", t ? end : "");
+    if (!parseInputDate(start)) return;
+    // só a data de início escolhida = aquele dia
+    onApply(start, parseInputDate(end) ? end : start);
   };
 
   return (
     <form className="c-ficha-period" onSubmit={submit} noValidate>
-      <SheetHeader title="Escolher período" subtitle="Mostre só os lançamentos entre duas datas." onClose={onClose} />
-      <div className="c-fields2">
-        <div className="c-field" data-invalid={problem ? "true" : undefined}>
-          <label htmlFor={startId}>Início</label>
-          <input
-            id={startId}
-            type="date"
-            value={start}
-            max={end || undefined}
-            onChange={(e) => {
-              setStart(e.target.value);
-              setProblem(null);
-            }}
-            aria-describedby={problem ? errId : undefined}
-          />
-        </div>
-        <div className="c-field" data-invalid={problem ? "true" : undefined}>
-          <label htmlFor={endId}>Fim</label>
-          <input
-            id={endId}
-            type="date"
-            value={end}
-            min={start || undefined}
-            onChange={(e) => {
-              setEnd(e.target.value);
-              setProblem(null);
-            }}
-            aria-describedby={problem ? errId : undefined}
-          />
-        </div>
-      </div>
-      {problem && (
-        <p id={errId} className="c-field-error" role="alert" style={{ margin: 0 }}>
-          {problem}
-        </p>
-      )}
+      <SheetHeader title="Escolher período" subtitle="Toque na data de início e depois na de fim." onClose={onClose} />
+      <RangeCalendar
+        start={start}
+        end={end}
+        onChange={(s, e) => {
+          setStart(s);
+          setEnd(e);
+        }}
+      />
       <div className="c-ficha-period-actions">
         <button type="button" className="c-btn is-ghost" onClick={onClear}>
           Limpar
         </button>
-        <button type="submit" className="c-btn is-primary">
+        <button type="submit" className="c-btn is-primary" disabled={!start}>
           Aplicar
         </button>
       </div>

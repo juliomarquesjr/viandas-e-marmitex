@@ -638,15 +638,16 @@
   }
 
   /* ---------- Início: cartão "Fazer pedido" ---------- */
+  /* discreto: uma linha enxuta, sem destaque de cor; só a bolinha mostra se a loja está aberta */
   .c-order-cta {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     width: 100%;
-    min-height: 76px;
-    padding: 14px 16px;
+    min-height: 56px;
+    padding: 8px 12px 8px 14px;
     border-radius: var(--c-r-lg);
-    background: var(--c-surface);
+    background: transparent;
     border: 1px solid var(--c-line);
     transition: background-color 0.15s, transform 0.1s;
   }
@@ -660,35 +661,43 @@
   .c-order-cta:active {
     transform: scale(0.985);
   }
-  .c-order-cta.is-open {
-    border-color: var(--c-brand);
-    border-width: 1.5px;
+  .c-order-cta .c-oic {
+    width: 32px;
+    height: 32px;
+    background: var(--c-sunk);
+    color: var(--c-ink2);
+  }
+  .c-order-cta .c-oic svg {
+    width: 18px;
+    height: 18px;
   }
   .c-order-cta strong {
-    font: 700 20px/1.15 var(--c-f-display);
-    letter-spacing: -0.015em;
+    font: 600 15px/1.2 var(--c-f-body);
   }
   .c-order-cta-t {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 1px;
   }
   .c-order-cta-s {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 13px;
     color: var(--c-ink2);
   }
   .c-order-cta.is-open .c-order-cta-s {
     color: var(--c-ok);
     font-weight: 600;
   }
+  .c-order-cta .c-chev {
+    color: var(--c-ink2);
+  }
   .c-order-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex: none;
     background: currentColor;

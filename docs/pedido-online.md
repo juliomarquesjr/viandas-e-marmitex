@@ -52,6 +52,15 @@ cliente envia ─▶ source=online, approval=awaiting, status pending      ("Env
 | Admin | `POST /api/pre-orders/[id]/respond` | `{ action: 'accept', minutes? }` ou `{ action: 'reject', reason? }` (só admin) |
 | Funcionário | `GET /api/notifications` | Agora traz `awaitingOrders` e soma os pedidos aguardando em `badgeCount`/`pendingCount` |
 
+### Tela de configuração (Configurações → Pedidos online)
+
+- **Situação em destaque:** uma frase ("Aberto agora · recebendo pedidos até 13:00"), o interruptor mestre, a pausa e o cartão "Agora o cliente vê" (com os produtos que ele consegue pedir neste minuto).
+- **Semana:** grade com uma linha por dia e uma barra por horário (linha vermelha = agora); abaixo, a lista dos horários com liga/desliga e Editar. No celular só a lista, com as bolinhas dos dias.
+- **Painel lateral:** nome, dias (atalhos Seg a sex / Todos os dias / Fim de semana), horas e produtos por categoria com busca e "Marcar todos". **Cada horário se salva sozinho** ("Salvar horário"): não há barra de salvar geral. Ligar/desligar um horário e remover também valem na hora. Por baixo, a API continua recebendo a lista inteira de horários.
+- **Modelos:** "Usar um modelo" abre o painel para marcar os produtos; modelos com dois horários (almoço + jantar) abrem um depois do outro ("1 de 2").
+- **Primeiro uso:** sem horários, aparece um passo a passo (modelo → produtos → ligar) no lugar da grade.
+- **Esgotou hoje:** botões por produto (os que acabaram ficam em vermelho e riscados).
+
 ### Sino e home do admin
 
 O sino e o painel de atenção da home leem **da mesma fonte** (`/api/notifications`, num provider único). O contador do sino e o título da aba "(N)" somam o que pede ação (pedidos aguardando e pagamentos para conferir) mais os avisos ainda não lidos; o selo de Pré-Pedidos na barra lateral e o painel mostram cada grupo separado (pedidos / pagamentos). Pedido de um dia anterior que ninguém respondeu é recusado sozinho ("A loja não respondeu a tempo"), para não prender o contador. O pedido do cliente **não gera `Notification`**: o próprio pedido é a verdade (sem risco de selo preso por um caminho que esqueceu de resolver). Pagamentos PIX informados continuam como antes.

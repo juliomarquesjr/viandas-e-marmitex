@@ -50,8 +50,8 @@ export async function getSystemConfigs(): Promise<SystemConfigData> {
       contact_address_complement: '',
       contact_phone_mobile: '',
       contact_phone_landline: '',
-      branding_system_title: 'Viandas e Marmitex',
-      branding_pdv_title: 'PDV - Viandas e Marmitex',
+      branding_system_title: 'Sabores de Casa',
+      branding_pdv_title: 'PDV - Sabores de Casa',
       branding_logo_url: '',
     };
 
@@ -81,8 +81,8 @@ export async function getSystemConfigs(): Promise<SystemConfigData> {
       contact_address_complement: '',
       contact_phone_mobile: '',
       contact_phone_landline: '',
-      branding_system_title: 'Viandas e Marmitex',
-      branding_pdv_title: 'PDV - Viandas e Marmitex',
+      branding_system_title: 'Sabores de Casa',
+      branding_pdv_title: 'PDV - Sabores de Casa',
       branding_logo_url: '',
     };
   }

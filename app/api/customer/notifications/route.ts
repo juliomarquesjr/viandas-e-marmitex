@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
+import { dismissedAmong } from '@/lib/customer-dismissals';
 
 // GET - Avisos do cliente autenticado
 //
@@ -157,9 +158,13 @@ export async function GET() {
       }
     }
 
-    notices.sort((a, b) => b.at.localeCompare(a.at));
+    // Os que o cliente limpou (em qualquer aparelho) não voltam
+    const dismissed = await dismissedAmong(customerId, notices.map((notice) => notice.id));
+    const visible = notices.filter((notice) => !dismissed.has(notice.id));
 
-    return NextResponse.json({ data: notices.slice(0, MAX_ITEMS) });
+    visible.sort((a, b) => b.at.localeCompare(a.at));
+
+    return NextResponse.json({ data: visible.slice(0, MAX_ITEMS) });
   } catch (error) {
     console.error('Error fetching customer notifications:', error);
     return NextResponse.json({ error: 'Erro ao buscar avisos' }, { status: 500 });

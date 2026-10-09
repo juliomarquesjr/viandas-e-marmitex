@@ -203,7 +203,7 @@ export class EmailTemplates {
           <div class="header">
             ${companyInfo?.logoUrl ? `<img src="${companyInfo.logoUrl}" alt="${companyInfo.name}" class="logo">` : ''}
             <h1>📊 ${reportType}</h1>
-            <p>${companyInfo?.name || 'Viandas e Marmitex'}</p>
+            <p>${companyInfo?.name || 'Sabores de Casa'}</p>
           </div>
           
           <div class="content">
@@ -270,13 +270,13 @@ export class EmailTemplates {
           </div>
           
           <div class="footer">
-            <p>Este é um email automático do sistema ${companyInfo?.name || 'Viandas e Marmitex'}.</p>
+            <p>Este é um email automático do sistema ${companyInfo?.name || 'Sabores de Casa'}.</p>
             <p>Para dúvidas ou suporte, entre em contato conosco.</p>
             
             <div class="company-info">
               ${companyInfo?.address ? `<p>📍 ${companyInfo.address}</p>` : ''}
               ${companyInfo?.phone ? `<p>📞 ${companyInfo.phone}</p>` : ''}
-              <p>© ${new Date().getFullYear()} ${companyInfo?.name || 'Viandas e Marmitex'}. Todos os direitos reservados.</p>
+              <p>© ${new Date().getFullYear()} ${companyInfo?.name || 'Sabores de Casa'}. Todos os direitos reservados.</p>
             </div>
           </div>
         </div>
@@ -292,7 +292,7 @@ export class EmailTemplates {
     const { reportType, subject, generatedAt, period, summary, companyInfo } = data;
     
     let text = `
-${reportType.toUpperCase()} - ${companyInfo?.name || 'Viandas e Marmitex'}
+${reportType.toUpperCase()} - ${companyInfo?.name || 'Sabores de Casa'}
 ${'='.repeat(50)}
 
 ${subject}
@@ -318,12 +318,12 @@ Link para baixar PDF: ${data.reportUrl}?download=1
 ` : ''}
 
 ${'='.repeat(50)}
-Este é um email automático do sistema ${companyInfo?.name || 'Viandas e Marmitex'}.
+Este é um email automático do sistema ${companyInfo?.name || 'Sabores de Casa'}.
 Para dúvidas ou suporte, entre em contato conosco.
 
 ${companyInfo?.address ? `Endereço: ${companyInfo.address}` : ''}
 ${companyInfo?.phone ? `Telefone: ${companyInfo.phone}` : ''}
-© ${new Date().getFullYear()} ${companyInfo?.name || 'Viandas e Marmitex'}. Todos os direitos reservados.
+© ${new Date().getFullYear()} ${companyInfo?.name || 'Sabores de Casa'}. Todos os direitos reservados.
     `;
 
     return text.trim();
@@ -523,7 +523,7 @@ ${companyInfo?.phone ? `Telefone: ${companyInfo.phone}` : ''}
         <div class="container">
           <div class="header">
             <h1>📊 Relatório de Fechamento</h1>
-            <p>${companyInfo?.name || 'Viandas e Marmitex'}</p>
+            <p>${companyInfo?.name || 'Sabores de Casa'}</p>
           </div>
           
           <div class="content">
@@ -591,7 +591,7 @@ ${companyInfo?.phone ? `Telefone: ${companyInfo.phone}` : ''}
     };
 
     return `
-RELATÓRIO DE FECHAMENTO - ${companyInfo?.name || 'Viandas e Marmitex'}
+RELATÓRIO DE FECHAMENTO - ${companyInfo?.name || 'Sabores de Casa'}
 
 Cliente: ${customerName}
 Período: ${formatDate(period.startDate)} a ${formatDate(period.endDate)}

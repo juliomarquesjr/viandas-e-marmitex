@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { backfillOnce, flushDismissals, syncDismissed, syncUndo } from "./dismissals";
 
 export type NoticeTone = "go" | "prog" | "done" | "off" | "pay";
 export type NoticeKind = "order" | "buy" | "pay";
@@ -119,6 +120,7 @@ export function loadNotices(): Promise<void> {
     .then((response) => (response.ok ? response.json() : null))
     .then((body: { data?: Notice[] } | null) => {
       if (body?.data) emit({ ...state, items: body.data, loaded: true });
+      void flushDismissals();
     })
     .catch(() => undefined)
     .finally(() => {
@@ -146,6 +148,7 @@ export function markAllNoticesRead() {
 /** Limpa um aviso (ele some da lista; "Desfazer" traz de volta). */
 export function dismissNotice(id: string) {
   update({ dismissed: new Set(state.dismissed).add(id), lastCleared: [id] });
+  syncDismissed([id]);
 }
 
 /** Limpa todos os avisos da lista. */
@@ -155,14 +158,18 @@ export function dismissAllNotices() {
   const dismissed = new Set(state.dismissed);
   ids.forEach((id) => dismissed.add(id));
   update({ dismissed, lastCleared: ids });
+  syncDismissed(ids);
 }
 
 /** Desfaz o último "limpar". */
 export function undoClearNotices() {
   if (state.lastCleared.length === 0) return;
+  const undone = [...state.lastCleared];
   const dismissed = new Set(state.dismissed);
-  state.lastCleared.forEach((id) => dismissed.delete(id));
+  undone.forEach((id) => dismissed.delete(id));
   update({ dismissed, lastCleared: [] });
+  // o servidor já tinha escondido esses avisos: depois de esquecer, busca de novo para eles voltarem
+  void syncUndo(undone).then(() => loadNotices());
 }
 
 /** Esquece o que sabe, para a próxima conta que entrar não ver os avisos da anterior. */
@@ -195,7 +202,10 @@ export function useNotices(customerId: string | undefined) {
     if (!customerId) return;
     if (customerKey !== customerId) {
       customerKey = customerId;
-      emit({ ...EMPTY, ...readStored() });
+      const stored = readStored();
+      emit({ ...EMPTY, ...stored });
+      // o que foi limpo só neste aparelho, antes de existir o guardado no servidor, sobe uma vez
+      backfillOnce(`notices:${customerId}`, [...stored.dismissed]);
     }
     consumers += 1;
     start();

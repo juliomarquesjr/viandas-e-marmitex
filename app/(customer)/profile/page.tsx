@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Eye, EyeOff, LogOut, Pencil } from "lucide-react";
+import { Camera, Eye, EyeOff, Lock, LogOut, MapPin, Palette, Pencil, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
@@ -29,10 +29,10 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 72;
 
 const SECTIONS = [
-  { id: "dados", label: "Dados" },
-  { id: "endereco", label: "Endereço" },
-  { id: "seguranca", label: "Segurança" },
-  { id: "aparencia", label: "Aparência" },
+  { id: "dados", label: "Dados", title: "Seus dados", Icon: User },
+  { id: "endereco", label: "Endereço", title: "Endereço de entrega", Icon: MapPin },
+  { id: "seguranca", label: "Segurança", title: "Trocar senha", Icon: Lock },
+  { id: "aparencia", label: "Aparência", title: "Aparência", Icon: Palette },
 ] as const;
 type Section = (typeof SECTIONS)[number]["id"];
 
@@ -302,7 +302,8 @@ export default function CustomerProfilePage() {
 
   const tabs = SECTIONS.map((s) => (
     <button key={s.id} type="button" className="c-chip" aria-pressed={section === s.id} onClick={() => setSection(s.id)}>
-      {s.label}
+      <s.Icon size={20} aria-hidden="true" />
+      <span>{s.label}</span>
     </button>
   ));
 
@@ -475,7 +476,7 @@ export default function CustomerProfilePage() {
     );
   }
 
-  const sectionLabel = SECTIONS.find((s) => s.id === section)?.label ?? "";
+  const sectionTitle = SECTIONS.find((s) => s.id === section)?.title ?? "";
 
   return (
     <div className="c-profile">
@@ -483,7 +484,7 @@ export default function CustomerProfilePage() {
         <div className="c-pavatar">
           {/* tocar na foto também abre a folha; para teclado e leitor de tela vale o botão da câmera */}
           <span className="c-pavatar-pic" onClick={openPhoto}>
-            <CustomerAvatar name={profile.name} imageUrl={imageUrl} size={desktop ? 96 : 88} />
+            <CustomerAvatar name={profile.name} imageUrl={imageUrl} size={desktop ? 96 : 64} />
           </span>
           <button ref={cameraRef} type="button" className="c-pavatar-cam" aria-label="Alterar foto do perfil" onClick={openPhoto}>
             <Camera size={20} aria-hidden="true" />
@@ -505,13 +506,18 @@ export default function CustomerProfilePage() {
 
         <form className="c-pmain" noValidate onSubmit={onSubmit}>
           <div className="c-pform" key={section}>
-            {section !== "aparencia" && <h2 className="c-sr">{sectionLabel}</h2>}
-            {canEdit && (
-              <button type="button" className="c-btn is-ghost" onClick={startEditing}>
-                <Pencil size={18} aria-hidden="true" />
-                Editar dados
-              </button>
+            {(section === "dados" || section === "endereco") && (
+              <div className="c-psec-head">
+                <h2 className="c-psec-t">{sectionTitle}</h2>
+                {canEdit && (
+                  <button type="button" className="c-btn is-ghost c-psec-edit" onClick={startEditing}>
+                    <Pencil size={16} aria-hidden="true" />
+                    Editar
+                  </button>
+                )}
+              </div>
             )}
+            {section === "seguranca" && <h2 className="c-sr">{sectionTitle}</h2>}
             {body}
             {dataError && editing && !isSecurity && (
               <p className="c-alert" role="alert">

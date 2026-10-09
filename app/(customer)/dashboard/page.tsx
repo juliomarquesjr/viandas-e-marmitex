@@ -5,12 +5,14 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import * as React from "react";
 import type { CustomerPaymentIntentsResponse } from "@/lib/notification-types";
+import { CustomerAvatar } from "../components/Avatar";
 import { MovementRow } from "../components/ficha/MovementRow";
 import { buildMovements } from "../components/ficha/movements";
 import { ErrorState, EmptyState, LoadingRows, Money, PixIcon, StatusArt, Stepper, cx } from "../components/kit";
 import { PaymentIntentCards } from "../components/pagamento/PaymentIntentCards";
 import { OrderCta } from "../components/pedido/OrderCta";
 import { PixPaymentSheet } from "../components/PixPaymentSheet";
+import { useCustomerAvatar } from "../lib/avatar-store";
 import { firstName, formatBRL, formatTime, formatTodayLabel, greeting } from "../lib/format";
 import { activeTitle, fulfillmentOf, isFinished, toneOf } from "../lib/order-status";
 import { PAYMENT_INTENTS_URL } from "../lib/payment-intents";
@@ -106,26 +108,6 @@ export default function CustomerDashboardPage() {
           <BalanceHero data={expenses.data} onPay={() => setPixOpen(true)} />
         )}
 
-        {!failed && (
-          <section className="c-block c-home-mov c-rise" style={rise(3)} aria-labelledby="home-mov-h">
-            <div className="c-block-h">
-              <h2 id="home-mov-h">Últimas movimentações</h2>
-              <Link href="/expenses" className="c-link">
-                Ver ficha
-              </Link>
-            </div>
-            <div className="c-card">
-              {loading || !expenses.data ? <LoadingRows rows={HOME_MOVEMENTS} /> : <RecentMovements data={expenses.data} />}
-            </div>
-          </section>
-        )}
-      </div>
-
-      <div className="c-home-col">
-        {intents.data && <PaymentIntentCards intents={intents.data.intents ?? []} rise={rise(2)} />}
-        {!failed && loading && <ActiveSkeleton />}
-        {!failed && !loading && preOrders.data && <ActiveOrders orders={preOrders.data.data ?? []} />}
-
         {address && (
           <section className="c-card c-home-addr c-rise" style={rise(4)} aria-label="Endereço de entrega">
             <span className="c-oic" aria-hidden="true">
@@ -147,6 +129,26 @@ export default function CustomerDashboardPage() {
         )}
       </div>
 
+      <div className="c-home-col">
+        {intents.data && <PaymentIntentCards intents={intents.data.intents ?? []} rise={rise(2)} />}
+        {!failed && loading && <ActiveSkeleton />}
+        {!failed && !loading && preOrders.data && <ActiveOrders orders={preOrders.data.data ?? []} />}
+
+        {!failed && (
+          <section className="c-block c-home-mov c-rise" style={rise(3)} aria-labelledby="home-mov-h">
+            <div className="c-block-h">
+              <h2 id="home-mov-h">Últimas movimentações</h2>
+              <Link href="/expenses" className="c-link">
+                Ver ficha
+              </Link>
+            </div>
+            <div className="c-card">
+              {loading || !expenses.data ? <LoadingRows rows={HOME_MOVEMENTS} /> : <RecentMovements data={expenses.data} />}
+            </div>
+          </section>
+        )}
+      </div>
+
       {expenses.data && expenses.data.balanceCents > 0 && (
         <PixPaymentSheet
           open={pixOpen}
@@ -163,6 +165,7 @@ export default function CustomerDashboardPage() {
 
 function Greeting() {
   const { data: session } = useSession();
+  const avatar = useCustomerAvatar();
   // hora e data são do aparelho: só depois de montar, para o HTML do servidor
   // (em outro fuso) não brigar com o do navegador
   const [now, setNow] = React.useState<Date | null>(null);
@@ -171,8 +174,13 @@ function Greeting() {
   const name = firstName(session?.user?.name);
   return (
     <header className="c-greet c-rise" style={rise(0)}>
-      <h1>{now ? `${greeting(now)}${name ? `, ${name}` : ""}` : "\u00a0"}</h1>
-      <p className="c-eyebrow">{now ? formatTodayLabel(now) : "\u00a0"}</p>
+      <Link href="/profile" className="c-greet-ph" aria-label="Meu perfil">
+        <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={56} />
+      </Link>
+      <div className="c-greet-t">
+        <h1>{now ? `${greeting(now)}${name ? `, ${name}` : ""}` : "\u00a0"}</h1>
+        <p className="c-eyebrow">{now ? formatTodayLabel(now) : "\u00a0"}</p>
+      </div>
     </header>
   );
 }

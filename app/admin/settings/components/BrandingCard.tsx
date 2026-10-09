@@ -113,7 +113,7 @@ export function BrandingCard({ formData, onFieldChange }: BrandingCardProps) {
           <Input
             value={formData.branding_system_title}
             onChange={(e) => onFieldChange('branding_system_title', e.target.value)}
-            placeholder="Viandas e Marmitex"
+            placeholder="Sabores de Casa"
             className="pl-9 h-9 text-sm rounded-lg border-slate-200"
           />
           <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -125,7 +125,7 @@ export function BrandingCard({ formData, onFieldChange }: BrandingCardProps) {
           <Input
             value={formData.branding_pdv_title}
             onChange={(e) => onFieldChange('branding_pdv_title', e.target.value)}
-            placeholder="PDV - Viandas e Marmitex"
+            placeholder="PDV - Sabores de Casa"
             className="pl-9 h-9 text-sm rounded-lg border-slate-200"
           />
           <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
