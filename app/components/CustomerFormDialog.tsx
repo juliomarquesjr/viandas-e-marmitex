@@ -171,6 +171,7 @@ export function CustomerFormDialog({
 
           <form
             id="customer-form-modal"
+            autoComplete="off"
             onSubmit={handleSubmit}
             className="flex flex-col flex-1 overflow-hidden"
           >
@@ -279,6 +280,8 @@ export function CustomerFormDialog({
                   <div className="relative">
                     <Input
                       type="email"
+                      name="customer-email"
+                      autoComplete="off"
                       placeholder="cliente@email.com"
                       value={formData.email}
                       onChange={(e) => updateFormData("email", e.target.value)}
@@ -322,6 +325,8 @@ export function CustomerFormDialog({
                   <div className="relative">
                     <Input
                       type="password"
+                      name="customer-new-password"
+                      autoComplete="new-password"
                       placeholder={
                         editingCustomer
                           ? "Nova senha (opcional)"
