@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, LogOut, ReceiptText, ShoppingBag, User } from "lucide-react";
+import { BookOpen, Home, LogOut, ReceiptText, ShoppingBag, User } from "lucide-react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import { BrandMark, ThemeButton, useBranding } from "./kit";
 
 const NAV = [
   { href: "/dashboard", label: "Início", icon: Home },
+  { href: "/cardapio", label: "Cardápio", icon: BookOpen },
   { href: "/expenses", label: "Ficha", icon: ReceiptText },
   { href: "/pre-orders", label: "Pedidos", icon: ShoppingBag },
   { href: "/profile", label: "Perfil", icon: User },
@@ -69,7 +70,8 @@ function Shell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  const shortTitle = branding.title.split(/\s+e\s+|\s+/)[0] || branding.title;
+  // nomes curtos aparecem inteiros ("Sabores de Casa"); os longos viram a primeira palavra
+  const shortTitle = branding.title.length <= 18 ? branding.title : branding.title.split(/\s+e\s+|\s+/)[0] || branding.title;
 
   return (
     <div className="c-shell">

@@ -9,6 +9,7 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 | `/dashboard` | Saldo da ficha (com "Pagar com PIX"), as 5 últimas movimentações, o pedido em andamento mais recente e o endereço de entrega |
 | `/expenses` | Ficha: compras e pagamentos por período. O comprovante tem a ilustração animada (selo no pagamento, sacola na compra), as fotos dos produtos e os valores |
 | `/pre-orders` | Pedidos com miniaturas dos produtos; o detalhe mostra o andamento (recebido, em preparo, pronto, a caminho, entregue) |
+| `/cardapio` | Cardápio de hoje, faixa de dias e anteriores. No Início aparece só um aviso quando há cardápio publicado. Ver [cardapio-diario.md](./cardapio-diario.md) |
 | `/pre-orders/novo` | Fazer pedido: o cliente escolhe os produtos liberados pelo admin para o dia e o horário, envia e acompanha em Pedidos (Enviado, Aceito, Recusado). Ver [pedido-online.md](./pedido-online.md) |
 | `/pre-orders/[id]/tracking` | Mapa da entrega (público, aberto por link) |
 | `/profile` | Dados, foto (a mesma que o admin vê), senha e tema claro, escuro ou automático |

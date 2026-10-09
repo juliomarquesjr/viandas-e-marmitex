@@ -40,6 +40,7 @@ Exigem a sessão do cliente (NextAuth em `/api/auth/customer`) e só devolvem da
 - GET `/api/customer/pre-orders` · GET `/api/customer/pre-orders/:id/delivery` e `/tracking`
 - GET `/api/customer/notifications` (avisos derivados de pedidos e ficha)
 - GET/POST `/api/customer/payment-intents` ("Já paguei")
+- GET `/api/customer/menus` · GET `/api/customer/menus/:date` (cardápio diário; ver [cardapio-diario.md](./cardapio-diario.md)) · GET `/api/admin/menus` · GET/PUT/DELETE `/api/admin/menus/:date` (só administrador)
 - GET `/api/customer/ordering/menu` · POST `/api/customer/ordering/orders` (header `Idempotency-Key`) · POST `/api/customer/pre-orders/:id/cancel` (pedido online; ver [pedido-online.md](./pedido-online.md))
 - POST `/api/customer/forgot-password` e `/reset-password`
 - GET `/api/customer/realtime-token` (204 sem `ABLY_API_KEY`)

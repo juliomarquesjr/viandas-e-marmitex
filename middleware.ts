@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
  * Páginas da área do cliente. Ficam na raiz do site, então a lista é explícita: as demais
  * rotas (/admin, /auth, /tracking, /print...) não são do cliente.
  */
-const CUSTOMER_PATHS = ["/login", "/forgot-password", "/reset-password", "/dashboard", "/expenses", "/pre-orders", "/profile"];
+const CUSTOMER_PATHS = ["/login", "/forgot-password", "/reset-password", "/dashboard", "/cardapio", "/expenses", "/pre-orders", "/profile"];
 
 function isCustomerPath(pathname: string) {
   return CUSTOMER_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
@@ -128,6 +128,7 @@ export const config = {
     "/forgot-password",
     "/reset-password",
     "/dashboard/:path*",
+    "/cardapio/:path*",
     "/expenses/:path*",
     "/pre-orders/:path*",
     "/profile/:path*",
