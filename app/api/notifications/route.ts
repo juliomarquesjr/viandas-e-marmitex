@@ -3,7 +3,8 @@ import { loadNotificationDTOs } from '@/lib/notifications';
 import type { NotificationListResponse } from '@/lib/notification-types';
 import prisma from '@/lib/prisma';
 import { requireStaff } from '@/lib/staff-session';
-import { NextResponse } from 'next/server';
+import { ensureFresh } from '@/lib/whatsapp-service';
+import { after, NextResponse } from 'next/server';
 
 const MAX_LIMIT = 50;
 
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
     if ('error' in auth) return auth.error;
 
     const { searchParams } = new URL(request.url);
+    // Com o painel aberto, confere a conexão do WhatsApp de tempos em tempos, depois de responder
+    after(() => ensureFresh());
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), MAX_LIMIT);
     const beforeParam = searchParams.get('before');
     const before = beforeParam ? new Date(beforeParam) : null;
@@ -38,7 +41,8 @@ export async function GET(request: Request) {
         include: { customer: { select: { name: true } } },
       }),
       prisma.notification.count({ where: { OR: [{ readAt: null }, { resolvedAt: null }] } }),
-      prisma.notification.count({ where: { resolvedAt: null } }),
+      // "Pagamentos para conferir" na home: só os pagamentos informados (o aviso do WhatsApp conta no sino, não aqui)
+      prisma.notification.count({ where: { resolvedAt: null, type: 'payment_intent' } }),
       loadAwaitingOrders(),
     ]);
 

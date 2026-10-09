@@ -4,10 +4,11 @@
  */
 
 /** Tipos de notificação. Cada novo tipo entra aqui e em NOTIFICATION_TYPE_LABEL. */
-export type NotificationType = 'payment_intent';
+export type NotificationType = 'payment_intent' | 'whatsapp';
 
 export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   payment_intent: 'Pagamento informado',
+  whatsapp: 'WhatsApp',
 };
 
 export type PaymentIntentStatus = 'pending' | 'confirmed' | 'rejected';

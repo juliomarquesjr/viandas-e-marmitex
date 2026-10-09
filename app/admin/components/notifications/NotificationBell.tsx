@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Bell } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NotificationDTO } from "@/lib/notification-types";
 import { NotificationHistoryDialog } from "./NotificationHistoryDialog";
@@ -48,6 +49,7 @@ export function NotificationBell() {
     setSoundEnabled,
     historyRequest,
   } = useNotificationsContext();
+  const router = useRouter();
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [historyVersion, setHistoryVersion] = React.useState(0);
@@ -109,6 +111,11 @@ export function NotificationBell() {
     void markRead(notification.id);
     const intentId = getPaymentIntentId(notification);
     if (origin === "panel") setPanelOpen(false);
+    if (notification.refType === "WhatsApp") {
+      setHistoryOpen(false);
+      router.push("/admin/settings?tab=whatsapp");
+      return;
+    }
     if (intentId) {
       reviewOriginRef.current = origin;
       setReview({ id: intentId, origin });
