@@ -24,20 +24,20 @@ Exemplo:
 }
 ```
 
-## Automação (GitHub Actions)
+## Variáveis de build
 
-O workflow [.github/workflows/ci.yml](../.github/workflows/ci.yml) define, antes do `npm run build`:
+O projeto não tem mais workflow de GitHub Actions (o `ci.yml` foi removido porque falhava a cada merge para a `main`). As variáveis que ele definia antes do `npm run build` continuam valendo e precisam vir do pipeline de **deploy**:
 
-- `BUILD_TIME` — data/hora UTC do job
-- `GIT_COMMIT_SHA` — `${{ github.sha }}`
-- `APP_VERSION` — nome da tag, **apenas** em builds disparados por tag (releases)
+- `BUILD_TIME` — data/hora UTC do build
+- `GIT_COMMIT_SHA` — o commit que está sendo publicado
+- `APP_VERSION` — nome da tag, **apenas** em builds de release
 
-No seu pipeline de **deploy** para produção, replique as mesmas variáveis (ou equivalentes do provedor) **antes** do `next build` ou **na inicialização** do container, conforme o host:
+No seu pipeline de **deploy** para produção, defina as mesmas variáveis (ou equivalentes do provedor) **antes** do `next build` ou **na inicialização** do container, conforme o host:
 
 - **Vercel**: já expõe `VERCEL_GIT_COMMIT_SHA` e `VERCEL_ENV`; opcionalmente defina `BUILD_TIME` em script de build.
 - **Docker / VM**: passe `GIT_COMMIT_SHA`, `BUILD_TIME` e opcionalmente `APP_VERSION` no `docker build` (`--build-arg`) ou no `environment` do serviço.
 
-## Fallback manual (sem CI)
+## Fallback manual
 
 Defina no ambiente de execução ou no build:
 

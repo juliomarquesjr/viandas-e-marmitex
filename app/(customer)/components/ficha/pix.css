@@ -3,7 +3,7 @@
   .c-pix-step {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
   }
   .c-pix-step.is-done {
     text-align: center;
@@ -62,13 +62,130 @@
     margin: 0 0 4px;
   }
   .c-pix-label {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .c-pix-step .c-copyrow .c-btn {
     min-height: 44px;
   }
   .c-pix-step .c-howto strong {
     color: var(--c-ink);
+  }
+  /* QR e valor centralizados, um sobre o outro */
+  .c-qr-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .c-pix-step .c-qr {
+    padding: 8px;
+  }
+  .c-pix-step .c-qr img {
+    width: 160px;
+    height: 160px;
+  }
+  .c-pix-step .c-qr-amt {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .c-pix-step .c-qr-amt .c-pix-k {
+    margin: 0;
+  }
+  .c-pix-step .c-qr-amt .c-money {
+    justify-content: center;
+    font-size: 28px;
+  }
+  .c-pix-step .c-btn svg {
+    flex: none;
+  }
+  /* "Como pagar" num quadro próprio: separado do copia e cola e do aviso do rodapé */
+  .c-howto-d {
+    border: 1.5px solid var(--c-line);
+    border-radius: var(--c-r-md);
+    background: var(--c-surface);
+    padding: 0 14px;
+  }
+  .c-howto-d[open] {
+    padding-bottom: 14px;
+  }
+  /* o rodapé fixo (aviso + botões) cobre cerca de 110px na base da folha */
+  .c-howto-d {
+    scroll-margin-bottom: 118px;
+  }
+  .c-howto-d summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 48px;
+    list-style: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--c-ink);
+    border-radius: var(--c-r-md);
+  }
+  .c-howto-d summary::-webkit-details-marker {
+    display: none;
+  }
+  .c-howto-d summary::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-top: -3px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.2s;
+  }
+  .c-howto-d[open] summary::after {
+    margin-top: 3px;
+    transform: rotate(225deg);
+  }
+  .c-howto-d summary:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+  .c-howto-d .c-howto,
+  .c-howto-d .c-pixnote {
+    margin-top: 8px;
+  }
+  .c-howto-d .c-howto strong {
+    color: var(--c-ink);
+  }
+  /* o botão principal fica sempre à vista, no rodapé da folha, mesmo quando o conteúdo rola */
+  .c-pix-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: -20px;
+    padding: 14px 20px calc(2px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to bottom, transparent, var(--c-surface) 12px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .c-pix-foot > .c-actions {
+    flex-wrap: nowrap;
+  }
+  .c-pix-foot > .c-actions .c-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
+  }
+  .c-pix-after {
+    margin: 0;
+    font-size: 13px;
+    text-align: center;
+    color: var(--c-ink2);
+  }
+  /* o aviso de erro do passo "erro" também usa o rodapé fixo como ações */
+  .c-actions.c-pix-foot {
+    flex-direction: row;
+    flex-wrap: nowrap;
   }
   .c-pix-done-art {
     align-self: center;
