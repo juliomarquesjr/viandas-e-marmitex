@@ -69,7 +69,7 @@ export const blankSection = (name = ""): DraftSection => ({ key: newKey(), name,
 export const SECTION_SUGGESTIONS = ["Pratos principais", "Acompanhamentos", "Saladas", "Sobremesa", "Bebidas"];
 
 export function emptyDraft(): Draft {
-  return { title: "", note: "", status: "draft", showOrderButton: true, notifyCustomers: false, sections: [blankSection("Pratos principais")] };
+  return { title: "", note: "", status: "draft", showOrderButton: false, notifyCustomers: false, sections: [blankSection("Pratos principais")] };
 }
 
 export function toDraft(menu: MenuDTO, asCopy = false): Draft {
