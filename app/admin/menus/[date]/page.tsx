@@ -146,7 +146,7 @@ export default function MenuEditorPage() {
     return (
       <div className="space-y-6">
         <PageHeader title="Cardápio" icon={BookOpen} />
-        <p className="px-6 text-sm text-[color:var(--muted-foreground)]">
+        <p className="text-sm text-[color:var(--muted-foreground)]">
           Esse dia não existe. <Link href="/admin/menus" className="font-semibold text-primary underline">Voltar para os cardápios</Link>
         </p>
       </div>
@@ -184,7 +184,7 @@ export default function MenuEditorPage() {
         }
       />
 
-      <div className="px-6 pb-10">
+      <div className="pb-10">
         {loadError ? (
           <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6 text-center">
             <AlertCircle className="h-8 w-8" style={{ color: "var(--state-cobrar)" }} aria-hidden="true" />

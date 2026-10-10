@@ -108,7 +108,7 @@ export default function MenusPage() {
         }
       />
 
-      <div className="space-y-6 px-6 pb-8">
+      <div className="space-y-6 pb-8">
         {error ? (
           <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-6 text-center">
             <AlertCircle className="h-8 w-8" style={{ color: "var(--state-cobrar)" }} aria-hidden="true" />
