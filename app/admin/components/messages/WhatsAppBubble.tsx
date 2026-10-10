@@ -1,10 +1,25 @@
 import * as React from "react";
 import { parseFormatting, type FormatNode } from "@/lib/messages/format";
 
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+/** Endereços viram link azul, como o WhatsApp mostra. */
+function withLinks(text: string, key: string): React.ReactNode[] {
+  return text.split(URL_RE).map((part, i) =>
+    i % 2 === 1 ? (
+      <span key={`${key}l${i}`} className="text-[#027eb5] underline">
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={`${key}t${i}`}>{part}</React.Fragment>
+    )
+  );
+}
+
 function render(nodes: FormatNode[], keyPrefix = ""): React.ReactNode[] {
   return nodes.map((node, i) => {
     const key = `${keyPrefix}${i}`;
-    if (node.type === "text") return <React.Fragment key={key}>{node.text}</React.Fragment>;
+    if (node.type === "text") return <React.Fragment key={key}>{withLinks(node.text, key)}</React.Fragment>;
     if (node.type === "mono") return <code key={key} className="rounded bg-black/5 px-1 font-mono text-[0.92em]">{node.text}</code>;
     const children = render(node.children, `${key}.`);
     if (node.type === "bold") return <strong key={key}>{children}</strong>;
