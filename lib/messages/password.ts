@@ -1,6 +1,11 @@
-// Senha gerada pelo sistema: forte, fácil de ler e de digitar (sem 0/O, 1/l/I). Funciona no navegador e no servidor.
+// Senha gerada pelo sistema: fácil de ler, ditar e digitar. Só letras minúsculas e números, sem símbolo
+// e sem caracteres que se confundem (0/o, 1/l/i). Funciona no navegador e no servidor.
+// É temporária: o cliente troca no primeiro acesso (mustChangePassword).
 
-const ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const LETTERS = 'abcdefghjkmnpqrstuvwxyz';
+const DIGITS = '23456789';
+const ALPHABET = LETTERS + DIGITS;
+export const GENERATED_PASSWORD_LENGTH = 8;
 
 function randomIndex(max: number): number {
   // sorteio sem viés: descarta os valores que sobram na divisão
@@ -12,12 +17,10 @@ function randomIndex(max: number): number {
   }
 }
 
-/** "Kp7m-Rx4a9Q": 10 letras e números com um hífen no meio (mais de 8 caracteres, o mínimo do sistema). */
+/** "kp7mrx4a": 8 caracteres (o mínimo do sistema), com pelo menos uma letra e um número. */
 export function generatePassword(): string {
-  const pick = (n: number) => Array.from({ length: n }, () => ALPHABET[randomIndex(ALPHABET.length)]).join('');
-  // garante pelo menos um número e uma letra
   for (;;) {
-    const raw = pick(10);
-    if (/[0-9]/.test(raw) && /[a-zA-Z]/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+    const raw = Array.from({ length: GENERATED_PASSWORD_LENGTH }, () => ALPHABET[randomIndex(ALPHABET.length)]).join('');
+    if (/[0-9]/.test(raw) && /[a-z]/.test(raw)) return raw;
   }
 }
