@@ -3,9 +3,10 @@
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { addDaysToDay, todaySP } from "@/lib/date-range";
-import { AlertCircle, BookOpen, Copy, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, BookOpen, Copy, MessageCircle, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BulkMenuDialog } from "../components/messages/BulkMenuDialog";
 import { PageHeader } from "../components/layout";
 import { MenuTable, type MenuTab } from "./components/MenuTable";
 import { NewMenuDialog } from "./components/NewMenuDialog";
@@ -27,6 +28,7 @@ export default function MenusPage() {
   const [tab, setTab] = useState<MenuTab>("recent");
   const [dialog, setDialog] = useState<{ mode: "new" | "copy"; source?: string } | null>(null);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,10 @@ export default function MenusPage() {
         breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Cardápios" }]}
         actions={
           <>
+            <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">
+              <MessageCircle className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Enviar cardápio para todos
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setDialog({ mode: "copy" })} disabled={menus.length === 0}>
               <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />
               Copiar de outro dia
@@ -147,6 +153,8 @@ export default function MenusPage() {
           </>
         )}
       </div>
+
+      <BulkMenuDialog open={bulkOpen} onClose={() => setBulkOpen(false)} />
 
       {dialog && (
         <NewMenuDialog

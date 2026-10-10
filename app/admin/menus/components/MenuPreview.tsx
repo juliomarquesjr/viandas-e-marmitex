@@ -44,7 +44,7 @@ function useWhatsAppTemplate() {
 
 /** "Como o cliente vê": o cardápio no aplicativo e a mensagem de WhatsApp, ao vivo enquanto se edita. */
 export function MenuPreview({ draft, day }: { draft: Draft; day: string }) {
-  const [view, setView] = useState<"app" | "whatsapp">("app");
+  const [view, setView] = useState<"app" | "whatsapp">("whatsapp");
   const template = useWhatsAppTemplate();
   const sections = draft.sections
     .map((s) => ({ ...s, items: s.items.filter((i) => i.name.trim()) }))
@@ -76,7 +76,7 @@ export function MenuPreview({ draft, day }: { draft: Draft; day: string }) {
         Como o cliente vê
       </h2>
       <div className="mx-auto mb-3.5 flex w-[300px] gap-1 rounded-xl bg-[color:var(--card)] p-1" role="tablist" aria-label="Onde o cliente vê">
-        {([["app", "No aplicativo", Smartphone], ["whatsapp", "No WhatsApp", MessageCircle]] as const).map(([id, label, Icon]) => (
+        {([["whatsapp", "No WhatsApp", MessageCircle], ["app", "No aplicativo", Smartphone]] as const).map(([id, label, Icon]) => (
           <button
             key={id}
             type="button"
