@@ -215,7 +215,7 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
               id={`${id}-sound`}
               checked={soundEnabled}
               onCheckedChange={onSoundChange}
-              aria-label="Avisar com som quando chegar pedido ou pagamento"
+              aria-label="Avisar com som, a cada 5 minutos, enquanto houver pedido ou pagamento em aberto"
             />
           </div>
         </div>

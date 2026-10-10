@@ -2,9 +2,12 @@
 
 import * as React from "react";
 import {
-  playAlertBeep,
+  isAlertDue,
+  playPendingSound,
   readAlertSoundPreference,
+  readLastPlayedAt,
   saveAlertSoundPreference,
+  saveLastPlayedAt,
 } from "./alertSound";
 import { useNotificationsEngine, type UseNotificationsResult } from "./useNotifications";
 
@@ -142,19 +145,41 @@ export function NotificationsProvider({
   const setSoundEnabled = React.useCallback((next: boolean) => {
     setSoundState(next);
     saveAlertSoundPreference(next);
-    if (next) playAlertBeep();
+    if (next) void playPendingSound(); // o clique no botão é o gesto que libera o áudio no navegador
   }, []);
 
   const requestHistory = React.useCallback(() => setHistoryRequest((n) => n + 1), []);
 
-  // Beep só quando o que pede ação AUMENTA depois da primeira carga
+  // Som enquanto houver pagamento não confirmado ou pedido aguardando: toca ao aparecer algo novo e se repete
+  // a cada 5 minutos até tudo ser resolvido. O horário do último aviso fica no navegador, então recarregar a
+  // página ou abrir outra aba não faz tocar de novo antes da hora. Se o navegador ainda bloquear o áudio
+  // (nenhum clique na página), tenta de novo no próximo ciclo. Vale para a área administrativa: o PDV não
+  // carrega notificações.
   const previousPending = React.useRef<number | null>(null);
   React.useEffect(() => {
     if (!loaded) return;
-    if (previousPending.current !== null && pendingCount > previousPending.current && soundEnabled) {
-      playAlertBeep();
-    }
+    // na primeira carga não força: quem recarrega a página não ouve o aviso de novo antes da hora
+    const increased = previousPending.current !== null && pendingCount > previousPending.current;
     previousPending.current = pendingCount;
+    if (pendingCount === 0) saveLastPlayedAt(0);
+    if (!soundEnabled || pendingCount === 0) return;
+
+    let cancelled = false;
+    let playing = false;
+    const tick = async (force: boolean) => {
+      if (cancelled || playing) return; // aba em segundo plano também avisa: o operador costuma deixá-la aberta
+      if (!force && !isAlertDue(Date.now(), readLastPlayedAt())) return;
+      playing = true;
+      const played = await playPendingSound();
+      playing = false;
+      if (played && !cancelled) saveLastPlayedAt(Date.now());
+    };
+    void tick(increased);
+    const timer = window.setInterval(() => void tick(false), 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [loaded, pendingCount, soundEnabled]);
 
   useTabTitleCount((loaded ? badgeCount : 0) + chatUnread, enabled);

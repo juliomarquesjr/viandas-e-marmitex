@@ -50,6 +50,7 @@ Exigem a sessão do cliente (NextAuth em `/api/auth/customer`) e só devolvem da
 - GET `/api/notifications` · POST `/api/notifications/:id/read` e `/read-all`
 - GET `/api/payment-intents/:id` · POST `/api/payment-intents/:id/confirm` (aceita `amountCents`) e `/reject` (aceita `reason`)
 - GET `/api/realtime/staff-token` (só funcionário; 204 sem `ABLY_API_KEY`)
+- **Som de aviso (área administrativa):** enquanto houver pagamento informado ainda não confirmado ou pedido do cliente aguardando resposta (`pendingCount` de `/api/notifications`), o admin toca `public/audio/sompagamentosepedidos.mp3` ao aparecer algo novo e **a cada 5 minutos** até tudo ser resolvido. Vem ligado; a pessoa desliga em "Avisar com som" no sino (preferência no navegador). O horário do último aviso fica no navegador, então recarregar a página ou abrir outra aba não repete antes da hora. O navegador só libera áudio depois de um clique na página; até lá o sistema tenta de novo a cada 15 s. Código: `app/admin/components/notifications/alertSound.ts` e `NotificationsProvider.tsx`; o PDV não carrega notificações.
 
 ### Pedido online (admin)
 - GET/PUT `/api/admin/customer-ordering` (só admin: interruptor, pausa, "esgotou hoje" e janelas de horário)
