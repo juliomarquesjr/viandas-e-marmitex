@@ -2,8 +2,8 @@
 
 import { Camera, Eye, EyeOff, Lock, LogOut, MapPin, MessageCircle, Palette, Pencil, User } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CustomerAvatar } from "../components/Avatar";
 import { ErrorState, Toast, ThemeChoice } from "../components/kit";
 import { ProfilePhotoSheet } from "../components/perfil/ProfilePhotoSheet";
@@ -174,7 +174,16 @@ function ProfileSkeleton() {
   );
 }
 
+/** useSearchParams exige um Suspense em volta (a seção vem do menu: /profile?aba=endereco). */
 export default function CustomerProfilePage() {
+  return (
+    <Suspense fallback={<ProfileSkeleton />}>
+      <ProfileContent />
+    </Suspense>
+  );
+}
+
+function ProfileContent() {
   const router = useRouter();
   const { data, error: loadError, loading, reload } = useCustomerData<CustomerProfile>("/api/customer/profile");
   // Depois de salvar, a tela usa o que a API devolveu, sem buscar de novo.
@@ -183,10 +192,23 @@ export default function CustomerProfilePage() {
 
   const forced = profile?.mustChangePassword === true;
   const [section, setSection] = useState<Section>("dados");
-  // Senha criada pelo estabelecimento (ou link com ?aba=seguranca): abre direto em Segurança
+  // A seção vem do menu do cabeçalho (/profile?aba=endereco). Senha criada pelo estabelecimento
+  // (ou ?aba=seguranca) abre direto em Segurança e não deixa sair dela.
+  const aba = useSearchParams().get("aba");
   useEffect(() => {
-    if (forced || new URLSearchParams(window.location.search).get("aba") === "seguranca") setSection("seguranca");
-  }, [forced]);
+    if (forced) {
+      setSection("seguranca");
+      return;
+    }
+    const target = SECTIONS.find((s) => s.id === aba)?.id;
+    if (target) {
+      setSection(target);
+      // trocar de seção pelo menu descarta uma edição em andamento, como o botão Cancelar
+      setDraft(null);
+      setDataError(null);
+      setEditing(false);
+    }
+  }, [aba, forced]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);

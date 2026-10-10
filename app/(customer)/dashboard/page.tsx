@@ -178,7 +178,7 @@ function Greeting() {
   return (
     <header className="c-greet c-rise" style={rise(0)}>
       <Link href="/profile" className="c-greet-ph" aria-label="Meu perfil">
-        <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={56} />
+        <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={64} />
       </Link>
       <div className="c-greet-t">
         <h1>{now ? `${greeting(now)}${name ? `, ${name}` : ""}` : "\u00a0"}</h1>

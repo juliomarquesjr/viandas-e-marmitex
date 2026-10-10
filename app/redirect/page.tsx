@@ -133,7 +133,7 @@ function BootScreen() {
   const progress = (completed / 2) * 100;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-6">
       <BrandBackdrop />
 
       <div className="relative z-10 w-full max-w-[452px]">

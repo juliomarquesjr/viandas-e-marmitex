@@ -229,6 +229,43 @@ export function AuthScene({ title, subtitle }: { title?: React.ReactNode; subtit
     panel.current?.style.setProperty("--my", "0");
   }, [reduced]);
 
+  // Celular: ao tocar num campo, o painel da marca recolhe e o formulário sobe, deixando campos e botão à vista
+  // mesmo com o teclado aberto. Depois de recolhido, fica assim (reabrir no meio do toque deslocaria o botão
+  // e faria o toque errar). O teclado também passa a redimensionar a página (Chrome Android), para o botão
+  // fixo no rodapé do formulário subir junto com ele.
+  React.useEffect(() => {
+    const root = panel.current?.closest<HTMLElement>(".c-auth");
+    if (!root) return;
+    const narrow = window.matchMedia("(max-width: 859px)");
+    let timer: number | undefined;
+
+    const viewport = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    const originalViewport = viewport?.content ?? null;
+    if (viewport && !/interactive-widget/.test(viewport.content)) viewport.content = `${viewport.content}, interactive-widget=resizes-content`;
+
+    const onFocusIn = (e: FocusEvent) => {
+      const field = e.target as HTMLElement | null;
+      if (!field?.matches?.("input, select, textarea") || !narrow.matches) return;
+      root.classList.add("is-typing");
+      window.clearTimeout(timer);
+      // espera o painel recolher e o teclado abrir; aí traz o campo para a parte visível
+      timer = window.setTimeout(() => {
+        // no último campo, o que importa é ver o botão logo abaixo; nos outros, o próprio campo no meio
+        const fields = Array.from(root.querySelectorAll<HTMLElement>("form input:not([type=hidden]), form select, form textarea"));
+        const last = fields[fields.length - 1] === field;
+        const action = last ? root.querySelector<HTMLElement>("form button[type=submit]") : null;
+        (action ?? field).scrollIntoView({ block: action ? "end" : "center", behavior: reduced ? "auto" : "smooth" });
+      }, 380);
+    };
+    root.addEventListener("focusin", onFocusIn);
+    return () => {
+      root.removeEventListener("focusin", onFocusIn);
+      window.clearTimeout(timer);
+      root.classList.remove("is-typing");
+      if (viewport && originalViewport !== null) viewport.content = originalViewport;
+    };
+  }, [reduced]);
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (reduced) return;
     const el = e.currentTarget;

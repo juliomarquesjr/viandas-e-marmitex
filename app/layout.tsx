@@ -1,6 +1,7 @@
 import { AUTH_THEME_BOOTSTRAP_SCRIPT } from "@/app/components/AuthThemeProvider";
 import { CUSTOMER_THEME_BOOTSTRAP_SCRIPT } from "@/app/(customer)/lib/theme";
 import { Providers } from "@/app/components/Providers";
+import { ViewportVars } from "./components/ViewportVars";
 import { DesktopWindowFrame } from "@/app/components/DesktopWindowFrame";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -59,6 +60,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: AUTH_THEME_BOOTSTRAP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: CUSTOMER_THEME_BOOTSTRAP_SCRIPT }} />
         <Providers>
+          <ViewportVars />
           <DesktopWindowFrame>{children}</DesktopWindowFrame>
         </Providers>
       </body>

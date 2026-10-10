@@ -86,6 +86,7 @@
     position: relative;
     width: min(232px, 66%);
     aspect-ratio: 4 / 3;
+    max-height: 180px;
     margin: 2px 0 4px;
     transform: translate(calc(var(--mx) * -8px), calc(var(--my) * -8px));
     transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -243,7 +244,7 @@
   /* alternar o login entre telefone e e-mail */
   .c-seg {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
     padding: 4px;
     border-radius: var(--c-r-md);
@@ -254,7 +255,11 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
+    min-width: 0;
     min-height: 44px;
+    padding: 6px 8px;
+    flex-wrap: wrap;
+    line-height: 1.2;
     border: 0;
     border-radius: calc(var(--c-r-md) - 4px);
     background: transparent;
@@ -304,6 +309,154 @@
   /* aviso que aparece depois (erro, sucesso) entra na hora, sem esperar a fila */
   .c-linner > .c-alert {
     animation-delay: 0s;
+  }
+
+  /*
+   * Celular: o painel da marca cede espaço ao formulário.
+   * - Tela baixa: ilustração menor ou nenhuma (ver os blocos abaixo).
+   * - Tocou num campo (.is-typing, ver AuthScene): ilustração e frase somem e o formulário sobe.
+   */
+  @media (max-width: 859px) {
+    .c-scene,
+    .c-lcopy {
+      transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
+    }
+    .c-lcopy {
+      max-height: 160px;
+      overflow: hidden;
+    }
+    .c-lbrand {
+      transition: padding-bottom 0.35s ease;
+    }
+    .c-auth.is-typing .c-lbrand {
+      padding-bottom: 38px;
+      gap: 0;
+    }
+    .c-auth.is-typing .c-scene,
+    .c-auth.is-typing .c-lcopy {
+      max-height: 0;
+      margin-block: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+  /* telas baixas (a parte visível do navegador no celular costuma ter menos de 780px): só o cabeçalho da marca,
+     o formulário vem primeiro e cabe sem rolar */
+  @media (max-width: 859px) and (max-height: 780px) {
+    .c-scene,
+    .c-lcopy {
+      display: none;
+    }
+    .c-lbrand {
+      padding-bottom: 40px;
+    }
+  }
+  /* telas médias: ilustração pequena */
+  @media (max-width: 859px) and (min-height: 781px) and (max-height: 920px) {
+    .c-scene {
+      width: min(150px, 44%);
+      max-height: 120px;
+    }
+    [data-customer-scope] .c-lcopy h2 {
+      font-size: 22px;
+    }
+    .c-lbrand {
+      padding-bottom: 40px;
+    }
+  }
+
+  /* teclado aberto em página que encolhe com ele (Chrome Android): densidade menor para o botão aparecer */
+  @media (max-width: 859px) and (max-height: 480px) and (orientation: portrait) {
+    .c-lform {
+      padding-top: 18px;
+    }
+    .c-linner {
+      gap: 10px;
+    }
+    [data-customer-scope] .c-linner h1 {
+      font-size: 22px;
+    }
+    .c-lsub {
+      display: none;
+    }
+    .c-linner .c-field input {
+      height: 46px;
+    }
+    .c-linner .c-inwrap .c-eye {
+      height: 46px;
+    }
+    .c-linner .c-btn {
+      min-height: 48px;
+    }
+    .c-lrow {
+      margin-top: -4px;
+    }
+    .c-linner .c-link {
+      min-height: 40px;
+    }
+  }
+
+  /* celular deitado: marca de um lado, formulário do outro, como no computador mas mais compacto */
+  @media (max-height: 520px) and (orientation: landscape) and (min-width: 560px) {
+    .c-auth {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    }
+    .c-lbrand {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100dvh;
+      padding: 16px 24px;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .c-scene,
+    .c-lcopy {
+      display: flex;
+    }
+    .c-scene {
+      display: block;
+      width: min(150px, 50%);
+      max-height: 120px;
+      align-self: center;
+      margin: 0;
+    }
+    .c-auth.is-typing .c-scene,
+    .c-auth.is-typing .c-lcopy {
+      max-height: 160px;
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .c-auth.is-typing .c-scene {
+      max-height: 120px;
+    }
+    .c-auth.is-typing .c-lbrand {
+      padding-bottom: 16px;
+      gap: 8px;
+    }
+    [data-customer-scope] .c-lcopy h2 {
+      font-size: 24px;
+    }
+    .c-lcopy p {
+      font-size: 14px;
+    }
+    .c-lform {
+      margin: 0;
+      border-radius: 0;
+      justify-content: center;
+      padding: 18px 24px calc(18px + env(safe-area-inset-bottom, 0px));
+    }
+    .c-linner {
+      gap: 12px;
+    }
+    [data-customer-scope] .c-linner h1 {
+      font-size: 23px;
+    }
+    .c-lsub {
+      margin-top: -6px;
+    }
   }
 
   @media (min-width: 860px) {

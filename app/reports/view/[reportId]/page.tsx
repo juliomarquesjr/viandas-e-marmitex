@@ -204,7 +204,7 @@ function ReportViewerContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-center">
           <div className="text-lg mb-2">Carregando relatório...</div>
         </div>
@@ -214,7 +214,7 @@ function ReportViewerContent() {
 
   if (error || !reportData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-center text-red-600">
           <div className="text-lg mb-2">Erro ao carregar relatório</div>
           <div className="text-sm">{error || 'Dados não encontrados'}</div>
@@ -286,7 +286,7 @@ function ReportViewerContent() {
   const allTransactions = createTransactionList();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-dvh bg-gray-50">
       {/* Conteúdo do relatório */}
       <div className="max-w-4xl mx-auto p-4">
         <div className="bg-white rounded-lg shadow-sm print:shadow-none">
@@ -510,7 +510,7 @@ function ReportViewerContent() {
 export default function ReportViewerPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-center">
           <div className="text-lg mb-2">Carregando relatório...</div>
         </div>

@@ -12,7 +12,8 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 | `/cardapio` | Cardápio de hoje, faixa de dias e anteriores. No Início aparece só um aviso quando há cardápio publicado. Ver [cardapio-diario.md](./cardapio-diario.md) |
 | `/pre-orders/novo` | Fazer pedido: o cliente escolhe os produtos liberados pelo admin para o dia e o horário, envia e acompanha em Pedidos (Enviado, Aceito, Recusado). Ver [pedido-online.md](./pedido-online.md) |
 | `/pre-orders/[id]/tracking` | Mapa da entrega (público, aberto por link) |
-| `/profile` | Dados, foto (a mesma que o admin vê), senha e tema claro, escuro ou automático |
+| `/profile` | Dados, foto (a mesma que o admin vê), senha e tema claro, escuro ou automático. A seção vem de `/profile?aba=dados\|endereco\|seguranca\|aparencia`; no celular quem troca de seção é o menu sanduíche do cabeçalho, no computador o trilho ao lado |
+| Menu **sanduíche** (celular) | Botão no cabeçalho, ao lado do sino: gaveta pela direita com a foto e o nome do cliente, as quatro seções do perfil, o atalho de tema e o Sair (`components/MobileMenu.tsx`). A barra de baixo fica com Início, Cardápio, Ficha e Pedidos. A foto também aparece sempre na saudação do Início |
 | Sino de **Avisos** | No cabeçalho (celular) e no menu lateral (computador): pedidos, compras na ficha e pagamentos dos últimos 30 dias |
 
 ### Login
