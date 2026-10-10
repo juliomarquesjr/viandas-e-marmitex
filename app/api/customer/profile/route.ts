@@ -53,7 +53,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, email, doc, address, password } = body;
+    const { name, phone, email, doc, address, password, phoneIsWhatsapp } = body;
 
     // Senha nova: mesmo intervalo da redefinição por email (bcrypt só usa 72 bytes)
     if (password !== undefined && password !== null && password !== '') {
@@ -74,6 +74,7 @@ export async function PUT(request: Request) {
     
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
+    if (phoneIsWhatsapp !== undefined) updateData.phoneIsWhatsapp = phoneIsWhatsapp === true;
     
     // Converter email vazio para null (banco não aceita string vazia)
     if (email !== undefined) {
@@ -103,6 +104,8 @@ export async function PUT(request: Request) {
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
       updateData.password = hashedPassword;
+      // quem escolhe a própria senha cumpre a troca pedida no primeiro acesso
+      updateData.mustChangePassword = false;
     }
 
     // Atualizar cliente

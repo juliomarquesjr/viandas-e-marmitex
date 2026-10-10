@@ -4,13 +4,19 @@ import {
   Barcode as BarcodeIcon,
   Camera,
   Check,
+  Copy,
+  Eye,
+  EyeOff,
   FileText,
+  KeyRound,
   Lock,
   Loader2,
   Mail,
   MapPin,
+  MessageCircle,
   Phone,
   Plus,
+  RefreshCw,
   User,
   X,
 } from "lucide-react";
@@ -26,6 +32,8 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import { generatePassword } from "@/lib/messages/password";
 import { CustomerPhotoModal } from "@/app/admin/customers/components/CustomerPhotoModal";
 
 interface CustomerFormData {
@@ -35,6 +43,11 @@ interface CustomerFormData {
   doc: string;
   barcode: string;
   password: string;
+  phoneIsWhatsapp: boolean;
+  /** Pedir ao cliente que troque a senha no primeiro acesso. */
+  mustChangePassword: boolean;
+  /** Canais pelos quais avisar o cliente da senha, ao salvar. */
+  sendPassword: ("whatsapp" | "email")[];
   street: string;
   number: string;
   complement: string;
@@ -65,6 +78,12 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
+interface ChannelState {
+  ready: boolean;
+  reason: string | null;
+  fixHref: string | null;
+}
+
 export function CustomerFormDialog({
   open,
   onClose,
@@ -76,14 +95,76 @@ export function CustomerFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [channels, setChannels] = useState<Record<"whatsapp" | "email", ChannelState> | null>(null);
 
   useEffect(() => {
     if (open) {
       setFormData(initialFormData);
       setIsSubmitting(false);
       setUploadingPhoto(false);
+      setShowPassword(false);
+      setCopied(false);
     }
   }, [open, initialFormData]);
+
+  // Quais canais estão funcionando agora (WhatsApp conectado, e-mail configurado, modelo ligado)
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    fetch("/api/admin/messages/channels?type=customer_password", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => alive && data && setChannels(data))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  const hasWhatsapp = formData.phoneIsWhatsapp && formData.phone.replace(/\D/g, "").length >= 10;
+  const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+  const channelOptions = [
+    { id: "whatsapp" as const, label: "WhatsApp", detail: formData.phone, has: hasWhatsapp, Icon: MessageCircle, tone: "bg-green-100 text-green-600" },
+    { id: "email" as const, label: "E-mail", detail: formData.email.trim(), has: hasEmail, Icon: Mail, tone: "bg-blue-100 text-blue-600" },
+  ].filter((c) => c.has);
+
+  // Canal que perdeu o contato (ou ficou indisponível) sai da lista de envio
+  useEffect(() => {
+    setFormData((prev) => {
+      const valid = prev.sendPassword.filter((c) => (c === "whatsapp" ? hasWhatsapp : hasEmail) && channels?.[c]?.ready !== false);
+      return valid.length === prev.sendPassword.length ? prev : { ...prev, sendPassword: valid };
+    });
+  }, [hasWhatsapp, hasEmail, channels]);
+
+  const handleGeneratePassword = () => {
+    const password = generatePassword();
+    setShowPassword(true);
+    setCopied(false);
+    setFormData((prev) => ({
+      ...prev,
+      password,
+      mustChangePassword: true,
+      // marca os canais que o cliente tem e que estão funcionando
+      sendPassword: (["whatsapp", "email"] as const).filter((c) => (c === "whatsapp" ? hasWhatsapp : hasEmail) && channels?.[c]?.ready === true),
+    }));
+  };
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(formData.password);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // sem permissão: a senha está visível para copiar à mão
+    }
+  };
+
+  const toggleChannel = (id: "whatsapp" | "email") =>
+    setFormData((prev) => ({
+      ...prev,
+      sendPassword: prev.sendPassword.includes(id) ? prev.sendPassword.filter((c) => c !== id) : [...prev.sendPassword, id],
+    }));
 
   const updateFormData = (field: keyof CustomerFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -270,6 +351,17 @@ export function CustomerFormDialog({
                     />
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   </div>
+                  <label className="flex items-center justify-between gap-2 pt-0.5 text-xs text-slate-600 cursor-pointer">
+                    <span className="flex items-center gap-1.5">
+                      <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                      Este número é WhatsApp
+                    </span>
+                    <Switch
+                      checked={formData.phoneIsWhatsapp}
+                      onCheckedChange={(v) => updateFormData("phoneIsWhatsapp", v)}
+                      aria-label="Este número é WhatsApp"
+                    />
+                  </label>
                 </div>
 
                 {/* Email — 2/3 da largura */}
@@ -322,26 +414,37 @@ export function CustomerFormDialog({
                       </span>
                     )}
                   </Label>
-                  <div className="relative">
-                    <Input
-                      type="password"
-                      name="customer-new-password"
-                      autoComplete="new-password"
-                      placeholder={
-                        editingCustomer
-                          ? "Nova senha (opcional)"
-                          : "Senha para o app"
-                      }
-                      value={formData.password}
-                      onChange={(e) => updateFormData("password", e.target.value)}
-                      className="pl-9"
-                    />
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        name="customer-new-password"
+                        autoComplete="new-password"
+                        placeholder={editingCustomer ? "Nova senha (opcional)" : "Senha para o app"}
+                        value={formData.password}
+                        onChange={(e) => {
+                          const password = e.target.value;
+                          setFormData((prev) => (password ? { ...prev, password } : { ...prev, password, mustChangePassword: false, sendPassword: [] }));
+                        }}
+                        className="pl-9 pr-9"
+                      />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Button type="button" variant="outline" onClick={handleGeneratePassword} className="px-3 flex-shrink-0" title="Gerar uma senha automática">
+                      <KeyRound className="h-4 w-4 mr-1.5" />
+                      Gerar senha
+                    </Button>
                   </div>
-                  {!editingCustomer && (
-                    <p className="text-xs text-slate-400">
-                      Permite acesso ao aplicativo mobile
-                    </p>
+                  {!editingCustomer && !formData.password && (
+                    <p className="text-xs text-slate-400">Permite acesso ao aplicativo mobile</p>
                   )}
                 </div>
 
@@ -372,6 +475,82 @@ export function CustomerFormDialog({
                     </Button>
                   </div>
                 </div>
+
+                {/* Senha preenchida: copiar, pedir troca e avisar o cliente */}
+                {formData.password.trim() && (
+                  <div className="sm:col-span-2 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                    <b className="block break-all rounded-lg bg-white px-3 py-2 font-mono text-lg tracking-wider text-slate-900">{formData.password}</b>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-amber-900">
+                        {editingCustomer ? "A senha atual do cliente será trocada ao salvar." : "A senha só aparece agora: depois de salvar não dá mais para ver."}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={copyPassword}>
+                          {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
+                          {copied ? "Copiado" : "Copiar"}
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={handleGeneratePassword}>
+                          <RefreshCw className="h-4 w-4 mr-1.5" />
+                          Gerar outra
+                        </Button>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center justify-between gap-3 text-sm text-slate-700 cursor-pointer">
+                      <span>Pedir para trocar a senha no primeiro acesso</span>
+                      <Switch
+                        checked={formData.mustChangePassword}
+                        onCheckedChange={(v) => updateFormData("mustChangePassword", v)}
+                        aria-label="Pedir para trocar a senha no primeiro acesso"
+                      />
+                    </label>
+
+                    {channelOptions.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Avisar o cliente por</p>
+                        {channelOptions.map(({ id, label, detail, Icon, tone }) => {
+                          const state = channels?.[id];
+                          const usable = state?.ready === true;
+                          return (
+                            <label
+                              key={id}
+                              className={`flex items-center gap-3 rounded-xl border-[1.5px] bg-white px-3 py-2 text-sm ${usable ? "cursor-pointer border-slate-200" : "border-slate-200 text-slate-500"}`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-blue-600"
+                                disabled={!usable}
+                                checked={usable && formData.sendPassword.includes(id)}
+                                onChange={() => toggleChannel(id)}
+                              />
+                              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone} ${usable ? "" : "opacity-60"}`}>
+                                <Icon className="h-4 w-4" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <strong>{label}</strong> <span className="text-slate-500 break-all">· {detail}</span>
+                                {!usable && state && (
+                                  <span className="block text-xs text-rose-700">
+                                    {state.reason}
+                                    {state.fixHref && (
+                                      <>
+                                        {" "}
+                                        <a href={state.fixHref} target="_blank" rel="noreferrer" className="font-semibold underline">Resolver</a>
+                                      </>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600">
+                        Para avisar o cliente, informe um e-mail ou marque “Este número é WhatsApp”. Sem isso, copie a senha e entregue pessoalmente.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* ── Endereço ── */}
@@ -528,7 +707,13 @@ export function CustomerFormDialog({
                   ) : (
                     <>
                       <User className="h-4 w-4 mr-2" />
-                      {editingCustomer ? "Atualizar Cliente" : "Cadastrar Cliente"}
+                      {formData.sendPassword.length > 0 && formData.password.trim()
+                        ? editingCustomer
+                          ? "Atualizar e enviar senha"
+                          : "Cadastrar e enviar senha"
+                        : editingCustomer
+                          ? "Atualizar Cliente"
+                          : "Cadastrar Cliente"}
                     </>
                   )}
                 </Button>

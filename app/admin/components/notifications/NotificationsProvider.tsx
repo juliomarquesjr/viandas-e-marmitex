@@ -32,6 +32,7 @@ const FALLBACK: NotificationsContextValue = {
   error: false,
   refresh: noop,
   markRead: noop,
+  markResolved: async () => false,
   markAllRead: noop,
   soundEnabled: false,
   setSoundEnabled: () => {},

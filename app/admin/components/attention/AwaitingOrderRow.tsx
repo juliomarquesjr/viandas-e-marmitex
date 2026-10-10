@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AwaitingOrderDTO } from "@/lib/notification-types";
 import { formatCurrency, formatRelativeTime } from "../notifications/format";
 import { OrderResponseButtons } from "../online-orders/OrderResponse";
+import { AgeBar } from "./AgeBar";
+import "./attention.css";
 import { getUrgency, urgencyAccent, type Urgency } from "./urgency";
 
 /** "há 7 min": normal; em negrito na cor de atenção a partir de 10 min; vermelho acima de 20. */
@@ -67,6 +69,56 @@ export function AwaitingOrderRow({ order, now, variant = "home", onResponded }: 
   const urgency = getUrgency(order.createdAt, now, order.expired);
   const who = order.customerName?.trim() || "Cliente";
   const compact = variant === "bell";
+
+  if (!compact) {
+    return (
+      <li
+        data-attention-row
+        data-att-level={urgency}
+        className="att-row flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-4 sm:px-4 sm:py-3.5"
+      >
+        <span
+          className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:flex"
+          style={{ background: "var(--state-producao-bg)", color: "var(--state-producao-fg)" }}
+          aria-hidden
+        >
+          <ShoppingBag className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[15px] font-bold text-[color:var(--foreground)]">{who}</span>
+            <span
+              className="rounded-md px-2 py-0.5 text-[11px] font-bold"
+              style={{ background: "var(--state-producao-bg)", color: "var(--state-producao-fg)" }}
+            >
+              Pedido
+            </span>
+          </div>
+          <p className="line-clamp-2 text-sm text-[color:var(--muted-foreground)]">{order.summary}</p>
+          {order.notes && (
+            <p className="line-clamp-2 text-xs italic text-[color:var(--muted-foreground)]">Obs.: {order.notes}</p>
+          )}
+          <AgeBar createdAt={order.createdAt} now={now} urgency={urgency} />
+          {order.expired && (
+            <p className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--state-cobrar-fg)" }}>
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Expirado: só dá para recusar
+            </p>
+          )}
+        </div>
+        <div className="text-xl font-bold tabular-nums text-[color:var(--foreground)] sm:text-2xl">{formatCurrency(order.totalCents)}</div>
+        <OrderResponseButtons
+          orderId={order.id}
+          customerName={order.customerName}
+          expired={order.expired}
+          summary={order.summary}
+          totalCents={order.totalCents}
+          onResponded={(action) => onResponded(order, action)}
+          className="w-full shrink-0 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none"
+        />
+      </li>
+    );
+  }
 
   const details = (
     <div className="min-w-0 flex-1 space-y-1">

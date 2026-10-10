@@ -42,6 +42,8 @@ model Customer {
   doc        String?  // CPF/CNPJ
   barcode    String?  @unique // Código de barras para identificação rápida no PDV
   password   String?  // Senha para acesso ao app mobile (hash bcrypt)
+  mustChangePassword Boolean @default(false) // senha gerada pelo sistema: o cliente troca no primeiro acesso
+  phoneIsWhatsapp    Boolean @default(false) // o telefone também é WhatsApp (libera o envio de mensagens por ele)
   address    Json?    // Endereço em formato JSON
   imageUrl   String?  // URL da foto do cliente no Vercel Blob
   active     Boolean  @default(true)
@@ -56,6 +58,7 @@ model Customer {
   passwordResetTokens CustomerPasswordResetToken[]
   paymentIntents PaymentIntent[]
   dismissals     CustomerDismissal[]
+  messageLogs    MessageLog[]
   notifications Notification[]
 }
 
@@ -500,4 +503,37 @@ model DailyMenuItem {
   section     DailyMenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([sectionId, position])
+}
+
+// Texto personalizado de uma mensagem do sistema (por tipo e canal). Sem linha, vale o texto padrão do código.
+model MessageTemplate {
+  id        String   @id @default(uuid())
+  typeKey   String   // ex.: customer_password
+  channel   String   // whatsapp | email
+  enabled   Boolean  @default(true)
+  subject   String?  // só e-mail
+  body      String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([typeKey, channel])
+}
+
+// Histórico de envios. Nunca guarda o texto nem dados sensíveis (senha, link): só quando, para quem (mascarado) e se deu certo.
+model MessageLog {
+  id           String   @id @default(uuid())
+  typeKey      String
+  channel      String   // whatsapp | email
+  customerId   String?
+  customerName String?
+  recipient    String   // telefone ou e-mail mascarado
+  status       String   // sent | failed
+  error        String?
+  createdAt    DateTime @default(now())
+
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([typeKey, channel, status])
 }

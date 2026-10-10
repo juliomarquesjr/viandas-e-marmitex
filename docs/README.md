@@ -18,6 +18,7 @@ Este diretório centraliza a documentação funcional e técnica do sistema de p
 - Pedido online (o cliente pede pela área dele): `docs/pedido-online.md`
 - Cardápio diário (o admin publica, o cliente consulta): `docs/cardapio-diario.md`
 - WhatsApp do estabelecimento (Evolution API): `docs/whatsapp.md`
+- Mensagens enviadas ao cliente (modelos editáveis, histórico, senha de acesso): `docs/mensagens.md`
 
 ### Convenções Gerais
 - Frontend em Next.js (App Router), UI com shadcn/ui + Radix UI, axios para HTTP.
