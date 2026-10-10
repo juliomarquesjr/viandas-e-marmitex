@@ -275,6 +275,28 @@ body {
   }
 }
 
+/*
+ * Barra que só aparece quando o mouse está sobre a área (menu lateral do admin).
+ * Em repouso o polegar é invisível; a área continua rolando normalmente.
+ */
+[data-admin-theme-scope] .scroll-hover::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+[data-admin-theme-scope] .scroll-hover:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--border-dark) 85%, transparent);
+}
+[data-admin-theme-scope] .scroll-hover:hover::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+}
+@supports not selector(::-webkit-scrollbar) {
+  [data-admin-theme-scope] .scroll-hover {
+    scrollbar-color: transparent transparent;
+  }
+  [data-admin-theme-scope] .scroll-hover:hover {
+    scrollbar-color: color-mix(in srgb, var(--border-dark) 80%, transparent) transparent;
+  }
+}
+
 [data-admin-theme-scope] {
   --primary: var(--admin-accent-primary, #2563eb);
   --primary-hover: var(--admin-accent-hover, #1d4ed8);

@@ -9,7 +9,7 @@ import { AdminChromeProvider, useAdminChrome } from "./components/layout/AdminCh
 import { AdminThemeProvider } from "./components/layout/AdminThemeProvider";
 import { Button } from "@/app/components/ui/button";
 import RoAssistant from "./components/ro-assistant";
-import { NotificationsProvider } from "./components/notifications/NotificationsProvider";
+import { NotificationsProvider, useNotificationsContext } from "./components/notifications/NotificationsProvider";
 
 /**
  * AdminLayout - Design System
@@ -40,6 +40,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 }
 
+/** Botão do menu no celular: mostra o número de conversas do WhatsApp com mensagem nova, mesmo com o menu fechado. */
+function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  const { chatUnread } = useNotificationsContext();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="lg:hidden"
+      onClick={onClick}
+      aria-label={chatUnread > 0 ? `Abrir menu, ${chatUnread === 1 ? "1 conversa com mensagem nova" : `${chatUnread} conversas com mensagem nova`}` : "Abrir menu"}
+    >
+      <span className="relative">
+        <Menu className="h-5 w-5" />
+        {chatUnread > 0 && (
+          <span
+            aria-hidden
+            className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none ring-2 ring-[color:var(--card)]"
+            style={{ background: "var(--state-cobrar-solid)", color: "var(--state-cobrar-on)" }}
+          >
+            {chatUnread > 99 ? "99+" : chatUnread}
+          </span>
+        )}
+      </span>
+    </Button>
+  );
+}
+
 /**
  * A casca em volta da página. Fica separada do layout porque precisa ler o
  * contexto que o próprio layout monta.
@@ -60,7 +87,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     // Um só estado de notificações para o sino, a tela inicial, o título da aba e a barra lateral.
     // No PDV o sino não existe, então nada é consultado. A tela cheia da Mesa de Pedido (modo imersivo do
     // usuário) continua recebendo os avisos: é onde o operador fica enquanto os pedidos chegam.
-    <NotificationsProvider enabled={!isPdv}>
+    <NotificationsProvider enabled={!isPdv} chatEnabled={userRole === "admin"}>
         {/* Mobile Sidebar */}
         <MobileSidebar
           open={mobileMenuOpen}
@@ -80,14 +107,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--card)] px-4 lg:px-6 shrink-0 transition-colors duration-200">
               {/* Left side - Mobile menu button */}
               <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  onClick={() => setMobileMenuOpen(true)}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+                <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
               </div>
 
               {/* Right side - User menu */}

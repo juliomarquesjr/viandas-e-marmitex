@@ -153,40 +153,14 @@ interface NavItemProps {
   collapsed: boolean;
 }
 
-/** Quantas conversas têm mensagem nova: busca de tempos em tempos, só para o item Conversas. */
-function useChatUnread(enabled: boolean): number {
-  const [count, setCount] = React.useState(0);
-  React.useEffect(() => {
-    if (!enabled) return;
-    let alive = true;
-    const load = () => {
-      if (document.visibilityState !== "visible") return;
-      fetch("/api/admin/whatsapp/unread", { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : { count: 0 }))
-        .then((data: { count?: number }) => alive && setCount(data.count ?? 0))
-        .catch(() => undefined);
-    };
-    load();
-    const timer = window.setInterval(load, 30_000);
-    window.addEventListener("whatsapp-unread-changed", load);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      window.removeEventListener("whatsapp-unread-changed", load);
-    };
-  }, [enabled]);
-  return count;
-}
-
 function NavItemComponent({ item, collapsed }: NavItemProps) {
   const pathname = usePathname();
   const isActive = pathname === item.href;
   const Icon = item.icon;
 
   // Pré-Pedidos mostra quantos pedidos do cliente esperam resposta (a mesma conta do sino)
-  const { awaitingOrdersCount } = useNotificationsContext();
+  const { awaitingOrdersCount, chatUnread } = useNotificationsContext();
   // Conversas mostra quantos clientes têm mensagem nova no WhatsApp
-  const chatUnread = useChatUnread(item.href === "/admin/whatsapp/conversas");
   const badge = item.href === "/admin/pre-orders" ? awaitingOrdersCount : item.href === "/admin/whatsapp/conversas" ? chatUnread : (item.badge ?? 0);
   const badgeText = badge > 99 ? "99+" : String(badge);
   const badgeLabel =
@@ -411,7 +385,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       </Button>
 
       {/* Navegação */}
-      <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
+      <nav className="scroll-slim scroll-hover flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {filteredNavigation.map((section) => (
           <NavSectionComponent key={section.title} section={section} collapsed={collapsed} />
         ))}
@@ -483,7 +457,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          <nav className="scroll-slim scroll-hover flex-1 overflow-y-auto py-4 px-3 space-y-6">
             {filteredNavigation.map((section) => (
               <NavSectionComponent key={section.title} section={section} collapsed={false} />
             ))}
