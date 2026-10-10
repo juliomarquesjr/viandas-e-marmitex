@@ -249,6 +249,9 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
           </div>
         )}
 
+        {/* em tela larga a prévia fica à direita do editor */}
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
         {!type.alwaysOn && (
           <label className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm">
             <span>
@@ -347,7 +350,9 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
           )}
         </div>
 
-        <div className="space-y-1.5">
+        </div>
+
+        <div className="space-y-1.5 xl:sticky xl:top-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Prévia, com dados de exemplo</p>
           {active === "whatsapp" ? (
             <div className="rounded-2xl bg-slate-100 px-3 py-6"><WhatsAppPhone name={overview.storeName} text={preview} /></div>
@@ -360,6 +365,7 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
               </div>
             </div>
           )}
+        </div>
         </div>
 
         {error && (
