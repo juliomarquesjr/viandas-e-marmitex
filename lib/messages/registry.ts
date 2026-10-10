@@ -1,0 +1,96 @@
+// Tipos de mensagem que o sistema envia, com o texto padrão de cada um. Puro: serve ao servidor e às telas.
+//
+// Para criar um tipo novo: acrescente uma entrada em MESSAGE_TYPES (variáveis e textos padrão) e, onde o
+// fato acontece, chame `sendCustomerMessage`. O gerenciador de mensagens já mostra e permite editar.
+
+export type MessageChannel = 'whatsapp' | 'email';
+export const MESSAGE_CHANNELS: MessageChannel[] = ['whatsapp', 'email'];
+export const CHANNEL_LABEL: Record<MessageChannel, string> = { whatsapp: 'WhatsApp', email: 'E-mail' };
+
+export interface MessageVariable {
+  key: string;
+  label: string;
+  /** Valor de exemplo para a prévia e para a mensagem de teste. */
+  sample: string;
+  /** Dado sensível: aparece na mensagem, mas nunca é gravado no histórico. */
+  sensitive?: boolean;
+}
+
+export interface ChannelDefault {
+  subject?: string;
+  body: string;
+}
+
+export interface MessageTypeDef {
+  key: string;
+  name: string;
+  description: string;
+  group: string;
+  variables: MessageVariable[];
+  /** Variáveis que o texto precisa ter para a mensagem fazer sentido. */
+  required: string[];
+  /** Mensagem de que o cliente depende (ex.: recuperar senha): não pode ser desligada. */
+  alwaysOn?: boolean;
+  defaults: Partial<Record<MessageChannel, ChannelDefault>>;
+}
+
+export const MESSAGE_LIMITS = { BODY_WHATSAPP: 1000, BODY_EMAIL: 5000, SUBJECT: 150, SIGNATURE: 200 } as const;
+
+const STORE: MessageVariable = { key: 'loja', label: 'Nome da loja', sample: 'Sabores de Casa' };
+const NAME: MessageVariable = { key: 'nome', label: 'Primeiro nome do cliente', sample: 'Maria' };
+
+export const MESSAGE_TYPES: MessageTypeDef[] = [
+  {
+    key: 'customer_password',
+    name: 'Senha de acesso',
+    description: 'Enviada ao cliente quando o administrador gera ou reenvia a senha dele. A senha vem na mensagem e não é guardada no histórico.',
+    group: 'Acesso do cliente',
+    variables: [
+      NAME,
+      { key: 'usuario', label: 'Usuário para entrar (e-mail ou telefone)', sample: 'maria.souza@email.com' },
+      { key: 'senha', label: 'Senha gerada', sample: 'Kp7m-Rx4a9Q', sensitive: true },
+      STORE,
+      { key: 'link_app', label: 'Endereço do aplicativo', sample: 'saboresdecasa.com.br' },
+    ],
+    required: ['senha'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}!\n\nSeu acesso ao aplicativo está pronto ({loja}).\n\nUsuário: {usuario}\nSenha: {senha}\n\nEntre em {link_app} e, por segurança, troque a senha no primeiro acesso.',
+      },
+      email: {
+        subject: 'Seu acesso ao aplicativo - {loja}',
+        body: 'Olá, {nome}!\n\nSeu acesso ao aplicativo está pronto ({loja}).\n\nUsuário: {usuario}\nSenha: {senha}\n\nEntre em {link_app} e, por segurança, troque a senha no primeiro acesso.',
+      },
+    },
+  },
+  {
+    key: 'customer_password_reset',
+    name: 'Link para redefinir senha',
+    description: 'Enviado por e-mail quando o próprio cliente pede para redefinir a senha em "Esqueci minha senha".',
+    group: 'Acesso do cliente',
+    variables: [
+      NAME,
+      { key: 'link', label: 'Link para criar a nova senha', sample: 'https://…/reset-password?token=…', sensitive: true },
+      { key: 'validade', label: 'Validade do link, em minutos', sample: '30' },
+      STORE,
+    ],
+    required: ['link'],
+    alwaysOn: true,
+    defaults: {
+      email: {
+        subject: 'Redefinição de senha - {loja}',
+        body: 'Olá, {nome}!\n\nRecebemos um pedido para redefinir a senha da sua conta. Acesse o link abaixo para escolher uma nova senha:\n\n{link}\n\nO link vale por {validade} minutos e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este e-mail: sua senha continua a mesma.',
+      },
+    },
+  },
+];
+
+/** Aparecem no gerenciador como "em breve" (ainda não enviam nada). */
+export const UPCOMING_MESSAGES: { group: string; names: string[] }[] = [
+  { group: 'Pedidos', names: ['Pedido aceito', 'Pedido recusado', 'Pronto para retirar'] },
+  { group: 'Financeiro', names: ['Pagamento confirmado', 'Lembrete de saldo'] },
+  { group: 'Cardápio', names: ['Cardápio do dia'] },
+];
+
+export const getMessageType = (key: string) => MESSAGE_TYPES.find((t) => t.key === key) ?? null;
+export const isMessageChannel = (value: unknown): value is MessageChannel => value === 'whatsapp' || value === 'email';

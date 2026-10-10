@@ -4,6 +4,7 @@ import { BookOpen, Home, LogOut, ReceiptText, ShoppingBag, User } from "lucide-r
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { resetCustomerAvatar, useCustomerAvatar } from "../lib/avatar-store";
 import { CustomerRealtimeProvider } from "../lib/realtime";
 import { resetNotices } from "../lib/notifications-store";
@@ -60,8 +61,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const branding = useBranding();
   const avatar = useCustomerAvatar();
+  const bare = isBareRoute(pathname);
+  const mustChange = avatar.mustChangePassword && !bare && pathname !== "/profile";
 
-  if (isBareRoute(pathname)) return <>{children}</>;
+  // Senha gerada pelo estabelecimento: o cliente só segue depois de trocá-la
+  useEffect(() => {
+    if (mustChange) router.replace("/profile?aba=seguranca");
+  }, [mustChange, router]);
+
+  if (bare) return <>{children}</>;
 
   const logout = async () => {
     resetCustomerAvatar();

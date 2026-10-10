@@ -1,13 +1,13 @@
 "use client";
 
-import { Camera, Eye, EyeOff, Lock, LogOut, MapPin, Palette, Pencil, User } from "lucide-react";
+import { Camera, Eye, EyeOff, Lock, LogOut, MapPin, MessageCircle, Palette, Pencil, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CustomerAvatar } from "../components/Avatar";
 import { ErrorState, Toast, ThemeChoice } from "../components/kit";
 import { ProfilePhotoSheet } from "../components/perfil/ProfilePhotoSheet";
-import { useCustomerAvatar } from "../lib/avatar-store";
+import { setMustChangePassword, useCustomerAvatar } from "../lib/avatar-store";
 import type { CustomerAddress, CustomerProfile } from "../lib/types";
 import { useCustomerData } from "../lib/useCustomerData";
 import {
@@ -18,8 +18,8 @@ import {
   maskCep,
   maskDoc,
   maskPhone,
-  maskUf,
   sameDigits,
+  UFS,
 } from "./masks";
 import "./profile.css";
 
@@ -41,6 +41,7 @@ type Address = Required<{ [K in keyof CustomerAddress]: string }>;
 interface Draft {
   name: string;
   phone: string;
+  phoneIsWhatsapp: boolean;
   email: string;
   doc: string;
   address: Address;
@@ -55,6 +56,7 @@ function toDraft(profile: CustomerProfile): Draft {
   return {
     name: profile.name ?? "",
     phone: displayPhone(profile.phone),
+    phoneIsWhatsapp: profile.phoneIsWhatsapp === true,
     email: profile.email ?? "",
     doc: displayDoc(profile.doc),
     address: {
@@ -82,13 +84,54 @@ const isDesktop = () => window.matchMedia(DESKTOP_QUERY).matches;
 
 /* ------------------------------------------------------------ campos */
 
-function Info({ label, value }: { label: string; value?: string | null }) {
+function Info({ label, value, whatsapp }: { label: string; value?: string | null; whatsapp?: boolean }) {
   const text = value?.trim();
   return (
     <dl className="c-dl">
       <dt>{label}</dt>
-      <dd>{text ? text : "—"}</dd>
+      <dd>
+        {text ? text : "—"}
+        {text && whatsapp && (
+          <span className="c-tagwa">
+            <MessageCircle size={12} aria-hidden="true" />
+            WhatsApp
+          </span>
+        )}
+      </dd>
     </dl>
+  );
+}
+
+function SelectField({
+  id,
+  label,
+  value,
+  onValue,
+  options,
+  placeholder,
+  ...rest
+}: Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "id" | "value" | "onChange"> & {
+  id: string;
+  label: string;
+  value: string;
+  onValue: (value: string) => void;
+  options: readonly string[];
+  placeholder: string;
+}) {
+  // um valor antigo fora da lista continua aparecendo, para não sumir sem o cliente perceber
+  const list = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <div className="c-field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onValue(e.target.value)} {...rest}>
+        <option value="">{placeholder}</option>
+        {list.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -138,7 +181,12 @@ export default function CustomerProfilePage() {
   const [saved, setSaved] = useState<CustomerProfile | null>(null);
   const profile = saved ?? data;
 
+  const forced = profile?.mustChangePassword === true;
   const [section, setSection] = useState<Section>("dados");
+  // Senha criada pelo estabelecimento (ou link com ?aba=seguranca): abre direto em Segurança
+  useEffect(() => {
+    if (forced || new URLSearchParams(window.location.search).get("aba") === "seguranca") setSection("seguranca");
+  }, [forced]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -235,6 +283,7 @@ export default function CustomerProfilePage() {
       // Telefone sem formatação: é assim que o login por telefone encontra o cliente.
       // Se não mudou, nem vai: a API mantém o que está salvo.
       phone: phoneChanged ? phoneDigits : undefined,
+      phoneIsWhatsapp: form.phoneIsWhatsapp,
       email: email || null,
       doc: profile.doc && sameDigits(form.doc, profile.doc) ? profile.doc : form.doc.trim() || null,
       address: {
@@ -282,6 +331,8 @@ export default function CustomerProfilePage() {
     if (result.error) return setPwError(result.error);
     clearPassword();
     setShowPassword(false);
+    setMustChangePassword(false);
+    if (result.customer) setSaved(result.customer);
     setToast("Senha alterada");
   };
 
@@ -323,6 +374,21 @@ export default function CustomerProfilePage() {
             onValue={(v) => setField({ phone: maskPhone(v) })}
           />
         </div>
+        <div className="c-wa">
+          <MessageCircle size={22} aria-hidden="true" />
+          <span className="c-wa-t">
+            <strong id="pf-wa-l">Este número é WhatsApp</strong>
+            <small>Assim o estabelecimento pode te avisar por ele.</small>
+          </span>
+          <button
+            type="button"
+            className="c-switch"
+            role="switch"
+            aria-checked={form.phoneIsWhatsapp}
+            aria-labelledby="pf-wa-l"
+            onClick={() => setField({ phoneIsWhatsapp: !form.phoneIsWhatsapp })}
+          />
+        </div>
         <Field
           id="pf-email"
           label="Email"
@@ -348,7 +414,7 @@ export default function CustomerProfilePage() {
       <>
         <div className="c-fields2">
           <Info label="Nome" value={profile.name} />
-          <Info label="Telefone" value={displayPhone(profile.phone)} />
+          <Info label="Telefone" value={displayPhone(profile.phone)} whatsapp={profile.phoneIsWhatsapp === true} />
         </div>
         <Info label="Email" value={profile.email} />
         <Info label="CPF ou CNPJ" value={displayDoc(profile.doc)} />
@@ -358,18 +424,10 @@ export default function CustomerProfilePage() {
     const a = form.address;
     body = editing ? (
       <>
-        <div className="c-fields2">
-          <Field
-            id="pf-zip"
-            label="CEP"
-            inputMode="numeric"
-            autoComplete="postal-code"
-            value={a.zip}
-            onValue={(v) => setAddr({ zip: maskCep(v) })}
-          />
+        <div className="c-fields-street">
+          <Field id="pf-street" label="Rua" autoComplete="address-line1" value={a.street} onValue={(v) => setAddr({ street: v })} />
           <Field id="pf-number" label="Número" autoComplete="off" value={a.number} onValue={(v) => setAddr({ number: v })} />
         </div>
-        <Field id="pf-street" label="Rua" autoComplete="address-line1" value={a.street} onValue={(v) => setAddr({ street: v })} />
         <Field
           id="pf-complement"
           label="Complemento"
@@ -385,32 +443,43 @@ export default function CustomerProfilePage() {
             value={a.neighborhood}
             onValue={(v) => setAddr({ neighborhood: v })}
           />
-          <Field id="pf-city" label="Cidade" autoComplete="address-level2" value={a.city} onValue={(v) => setAddr({ city: v })} />
+          <Field
+            id="pf-zip"
+            label="CEP"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            value={a.zip}
+            onValue={(v) => setAddr({ zip: maskCep(v) })}
+          />
         </div>
-        <Field
-          id="pf-state"
-          label="Estado"
-          autoComplete="address-level1"
-          autoCapitalize="characters"
-          maxLength={2}
-          placeholder="UF"
-          value={a.state}
-          onValue={(v) => setAddr({ state: maskUf(v) })}
-        />
+        <div className="c-fields2">
+          <Field id="pf-city" label="Cidade" autoComplete="address-level2" value={a.city} onValue={(v) => setAddr({ city: v })} />
+          <SelectField
+            id="pf-state"
+            label="Estado"
+            autoComplete="address-level1"
+            placeholder="Selecione"
+            options={UFS}
+            value={a.state.toUpperCase()}
+            onValue={(v) => setAddr({ state: v })}
+          />
+        </div>
       </>
     ) : (
       <>
-        <div className="c-fields2">
-          <Info label="CEP" value={displayCep(address.zip)} />
+        <div className="c-fields-street">
+          <Info label="Rua" value={address.street} />
           <Info label="Número" value={address.number} />
         </div>
-        <Info label="Rua" value={address.street} />
         <Info label="Complemento" value={address.complement} />
         <div className="c-fields2">
           <Info label="Bairro" value={address.neighborhood} />
-          <Info label="Cidade" value={address.city} />
+          <Info label="CEP" value={displayCep(address.zip)} />
         </div>
-        <Info label="Estado" value={address.state?.toUpperCase()} />
+        <div className="c-fields2">
+          <Info label="Cidade" value={address.city} />
+          <Info label="Estado" value={address.state?.toUpperCase()} />
+        </div>
       </>
     );
   } else if (section === "seguranca") {
@@ -518,6 +587,11 @@ export default function CustomerProfilePage() {
               </div>
             )}
             {section === "seguranca" && <h2 className="c-sr">{sectionTitle}</h2>}
+            {section === "seguranca" && forced && (
+              <p className="c-alert is-warn" role="status">
+                Sua senha foi criada pelo estabelecimento. Escolha uma senha só sua para continuar.
+              </p>
+            )}
             {body}
             {dataError && editing && !isSecurity && (
               <p className="c-alert" role="alert">

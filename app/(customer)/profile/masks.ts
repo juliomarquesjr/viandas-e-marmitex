@@ -39,13 +39,10 @@ export function maskCep(value: string): string {
   return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
 }
 
-/** Estado: duas letras maiúsculas. */
-export function maskUf(value: string): string {
-  return value
-    .replace(/[^a-zA-Z]/g, "")
-    .slice(0, 2)
-    .toUpperCase();
-}
+/** Siglas dos estados (e do Distrito Federal), para a lista de escolha. */
+export const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+] as const;
 
 /**
  * Para mostrar um valor salvo: aplica a máscara só quando o número de dígitos

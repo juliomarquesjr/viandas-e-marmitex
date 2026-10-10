@@ -4,11 +4,12 @@ import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { ConfigFormData, useSystemConfig } from "@/app/hooks/useSystemConfig";
-import { AlertCircle, Building2, Loader2, Mail, MessageCircle, Phone, QrCode, RefreshCw, Save, Settings, ShoppingBag } from "lucide-react";
+import { AlertCircle, Building2, Loader2, Mail, MessageCircle, MessagesSquare, Phone, QrCode, RefreshCw, Save, Settings, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandingCard } from "./components/BrandingCard";
 import { ContactCard } from "./components/ContactCard";
 import { EmailCard } from "./components/EmailCard";
+import { MessagesTab } from "./components/MessagesTab";
 import { OnlineOrderingTab } from "./components/OnlineOrderingTab";
 import { PaymentCard } from "./components/PaymentCard";
 import { SettingsPageSkeleton } from "./components/SettingsPageSkeleton";
@@ -57,6 +58,13 @@ const navItems = [
     fullDescription: 'Conecte o WhatsApp do estabelecimento para enviar avisos aos clientes',
     icon: MessageCircle,
   },
+  {
+    id: 'messages' as const,
+    label: 'Mensagens',
+    shortDescription: 'Textos e histórico',
+    fullDescription: 'Edite os textos enviados aos clientes e veja o que já foi enviado',
+    icon: MessagesSquare,
+  },
 ];
 
 type SectionId = typeof navItems[number]['id'];
@@ -69,6 +77,7 @@ const TAB_SLUGS: Record<SectionId, string> = {
   payment: 'pagamento',
   online: 'pedidos-online',
   whatsapp: 'whatsapp',
+  messages: 'mensagens',
 };
 
 function sectionFromUrl(): SectionId | null {
@@ -160,7 +169,7 @@ export default function SettingsPage() {
         description="Gerencie as configurações gerais, contato e marca do sistema"
         icon={Settings}
         actions={
-          activeSection === 'online' || activeSection === 'whatsapp' ? undefined : (
+          activeSection === 'online' || activeSection === 'whatsapp' || activeSection === 'messages' ? undefined : (
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? (
               <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Salvando...</>
@@ -285,6 +294,7 @@ export default function SettingsPage() {
                   />
                 )}
                 {activeSection === "whatsapp" && <WhatsAppTab active />}
+                {activeSection === "messages" && <MessagesTab active />}
                 {onlineVisited && (
                   <div hidden={activeSection !== "online"}>
                     <OnlineOrderingTab active={activeSection === "online"} />

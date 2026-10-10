@@ -3,17 +3,19 @@
 import * as React from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, Banknote, BellRing, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ArrowRight, Banknote, BellRing, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AwaitingOrderDTO, NotificationDTO } from "@/lib/notification-types";
-import { formatCurrency } from "../notifications/format";
+import { formatCurrency, formatRelativeTime } from "../notifications/format";
 import { getPaymentIntentId } from "../notifications/NotificationItem";
 import { useNotificationsContext } from "../notifications/NotificationsProvider";
 import { PaymentReviewDialog } from "../notifications/PaymentReviewDialog";
-import { AgeLabel, AwaitingOrderRow, UrgencyNotice } from "./AwaitingOrderRow";
+import { AgeBar } from "./AgeBar";
+import { AwaitingOrderRow } from "./AwaitingOrderRow";
+import "./attention.css";
 import { focusAfterAnswer } from "./focus";
-import { getUrgency, urgencyAccent, worstUrgency } from "./urgency";
+import { getUrgency, worstUrgency } from "./urgency";
 import { useNow } from "./useNow";
 
 const COLLAPSED_KEY = "admin:attention-collapsed";
@@ -40,41 +42,41 @@ function PaymentRow({
   return (
     <li
       data-attention-row
-      className="rounded-lg border border-l-4 border-[color:var(--border)] p-3"
-      style={{
-        borderLeftColor: urgencyAccent(urgency),
-        background: urgency === "urgent" ? "var(--state-cobrar-bg)" : "var(--card)",
-      }}
+      data-att-level={urgency}
+      className="att-row flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center sm:gap-4 sm:px-4 sm:py-3.5"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <Banknote className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--muted-foreground)]" aria-hidden />
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="text-sm font-semibold text-[color:var(--foreground)]">{who}</span>
-              {typeof amount === "number" && (
-                <span className="text-sm text-[color:var(--foreground)]">
-                  informou <span className="font-semibold tabular-nums">{formatCurrency(amount)}</span>
-                </span>
-              )}
-              <span aria-hidden className="text-xs text-[color:var(--muted-foreground)]">
-                ·
-              </span>
-              <AgeLabel createdAt={notification.createdAt} now={now} urgency={urgency} />
-            </div>
-            <UrgencyNotice urgency={urgency} createdAt={notification.createdAt} now={now} />
-          </div>
+      <span
+        className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:flex"
+        style={{ background: "var(--state-faturado-bg)", color: "var(--state-faturado-fg)" }}
+        aria-hidden
+      >
+        <Banknote className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-[15px] font-bold text-[color:var(--foreground)]">{who}</span>
+          <span
+            className="rounded-md px-2 py-0.5 text-[11px] font-bold"
+            style={{ background: "var(--state-faturado-bg)", color: "var(--state-faturado-fg)" }}
+          >
+            Pix
+          </span>
+          <span className="text-sm text-[color:var(--muted-foreground)]">informou o pagamento</span>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          className="min-h-[44px] w-full shrink-0 sm:w-auto"
-          onClick={() => onReview(notification)}
-          aria-label={`Conferir pagamento de ${who}`}
-        >
-          Conferir
-        </Button>
+        <AgeBar createdAt={notification.createdAt} now={now} urgency={urgency} />
       </div>
+      {typeof amount === "number" && (
+        <div className="text-xl font-bold tabular-nums text-[color:var(--foreground)] sm:text-2xl">{formatCurrency(amount)}</div>
+      )}
+      <Button
+        type="button"
+        className="att-cta min-h-[46px] w-full shrink-0 gap-2 rounded-xl px-5 text-[15px] font-bold sm:w-auto"
+        onClick={() => onReview(notification)}
+        aria-label={`Conferir pagamento de ${who}`}
+      >
+        Conferir pagamento
+        <ArrowRight className="h-4 w-4" aria-hidden />
+      </Button>
     </li>
   );
 }
@@ -153,6 +155,8 @@ export function AttentionPanel() {
   const toggleCollapsed = () => {
     const next = !collapsed;
     setCollapsed(next);
+    // o botão que foi tocado some na troca de formato: o foco vai para o título novo
+    window.requestAnimationFrame(() => headingRef.current?.focus({ preventScroll: true }));
     try {
       if (next) window.localStorage.setItem(COLLAPSED_KEY, "1");
       else window.localStorage.removeItem(COLLAPSED_KEY);
@@ -234,6 +238,20 @@ export function AttentionPanel() {
     ...pendingPayments.map((n) => getUrgency(n.createdAt, now)),
   ]);
 
+  // "1 pedido esperando você" / "1 pagamento esperando você" / "3 itens esperando você"
+  const title =
+    total === 1
+      ? awaitingOrdersCount > 0
+        ? "1 pedido esperando você"
+        : "1 pagamento esperando você"
+      : `${total} itens esperando você`;
+  const oldestIso = [...awaitingOrders.map((o) => o.createdAt), ...pendingPayments.map((n) => n.createdAt)].sort()[0];
+  const oldestLabel = oldestIso ? formatRelativeTime(oldestIso, now) : null;
+  const summaryParts = [
+    awaitingOrdersCount > 0 ? plural(awaitingOrdersCount, "pedido novo", "pedidos novos") : null,
+    pendingPaymentsCount > 0 ? plural(pendingPaymentsCount, "pagamento para conferir", "pagamentos para conferir") : null,
+  ].filter(Boolean);
+
   const duration = reduceMotion ? 0 : 0.2;
   const enter = {
     initial: { height: 0, opacity: 0, overflow: "hidden" as const },
@@ -252,81 +270,100 @@ export function AttentionPanel() {
       <AnimatePresence initial={false} mode="wait">
         {loaded && total > 0 && (
           <motion.div key="attention" className="mt-6" {...enter}>
-            <section
-              ref={sectionRef}
-              aria-labelledby={headingId}
-              className="relative rounded-xl border-2 bg-[color:var(--card)] shadow-sm"
-              style={{ borderColor: urgentLevel === "urgent" ? "var(--state-cobrar)" : "var(--state-pronto)" }}
-            >
-              {!reduceMotion && pulseKey > 0 && (
-                <motion.span
-                  key={pulseKey}
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-1 rounded-2xl border-4"
-                  style={{ borderColor: urgentLevel === "urgent" ? "var(--state-cobrar)" : "var(--state-pronto)" }}
-                  initial={{ opacity: 0.85 }}
-                  animate={{ opacity: 0 }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
-                />
-              )}
-
-              <div className="flex items-center justify-between gap-3 px-4 py-2">
-                <h2
-                  id={headingId}
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-[color:var(--foreground)] outline-none"
+            <div data-att-level={urgentLevel}>
+              {collapsed ? (
+                <section
+                  ref={sectionRef}
+                  aria-labelledby={headingId}
+                  className="att-pill flex items-center gap-3 rounded-full py-2.5 pl-5 pr-3"
                 >
-                  <BellRing className="h-4 w-4 shrink-0" style={{ color: "var(--state-pronto)" }} aria-hidden />
-                  <span>Atenção</span>
-                  {awaitingOrdersCount > 0 && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span className="sr-only">, </span>
-                      <span>{plural(awaitingOrdersCount, "pedido aguardando", "pedidos aguardando")}</span>
-                    </>
+                  <span className="att-dot h-3 w-3 shrink-0 rounded-full" aria-hidden />
+                  <h2
+                    id={headingId}
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="text-[15px] font-bold outline-none"
+                    style={{ color: "var(--att-ink)" }}
+                  >
+                    {title}
+                  </h2>
+                  {oldestLabel && (
+                    <span className="hidden min-w-0 flex-1 truncate text-sm text-[color:var(--muted-foreground)] sm:block">
+                      O mais antigo {oldestLabel}
+                    </span>
                   )}
-                  {pendingPaymentsCount > 0 && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span className="sr-only">, </span>
-                      <span>{plural(pendingPaymentsCount, "pagamento para conferir", "pagamentos para conferir")}</span>
-                    </>
+                  <span className="flex-1 sm:hidden" />
+                  <button
+                    type="button"
+                    onClick={toggleCollapsed}
+                    aria-expanded={false}
+                    aria-controls={bodyId}
+                    className="att-pill-btn inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    Mostrar
+                    <ChevronDown className="h-4 w-4" aria-hidden />
+                  </button>
+                  <div id={bodyId} hidden />
+                </section>
+              ) : (
+                <section ref={sectionRef} aria-labelledby={headingId} className="att-card relative overflow-hidden rounded-[20px] bg-[color:var(--card)]">
+                  {!reduceMotion && pulseKey > 0 && (
+                    <motion.span
+                      key={pulseKey}
+                      aria-hidden
+                      className="pointer-events-none absolute -inset-1 rounded-3xl border-4"
+                      style={{ borderColor: "var(--att)" }}
+                      initial={{ opacity: 0.85 }}
+                      animate={{ opacity: 0 }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                    />
                   )}
-                  {expiredCount > 0 && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span className="sr-only">, </span>
-                      <span
-                        className="inline-flex items-center gap-1 font-bold"
-                        style={{ color: "var(--state-cobrar-fg)" }}
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                        {plural(expiredCount, "expirado", "expirados")}
+
+                  <div className="att-head flex items-center gap-3 px-4 pb-3 pt-4 sm:gap-4 sm:px-6">
+                    <div className="att-badge h-12 w-12 sm:h-[52px] sm:w-[52px]">
+                      <span className="flex h-full w-full items-center justify-center rounded-full text-white" style={{ background: "var(--att)" }}>
+                        <BellRing className="att-bell h-6 w-6" aria-hidden />
                       </span>
-                    </>
-                  )}
-                </h2>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="min-h-[44px] shrink-0"
-                  onClick={toggleCollapsed}
-                  aria-expanded={!collapsed}
-                  aria-controls={bodyId}
-                >
-                  {collapsed ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronUp className="h-4 w-4" aria-hidden />}
-                  {collapsed ? "Mostrar" : "Recolher"}
-                </Button>
-              </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id={headingId}
+                        ref={headingRef}
+                        tabIndex={-1}
+                        className="text-lg font-bold leading-tight text-[color:var(--foreground)] outline-none sm:text-xl"
+                      >
+                        {title}
+                      </h2>
+                      <p className="mt-0.5 text-sm text-[color:var(--muted-foreground)]">
+                        {summaryParts.join(" · ")}
+                        {oldestLabel && total > 1 && ` · o mais antigo espera ${oldestLabel}`}
+                        {expiredCount > 0 && (
+                          <span className="ml-1 inline-flex items-center gap-1 font-bold" style={{ color: "var(--state-cobrar-fg)" }}>
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {plural(expiredCount, "expirado", "expirados")}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-[44px] shrink-0"
+                      onClick={toggleCollapsed}
+                      aria-expanded
+                      aria-controls={bodyId}
+                    >
+                      <ChevronUp className="h-4 w-4" aria-hidden />
+                      <span className="hidden sm:inline">Recolher</span>
+                      <span className="sr-only sm:hidden">Recolher</span>
+                    </Button>
+                  </div>
 
-              <div id={bodyId} hidden={collapsed}>
-                {!collapsed && (
-                  <div className="space-y-4 border-t border-[color:var(--border)] px-4 pb-3 pt-3">
+                  <div id={bodyId} className="space-y-4 px-4 pb-4 pt-1 sm:px-6">
                     {awaitingOrdersCount > 0 && (
                       <div className="space-y-2">
-                        <GroupTitle count={awaitingOrdersCount}>Pedidos novos</GroupTitle>
+                        {pendingPaymentsCount > 0 && <GroupTitle count={awaitingOrdersCount}>Pedidos novos</GroupTitle>}
                         <ul className="space-y-2">
                           {visibleOrders.map((order) => (
                             <AwaitingOrderRow
@@ -349,7 +386,7 @@ export function AttentionPanel() {
 
                     {pendingPaymentsCount > 0 && (
                       <div className="space-y-2">
-                        <GroupTitle count={pendingPaymentsCount}>Pagamentos Pix</GroupTitle>
+                        {awaitingOrdersCount > 0 && <GroupTitle count={pendingPaymentsCount}>Pagamentos Pix</GroupTitle>}
                         <ul className="space-y-2">
                           {visiblePayments.map((notification) => (
                             <PaymentRow
@@ -370,7 +407,7 @@ export function AttentionPanel() {
                       </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-x-4 border-t border-[color:var(--border)] pt-1 text-sm font-medium">
+                    <div className="flex flex-wrap items-center gap-x-5 text-sm font-medium">
                       <Link
                         href="/admin/pre-orders"
                         className={cn(
@@ -392,9 +429,9 @@ export function AttentionPanel() {
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
-            </section>
+                </section>
+              )}
+            </div>
           </motion.div>
         )}
 
