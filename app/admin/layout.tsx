@@ -77,7 +77,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   const chrome = useAdminChrome();
   // O PDV é a tela toda desde o primeiro quadro (inclusive no HTML do servidor): sem isso a barra
   // lateral do admin aparece por um instante, até a página ligar o modo imersivo
-  const isPdv = (usePathname() ?? "").startsWith("/admin/pdv");
+  const pathname = usePathname() ?? "";
+  const isPdv = pathname.startsWith("/admin/pdv");
   const fullBleed = chrome.fullBleed || isPdv;
   const immersive = chrome.immersive || isPdv;
 
@@ -134,7 +135,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
-        {!immersive && <RoAssistant />}
+        {!immersive && <RoAssistant raised={pathname.startsWith("/admin/whatsapp/conversas")} />}
     </NotificationsProvider>
   );
 }

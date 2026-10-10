@@ -29,6 +29,8 @@ interface ChatMessage {
 interface RoAssistantProps {
   variant?: "floating" | "contained";
   defaultOpen?: boolean;
+  /** Sobe o botão para não cobrir o campo de mensagem de telas que ocupam a página inteira (Conversas). */
+  raised?: boolean;
 }
 
 // Removido: balões de sugestão
@@ -44,7 +46,7 @@ function createMessage(partial: Omit<ChatMessage, "id">): ChatMessage {
   return { id: crypto.randomUUID(), ...partial };
 }
 
-export default function RoAssistant({ variant = "floating", defaultOpen = false }: RoAssistantProps) {
+export default function RoAssistant({ variant = "floating", defaultOpen = false, raised = false }: RoAssistantProps) {
   const isFloating = variant === "floating";
   const [isOpen, setIsOpen] = useState(() => (isFloating ? defaultOpen : true));
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_ASSISTANT_MESSAGE]);
@@ -266,7 +268,7 @@ export default function RoAssistant({ variant = "floating", defaultOpen = false 
             />
             <motion.div
               key="panel-wrapper"
-              className="fixed bottom-24 right-6 z-[100] flex items-end gap-5"
+              className={`fixed right-6 z-[100] flex items-end gap-5 ${raised ? "bottom-64 lg:bottom-[10.5rem]" : "bottom-24"}`}
               initial={{ opacity: 0, y: 40, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.9 }}
@@ -282,7 +284,7 @@ export default function RoAssistant({ variant = "floating", defaultOpen = false 
       <motion.button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        className="fixed bottom-6 right-6 z-[90] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-white shadow-xl shadow-primary/40 transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className={`fixed right-6 z-[90] ${raised ? "bottom-52 lg:bottom-24" : "bottom-6"} flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-white shadow-xl shadow-primary/40 transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary`}
         whileHover={{ rotate: [-2, 2, 0] }}
         whileTap={{ scale: 0.9 }}
       >

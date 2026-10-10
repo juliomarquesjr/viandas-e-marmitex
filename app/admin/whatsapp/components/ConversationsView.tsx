@@ -5,15 +5,17 @@ import { SendMenuDialog } from "@/app/admin/customers/components/SendMenuDialog"
 import { SendFichaDialog, type FichaKind } from "@/app/admin/customers/components/SendFichaDialog";
 import { SendPasswordDialog } from "@/app/admin/customers/components/SendPasswordDialog";
 import { MessageMedia } from "./MessageMedia";
+import { BulkSendDialog } from "./BulkSendDialog";
+import { useFullBleedLayout } from "@/app/admin/components/layout/AdminChromeProvider";
 import { Button } from "@/app/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { EMOJI_GROUPS } from "@/lib/messages/format";
 import { messageLabel, SYSTEM_LABEL } from "@/lib/whatsapp-chat";
 import { isMediaMessageType } from "@/lib/whatsapp-media";
 import { applyQuickReply, filterQuickReplies, slashQuery, type QuickReply } from "@/lib/whatsapp-quick-replies";
-import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, MoreVertical, Paperclip, Receipt, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, Megaphone, MessageCircle, Mic, MoreVertical, Paperclip, Receipt, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface Conversation {
   customerId: string;
@@ -138,6 +140,8 @@ function Bubble({ m, onMediaLoad }: { m: Message; onMediaLoad?: () => void }) {
 
 /** Tela Conversas: lista, conversa e dados do cliente, para os clientes que têm WhatsApp. */
 export function ConversationsView() {
+  // a tela é a própria área de trabalho: ocupa todo o espaço e gerencia o próprio cabeçalho
+  useFullBleedLayout();
   const [list, setList] = useState<Conversation[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unread" | "awaiting">("all");
@@ -165,10 +169,19 @@ export function ConversationsView() {
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [passwordFor, setPasswordFor] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const textArea = useRef<HTMLTextAreaElement>(null);
+
+  // o campo cresce com o texto, até seis linhas; depois rola por dentro
+  useLayoutEffect(() => {
+    const el = textArea.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+  }, [text, selected, connected, customer?.phoneIsWhatsapp]); // o texto de apoio (placeholder) muda com a conexão
 
   // abre já na conversa do cliente quando vem de "Ver conversa" (?cliente=)
   useEffect(() => {
@@ -361,11 +374,46 @@ export function ConversationsView() {
     window.setTimeout(() => textArea.current?.focus(), 0);
   };
 
+  // o raio abre a mesma lista do "/": coloca a barra no fim do texto (depois de um espaço, se já houver texto)
+  const openReplyList = () => {
+    setText((t) => (slashQuery(t) ? t : t && !/\s$/.test(t) ? `${t} /` : `${t}/`));
+    setSlashDismissed(null);
+    setSlashIndex(0);
+    window.setTimeout(() => textArea.current?.focus(), 0);
+  };
+
   const canSend = customer?.phoneIsWhatsapp && connected !== false;
   const picked = list?.find((c) => c.customerId === selected);
+  const unreadChats = list?.filter((c) => c.unread > 0).length ?? 0;
+  const filtering = filter !== "all" || q !== "";
+  const summary = list === null ? "Carregando…" : filtering ? `${list.length} ${list.length === 1 ? "conversa encontrada" : "conversas encontradas"}` : `${list.length} ${list.length === 1 ? "conversa" : "conversas"} · ${unreadChats} ${unreadChats === 1 ? "não lida" : "não lidas"}`;
 
   return (
-    <div className="flex h-[calc(100vh-15rem)] min-h-[560px] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] [&_button:not(:disabled)]:cursor-pointer">
+    <div className="flex h-full min-h-0 flex-col gap-3 p-3 sm:p-4 [&_button:not(:disabled)]:cursor-pointer">
+      {/* cabeçalho de uma linha; no celular some quando há uma conversa aberta */}
+      <header className={`${selected ? "hidden md:flex" : "flex"} shrink-0 items-center gap-3`}>
+        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary"><MessageCircle className="h-5 w-5" aria-hidden /></span>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-semibold leading-6 text-[color:var(--foreground)]">Conversas</h1>
+          <p className="flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
+            {connected !== null && <span className={`h-2 w-2 flex-none rounded-full sm:hidden ${connected ? "bg-green-600" : "bg-rose-600"}`} aria-hidden />}
+            <span className="truncate">{summary}</span>
+          </p>
+        </div>
+        {connected !== null && (
+          connected ? (
+            <span className="hidden h-7 items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 text-xs font-semibold text-green-800 sm:inline-flex"><span className="h-2 w-2 rounded-full bg-green-600" aria-hidden />WhatsApp conectado</span>
+          ) : (
+            <Link href="/admin/settings?tab=whatsapp" className="hidden h-7 items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 sm:inline-flex"><span className="h-2 w-2 rounded-full bg-rose-600" aria-hidden />WhatsApp desconectado · reconectar</Link>
+          )
+        )}
+        <Button type="button" variant="outline" onClick={() => setBulkOpen(true)} aria-label="Envio em massa" className="h-11 w-11 shrink-0 border-green-300 bg-green-50 px-0 text-green-800 hover:bg-green-100 sm:h-10 sm:w-auto sm:px-4">
+          <Megaphone className="h-[18px] w-[18px]" aria-hidden />
+          <span className="hidden font-semibold sm:inline">Envio em massa</span>
+        </Button>
+      </header>
+
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]">
       {/* lista */}
       <section aria-label="Lista de conversas" className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-r border-[color:var(--border)] md:w-[300px] md:shrink-0`}>
         <div className="space-y-2.5 p-3">
@@ -420,12 +468,16 @@ export function ConversationsView() {
           </div>
         ) : (
           <>
-            <header className="flex flex-wrap items-center gap-3 border-b border-[color:var(--border)] px-4 py-2.5">
-              <button type="button" className="md:hidden" onClick={() => setSelected(null)} aria-label="Voltar para a lista"><ArrowLeft className="h-5 w-5" /></button>
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-800">{initials(customer?.name ?? picked?.name ?? "?")}</span>
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-2 md:gap-3 md:px-4">
+              <button type="button" className="flex h-11 w-11 shrink-0 items-center justify-center md:hidden" onClick={() => setSelected(null)} aria-label="Voltar para a lista"><ArrowLeft className="h-5 w-5" /></button>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[13px] font-bold text-indigo-800">{initials(customer?.name ?? picked?.name ?? "?")}</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-bold">{customer?.name ?? picked?.name ?? "…"}</p>
-                <p className="text-xs text-slate-500">{customer?.phone ?? picked?.phone ?? ""}</p>
+                <p className="truncate text-[15px] font-bold leading-5">{customer?.name ?? picked?.name ?? "…"}</p>
+                {/* no celular o saldo toma o lugar do telefone, que não cabe ao lado */}
+                {customer && ficha ? (
+                  <p className={`text-xs font-semibold leading-4 sm:hidden ${balanceView(ficha.debtCents).tone}`}>Saldo {balanceView(ficha.debtCents).text}</p>
+                ) : null}
+                <p className={`truncate text-xs leading-4 text-slate-500 ${customer && ficha ? "hidden sm:block" : ""}`}>{customer?.phone ?? picked?.phone ?? ""}</p>
               </div>
               {customer && ficha && (
                 <span className={`hidden rounded-lg border px-2.5 py-1 text-xs font-bold sm:inline xl:hidden ${balanceView(ficha.debtCents).bg} ${balanceView(ficha.debtCents).tone}`} title={balanceView(ficha.debtCents).label}>
@@ -435,9 +487,9 @@ export function ConversationsView() {
               {customer && (
                 <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
                   <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" aria-label="Ações da conversa" className="gap-1.5">
+                    <Button type="button" variant="outline" size="sm" aria-label="Ações da conversa" className="h-11 w-11 shrink-0 gap-1.5 border-transparent px-0 sm:h-8 sm:w-auto sm:border-[color:var(--border-dark)] sm:px-3">
                       <MoreVertical className="h-4 w-4" />
-                      Ações
+                      <span className="hidden sm:inline">Ações</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-60 border-slate-200 bg-white p-1 text-slate-700 shadow-lg">
@@ -508,20 +560,24 @@ export function ConversationsView() {
               ))}
             </div>
 
-            <footer className="border-t border-[color:var(--border)] bg-slate-100 px-4 pb-3 pt-2">
+            <footer className="shrink-0 border-t border-[color:var(--border)] bg-slate-100 px-3 pb-3 pt-2 md:px-4">
               {sendError && <p className="mb-2 flex items-center gap-2 text-[13px] text-rose-700" role="alert"><AlertCircle className="h-4 w-4" aria-hidden />{sendError}</p>}
-              <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 flex items-center gap-1 text-xs font-bold text-slate-500"><Zap className="h-3.5 w-3.5" aria-hidden />Respostas rápidas</span>
-                {replies.slice(0, 4).map((r) => (
-                  <button key={r.id} type="button" disabled={!canSend} onClick={() => insertReply(r)} title={r.text} className="max-w-[16rem] truncate rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">{r.shortcut ? <span className="mr-1 font-mono text-blue-700">/{r.shortcut}</span> : null}{r.title}</button>
-                ))}
-                {replies.length === 0 && <span className="text-xs text-slate-500">Nenhuma criada ainda.</span>}
-                <Link href="/admin/whatsapp/respostas" className="text-xs font-semibold text-blue-600 hover:underline">{replies.length ? "Gerenciar" : "Criar respostas"}</Link>
+              <div className="mb-2 flex h-8 items-center gap-1.5 md:h-7">
+                {/* os atalhos rolam de lado quando não cabem; "Gerenciar" fica sempre à vista */}
+                <div className="-mr-1 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {replies.slice(0, 3).map((r, i) => (
+                    <button key={r.id} type="button" disabled={!canSend} onClick={() => insertReply(r)} title={r.text} className={`h-8 shrink-0 whitespace-nowrap rounded-full border border-slate-300 bg-white px-3 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50 md:h-7 ${i === 2 ? "md:max-[1699px]:hidden" : ""}`}>{r.shortcut ? <span className="mr-1 font-mono text-blue-700">/{r.shortcut}</span> : null}{r.title}</button>
+                  ))}
+                  {replies.length === 0 && <span className="shrink-0 text-xs text-slate-500">Nenhuma resposta rápida criada ainda.</span>}
+                </div>
+                <Link href="/admin/whatsapp/respostas" className="shrink-0 px-1.5 text-xs font-semibold text-blue-700 hover:underline">{replies.length ? "Gerenciar" : "Criar respostas"}</Link>
+                <span className="hidden shrink-0 text-[11.5px] text-slate-600 min-[1800px]:block">Enter envia · Shift+Enter quebra a linha</span>
               </div>
-              <div className="relative flex items-end gap-2">
-                <button type="button" onClick={() => setEmojiOpen((v) => !v)} aria-expanded={emojiOpen} aria-label="Emojis" disabled={!canSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-white disabled:opacity-50"><Smile className="h-5 w-5" /></button>
+              <div className={`relative flex items-end gap-0.5 rounded-[22px] border p-1 sm:gap-1 sm:rounded-[14px] ${canSend ? "border-slate-300 bg-white focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" : "border-slate-300 bg-slate-50"}`}>
+                <button type="button" onClick={() => setEmojiOpen((v) => !v)} aria-expanded={emojiOpen} aria-label="Emojis" disabled={!canSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-50 sm:h-10 sm:w-10 sm:rounded-[10px]"><Smile className="h-5 w-5" /></button>
+                <button type="button" onClick={openReplyList} aria-label="Respostas rápidas" title="Respostas rápidas (ou digite /)" disabled={!canSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 disabled:opacity-50 sm:h-10 sm:w-10 sm:rounded-[10px]"><Zap className="h-5 w-5" /></button>
                 {emojiOpen && (
-                  <div className="absolute bottom-full left-0 z-20 mb-2 w-[22rem] max-w-full rounded-xl border border-slate-200 bg-white p-3 shadow-lg" role="group" aria-label="Emojis">
+                  <div className="absolute bottom-full left-0 z-20 mb-2 max-h-72 w-[22rem] max-w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-lg" role="group" aria-label="Emojis">
                     {EMOJI_GROUPS.map((g) => (
                       <div key={g.name} className="mb-2 last:mb-0">
                         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{g.name}</p>
@@ -533,7 +589,7 @@ export function ConversationsView() {
                   </div>
                 )}
                 {slashOpen && (
-                  <div className="absolute bottom-full left-12 right-0 z-30 mb-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg" role="listbox" aria-label="Respostas rápidas">
+                  <div className="absolute bottom-full left-0 right-0 sm:left-12 z-30 mb-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg" role="listbox" aria-label="Respostas rápidas">
                     <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
                       <Search className="h-3.5 w-3.5" aria-hidden />
                       <span>Buscando respostas rápidas:</span>
@@ -558,7 +614,7 @@ export function ConversationsView() {
                 )}
                 <textarea
                   ref={textArea}
-                  rows={4}
+                  rows={1}
                   value={text}
                   disabled={!canSend}
                   onChange={(e) => {
@@ -589,12 +645,12 @@ export function ConversationsView() {
                       void send();
                     }
                   }}
-                  placeholder={canSend ? "Escreva uma mensagem… ( / para respostas rápidas )" : "Não é possível enviar agora"}
+                  placeholder={canSend ? "Mensagem" : "Não é possível enviar agora"}
                   aria-label="Mensagem"
-                  className="max-h-56 min-h-[104px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary disabled:bg-slate-50"
+                  className="block max-h-36 min-h-11 min-w-0 flex-1 resize-none self-stretch border-0 bg-transparent px-1.5 py-3 text-base leading-5 text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed sm:min-h-10 sm:py-2.5 sm:text-sm"
                 />
-                <Button type="button" onClick={() => void send()} disabled={!canSend || sending || !text.trim()} className="h-11 gap-2 bg-green-600 px-5 hover:bg-green-700">
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Enviar
+                <Button type="button" onClick={() => void send()} disabled={!canSend || sending || !text.trim()} aria-label="Enviar" className="h-11 w-11 shrink-0 gap-2 rounded-full bg-green-700 px-0 hover:bg-green-800 sm:h-10 sm:w-auto sm:rounded-[10px] sm:px-[18px] sm:font-semibold">
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}<span className="hidden sm:inline">Enviar</span>
                 </Button>
               </div>
             </footer>
@@ -657,6 +713,9 @@ export function ConversationsView() {
         </aside>
       )}
 
+      </div>
+
+      <BulkSendDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onSent={() => void loadList()} />
       <SendMenuDialog open={menuFor} customer={customer ? { id: customer.id, name: customer.name } : null} onClose={() => { setMenuFor(false); if (selected) void loadThread(selected, true); }} />
       <SendFichaDialog
         kind={fichaFor ?? "orders"}
