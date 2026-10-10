@@ -22,6 +22,7 @@ export interface ConfigFormData {
   branding_system_title: string;
   branding_pdv_title: string;
   branding_logo_url: string;
+  branding_app_url: string;
   email_smtp_host: string;
   email_smtp_port: string;
   email_smtp_secure: string;

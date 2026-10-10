@@ -13,6 +13,7 @@ import { OnlineOrderingTab } from "./components/OnlineOrderingTab";
 import { PaymentCard } from "./components/PaymentCard";
 import { SettingsPageSkeleton } from "./components/SettingsPageSkeleton";
 import { WhatsAppTab } from "./components/WhatsAppTab";
+import { parseAppUrl } from "@/lib/messages/app-url";
 
 const navItems = [
   {
@@ -125,6 +126,7 @@ export default function SettingsPage() {
     branding_system_title: 'Sabores de Casa',
     branding_pdv_title: 'PDV - Sabores de Casa',
     branding_logo_url: '',
+    branding_app_url: '',
     email_smtp_host: '',
     email_smtp_port: '587',
     email_smtp_secure: 'false',
@@ -148,7 +150,15 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
-    const success = await saveConfigs(formData);
+    // endereço dos links das mensagens: confere e já grava normalizado (https://, sem barra no fim)
+    const typedUrl = formData.branding_app_url.trim();
+    const appUrl = typedUrl ? parseAppUrl(typedUrl) : '';
+    if (appUrl === null) {
+      showToast("Endereço inválido", "error", "Endereço inválido", "Em Marca, o endereço dos links das mensagens deve ser algo como https://meusite.com.br.");
+      return;
+    }
+    if (appUrl !== formData.branding_app_url) setFormData(prev => ({ ...prev, branding_app_url: appUrl }));
+    const success = await saveConfigs({ ...formData, branding_app_url: appUrl });
     if (success) {
       showToast("Configurações salvas!", "success", "Configurações salvas!", "Todas as configurações foram atualizadas com sucesso.");
     } else {

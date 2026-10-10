@@ -19,6 +19,7 @@ import {
   type MessageTypeDef,
 } from './registry';
 import { stripFormatting } from './format';
+import { APP_URL_KEY, parseAppUrl } from './app-url';
 import { emailBodyToHtml, maskEmail, maskPhone, renderTemplate, type TemplateInput } from './render';
 
 const LOG_RETENTION_DAYS = 90;
@@ -88,8 +89,11 @@ export async function saveSignature(text: string, enabled: boolean) {
   return { text: clean, enabled };
 }
 
-function appUrl(): string {
-  return (process.env.APP_PUBLIC_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/+$/, '');
+/** Endereço dos links das mensagens: o de Configurações → Marca; em branco, o padrão do sistema. */
+async function appUrl(): Promise<string> {
+  const configured = (await readConfigs([APP_URL_KEY]))[APP_URL_KEY];
+  const saved = configured ? parseAppUrl(configured) : null;
+  return saved ?? (process.env.APP_PUBLIC_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 // ---------- prontidão dos canais ----------
@@ -187,7 +191,7 @@ export async function buildValues(customer: CustomerContact, extra: Record<strin
     nome: customer.name.trim().split(/\s+/)[0] || customer.name,
     loja: await storeName(),
     usuario: customer.email?.trim() || customer.phone?.replace(/\D/g, '') || '',
-    link_app: appUrl(), // com https://, para o WhatsApp deixar o link clicável
+    link_app: await appUrl(), // com https://, para o WhatsApp deixar o link clicável
     ...extra,
   };
 }

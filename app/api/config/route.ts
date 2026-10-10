@@ -1,5 +1,6 @@
 import { authOptions } from '@/lib/auth';
 import { invalidateConfigCache } from '@/lib/config';
+import { APP_URL_KEY, parseAppUrl } from '@/lib/messages/app-url';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -137,10 +138,20 @@ export async function PUT(request: Request) {
     const results = [];
 
     for (const configData of configs) {
-      const { key, value, type = 'text', category = 'general' } = configData;
+      const { key, type = 'text', category = 'general' } = configData;
+      let value = configData.value;
 
       if (!key) {
         continue; // Pular configurações sem chave
+      }
+
+      // O endereço dos links das mensagens é gravado já normalizado; valor inválido recusa o pedido todo
+      if (key === APP_URL_KEY && typeof value === 'string' && value.trim()) {
+        const normalized = parseAppUrl(value);
+        if (!normalized) {
+          return NextResponse.json({ error: 'Endereço do aplicativo inválido. Use algo como https://meusite.com.br.' }, { status: 400 });
+        }
+        value = normalized;
       }
 
       try {
