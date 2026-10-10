@@ -1,0 +1,130 @@
+/*
+ * Cenas do painel da marca (ver AuthScene e auth-scenes.tsx): uma fica à vista por vez, e a que sai dá
+ * lugar à próxima com um deslize. A montagem de cada desenho só toca quando a cena está ativa (classe
+ * `is-active`); fora dela o desenho aparece pronto. "Reduzir movimento" zera as animações no escopo do
+ * cliente, então tudo aparece parado.
+ */
+@layer components {
+  .c-sc {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .c-sc.is-active {
+    visibility: visible;
+    opacity: 1;
+    animation: c-sc-in 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  }
+  .c-sc.is-leaving {
+    visibility: visible;
+    animation: c-sc-out 0.5s cubic-bezier(0.5, 0, 0.8, 0.4) both;
+  }
+
+  /* peça que cai de cima e quica no lugar */
+  .c-sc.is-active .c-dr {
+    animation: c-s-drop 0.75s cubic-bezier(0.3, 1.5, 0.5, 1) backwards;
+    animation-delay: var(--d, 0s);
+  }
+  /* peça que aparece crescendo */
+  .c-pop {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .c-sc.is-active .c-pop {
+    animation: c-s-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+    animation-delay: var(--d, 0s);
+  }
+  .c-sc.is-active .c-pop.c-big {
+    animation-name: c-s-pop-big;
+  }
+
+  /* o conjunto acomoda quando termina de montar */
+  .c-burger,
+  .c-vianda,
+  .c-bag {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .c-sc.is-active .c-burger {
+    animation: c-s-settle 0.7s 2.55s ease;
+  }
+  .c-sc.is-active .c-vianda {
+    animation: c-s-sway 1.2s 2.4s ease-in-out;
+  }
+  .c-sc.is-active .c-bag {
+    animation:
+      c-s-bump 0.26s 0.8s,
+      c-s-bump 0.26s 1.35s,
+      c-s-bump 0.26s 1.9s,
+      c-s-bump 0.26s 2.45s;
+  }
+  .c-flag {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .c-tw {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: c-auth-twinkle 2.4s 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes c-sc-in {
+  from {
+    opacity: 0;
+    transform: translateX(46px) scale(0.88) rotate(2deg);
+  }
+}
+@keyframes c-sc-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-46px) scale(0.88) rotate(-2deg);
+  }
+}
+@keyframes c-s-drop {
+  from {
+    transform: translateY(-170px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+}
+@keyframes c-s-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes c-s-pop-big {
+  from {
+    transform: translateY(34px) scale(0.4);
+    opacity: 0;
+  }
+}
+@keyframes c-s-settle {
+  40% {
+    transform: scale(1.04, 0.95);
+  }
+  70% {
+    transform: scale(0.98, 1.03);
+  }
+}
+@keyframes c-s-sway {
+  25% {
+    transform: rotate(-2.5deg);
+  }
+  75% {
+    transform: rotate(2.5deg);
+  }
+}
+@keyframes c-s-bump {
+  50% {
+    transform: scaleY(0.96);
+  }
+}

@@ -22,6 +22,7 @@ export default function CustomerLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  const [focused, setFocused] = useState<"id" | "pw" | null>(null);
   // Trava síncrona: o estado do React só muda no próximo render, e um duplo
   // clique (ou Enter + clique) chegaria aqui duas vezes.
   const busy = useRef(false);
@@ -45,6 +46,10 @@ export default function CustomerLoginPage() {
     }
     window.setTimeout(() => document.getElementById("login-identifier")?.focus(), 0);
   };
+
+  // O que a marmita faz (auth.css, data-scene): pula ao focar o campo, fecha a tampa enquanto a senha é digitada
+  // às cegas, balança a cabeça se errou e sai voando quando entra.
+  const scene = status === "ok" ? "success" : error ? "error" : focused === "pw" && !showPassword ? "password" : focused === "id" ? "typing" : "idle";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +96,7 @@ export default function CustomerLoginPage() {
         setStatus("ok");
         window.setTimeout(() => {
           window.location.href = "/dashboard";
-        }, 600);
+        }, 900);
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -102,7 +107,7 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <div className="c-auth">
+    <div className="c-auth" data-scene={scene}>
       <AuthScene />
 
       <form className="c-lform" onSubmit={handleSubmit}>
@@ -134,7 +139,7 @@ export default function CustomerLoginPage() {
 
           <div className="c-field">
             <label htmlFor="login-identifier">{mode === "phone" ? "Telefone com DDD" : "E-mail"}</label>
-            <div className="c-inwrap">
+            <div key={mode} className="c-inwrap c-swap">
               <span className="c-lead" aria-hidden="true">
                 {mode === "phone" ? <Phone size={20} /> : <Mail size={20} />}
               </span>
@@ -146,6 +151,8 @@ export default function CustomerLoginPage() {
                   value={phone}
                   onChange={(e) => setPhone(maskLoginPhone(e.target.value))}
                   placeholder="(55) 99999-9999"
+                  onFocus={() => setFocused("id")}
+                  onBlur={() => setFocused(null)}
                   autoComplete="tel-national"
                   inputMode="numeric"
                   maxLength={15}
@@ -159,6 +166,8 @@ export default function CustomerLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="voce@email.com"
+                  onFocus={() => setFocused("id")}
+                  onBlur={() => setFocused(null)}
                   autoComplete="username"
                   autoCapitalize="none"
                   autoCorrect="off"
@@ -181,6 +190,8 @@ export default function CustomerLoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocused("pw")}
+                onBlur={() => setFocused(null)}
                 autoComplete="current-password"
                 required
               />

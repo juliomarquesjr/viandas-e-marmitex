@@ -18,6 +18,8 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 
 ### Login
 
+- **Painel da marca (computador):** a cena ocupa 70% da área e alterna, a cada ~7,6 s, cinco ilustrações animadas: prato feito (arroz, feijão, bife, batata frita e salada), hambúrguer, vianda de inox de três andares, frango assado e sacola de papel recebendo compras (`AuthScene.tsx`, `auth-scenes.tsx`, `auth-scenes.css`). Cada uma monta peça por peça ao entrar; a anterior sai deslizando. No login a cena reage: pula ao focar um campo, a cloche de inox cobre o prato enquanto a senha é digitada, balança se errou e sai voando quando entrou (`data-scene` em `.c-auth`). "Reduzir movimento" deixa só o prato feito, parado.
+
 - Entra por telefone ou e-mail e senha, em `/login`, com um seletor **Telefone | E-mail** (a última escolha fica no aparelho; o telefone tem máscara `(55) 99999-9999`). No servidor (`lib/auth-customer.ts`, `lib/customer-login-id.ts`) o e-mail não diferencia maiúsculas e o telefone é comparado só pelos dígitos (DDD + últimos 8), então vale com máscara, só dígitos (como na mensagem de senha), com +55 ou com zero na frente, e não importa como o telefone foi digitado no cadastro. Se duas pessoas dividem o telefone, a senha desempata. Telefone sem DDD não entra; a recuperação é por e-mail (`/forgot-password` e `/reset-password`, com o texto editável em WhatsApp → Mensagens). Quando o administrador gera a senha, o cliente é levado a trocá-la no primeiro acesso (`mustChangePassword`); em Perfil → Dados ele marca se o telefone é WhatsApp (`phoneIsWhatsapp`).
 - Sessão própria (NextAuth em `/api/auth/customer`, cookie separado do de funcionário). Ver [rotas.md](./rotas.md).
 
