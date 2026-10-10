@@ -185,7 +185,7 @@ export function AdminThemeProvider({ children }: { children: React.ReactNode }) 
         data-admin-theme-scope=""
         data-admin-theme={preferences.mode}
         data-admin-accent={preferences.accent}
-        className="min-h-screen bg-background text-foreground transition-colors duration-200"
+        className="min-h-dvh bg-background text-foreground transition-colors duration-200"
         style={
           {
             "--admin-accent-primary": accentOption.primary,

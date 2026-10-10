@@ -74,7 +74,7 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
+    <div className="min-h-dvh bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div 
@@ -129,7 +129,7 @@ export default function DeliveryLayout({ children }: { children: React.ReactNode
       </div>
 
       {/* Desktop Layout */}
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-dvh">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/80 backdrop-blur-xl p-6 shadow-lg">
           <div className="flex items-center gap-6">
             <Button

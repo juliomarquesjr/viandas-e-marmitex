@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
   const home = session?.user?.role === "pdv" ? "/admin/pdv" : "/admin";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mb-4">

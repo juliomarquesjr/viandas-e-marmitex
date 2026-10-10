@@ -41,6 +41,7 @@ export const DialogContent = React.forwardRef<
     <DialogOverlay higherZIndex={higherZIndex} className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
+      data-vv-dialog=""
       className={cn(
         "fixed left-1/2 top-1/2 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         higherZIndex ? "z-[71]" : "z-[61]",

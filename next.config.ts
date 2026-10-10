@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const emptyBrowserModule = "./lib/empty-module.ts";
 
 const nextConfig: NextConfig = {
+  // Permite um segundo servidor de desenvolvimento (testes de tela) sem brigar pelo cache do primeiro:
+  // NEXT_DIST_DIR=.next-qa npx next dev -p 3011
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   output: process.env.NEXT_BUILD_STANDALONE === "true" ? "standalone" : undefined,
   turbopack: {
     resolveAlias: {

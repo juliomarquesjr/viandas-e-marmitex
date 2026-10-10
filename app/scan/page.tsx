@@ -260,7 +260,7 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-dvh bg-slate-900 flex flex-col">
       {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">

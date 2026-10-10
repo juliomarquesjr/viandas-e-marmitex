@@ -330,7 +330,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
   return (
     <aside
       className={cn(
-        "sticky top-0 z-40 hidden h-screen flex-col border-r border-[color:var(--border)] bg-[color:var(--card)] transition-all duration-300 ease-in-out lg:flex",
+        "sticky top-0 z-40 hidden h-dvh flex-col border-r border-[color:var(--border)] bg-[color:var(--card)] transition-all duration-300 ease-in-out lg:flex",
         collapsed ? "w-[72px]" : "w-[260px]",
         className
       )}
