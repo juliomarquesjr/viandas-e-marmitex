@@ -6,8 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { ConfigFormData } from "@/app/hooks/useSystemConfig";
-import { Building2, Edit3, Globe, Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import { parseAppUrl } from "@/lib/messages/app-url";
+import { Building2, Edit3, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 interface BrandingCardProps {
@@ -105,10 +104,6 @@ export function BrandingCard({ formData, onFieldChange }: BrandingCardProps) {
     finally { setIsUploadingImage(false); }
   };
 
-  const typedAppUrl = formData.branding_app_url.trim();
-  const appUrlPreview = typedAppUrl ? parseAppUrl(typedAppUrl) : null;
-  const appUrlInvalid = typedAppUrl !== '' && appUrlPreview === null;
-
   return (
     <div>
       <SectionLabel>Títulos</SectionLabel>
@@ -134,35 +129,6 @@ export function BrandingCard({ formData, onFieldChange }: BrandingCardProps) {
             className="pl-9 h-9 text-sm rounded-lg border-slate-200"
           />
           <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-        </div>
-      </SettingsRow>
-
-      <SectionLabel>Links das mensagens</SectionLabel>
-
-      <SettingsRow
-        label="Endereço do aplicativo"
-        description="Link enviado ao cliente no WhatsApp e no e-mail (senha de acesso, cardápio, compras e saldo)."
-      >
-        <div className="max-w-sm">
-          <div className="relative">
-            <Input
-              value={formData.branding_app_url}
-              onChange={(e) => onFieldChange('branding_app_url', e.target.value)}
-              placeholder="https://meusite.com.br"
-              inputMode="url"
-              autoComplete="off"
-              aria-invalid={appUrlInvalid}
-              className={`pl-9 h-9 text-sm rounded-lg ${appUrlInvalid ? 'border-red-300' : 'border-slate-200'}`}
-            />
-            <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          </div>
-          {appUrlInvalid ? (
-            <p className="text-xs text-red-600 mt-1.5" role="alert">Use um endereço completo, como https://meusite.com.br.</p>
-          ) : (
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              {appUrlPreview ? <>O cliente vai receber: <span className="font-medium text-slate-700">{appUrlPreview}</span></> : 'Em branco, usa o endereço padrão do sistema.'}
-            </p>
-          )}
         </div>
       </SettingsRow>
 

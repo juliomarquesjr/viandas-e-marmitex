@@ -95,7 +95,6 @@ export function useSystemConfig() {
       branding_system_title: getConfigValue('branding_system_title', 'Sabores de Casa'),
       branding_pdv_title: getConfigValue('branding_pdv_title', 'PDV - Sabores de Casa'),
       branding_logo_url: getConfigValue('branding_logo_url'),
-      branding_app_url: getConfigValue('branding_app_url'),
       email_smtp_host: getConfigValue('email_smtp_host'),
       email_smtp_port: getConfigValue('email_smtp_port', '587'),
       email_smtp_secure: getConfigValue('email_smtp_secure', 'false'),

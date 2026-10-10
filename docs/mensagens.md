@@ -4,8 +4,6 @@ O administrador edita os textos que o sistema envia (WhatsApp e e-mail) em **Wha
 
 ### Tipos de mensagem
 Ficam em `lib/messages/registry.ts`: nome, variáveis, texto padrão por canal. Hoje:
-**Endereço do link (`{link_app}`):** configurável em **Configurações → Marca → Links das mensagens** (`branding_app_url`). Aceita `meusite.com.br` ou `https://meusite.com.br/app`; o sistema grava com `https://` e sem barra no fim, e recusa o que não for endereço (validação na tela e em `PUT /api/config`). Em branco, vale o padrão do sistema (`APP_PUBLIC_URL`, depois `NEXTAUTH_URL`). Vale para todas as mensagens abaixo. O link de redefinir senha por e-mail continua usando o endereço do sistema (`NEXTAUTH_URL`), porque precisa apontar para onde o sistema realmente está. Código: `lib/messages/app-url.ts`, `appUrl()` em `lib/messages/service.ts`.
-
 - `customer_password` — **Senha de acesso** (WhatsApp e e-mail). Variáveis: `{nome}` (primeiro nome), `{usuario}` (e-mail ou telefone), `{senha}`, `{loja}`, `{link_app}`.
 - `customer_password_reset` — **Link para redefinir senha** (só e-mail, não pode ser desligada). Usada por "Esqueci minha senha". Variáveis: `{nome}`, `{link}`, `{validade}`, `{loja}`.
 
