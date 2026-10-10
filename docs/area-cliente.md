@@ -17,7 +17,7 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 
 ### Login
 
-- Entra por e-mail ou telefone e senha, em `/login`; a recuperação é por e-mail (`/forgot-password` e `/reset-password`, com o texto editável em Configurações → Mensagens). Quando o administrador gera a senha, o cliente é levado a trocá-la no primeiro acesso (`mustChangePassword`); em Perfil → Dados ele marca se o telefone é WhatsApp (`phoneIsWhatsapp`).
+- Entra por e-mail ou telefone e senha, em `/login`; a recuperação é por e-mail (`/forgot-password` e `/reset-password`, com o texto editável em WhatsApp → Mensagens). Quando o administrador gera a senha, o cliente é levado a trocá-la no primeiro acesso (`mustChangePassword`); em Perfil → Dados ele marca se o telefone é WhatsApp (`phoneIsWhatsapp`).
 - Sessão própria (NextAuth em `/api/auth/customer`, cookie separado do de funcionário). Ver [rotas.md](./rotas.md).
 
 ### APIs do cliente (`/api/customer/**`)

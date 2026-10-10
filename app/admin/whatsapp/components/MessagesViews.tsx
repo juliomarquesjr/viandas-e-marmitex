@@ -585,13 +585,11 @@ function HistoryPanel({ types }: { types: MessageType[] }) {
   );
 }
 
-/* ---------------------------------------------------------------------- Aba */
+/* -------------------------------------------------------------------- Telas */
 
-export function MessagesTab({ active }: { active: boolean }) {
+function useOverview() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"templates" | "history">("templates");
-
   const load = useCallback(async () => {
     const result = await call<Overview>("/api/admin/messages");
     if (result.ok) {
@@ -601,40 +599,33 @@ export function MessagesTab({ active }: { active: boolean }) {
       setError(result.message);
     }
   }, []);
-
   useEffect(() => {
-    if (active) void load();
-  }, [active, load]);
+    void load();
+  }, [load]);
+  return { overview, error, load };
+}
 
-  if (error && !overview) {
+function LoadState({ error, load }: { error: string | null; load: () => void }) {
+  if (error) {
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900" role="alert">
         {error} <button type="button" className="font-semibold underline" onClick={load}>Tentar de novo</button>
       </div>
     );
   }
-  if (!overview) {
-    return <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando mensagens…</div>;
-  }
+  return <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando mensagens…</div>;
+}
 
-  return (
-    <div className="space-y-4 p-4 sm:p-5">
-      <div className="flex gap-2" role="tablist" aria-label="Mensagens">
-        {([["templates", "Modelos", Mail], ["history", "Histórico", History]] as const).map(([id, label, Icon]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={view === id}
-            onClick={() => setView(id)}
-            className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${view === id ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-      {view === "templates" ? <TemplatesPanel overview={overview} reload={load} /> : <HistoryPanel types={overview.types} />}
-    </div>
-  );
+/** WhatsApp → Mensagens: os textos prontos (WhatsApp e e-mail), com prévia e assinatura. */
+export function MessageTemplatesView() {
+  const { overview, error, load } = useOverview();
+  if (!overview) return <LoadState error={error} load={load} />;
+  return <TemplatesPanel overview={overview} reload={load} />;
+}
+
+/** WhatsApp → Histórico: o que já foi enviado, por tipo, canal e situação. */
+export function MessageHistoryView() {
+  const { overview, error, load } = useOverview();
+  if (!overview) return <LoadState error={error} load={load} />;
+  return <HistoryPanel types={overview.types} />;
 }

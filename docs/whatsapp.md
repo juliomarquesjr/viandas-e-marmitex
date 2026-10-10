@@ -1,6 +1,6 @@
 ## WhatsApp do estabelecimento (Evolution API)
 
-O administrador conecta **um número de WhatsApp do estabelecimento** em **Configurações → WhatsApp**. O sistema só garante a conexão e oferece o envio de mensagens (`sendWhatsAppText`); as mensagens enviadas (por ora, a senha de acesso do cliente) são editadas em Configurações → Mensagens (ver `docs/mensagens.md`).
+O administrador conecta **um número de WhatsApp do estabelecimento** em **Configurações → WhatsApp**. O sistema só garante a conexão e oferece o envio de mensagens (`sendWhatsAppText`); as mensagens enviadas (por ora, a senha de acesso do cliente) são editadas em WhatsApp → Mensagens (ver `docs/mensagens.md`).
 
 ### Como conecta
 1. Em Configurações → WhatsApp: "Gerar QR code" (ou "Usar código no celular", informando o telefone).

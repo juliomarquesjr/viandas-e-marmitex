@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { DeleteConfirmDialog } from "../../components/DeleteConfirmDialog";
@@ -121,6 +122,16 @@ function CustomerActionsMenu({
           <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
           Editar
         </button>
+        {customer.phoneIsWhatsapp && (
+          <Link
+            href={`/admin/whatsapp/conversas?cliente=${customer.id}`}
+            className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-green-700 font-medium hover:bg-green-50 rounded-sm"
+            onClick={() => setOpen(false)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2 shrink-0 text-green-600" />
+            Ver conversa
+          </Link>
+        )}
         {customer.phoneIsWhatsapp && (
           <button
             type="button"

@@ -13,7 +13,11 @@ import {
   ChevronRight,
   Database,
   Gauge,
+  History,
   MapPin,
+  MessageCircle,
+  MessagesSquare,
+  Zap,
   Package,
   Receipt,
   Settings,
@@ -69,6 +73,22 @@ const navigationConfig: NavSection[] = [
     items: [
       { href: "/admin/expenses", label: "Despesas", icon: Receipt },
       { href: "/admin/profits", label: "Lucros", icon: BarChart3 },
+    ],
+  },
+  {
+    // atendimento (conversa com o cliente, feito por uma pessoa)
+    title: "WhatsApp",
+    items: [
+      { href: "/admin/whatsapp/conversas", label: "Conversas", icon: MessageCircle },
+      { href: "/admin/whatsapp/respostas", label: "Respostas rápidas", icon: Zap },
+    ],
+  },
+  {
+    // o que o sistema envia sozinho (senha, cardápio...)
+    title: "Envios automáticos",
+    items: [
+      { href: "/admin/whatsapp/mensagens", label: "Mensagens automáticas", icon: MessagesSquare },
+      { href: "/admin/whatsapp/historico", label: "Histórico de envios", icon: History },
     ],
   },
   {
@@ -133,6 +153,31 @@ interface NavItemProps {
   collapsed: boolean;
 }
 
+/** Quantas conversas têm mensagem nova: busca de tempos em tempos, só para o item Conversas. */
+function useChatUnread(enabled: boolean): number {
+  const [count, setCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/admin/whatsapp/unread", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : { count: 0 }))
+        .then((data: { count?: number }) => alive && setCount(data.count ?? 0))
+        .catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    window.addEventListener("whatsapp-unread-changed", load);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("whatsapp-unread-changed", load);
+    };
+  }, [enabled]);
+  return count;
+}
+
 function NavItemComponent({ item, collapsed }: NavItemProps) {
   const pathname = usePathname();
   const isActive = pathname === item.href;
@@ -140,9 +185,16 @@ function NavItemComponent({ item, collapsed }: NavItemProps) {
 
   // Pré-Pedidos mostra quantos pedidos do cliente esperam resposta (a mesma conta do sino)
   const { awaitingOrdersCount } = useNotificationsContext();
-  const badge = item.href === "/admin/pre-orders" ? awaitingOrdersCount : (item.badge ?? 0);
+  // Conversas mostra quantos clientes têm mensagem nova no WhatsApp
+  const chatUnread = useChatUnread(item.href === "/admin/whatsapp/conversas");
+  const badge = item.href === "/admin/pre-orders" ? awaitingOrdersCount : item.href === "/admin/whatsapp/conversas" ? chatUnread : (item.badge ?? 0);
   const badgeText = badge > 99 ? "99+" : String(badge);
-  const badgeLabel = item.href === "/admin/pre-orders" ? `${badge === 1 ? "1 pedido aguardando" : `${badge} pedidos aguardando`}` : `${badge} novos`;
+  const badgeLabel =
+    item.href === "/admin/pre-orders"
+      ? `${badge === 1 ? "1 pedido aguardando" : `${badge} pedidos aguardando`}`
+      : item.href === "/admin/whatsapp/conversas"
+        ? `${badge === 1 ? "1 conversa com mensagem nova" : `${badge} conversas com mensagem nova`}`
+        : `${badge} novos`;
 
   // Tooltip com o nome do item, só existe no modo recolhido. Fica em portal com
   // position: fixed porque a <nav> tem overflow-y-auto — qualquer coisa
@@ -297,8 +349,8 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
     if (userRole === "admin") {
       return navigationConfig;
     }
-    // Usuários não-admin não veem seção de Administração
-    return navigationConfig.filter((section) => section.title !== "Administração");
+    // Usuários não-admin não veem Administração nem WhatsApp (conversas de clientes)
+    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp" && section.title !== "Envios automáticos");
   }, [userRole]);
 
   return (
@@ -359,7 +411,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       </Button>
 
       {/* Navegação */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+      <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {filteredNavigation.map((section) => (
           <NavSectionComponent key={section.title} section={section} collapsed={collapsed} />
         ))}
@@ -398,7 +450,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
     if (userRole === "admin") {
       return navigationConfig;
     }
-    return navigationConfig.filter((section) => section.title !== "Administração");
+    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp" && section.title !== "Envios automáticos");
   }, [userRole]);
 
   if (!open) return null;
@@ -431,7 +483,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
             {filteredNavigation.map((section) => (
               <NavSectionComponent key={section.title} section={section} collapsed={false} />
             ))}

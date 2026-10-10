@@ -245,6 +245,36 @@ body {
   }
 }
 
+/*
+ * No admin toda área rolável usa a mesma barra discreta (a do .scroll-slim), em vez da barra do sistema operacional.
+ * Vale também para menus, tabelas, caixas de texto e janelas dentro do admin.
+ */
+[data-admin-theme-scope] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+[data-admin-theme-scope] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-admin-theme-scope] ::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--border-dark) 85%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+[data-admin-theme-scope] ::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+}
+[data-admin-theme-scope] ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+@supports not selector(::-webkit-scrollbar) {
+  [data-admin-theme-scope] * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--border-dark) 80%, transparent) transparent;
+  }
+}
+
 [data-admin-theme-scope] {
   --primary: var(--admin-accent-primary, #2563eb);
   --primary-hover: var(--admin-accent-hover, #1d4ed8);
