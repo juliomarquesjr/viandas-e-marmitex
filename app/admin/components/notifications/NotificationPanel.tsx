@@ -30,6 +30,8 @@ interface NotificationPanelProps {
   error: boolean;
   onSelect: (notification: NotificationDTO) => void;
   onMarkAllRead: () => void;
+  onMarkRead: (notification: NotificationDTO) => void;
+  onResolve: (notification: NotificationDTO) => void;
   onShowHistory: () => void;
   onRetry: () => void;
   className?: string;
@@ -67,6 +69,8 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
       error,
       onSelect,
       onMarkAllRead,
+      onMarkRead,
+      onResolve,
       onShowHistory,
       onRetry,
       className,
@@ -76,7 +80,8 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
     const now = useNow();
     const orders = awaitingOrders.slice(0, PANEL_ORDERS);
     const hiddenOrders = Math.max(0, awaitingOrdersCount - orders.length);
-    const visible = notifications.slice(0, PANEL_ITEMS);
+    // O que já foi lido e conferido sai do sino e fica só no histórico
+    const visible = notifications.filter((n) => !n.readAt || !n.resolvedAt).slice(0, PANEL_ITEMS);
     const hasUnread = notifications.some((n) => !n.readAt);
 
     // Setas ↑/↓ percorrem os itens (Tab também funciona, são botões)
@@ -168,13 +173,13 @@ export const NotificationPanel = React.forwardRef<HTMLDivElement, NotificationPa
             </div>
           ) : visible.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-[color:var(--muted-foreground)]">
-              Nenhuma notificação por enquanto.
+              Nada pendente. O que já foi conferido está no histórico.
             </p>
           ) : (
             <ul onKeyDown={handleKeyDown} className="divide-y divide-[color:var(--border)]">
               {visible.map((notification) => (
                 <li key={notification.id}>
-                  <NotificationItem notification={notification} onSelect={onSelect} />
+                  <NotificationItem notification={notification} onSelect={onSelect} onMarkRead={onMarkRead} onResolve={onResolve} />
                 </li>
               ))}
             </ul>

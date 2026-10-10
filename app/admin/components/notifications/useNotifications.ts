@@ -36,6 +36,8 @@ export interface UseNotificationsResult {
   error: boolean;
   refresh: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
+  /** "Conferido": deixa de pedir ação e sai do sino (continua no histórico). */
+  markResolved: (id: string) => Promise<boolean>;
   markAllRead: () => Promise<void>;
 }
 
@@ -216,6 +218,26 @@ export function useNotificationsEngine({ enabled = true }: UseNotificationsOptio
     [notifications, refresh]
   );
 
+  const markResolved = React.useCallback(
+    async (id: string): Promise<boolean> => {
+      const target = notifications.find((n) => n.id === id);
+      const now = new Date().toISOString();
+      // Some do sino na hora; se o servidor recusar, o refresh traz de volta
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? now, resolvedAt: n.resolvedAt ?? now } : n)));
+      if (target && (!target.readAt || !target.resolvedAt)) setBadgeCount((prev) => Math.max(0, prev - 1));
+      let ok = false;
+      try {
+        const response = await fetch(`/api/notifications/${encodeURIComponent(id)}/resolve`, { method: "POST" });
+        ok = response.ok;
+      } catch {
+        // O próximo refresh reconcilia
+      }
+      await refresh();
+      return ok;
+    },
+    [notifications, refresh]
+  );
+
   const markAllRead = React.useCallback(async () => {
     const readAt = new Date().toISOString();
     setNotifications((prev) => prev.map((n) => (n.readAt ? n : { ...n, readAt })));
@@ -250,6 +272,7 @@ export function useNotificationsEngine({ enabled = true }: UseNotificationsOptio
     error,
     refresh,
     markRead,
+    markResolved,
     markAllRead,
   };
 }

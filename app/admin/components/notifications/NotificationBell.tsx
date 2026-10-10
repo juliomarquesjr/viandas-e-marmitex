@@ -4,6 +4,7 @@ import * as React from "react";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/app/components/Toast";
 import type { NotificationDTO } from "@/lib/notification-types";
 import { NotificationHistoryDialog } from "./NotificationHistoryDialog";
 import { getPaymentIntentId } from "./NotificationItem";
@@ -44,6 +45,7 @@ export function NotificationBell() {
     error,
     refresh,
     markRead,
+    markResolved,
     markAllRead,
     soundEnabled,
     setSoundEnabled,
@@ -120,6 +122,14 @@ export function NotificationBell() {
       reviewOriginRef.current = origin;
       setReview({ id: intentId, origin });
     }
+  };
+
+  const { showToast } = useToast();
+
+  const resolveNotification = async (notification: NotificationDTO) => {
+    const ok = await markResolved(notification.id);
+    if (!ok) showToast("Não foi possível marcar como conferido.", "error");
+    else setHistoryVersion((version) => version + 1);
   };
 
   const handleResolved = React.useCallback(() => {
@@ -199,6 +209,8 @@ export function NotificationBell() {
             error={error}
             onSelect={(notification) => handleSelect(notification, "panel")}
             onMarkAllRead={() => void markAllRead()}
+            onMarkRead={(notification) => void markRead(notification.id)}
+            onResolve={(notification) => void resolveNotification(notification)}
             onShowHistory={() => {
               setPanelOpen(false);
               setHistoryOpen(true);
