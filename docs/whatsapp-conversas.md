@@ -11,7 +11,8 @@ A conexão do número continua em Configurações → WhatsApp.
 - As mensagens ficam na tabela `WhatsAppMessage`, ligadas ao cliente pelo telefone (DDD + últimos 8 dígitos, ignora o nono dígito; só clientes **ativos** com WhatsApp marcado). Número desconhecido, grupos, status e reações **não** entram.
 - O que o sistema envia (senha, cardápio, redefinição) também entra, com a marca "Enviado pelo sistema". Texto com dado sensível (senha, link) **não é guardado**: fica só o tipo.
 - Mensagens enviadas pelo celular do estabelecimento aparecem (mesmo número). O administrador responde pela tela (`POST /api/admin/whatsapp/conversations/[customerId]/messages`).
-- Entregue e lida (✓✓) vêm do `MESSAGES_UPDATE`. Fotos, áudios e outros tipos aparecem só identificados ("Foto", "Áudio").
+- Entregue e lida (✓✓) vêm do `MESSAGES_UPDATE`. Outros tipos (localização, etc.) aparecem só identificados.
+- **Fotos, figurinhas, áudios, vídeos e documentos** aparecem na própria conversa (foto com ampliação, player de áudio e vídeo, documento para baixar). O arquivo **não é guardado no sistema**: é buscado na Evolution só quando a mensagem aparece na tela, por `GET /api/admin/whatsapp/media/[id]` (só administrador), que chama `POST /chat/getBase64FromMediaMessage/{instância}` com o id da mensagem. Só tipos conhecidos são exibidos (SVG, HTML e afins viram download); limite de 16 MB (acima, "veja no celular"); aceita `Range` para avançar áudio e vídeo (cache em memória de poucos minutos só para isso). Se a Evolution ou o WhatsApp já descartou o arquivo, a tela mostra "Arquivo indisponível" com "Tentar de novo". Código: `lib/whatsapp-media.ts` (puro, testado), `lib/whatsapp-media-service.ts`, `app/admin/whatsapp/components/MessageMedia.tsx`.
 - Prazo: mensagens com mais de **180 dias** são apagadas aos poucos (`pruneOld`). Apagar o cliente apaga a conversa.
 
 ### Telas
