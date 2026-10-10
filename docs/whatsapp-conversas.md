@@ -15,10 +15,10 @@ A conexão do número continua em Configurações → WhatsApp.
 - Prazo: mensagens com mais de **180 dias** são apagadas aos poucos (`pruneOld`). Apagar o cliente apaga a conversa.
 
 ### Telas
-- `/admin/whatsapp/conversas` (`?cliente=<id>` abre direto): lista (busca, Não lidas, Aguardando resposta), conversa (envio com Enter, emojis, respostas rápidas, "Enviar cardápio" e "Enviar senha") e dados do cliente. O item do menu mostra quantas conversas têm mensagem nova.
+- `/admin/whatsapp/conversas` (`?cliente=<id>` abre direto): lista (busca, Não lidas, Aguardando resposta), conversa (envio com Enter, emojis, respostas rápidas, "Enviar cardápio" e "Enviar senha") e dados do cliente. O campo de mensagem tem 4 linhas. O número de conversas com mensagem nova aparece em **qualquer tela do admin**: no item do menu, no botão do menu no celular e no título da aba (`NotificationsProvider`, consulta a cada 20 s e ao voltar para a aba).
 - "Ver conversa" na ficha do cliente e no menu suspenso da tabela (cartões também), só para quem tem WhatsApp marcado.
-- Painel do cliente (à direita, a partir de 1280 px): **saldo da ficha** (devendo em vermelho com "−", crédito em verde com "+"; mesma conta de `getCustomerBalance`) e **últimas compras e pagamentos agrupados por data** (`GET .../conversations/[customerId]/ficha`). Em telas menores o saldo aparece no topo da conversa.
-- Topo da conversa: menu **Ações** (Abrir ficha completa, Enviar cardápio, Enviar senha de acesso).
+- Painel do cliente (à direita, a partir de 1280 px): **saldo da ficha** (devendo em vermelho com "−", crédito em verde com "+"; mesma conta de `getCustomerBalance`) e **últimas compras e pagamentos agrupados por data** (`GET .../conversations/[customerId]/ficha`): mostra as 2 últimas e o botão **Exibir mais 5** acrescenta cinco por vez. Em telas menores o saldo aparece no topo da conversa.
+- Topo da conversa: menu **Ações** (Abrir ficha completa, Enviar cardápio, **Enviar compras**, **Enviar saldo**, Enviar senha de acesso; ver `docs/mensagens.md`).
 - `/admin/whatsapp/respostas`, `/admin/whatsapp/mensagens` e `/admin/whatsapp/historico`: ver abaixo e `docs/mensagens.md`.
 
 ### Respostas rápidas

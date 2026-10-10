@@ -9,6 +9,9 @@ Ficam em `lib/messages/registry.ts`: nome, variáveis, texto padrão por canal. 
 
 - `daily_menu` — **Cardápio do dia** (só WhatsApp). Variáveis: `{nome}`, `{loja}`, `{cardapio}` (preenchida pelo sistema com o cardápio publicado de hoje, por seção, com ⭐ no destaque e "(vegetariano)"; cardápio grande é cortado com "…e mais N itens"), `{link_app}` (endereço da área do cliente, com https://).
 
+- `customer_orders` — **Resumo das compras** (só WhatsApp, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{compras}` (preenchida pelo sistema com as compras dos dias escolhidos: itens, total do dia e "(na ficha)" quando ainda não foi paga), `{link_app}`.
+- `customer_balance` — **Saldo da ficha** (só WhatsApp, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{saldo}` (valor sem sinal), `{situacao}` (a frase pronta: valor em aberto, crédito ou ficha em dia), `{link_app}`.
+
 Pedido aceito/recusado, pronto, pagamento confirmado e lembrete de saldo aparecem como "em breve".
 
 ### Editor de texto
@@ -43,3 +46,11 @@ Migration `20261010140000_add_messages_and_whatsapp_flag`: só acrescenta (2 col
 
 ### Código
 `lib/messages/{registry,render,password,service,customer-password}.ts` (regras puras testadas em `tests/messages.test.ts`), `app/admin/whatsapp/components/MessagesViews.tsx`, `app/admin/customers/components/SendPasswordDialog.tsx`.
+
+## Compras e saldo da ficha por WhatsApp
+
+No menu **Ações** da conversa (Conversas) há **Enviar compras** e **Enviar saldo**, só para clientes com WhatsApp marcado e só para administradores (é dado financeiro).
+
+- **Enviar compras:** a janela lista os dias em que o cliente comprou (últimos 90 dias, pagamentos de ficha e vendas canceladas ficam de fora). Vem marcado o dia mais recente; dá para marcar **até 5 dias** (`ORDERS_MAX_DAYS`). A prévia acompanha a escolha. Mensagem muito longa vira uma linha por dia (limite de 3000 caracteres).
+- **Enviar saldo:** mostra o saldo (`getCustomerBalance`) e a prévia; a frase muda se o cliente deve, tem crédito ou está em dia.
+- Os dois entram no Histórico e na conversa do cliente (com o texto). Códigos: `lib/messages/ficha-text.ts` (puro, testado em `tests/ficha-message.test.ts`), `lib/messages/ficha-send.ts`; `GET`/`POST /api/admin/customers/[id]/send-orders` e `.../send-balance`; janela `app/admin/customers/components/SendFichaDialog.tsx`.

@@ -53,6 +53,11 @@ const SAMPLE_MENU = `📅 *Quinta-feira, 09/10*
 • Couve refogada
 • Farofa`;
 
+const SAMPLE_ORDERS = `🧾 *Sexta-feira, 09/10*
+• 1× Feijoada completa
+• 2× Suco de laranja
+💰 Total: *R$ 37,00*`;
+
 export const MESSAGE_TYPES: MessageTypeDef[] = [
   {
     key: 'customer_password',
@@ -112,6 +117,43 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
     defaults: {
       whatsapp: {
         body: 'Olá, {nome}! 😋\n\nChegou o cardápio de hoje do *{loja}*:\n\n{cardapio}\n\n🍽️ Veja mais detalhes e acompanhe tudo pelo aplicativo:\n{link_app}',
+      },
+    },
+  },
+  {
+    key: 'customer_orders',
+    name: 'Resumo das compras',
+    description: 'Enviado pelo WhatsApp, pelo administrador, a um cliente: as compras de um ou mais dias (até 5), com os itens e o total de cada dia.',
+    group: 'Ficha do cliente',
+    variables: [
+      NAME,
+      STORE,
+      { key: 'compras', label: 'Compras dos dias escolhidos, com itens e total', sample: SAMPLE_ORDERS, auto: true },
+      { key: 'link_app', label: 'Endereço da área do cliente', sample: 'https://saboresdecasa.com.br' },
+    ],
+    required: ['compras'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}! 😊\n\nAqui está o resumo das suas compras no *{loja}*:\n\n{compras}\n\n📲 Veja o histórico completo no aplicativo:\n{link_app}\n\nQualquer dúvida, é só responder esta mensagem. 🙏',
+      },
+    },
+  },
+  {
+    key: 'customer_balance',
+    name: 'Saldo da ficha',
+    description: 'Enviado pelo WhatsApp, pelo administrador, a um cliente: o saldo da ficha, seja valor a pagar, crédito ou ficha em dia.',
+    group: 'Ficha do cliente',
+    variables: [
+      NAME,
+      STORE,
+      { key: 'saldo', label: 'Saldo da ficha, sem sinal', sample: 'R$ 127,70', auto: true },
+      { key: 'situacao', label: 'A frase do saldo (a pagar, crédito ou em dia)', sample: '💳 Sua ficha está com *R$ 127,70* em aberto.', auto: true },
+      { key: 'link_app', label: 'Endereço da área do cliente', sample: 'https://saboresdecasa.com.br' },
+    ],
+    required: ['situacao'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}! 😊\n\nPassando para avisar sobre a sua ficha no *{loja}*:\n\n{situacao}\n\n📲 Veja o extrato completo no aplicativo:\n{link_app}\n\nQualquer dúvida, é só responder esta mensagem. 🙏',
       },
     },
   },
