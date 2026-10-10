@@ -158,3 +158,30 @@ export async function sendText(name: string, number: string, text: string): Prom
   const res = await request<{ key?: { id?: string } } | null>('POST', `/message/sendText/${encodeURIComponent(name)}`, { number, text });
   return res?.key?.id ?? null;
 }
+
+export interface EvolutionMedia {
+  /** Arquivo em base64 (sem o prefixo "data:"). */
+  base64: string;
+  mimetype: string | null;
+  fileName: string | null;
+}
+
+/**
+ * O arquivo (foto, áudio, vídeo, documento) de uma mensagem que a Evolution já recebeu, buscado na hora.
+ * Nada é guardado do nosso lado. A Evolution acha a mensagem pelo id dela; se o WhatsApp já descartou o
+ * arquivo, ela responde com erro.
+ */
+export async function fetchMedia(name: string, messageId: string): Promise<EvolutionMedia> {
+  const res = await request<{ base64?: unknown; mimetype?: unknown; fileName?: unknown } | null>(
+    'POST',
+    `/chat/getBase64FromMediaMessage/${encodeURIComponent(name)}`,
+    { message: { key: { id: messageId } }, convertToMp4: false }
+  );
+  const base64 = typeof res?.base64 === 'string' ? res.base64 : '';
+  if (!base64) throw new EvolutionError('not_found', 'A Evolution API não devolveu o arquivo.', 404);
+  return {
+    base64,
+    mimetype: typeof res?.mimetype === 'string' ? res.mimetype : null,
+    fileName: typeof res?.fileName === 'string' ? res.fileName : null,
+  };
+}

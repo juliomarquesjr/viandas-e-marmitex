@@ -4,10 +4,12 @@ import { FormattedText } from "@/app/admin/components/messages/WhatsAppBubble";
 import { SendMenuDialog } from "@/app/admin/customers/components/SendMenuDialog";
 import { SendFichaDialog, type FichaKind } from "@/app/admin/customers/components/SendFichaDialog";
 import { SendPasswordDialog } from "@/app/admin/customers/components/SendPasswordDialog";
+import { MessageMedia } from "./MessageMedia";
 import { Button } from "@/app/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { EMOJI_GROUPS } from "@/lib/messages/format";
 import { messageLabel, SYSTEM_LABEL } from "@/lib/whatsapp-chat";
+import { isMediaMessageType } from "@/lib/whatsapp-media";
 import { applyQuickReply, filterQuickReplies, slashQuery, type QuickReply } from "@/lib/whatsapp-quick-replies";
 import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, MoreVertical, Paperclip, Receipt, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
@@ -104,7 +106,7 @@ function MediaIcon({ type }: { type: string }) {
   return null;
 }
 
-function Bubble({ m }: { m: Message }) {
+function Bubble({ m, onMediaLoad }: { m: Message; onMediaLoad?: () => void }) {
   const system = m.systemType ? SYSTEM_LABEL[m.systemType] ?? "Mensagem do sistema" : null;
   const text = m.type === "text" ? m.body : null;
   return (
@@ -114,6 +116,11 @@ function Bubble({ m }: { m: Message }) {
       <div className="whitespace-pre-wrap break-words">
         {text ? (
           <FormattedText text={text} />
+        ) : isMediaMessageType(m.type) ? (
+          <div className="flex flex-col gap-1.5">
+            <MessageMedia id={m.id} type={m.type} caption={m.body} onLoaded={onMediaLoad} />
+            {m.body && m.type !== "document" && m.type !== "sticker" && <FormattedText text={m.body} />}
+          </div>
         ) : m.type !== "text" ? (
           <span className={m.type === "other" ? "italic text-slate-500" : ""}><MediaIcon type={m.type} />{messageLabel(m.type, m.body)}</span>
         ) : (
@@ -282,6 +289,12 @@ export function ConversationsView() {
     const el = scroller.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
+
+  // foto e vídeo só ganham altura quando carregam: se a pessoa está no fim da conversa, continua no fim
+  const keepBottom = useCallback(() => {
+    const el = scroller.current;
+    if (el && stick.current) el.scrollTop = el.scrollHeight;
+  }, []);
 
   const loadOlder = async () => {
     if (!selected || messages.length === 0) return;
@@ -490,7 +503,7 @@ export function ConversationsView() {
               {groups.map((g) => (
                 <div key={g.key} className="flex flex-col gap-1.5">
                   <span className="my-1 self-center rounded-lg bg-white px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500 shadow-sm">{g.label}</span>
-                  {g.items.map((m) => <Bubble key={m.id} m={m} />)}
+                  {g.items.map((m) => <Bubble key={m.id} m={m} onMediaLoad={keepBottom} />)}
                 </div>
               ))}
             </div>
