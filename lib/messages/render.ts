@@ -1,5 +1,6 @@
 // Troca de variáveis, validação dos textos e máscaras. Puro: sem banco e sem rede.
 
+import { formattingToHtml, parseFormatting } from './format';
 import { MESSAGE_LIMITS, type MessageChannel, type MessageTypeDef } from './registry';
 
 const VARIABLE_RE = /\{([a-z_]+)\}/g;
@@ -69,7 +70,9 @@ export function emailBodyToHtml(text: string, storeName: string): string {
   const paragraphs = text
     .split(/\n{2,}/)
     .map((p) => {
-      const html = escapeHtml(p).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2563eb;word-break:break-all;">$1</a>');
+      const html = formattingToHtml(parseFormatting(p))
+        .replace(/\n/g, '<br>')
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2563eb;word-break:break-all;">$1</a>');
       return `<p style="margin:0 0 16px;">${html}</p>`;
     })
     .join('');

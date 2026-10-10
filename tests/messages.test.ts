@@ -40,15 +40,15 @@ describe('máscaras e e-mail', () => {
 });
 
 describe('senha gerada', () => {
-  it('tem o formato esperado, sem caracteres ambíguos, e muda a cada vez', () => {
+  it('é fácil: 8 letras minúsculas e números, sem símbolo nem caractere ambíguo, e muda a cada vez', () => {
     const seen = new Set<string>();
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 300; i++) {
       const p = generatePassword();
-      assert.match(p, /^[a-zA-Z2-9]{4}-[a-zA-Z2-9]{6}$/);
-      assert.ok(!/[0OIl1]/.test(p));
-      assert.ok(/[0-9]/.test(p) && /[a-zA-Z]/.test(p));
+      assert.match(p, /^[a-z2-9]{8}$/);
+      assert.ok(!/[0o1li]/.test(p));
+      assert.ok(/[0-9]/.test(p) && /[a-z]/.test(p));
       seen.add(p);
     }
-    assert.ok(seen.size > 195);
+    assert.ok(seen.size > 295);
   });
 });

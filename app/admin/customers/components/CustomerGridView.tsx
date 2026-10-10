@@ -16,6 +16,7 @@ import {
   Trash2,
   Barcode,
   KeyRound,
+  MessageCircle,
   Phone,
   Mail,
   ChevronsLeft,
@@ -36,12 +37,14 @@ function CardActionsMenu({
   onDelete,
   onDownloadBarcode,
   onSendPassword,
+  onSendMenu,
 }: {
   customer: Customer;
   onEdit: () => void;
   onDelete: () => void;
   onDownloadBarcode: () => void;
   onSendPassword: () => void;
+  onSendMenu: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -93,6 +96,20 @@ function CardActionsMenu({
           <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
           Editar
         </button>
+        {customer.phoneIsWhatsapp && (
+          <button
+            type="button"
+            className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-green-700 font-medium hover:bg-green-50 rounded-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onSendMenu();
+            }}
+          >
+            <MessageCircle className="h-4 w-4 mr-2 shrink-0 text-green-600" />
+            Enviar cardápio
+          </button>
+        )}
         <button
           type="button"
           className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
@@ -132,6 +149,7 @@ function CustomerCard({
   onDelete,
   onDownloadBarcode,
   onSendPassword,
+  onSendMenu,
   onCardClick,
 }: {
   customer: Customer;
@@ -139,6 +157,7 @@ function CustomerCard({
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
   onSendPassword: (customer: Customer) => void;
+  onSendMenu: (customer: Customer) => void;
   onCardClick?: (customer: Customer) => void;
 }) {
   return (
@@ -155,6 +174,7 @@ function CustomerCard({
           onDelete={() => onDelete(customer.id)}
           onDownloadBarcode={() => onDownloadBarcode(customer)}
           onSendPassword={() => onSendPassword(customer)}
+          onSendMenu={() => onSendMenu(customer)}
         />
       </div>
 
@@ -212,6 +232,7 @@ export interface CustomerGridViewProps {
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
   onSendPassword: (customer: Customer) => void;
+  onSendMenu: (customer: Customer) => void;
   onCardClick?: (customer: Customer) => void;
   pagination: {
     page: number;
@@ -229,6 +250,7 @@ export function CustomerGridView({
   onDelete,
   onDownloadBarcode,
   onSendPassword,
+  onSendMenu,
   onCardClick,
   pagination,
   emptyMessage = "Nenhum cliente encontrado",
@@ -261,6 +283,7 @@ export function CustomerGridView({
             onDelete={onDelete}
             onDownloadBarcode={onDownloadBarcode}
             onSendPassword={onSendPassword}
+            onSendMenu={onSendMenu}
             onCardClick={onCardClick}
           />
         ))}
