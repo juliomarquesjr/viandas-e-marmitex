@@ -17,7 +17,7 @@ Onde o cliente acompanha a própria ficha e os pedidos. Pensada para o celular, 
 
 ### Login
 
-- Entra por e-mail ou telefone e senha, em `/login`; a recuperação é por e-mail (`/forgot-password` e `/reset-password`, com o texto editável em WhatsApp → Mensagens). Quando o administrador gera a senha, o cliente é levado a trocá-la no primeiro acesso (`mustChangePassword`); em Perfil → Dados ele marca se o telefone é WhatsApp (`phoneIsWhatsapp`).
+- Entra por telefone ou e-mail e senha, em `/login`, com um seletor **Telefone | E-mail** (a última escolha fica no aparelho; o telefone tem máscara `(55) 99999-9999`). No servidor (`lib/auth-customer.ts`, `lib/customer-login-id.ts`) o e-mail não diferencia maiúsculas e o telefone é comparado só pelos dígitos (DDD + últimos 8), então vale com máscara, só dígitos (como na mensagem de senha), com +55 ou com zero na frente, e não importa como o telefone foi digitado no cadastro. Se duas pessoas dividem o telefone, a senha desempata. Telefone sem DDD não entra; a recuperação é por e-mail (`/forgot-password` e `/reset-password`, com o texto editável em WhatsApp → Mensagens). Quando o administrador gera a senha, o cliente é levado a trocá-la no primeiro acesso (`mustChangePassword`); em Perfil → Dados ele marca se o telefone é WhatsApp (`phoneIsWhatsapp`).
 - Sessão própria (NextAuth em `/api/auth/customer`, cookie separado do de funcionário). Ver [rotas.md](./rotas.md).
 
 ### APIs do cliente (`/api/customer/**`)

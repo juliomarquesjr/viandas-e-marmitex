@@ -240,6 +240,38 @@
     justify-content: flex-end;
     margin-top: -8px;
   }
+  /* alternar o login entre telefone e e-mail */
+  .c-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--c-r-md);
+    background: var(--c-line);
+  }
+  .c-seg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    border: 0;
+    border-radius: calc(var(--c-r-md) - 4px);
+    background: transparent;
+    color: var(--c-ink2);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .c-seg-btn.is-on {
+    background: var(--c-bg);
+    color: var(--c-ink);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  }
+  .c-seg-btn:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
   .c-lhelp {
     text-align: center;
     color: var(--c-ink2);

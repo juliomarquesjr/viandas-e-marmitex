@@ -1,4 +1,6 @@
 import { CUSTOMER_SESSION_COOKIE, USE_SECURE_COOKIES } from "@/lib/customer-session-cookie";
+import type { Customer } from "@/lib/generated/prisma";
+import { parseLoginIdentifier, storedPhoneMatches } from "@/lib/customer-login-id";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import NextAuth, { AuthOptions } from "next-auth";
@@ -33,83 +35,43 @@ export const customerAuthOptions: AuthOptions = {
       },
       async authorize(credentials) {
         try {
-          if (!credentials?.identifier || !credentials?.password) {
-            console.log('[CustomerAuth] Missing credentials');
-            return null;
+          if (!credentials?.identifier || !credentials?.password) return null;
+
+          const login = parseLoginIdentifier(credentials.identifier);
+          if (!login) return null;
+
+          // Todos os cadastros que combinam com o e-mail ou telefone digitado; o que tiver a senha certa entra.
+          // (Duas pessoas podem dividir o mesmo telefone: só a senha desempata.)
+          let candidates: Customer[];
+          if (login.kind === 'email') {
+            candidates = await prisma.customer.findMany({
+              where: { active: true, email: { equals: login.email, mode: 'insensitive' } },
+            });
+          } else {
+            // O telefone fica guardado como foi digitado no cadastro, com ou sem máscara: compara só os dígitos
+            const rows = await prisma.$queryRaw<{ id: string }[]>`
+              SELECT id FROM "Customer"
+              WHERE active = true AND phone IS NOT NULL
+                AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 8) = ${login.tail}`;
+            const matches = rows.length
+              ? await prisma.customer.findMany({ where: { id: { in: rows.map((r) => r.id) }, active: true } })
+              : [];
+            candidates = matches.filter((c) => storedPhoneMatches(c.phone, login));
           }
 
-          console.log('[CustomerAuth] Attempting login for:', credentials.identifier);
-
-          // Buscar cliente por email ou telefone
-          const phoneWithoutFormatting = credentials.identifier.replace(/\D/g, '');
-          
-          // Primeiro tentar buscar por email exato
-          let customer = await prisma.customer.findFirst({
-            where: {
-              active: true,
-              email: credentials.identifier.trim()
+          for (const customer of candidates) {
+            if (!customer.password) continue;
+            if (await bcrypt.compare(credentials.password, customer.password)) {
+              return {
+                id: customer.id,
+                customerId: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+              } as any;
             }
-          });
-
-          // Se não encontrou por email, tentar por telefone
-          if (!customer && phoneWithoutFormatting) {
-            customer = await prisma.customer.findFirst({
-              where: {
-                active: true,
-                phone: {
-                  contains: phoneWithoutFormatting
-                }
-              }
-            });
           }
-
-          // Se ainda não encontrou, tentar busca mais ampla
-          if (!customer) {
-            customer = await prisma.customer.findFirst({
-              where: {
-                active: true,
-                OR: [
-                  { email: { contains: credentials.identifier.trim() } },
-                  { phone: { contains: credentials.identifier } }
-                ]
-              }
-            });
-          }
-
-          if (!customer) {
-            console.log('[CustomerAuth] Customer not found for identifier:', credentials.identifier);
-            console.log('[CustomerAuth] Searched with phoneWithoutFormatting:', phoneWithoutFormatting);
-            return null;
-          }
-
-          console.log('[CustomerAuth] Customer found:', customer.email, 'Has password:', !!customer.password);
-
-          if (!customer.password) {
-            console.log('[CustomerAuth] Customer has no password');
-            return null;
-          }
-
-          // Validar senha
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password,
-            customer.password
-          );
-
-          console.log('[CustomerAuth] Password validation result:', isPasswordValid);
-
-          if (!isPasswordValid) {
-            console.log('[CustomerAuth] Invalid password for customer:', customer.email);
-            return null;
-          }
-
-          console.log('[CustomerAuth] Login successful for:', customer.email);
-          return {
-            id: customer.id,
-            customerId: customer.id,
-            name: customer.name,
-            email: customer.email,
-            phone: customer.phone,
-          } as any;
+          return null;
         } catch (error) {
           console.error('[CustomerAuth] Error during authorization:', error);
           return null;
