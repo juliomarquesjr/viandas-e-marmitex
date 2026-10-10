@@ -14,6 +14,8 @@ export interface MessageVariable {
   sample: string;
   /** Dado sensível: aparece na mensagem, mas nunca é gravado no histórico. */
   sensitive?: boolean;
+  /** Preenchida pelo sistema com o conteúdo do dia (ex.: o cardápio), não por quem envia. */
+  auto?: boolean;
 }
 
 export interface ChannelDefault {
@@ -39,6 +41,18 @@ export const MESSAGE_LIMITS = { BODY_WHATSAPP: 1000, BODY_EMAIL: 5000, SUBJECT: 
 const STORE: MessageVariable = { key: 'loja', label: 'Nome da loja', sample: 'Sabores de Casa' };
 const NAME: MessageVariable = { key: 'nome', label: 'Primeiro nome do cliente', sample: 'Maria' };
 
+const SAMPLE_MENU = `📅 *Quinta-feira, 09/10*
+
+*Pratos principais*
+• Feijoada completa ⭐
+• Frango assado com batatas
+• Lasanha de berinjela (vegetariano)
+
+*Acompanhamentos*
+• Arroz branco
+• Couve refogada
+• Farofa`;
+
 export const MESSAGE_TYPES: MessageTypeDef[] = [
   {
     key: 'customer_password',
@@ -48,18 +62,18 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
     variables: [
       NAME,
       { key: 'usuario', label: 'Usuário para entrar (e-mail ou telefone)', sample: 'maria.souza@email.com' },
-      { key: 'senha', label: 'Senha gerada', sample: 'Kp7m-Rx4a9Q', sensitive: true },
+      { key: 'senha', label: 'Senha gerada', sample: 'kp7mrx4a', sensitive: true },
       STORE,
-      { key: 'link_app', label: 'Endereço do aplicativo', sample: 'saboresdecasa.com.br' },
+      { key: 'link_app', label: 'Endereço do aplicativo', sample: 'https://saboresdecasa.com.br' },
     ],
     required: ['senha'],
     defaults: {
       whatsapp: {
-        body: 'Olá, {nome}!\n\nSeu acesso ao aplicativo está pronto ({loja}).\n\nUsuário: {usuario}\nSenha: {senha}\n\nEntre em {link_app} e, por segurança, troque a senha no primeiro acesso.',
+        body: 'Olá, {nome}! 👋\n\nBoas-vindas ao *{loja}*! 🎉 Seu acesso ao aplicativo já está pronto.\n\n👤 Usuário: *{usuario}*\n🔑 Senha: *{senha}*\n\n📲 Entre em {link_app}\n\n🔒 Por segurança, você escolhe uma senha só sua no primeiro acesso.\n\nQualquer dúvida, é só responder esta mensagem. 😊',
       },
       email: {
         subject: 'Seu acesso ao aplicativo - {loja}',
-        body: 'Olá, {nome}!\n\nSeu acesso ao aplicativo está pronto ({loja}).\n\nUsuário: {usuario}\nSenha: {senha}\n\nEntre em {link_app} e, por segurança, troque a senha no primeiro acesso.',
+        body: 'Olá, {nome}! 👋\n\nBoas-vindas ao *{loja}*! Seu acesso ao aplicativo já está pronto.\n\nUsuário: *{usuario}*\nSenha: *{senha}*\n\nEntre em {link_app} e, por segurança, escolha uma senha só sua no primeiro acesso. 🔒\n\nQualquer dúvida, é só responder este e-mail. 😊',
       },
     },
   },
@@ -79,7 +93,25 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
     defaults: {
       email: {
         subject: 'Redefinição de senha - {loja}',
-        body: 'Olá, {nome}!\n\nRecebemos um pedido para redefinir a senha da sua conta. Acesse o link abaixo para escolher uma nova senha:\n\n{link}\n\nO link vale por {validade} minutos e só pode ser usado uma vez. Se você não pediu a redefinição, ignore este e-mail: sua senha continua a mesma.',
+        body: 'Olá, {nome}! 👋\n\nRecebemos um pedido para redefinir a senha da sua conta no *{loja}*. Para escolher uma nova senha, é só abrir o link abaixo:\n\n🔑 {link}\n\n⏱️ O link vale por {validade} minutos e só pode ser usado uma vez.\n\nNão foi você? Pode ignorar este e-mail: sua senha continua a mesma. 🔒',
+      },
+    },
+  },
+  {
+    key: 'daily_menu',
+    name: 'Cardápio do dia',
+    description: 'Enviado pelo WhatsApp, em massa ou para um cliente, a partir de Clientes. Leva o cardápio publicado de hoje e o link da área do cliente.',
+    group: 'Cardápio',
+    variables: [
+      NAME,
+      STORE,
+      { key: 'cardapio', label: 'Cardápio publicado de hoje, organizado por seção', sample: SAMPLE_MENU, auto: true },
+      { key: 'link_app', label: 'Endereço da área do cliente', sample: 'https://saboresdecasa.com.br' },
+    ],
+    required: ['cardapio'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}! 😋\n\nChegou o cardápio de hoje do *{loja}*:\n\n{cardapio}\n\n🍽️ Veja mais detalhes e acompanhe tudo pelo aplicativo:\n{link_app}',
       },
     },
   },
@@ -89,7 +121,6 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
 export const UPCOMING_MESSAGES: { group: string; names: string[] }[] = [
   { group: 'Pedidos', names: ['Pedido aceito', 'Pedido recusado', 'Pronto para retirar'] },
   { group: 'Financeiro', names: ['Pagamento confirmado', 'Lembrete de saldo'] },
-  { group: 'Cardápio', names: ['Cardápio do dia'] },
 ];
 
 export const getMessageType = (key: string) => MESSAGE_TYPES.find((t) => t.key === key) ?? null;

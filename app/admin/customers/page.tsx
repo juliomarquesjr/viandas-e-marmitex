@@ -26,6 +26,7 @@ import {
   Trash2,
   Barcode,
   KeyRound,
+  MessageCircle,
   User,
 } from "lucide-react";
 import { CustomerStatsCards } from "./components/CustomerStatsCards";
@@ -33,6 +34,8 @@ import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 import { CustomerGridView } from "./components/CustomerGridView";
 import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
 import { CustomerFilterBar } from "./components/CustomerFilterBar";
+import { BulkMenuDialog } from "./components/BulkMenuDialog";
+import { SendMenuDialog } from "./components/SendMenuDialog";
 import { SendPasswordDialog, type PasswordOutcome } from "./components/SendPasswordDialog";
 import { WhatsAppMark } from "./components/WhatsAppMark";
 
@@ -69,12 +72,14 @@ function CustomerActionsMenu({
   onDelete,
   onDownloadBarcode,
   onSendPassword,
+  onSendMenu,
 }: {
   customer: Customer;
   onEdit: () => void;
   onDelete: () => void;
   onDownloadBarcode: () => void;
   onSendPassword: () => void;
+  onSendMenu: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -117,6 +122,19 @@ function CustomerActionsMenu({
           <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
           Editar
         </button>
+        {customer.phoneIsWhatsapp && (
+          <button
+            type="button"
+            className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-green-700 font-medium hover:bg-green-50 rounded-sm"
+            onClick={() => {
+              setOpen(false);
+              onSendMenu();
+            }}
+          >
+            <MessageCircle className="h-4 w-4 mr-2 shrink-0 text-green-600" />
+            Enviar cardápio
+          </button>
+        )}
         <button
           type="button"
           className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
@@ -203,10 +221,7 @@ export default function AdminCustomersPage() {
     email: "",
     doc: "",
     barcode: "",
-    password: "",
     phoneIsWhatsapp: false,
-    mustChangePassword: false,
-    sendPassword: [] as ("whatsapp" | "email")[],
     street: "",
     number: "",
     complement: "",
@@ -267,10 +282,7 @@ export default function AdminCustomersPage() {
       email: "",
       doc: "",
       barcode: "",
-      password: "",
       phoneIsWhatsapp: false,
-      mustChangePassword: false,
-      sendPassword: [],
       street: "",
       number: "",
       complement: "",
@@ -293,10 +305,7 @@ export default function AdminCustomersPage() {
         email: customer.email || "",
         doc: customer.doc || "",
         barcode: customer.barcode || "",
-        password: "",
         phoneIsWhatsapp: customer.phoneIsWhatsapp === true,
-        mustChangePassword: false,
-        sendPassword: [],
         street: address.street || "",
         number: address.number || "",
         complement: "",
@@ -322,27 +331,13 @@ export default function AdminCustomersPage() {
 
   // Envio da senha de acesso (menu do cliente e pós-cadastro)
   const [passwordFor, setPasswordFor] = React.useState<Customer | null>(null);
+  const [menuFor, setMenuFor] = React.useState<Customer | null>(null);
+  const [bulkMenuOpen, setBulkMenuOpen] = React.useState(false);
   const [passwordOutcome, setPasswordOutcome] = React.useState<PasswordOutcome | null>(null);
 
   const openPasswordDialog = (customer: Customer, outcome: PasswordOutcome | null = null) => {
     setPasswordOutcome(outcome);
     setPasswordFor(customer);
-  };
-
-  /** Depois de salvar com senha: avisa o resultado; se algum canal falhou, abre o resultado com a senha para copiar. */
-  const reportPasswordSend = (
-    customer: Customer,
-    password: string | undefined,
-    results: PasswordOutcome["results"] | undefined,
-    done: string
-  ) => {
-    if (!password || !results || results.length === 0) return showToast(done, "success");
-    if (results.every((r) => r.ok)) {
-      const channels = results.map((r) => (r.channel === "whatsapp" ? "WhatsApp" : "e-mail")).join(" e ");
-      return showToast(`${done.replace("!", "")} e senha enviada por ${channels}.`, "success");
-    }
-    showToast("Cliente salvo, mas a senha não foi enviada por todos os canais.", "error");
-    openPasswordDialog(customer, { password, results });
   };
 
   const handleFormSubmit = async (e: React.FormEvent, formData: any) => {
@@ -388,12 +383,6 @@ export default function AdminCustomersPage() {
         delete customerData.imageUrl;
       }
 
-      if (formData.password?.trim()) {
-        customerData.password = formData.password.trim();
-        customerData.mustChangePassword = formData.mustChangePassword === true;
-        customerData.sendPassword = formData.sendPassword;
-      }
-
       if (editingCustomer) {
         const response = await fetch("/api/customers", {
           method: "PUT",
@@ -406,11 +395,11 @@ export default function AdminCustomersPage() {
           throw new Error(errorData.error || "Falha ao atualizar cliente");
         }
 
-        const { messageResults, ...updatedCustomer } = await response.json();
+        const updatedCustomer = await response.json();
         setCustomers((prev) =>
           prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
         );
-        reportPasswordSend(updatedCustomer, customerData.password, messageResults, "Cliente atualizado com sucesso!");
+        showToast("Cliente atualizado com sucesso!", "success");
         closeForm();
       } else {
         const response = await fetch("/api/customers", {
@@ -424,10 +413,12 @@ export default function AdminCustomersPage() {
           throw new Error(errorData.error || "Falha ao criar cliente");
         }
 
-        const { messageResults, ...newCustomer } = await response.json();
+        const newCustomer = await response.json();
         setCustomers((prev) => [...prev, newCustomer]);
-        reportPasswordSend(newCustomer, customerData.password, messageResults, "Cliente cadastrado com sucesso!");
+        showToast("Cliente cadastrado com sucesso!", "success");
         closeForm();
+        // a senha nunca é digitada: o cliente novo recebe uma gerada pelo sistema (dá para fechar e fazer depois)
+        openPasswordDialog(newCustomer);
       }
     } catch (err) {
       showToast(
@@ -625,10 +616,16 @@ export default function AdminCustomersPage() {
         description="Gerencie os clientes do estabelecimento"
         icon={Users}
         actions={
-          <Button size="sm" onClick={() => openForm()}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Novo Cliente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setBulkMenuOpen(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">
+              <MessageCircle className="h-4 w-4 mr-1.5" />
+              Enviar cardápio para todos
+            </Button>
+            <Button size="sm" onClick={() => openForm()}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Novo Cliente
+            </Button>
+          </div>
         }
       />
 
@@ -673,6 +670,7 @@ export default function AdminCustomersPage() {
                   onDelete={() => setDeleteConfirm(customer.id)}
                   onDownloadBarcode={() => downloadBarcode(customer)}
                   onSendPassword={() => openPasswordDialog(customer)}
+                  onSendMenu={() => setMenuFor(customer)}
                 />
               )}
               pagination={{
@@ -690,6 +688,7 @@ export default function AdminCustomersPage() {
               onDelete={(id) => setDeleteConfirm(id)}
               onDownloadBarcode={downloadBarcode}
               onSendPassword={(customer) => openPasswordDialog(customer)}
+              onSendMenu={(customer) => setMenuFor(customer)}
               onCardClick={(customer) => setSelectedCustomer(customer)}
               pagination={{
                 page: currentPage,
@@ -717,6 +716,10 @@ export default function AdminCustomersPage() {
           setSelectedCustomer(null);
         }}
       />
+
+      {/* Cardápio de hoje pelo WhatsApp */}
+      <SendMenuDialog open={menuFor !== null} customer={menuFor} onClose={() => setMenuFor(null)} />
+      <BulkMenuDialog open={bulkMenuOpen} onClose={() => setBulkMenuOpen(false)} />
 
       {/* Gerar e enviar a senha de acesso */}
       <SendPasswordDialog

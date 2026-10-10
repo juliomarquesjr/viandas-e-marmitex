@@ -17,6 +17,7 @@ import {
   type MessageChannel,
   type MessageTypeDef,
 } from './registry';
+import { stripFormatting } from './format';
 import { emailBodyToHtml, maskEmail, maskPhone, renderTemplate, type TemplateInput } from './render';
 
 const LOG_RETENTION_DAYS = 90;
@@ -167,7 +168,7 @@ async function deliver(type: MessageTypeDef, channel: MessageChannel, to: string
   const configs = (await prisma.systemConfig.findMany({ where: { category: 'email' } })) as SystemConfig[];
   const mailer = new EmailService();
   await mailer.configure(configs);
-  await mailer.sendEmail({ to, subject, html: emailBodyToHtml(body, values.loja), text: body });
+  await mailer.sendEmail({ to, subject, html: emailBodyToHtml(body, values.loja), text: stripFormatting(body) });
 }
 
 function friendlyError(channel: MessageChannel, error: unknown): string {
@@ -175,6 +176,24 @@ function friendlyError(channel: MessageChannel, error: unknown): string {
   const message = error instanceof Error ? error.message : '';
   if (/desabilitado|incompleta|não configurado/i.test(message)) return message;
   return 'O servidor de e-mail não respondeu ou recusou a mensagem.';
+}
+
+/** Valores automáticos de toda mensagem ao cliente (nome, loja, usuário, endereço do app) mais os do tipo. */
+export async function buildValues(customer: CustomerContact, extra: Record<string, string>): Promise<Record<string, string>> {
+  return {
+    nome: customer.name.trim().split(/\s+/)[0] || customer.name,
+    loja: await storeName(),
+    usuario: customer.email?.trim() || customer.phone?.replace(/\D/g, '') || '',
+    link_app: appUrl(), // com https://, para o WhatsApp deixar o link clicável
+    ...extra,
+  };
+}
+
+/** O texto exato que o cliente receberia por este canal (para a prévia antes de enviar). */
+export async function previewCustomerMessage(typeKey: string, channel: MessageChannel, customer: CustomerContact, extra: Record<string, string>): Promise<string> {
+  const type = getMessageType(typeKey);
+  if (!type) throw new Error('Tipo de mensagem desconhecido.');
+  return (await composeText(type, channel, await buildValues(customer, extra))).body;
 }
 
 export interface SendInput {
@@ -189,15 +208,8 @@ export interface SendInput {
 export async function sendCustomerMessage(input: SendInput): Promise<ChannelResult[]> {
   const type = getMessageType(input.typeKey);
   if (!type) throw new Error('Tipo de mensagem desconhecido.');
-  const loja = await storeName();
   const destinations = customerChannels(input.customer);
-  const values: Record<string, string> = {
-    nome: input.customer.name.trim().split(/\s+/)[0] || input.customer.name,
-    loja,
-    usuario: input.customer.email?.trim() || input.customer.phone?.replace(/\D/g, '') || '',
-    link_app: appUrl().replace(/^https?:\/\//, ''),
-    ...input.values,
-  };
+  const values = await buildValues(input.customer, input.values);
 
   const results: ChannelResult[] = [];
   for (const channel of MESSAGE_CHANNELS.filter((c) => input.channels.includes(c))) {
@@ -276,6 +288,6 @@ export async function sendTest(typeKey: string, channel: MessageChannel, adminEm
   const configs = (await prisma.systemConfig.findMany({ where: { category: 'email' } })) as SystemConfig[];
   const mailer = new EmailService();
   await mailer.configure(configs);
-  await mailer.sendEmail({ to: adminEmail, subject: `[Teste] ${subject}`, html: emailBodyToHtml(body, values.loja), text: body });
+  await mailer.sendEmail({ to: adminEmail, subject: `[Teste] ${subject}`, html: emailBodyToHtml(body, values.loja), text: stripFormatting(body) });
   return { recipient: maskEmail(adminEmail) };
 }

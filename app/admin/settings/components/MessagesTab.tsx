@@ -6,8 +6,10 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Switch } from "@/app/components/ui/switch";
 import { Textarea } from "@/app/components/ui/textarea";
+import { FormattedText, WhatsAppBubble } from "@/app/admin/components/messages/WhatsAppBubble";
+import { EMOJI_GROUPS, toggleWrap, type WrapKind } from "@/lib/messages/format";
 import { renderTemplate } from "@/lib/messages/render";
-import { AlertCircle, CheckCircle2, Clock, History, KeyRound, Loader2, Mail, MessageCircle, RotateCcw, Save, Send } from "lucide-react";
+import { AlertCircle, Bold, CheckCircle2, Clock, History, Italic, KeyRound, Loader2, Mail, MessageCircle, RotateCcw, Save, Send, Smile, Strikethrough } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Channel = "whatsapp" | "email";
@@ -17,6 +19,7 @@ interface Variable {
   label: string;
   sample: string;
   sensitive?: boolean;
+  auto?: boolean;
 }
 
 interface ChannelTemplate {
@@ -112,18 +115,41 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
   const signature = overview.signature.enabled && overview.signature.text ? `\n\n${overview.signature.text}` : "";
   const preview = renderTemplate(draft.body, values) + signature;
 
-  const insert = (key: string) => {
-    const el = bodyRef.current;
-    const token = `{${key}}`;
-    if (!el) return setDraft((d) => ({ ...d, body: d.body + token }));
-    const start = el.selectionStart ?? draft.body.length;
-    const end = el.selectionEnd ?? start;
-    const body = draft.body.slice(0, start) + token + draft.body.slice(end);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+
+  /** Troca o texto do campo e devolve a seleção depois que o React desenhar. */
+  const setBody = (body: string, selStart: number, selEnd: number) => {
     setDraft((d) => ({ ...d, body }));
     window.requestAnimationFrame(() => {
+      const el = bodyRef.current;
+      if (!el) return;
       el.focus();
-      el.setSelectionRange(start + token.length, start + token.length);
+      el.setSelectionRange(selStart, selEnd);
     });
+  };
+
+  const insertText = (text: string) => {
+    const el = bodyRef.current;
+    const start = el?.selectionStart ?? draft.body.length;
+    const end = el?.selectionEnd ?? start;
+    setBody(draft.body.slice(0, start) + text + draft.body.slice(end), start + text.length, start + text.length);
+  };
+  const insert = (key: string) => insertText(`{${key}}`);
+
+  const wrap = (kind: WrapKind) => {
+    const el = bodyRef.current;
+    const start = el?.selectionStart ?? draft.body.length;
+    const end = el?.selectionEnd ?? start;
+    const next = toggleWrap(draft.body, start, end, kind);
+    setBody(next.text, next.start, next.end);
+  };
+
+  const onBodyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const kind: WrapKind | null = e.key === "b" ? "bold" : e.key === "i" ? "italic" : null;
+    if (!kind) return;
+    e.preventDefault();
+    wrap(kind);
   };
 
   const url = `/api/admin/messages/${type.key}/${active}`;
@@ -245,7 +271,59 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
             <label htmlFor="msg-body" className="text-xs font-medium uppercase tracking-wide text-slate-500">Texto da mensagem</label>
             <span className={`text-xs ${draft.body.length > limit ? "text-rose-600" : "text-slate-400"}`}>{draft.body.length}/{limit}</span>
           </div>
-          <Textarea id="msg-body" ref={bodyRef} rows={9} value={draft.body} onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))} className="text-[15px] leading-relaxed" />
+          <div className="relative">
+            <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 px-2 py-1.5" role="toolbar" aria-label="Formatar o texto">
+              {([["bold", Bold, "Negrito (Ctrl+B)"], ["italic", Italic, "Itálico (Ctrl+I)"], ["strike", Strikethrough, "Tachado"]] as const).map(([kind, Icon, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => wrap(kind)}
+                  title={label}
+                  aria-label={label}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+              <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
+              <button
+                type="button"
+                onClick={() => setEmojiOpen((v) => !v)}
+                aria-expanded={emojiOpen}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Smile className="h-4 w-4" />
+                Emojis
+              </button>
+              <span className="ml-auto hidden text-xs text-slate-400 sm:block">*negrito* · _itálico_ · ~tachado~</span>
+            </div>
+            {emojiOpen && (
+              <div className="absolute left-0 top-full z-20 mt-1 w-[min(22rem,100%)] rounded-xl border border-slate-200 bg-white p-3 shadow-lg" role="group" aria-label="Emojis">
+                {EMOJI_GROUPS.map((group) => (
+                  <div key={group.name} className="mb-2 last:mb-0">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{group.name}</p>
+                    <div className="flex flex-wrap gap-0.5">
+                      {group.emojis.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            insertText(emoji);
+                            setEmojiOpen(false);
+                          }}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-xl hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          aria-label={`Inserir ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <Textarea id="msg-body" ref={bodyRef} rows={11} value={draft.body} onKeyDown={onBodyKeyDown} onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))} className="rounded-t-none text-[15px] leading-relaxed" />
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-xs text-slate-500">Toque para inserir:</span>
             {type.variables.map((v) => (
@@ -254,12 +332,15 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
                 type="button"
                 onClick={() => insert(v.key)}
                 title={v.label}
-                className={`rounded-full border px-2.5 py-1 font-mono text-xs ${v.sensitive ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"}`}
+                className={`rounded-full border px-2.5 py-1 font-mono text-xs ${v.sensitive ? "border-amber-300 bg-amber-50 text-amber-800" : v.auto ? "border-green-300 bg-green-50 text-green-800" : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"}`}
               >
                 {`{${v.key}}`}
               </button>
             ))}
           </div>
+          {type.variables.some((v) => v.auto) && (
+            <p className="text-xs text-slate-500">Em verde: o sistema preenche sozinho (ex.: o cardápio publicado de hoje).</p>
+          )}
           {type.variables.some((v) => v.sensitive) && (
             <p className="text-xs text-slate-500">Em âmbar: dados sensíveis. Vão na mensagem, mas nunca ficam guardados no histórico.</p>
           )}
@@ -268,15 +349,13 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
         <div className="space-y-1.5">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Prévia, com dados de exemplo</p>
           {active === "whatsapp" ? (
-            <div className="rounded-2xl bg-[#e7ddd3] p-4">
-              <div className="ml-auto max-w-[85%] whitespace-pre-wrap break-words rounded-xl rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-sm text-slate-900 shadow-sm">{preview}</div>
-            </div>
+            <WhatsAppBubble text={preview} />
           ) : (
             <div className="rounded-2xl bg-slate-100 p-4">
               <div className="mx-auto max-w-[520px] overflow-hidden rounded-xl bg-white shadow-sm">
                 <div className="bg-blue-600 px-5 py-3 text-base font-bold text-white">{overview.storeName}</div>
                 <p className="border-b border-slate-100 px-5 py-2 text-xs text-slate-500">Assunto: {renderTemplate(draft.subject, values)}</p>
-                <div className="whitespace-pre-wrap break-words px-5 py-4 text-sm leading-relaxed text-slate-800">{preview}</div>
+                <div className="whitespace-pre-wrap break-words px-5 py-4 text-sm leading-relaxed text-slate-800"><FormattedText text={preview} /></div>
               </div>
             </div>
           )}
