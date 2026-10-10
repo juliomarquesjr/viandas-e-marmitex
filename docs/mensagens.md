@@ -32,7 +32,7 @@ A caixa de texto tem barra com **Negrito**, **Itálico**, **Tachado** (Ctrl+B / 
 
 ### Enviar o cardápio pelo WhatsApp
 - **Individual:** "Enviar cardápio" no menu da linha (lista e cartões), só para quem tem o telefone marcado como WhatsApp. Mostra a prévia exata, bloqueia sem cardápio publicado hoje ou com o WhatsApp fora, e avisa antes de reenviar a quem já recebeu hoje.
-- **Em massa:** botão "Enviar cardápio para todos" em Clientes. Para clientes **ativos** com WhatsApp marcado; por padrão pula quem já recebeu hoje. O navegador percorre a lista **uma pessoa por vez**, com **6 a 12 s** entre as mensagens (para o número não ser bloqueado), com Pausar/Parar e resultado por cliente ("Tentar de novo" só os que falharam). A janela precisa ficar aberta; se fechar, é só abrir de novo e retomar (quem já recebeu fica de fora).
+- **Em massa:** botão "Enviar cardápio para todos" na tela **Cardápios**. Para clientes **ativos** com WhatsApp marcado; por padrão pula quem já recebeu hoje. O navegador percorre a lista **uma pessoa por vez**, com **6 a 12 s** entre as mensagens (para o número não ser bloqueado), com Pausar/Parar e resultado por cliente ("Tentar de novo" só os que falharam). A janela precisa ficar aberta; se fechar, é só abrir de novo e retomar (quem já recebeu fica de fora).
 - Cada envio entra no Histórico (tipo `daily_menu`). Código: `lib/messages/daily-menu-send.ts`, `lib/messages/menu-text.ts`; `GET /api/admin/menu-broadcast`, `GET`/`POST /api/admin/customers/[id]/send-menu`.
 
 ### APIs (administrador, exceto onde indicado)

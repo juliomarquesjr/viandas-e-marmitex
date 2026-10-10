@@ -248,7 +248,7 @@ export function BulkMenuDialog({ open, onClose }: { open: boolean; onClose: () =
             </>
           ) : unreachable ? (
             !overview.menu ? (
-              <Box tone="warn"><strong>O cardápio de hoje ainda não foi publicado.</strong><br />Publique o de hoje e volte aqui.{" "}<Link href="/admin/menus" className="font-semibold underline">Abrir Cardápios</Link></Box>
+              <Box tone="warn"><strong>O cardápio de hoje ainda não foi publicado.</strong><br />Publique o de hoje (clique no dia de hoje na semana) e tente de novo.</Box>
             ) : (
               <Box tone="bad"><strong>{overview.whatsapp.reason}</strong>{overview.whatsapp.fixHref && <>{" "}<Link href={overview.whatsapp.fixHref} className="font-semibold underline">Resolver</Link></>}</Box>
             )

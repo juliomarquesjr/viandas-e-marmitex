@@ -34,7 +34,6 @@ import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 import { CustomerGridView } from "./components/CustomerGridView";
 import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
 import { CustomerFilterBar } from "./components/CustomerFilterBar";
-import { BulkMenuDialog } from "./components/BulkMenuDialog";
 import { SendMenuDialog } from "./components/SendMenuDialog";
 import { SendPasswordDialog, type PasswordOutcome } from "./components/SendPasswordDialog";
 import { WhatsAppMark } from "./components/WhatsAppMark";
@@ -332,7 +331,6 @@ export default function AdminCustomersPage() {
   // Envio da senha de acesso (menu do cliente e pós-cadastro)
   const [passwordFor, setPasswordFor] = React.useState<Customer | null>(null);
   const [menuFor, setMenuFor] = React.useState<Customer | null>(null);
-  const [bulkMenuOpen, setBulkMenuOpen] = React.useState(false);
   const [passwordOutcome, setPasswordOutcome] = React.useState<PasswordOutcome | null>(null);
 
   const openPasswordDialog = (customer: Customer, outcome: PasswordOutcome | null = null) => {
@@ -616,16 +614,10 @@ export default function AdminCustomersPage() {
         description="Gerencie os clientes do estabelecimento"
         icon={Users}
         actions={
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setBulkMenuOpen(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">
-              <MessageCircle className="h-4 w-4 mr-1.5" />
-              Enviar cardápio para todos
-            </Button>
-            <Button size="sm" onClick={() => openForm()}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Novo Cliente
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => openForm()}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Novo Cliente
+          </Button>
         }
       />
 
@@ -719,7 +711,6 @@ export default function AdminCustomersPage() {
 
       {/* Cardápio de hoje pelo WhatsApp */}
       <SendMenuDialog open={menuFor !== null} customer={menuFor} onClose={() => setMenuFor(null)} />
-      <BulkMenuDialog open={bulkMenuOpen} onClose={() => setBulkMenuOpen(false)} />
 
       {/* Gerar e enviar a senha de acesso */}
       <SendPasswordDialog
