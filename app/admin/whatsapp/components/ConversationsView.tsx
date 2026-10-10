@@ -4,9 +4,11 @@ import { FormattedText } from "@/app/admin/components/messages/WhatsAppBubble";
 import { SendMenuDialog } from "@/app/admin/customers/components/SendMenuDialog";
 import { SendPasswordDialog } from "@/app/admin/customers/components/SendPasswordDialog";
 import { Button } from "@/app/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { EMOJI_GROUPS } from "@/lib/messages/format";
 import { messageLabel, SYSTEM_LABEL } from "@/lib/whatsapp-chat";
-import { AlertCircle, ArrowLeft, Check, CheckCheck, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, Paperclip, Search, Send, Smile, Video } from "lucide-react";
+import { applyQuickReply, filterQuickReplies, slashQuery, type QuickReply } from "@/lib/whatsapp-quick-replies";
+import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, MoreVertical, Paperclip, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -31,6 +33,18 @@ interface Message {
   error: string | null;
   sentByName: string | null;
   createdAt: string;
+}
+interface FichaEntry {
+  id: string;
+  at: string;
+  totalCents: number;
+  kind: "purchase" | "payment";
+  open: boolean;
+  summary: string;
+}
+interface Ficha {
+  debtCents: number;
+  entries: FichaEntry[];
 }
 interface CustomerInfo {
   id: string;
@@ -58,9 +72,16 @@ function listTime(iso: string): string {
   if (key === dayKey(new Date(Date.now() - 86_400_000).toISOString())) return "Ontem";
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: TZ });
 }
+const brl = (cents: number) => (Math.abs(cents) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Saldo da ficha do ponto de vista do cliente: devendo é negativo (vermelho), crédito é positivo (verde). */
+function balanceView(debtCents: number) {
+  if (debtCents > 0) return { text: `− ${brl(debtCents)}`, label: "Deve ao estabelecimento", tone: "text-rose-700", bg: "bg-rose-50 border-rose-200" };
+  if (debtCents < 0) return { text: `+ ${brl(debtCents)}`, label: "Crédito a favor do cliente", tone: "text-green-700", bg: "bg-green-50 border-green-200" };
+  return { text: brl(0), label: "Ficha em dia", tone: "text-slate-700", bg: "bg-slate-50 border-slate-200" };
+}
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
-const QUICK = ["Obrigado pelo contato! 😊", "Já vamos separar o seu pedido 🍽️", "Estamos fechados agora. Voltamos amanhã! 😊"];
 
 function Ticks({ status }: { status: string }) {
   if (status === "failed") return <AlertCircle className="inline h-3.5 w-3.5 text-rose-600" aria-label="Não enviada" />;
@@ -119,12 +140,17 @@ export function ConversationsView() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
 
+  const [ficha, setFicha] = useState<Ficha | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [menuFor, setMenuFor] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [replies, setReplies] = useState<QuickReply[]>([]);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState<number | null>(null);
   const [passwordFor, setPasswordFor] = useState(false);
 
   const scroller = useRef<HTMLDivElement>(null);
@@ -206,6 +232,28 @@ export function ConversationsView() {
     [loadList]
   );
 
+  // respostas rápidas (botões e o "/" no campo de mensagem)
+  useEffect(() => {
+    fetch("/api/admin/whatsapp/quick-replies", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: { replies?: QuickReply[] } | null) => b?.replies && setReplies(b.replies))
+      .catch(() => undefined);
+  }, []);
+
+  // saldo e últimas compras do cliente
+  useEffect(() => {
+    if (!selected) return;
+    setFicha(null);
+    let alive = true;
+    fetch(`/api/admin/whatsapp/conversations/${selected}/ficha`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((f: Ficha | null) => alive && f && setFicha(f))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [selected]);
+
   useEffect(() => {
     if (!selected) return;
     setMessages([]);
@@ -269,21 +317,45 @@ export function ConversationsView() {
     return out;
   }, [messages]);
 
+  const fichaGroups = useMemo(() => {
+    const out: { key: string; label: string; items: FichaEntry[] }[] = [];
+    for (const e of ficha?.entries ?? []) {
+      const key = dayKey(e.at);
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.items.push(e);
+      else out.push({ key, label: dayLabel(e.at), items: [e] });
+    }
+    return out;
+  }, [ficha]);
+
+  // "/" no começo ou depois de um espaço abre a lista de respostas rápidas
+  const slash = slashQuery(text);
+  const slashOpen = !!slash && slashDismissed !== slash.start;
+  const slashList = slash ? filterQuickReplies(replies, slash.query).slice(0, 8) : [];
+
+  const insertReply = (reply: QuickReply, at?: number) => {
+    const body = applyQuickReply(reply.text, customer?.name ?? "");
+    setText((t) => (at === undefined ? (t ? `${t} ${body}` : body) : t.slice(0, at) + body));
+    setSlashDismissed(null);
+    setSlashIndex(0);
+    window.setTimeout(() => textArea.current?.focus(), 0);
+  };
+
   const canSend = customer?.phoneIsWhatsapp && connected !== false;
   const picked = list?.find((c) => c.customerId === selected);
 
   return (
-    <div className="flex h-[calc(100vh-15rem)] min-h-[560px] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]">
+    <div className="flex h-[calc(100vh-15rem)] min-h-[560px] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] [&_button:not(:disabled)]:cursor-pointer">
       {/* lista */}
-      <section aria-label="Lista de conversas" className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-r border-[color:var(--border)] md:w-[320px] md:shrink-0 xl:w-[340px]`}>
+      <section aria-label="Lista de conversas" className={`${selected ? "hidden md:flex" : "flex"} w-full flex-col border-r border-[color:var(--border)] md:w-[300px] md:shrink-0`}>
         <div className="space-y-2.5 p-3">
           <label className="flex min-h-[40px] items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-500 focus-within:border-primary">
             <Search className="h-4 w-4 shrink-0" aria-hidden />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente ou mensagem" className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400" aria-label="Buscar cliente ou mensagem" />
           </label>
           <div className="flex gap-1.5" role="group" aria-label="Filtro">
-            {([["all", "Todas"], ["unread", "Não lidas"], ["awaiting", "Aguardando resposta"]] as const).map(([id, label]) => (
-              <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${filter === id ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+            {([["all", "Todas"], ["unread", "Não lidas"], ["awaiting", "Aguardando"]] as const).map(([id, label]) => (
+              <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${filter === id ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
                 {label}
               </button>
             ))}
@@ -335,12 +407,36 @@ export function ConversationsView() {
                 <p className="truncate font-bold">{customer?.name ?? picked?.name ?? "…"}</p>
                 <p className="text-xs text-slate-500">{customer?.phone ?? picked?.phone ?? ""}</p>
               </div>
+              {customer && ficha && (
+                <span className={`hidden rounded-lg border px-2.5 py-1 text-xs font-bold sm:inline xl:hidden ${balanceView(ficha.debtCents).bg} ${balanceView(ficha.debtCents).tone}`} title={balanceView(ficha.debtCents).label}>
+                  Saldo {balanceView(ficha.debtCents).text}
+                </span>
+              )}
               {customer && (
-                <>
-                  <Link href={`/admin/customers/${customer.id}`} className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-300 px-3 text-[13px] font-semibold hover:bg-slate-50">Ver ficha</Link>
-                  {customer.phoneIsWhatsapp && <Button type="button" variant="outline" size="sm" onClick={() => setMenuFor(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">Enviar cardápio</Button>}
-                  <Button type="button" variant="outline" size="sm" onClick={() => setPasswordFor(true)}><KeyRound className="mr-1.5 h-4 w-4" />Enviar senha</Button>
-                </>
+                <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" aria-label="Ações da conversa" className="gap-1.5">
+                      <MoreVertical className="h-4 w-4" />
+                      Ações
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-60 border-slate-200 bg-white p-1 text-slate-700 shadow-lg">
+                    <Link href={`/admin/customers/${customer.id}`} onClick={() => setActionsOpen(false)} className="flex w-full items-center rounded-sm px-3 py-2 text-sm hover:bg-slate-50">
+                      <FileText className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
+                      Abrir ficha completa
+                    </Link>
+                    {customer.phoneIsWhatsapp && (
+                      <button type="button" onClick={() => { setActionsOpen(false); setMenuFor(true); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm font-medium text-green-700 hover:bg-green-50">
+                        <MessageCircle className="mr-2 h-4 w-4 shrink-0 text-green-600" />
+                        Enviar cardápio
+                      </button>
+                    )}
+                    <button type="button" onClick={() => { setActionsOpen(false); setPasswordFor(true); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-slate-50">
+                      <KeyRound className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
+                      Enviar senha de acesso
+                    </button>
+                  </PopoverContent>
+                </Popover>
               )}
             </header>
 
@@ -383,10 +479,12 @@ export function ConversationsView() {
             <footer className="border-t border-[color:var(--border)] bg-slate-100 px-4 pb-3 pt-2">
               {sendError && <p className="mb-2 flex items-center gap-2 text-[13px] text-rose-700" role="alert"><AlertCircle className="h-4 w-4" aria-hidden />{sendError}</p>}
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-xs font-bold text-slate-500">Respostas rápidas</span>
-                {QUICK.map((r) => (
-                  <button key={r} type="button" disabled={!canSend} onClick={() => { setText((t) => (t ? `${t} ${r}` : r)); textArea.current?.focus(); }} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">{r}</button>
+                <span className="mr-1 flex items-center gap-1 text-xs font-bold text-slate-500"><Zap className="h-3.5 w-3.5" aria-hidden />Respostas rápidas</span>
+                {replies.slice(0, 4).map((r) => (
+                  <button key={r.id} type="button" disabled={!canSend} onClick={() => insertReply(r)} title={r.text} className="max-w-[16rem] truncate rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50">{r.shortcut ? <span className="mr-1 font-mono text-blue-700">/{r.shortcut}</span> : null}{r.title}</button>
                 ))}
+                {replies.length === 0 && <span className="text-xs text-slate-500">Nenhuma criada ainda.</span>}
+                <Link href="/admin/whatsapp/respostas" className="text-xs font-semibold text-blue-600 hover:underline">{replies.length ? "Gerenciar" : "Criar respostas"}</Link>
               </div>
               <div className="relative flex items-end gap-2">
                 <button type="button" onClick={() => setEmojiOpen((v) => !v)} aria-expanded={emojiOpen} aria-label="Emojis" disabled={!canSend} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-white disabled:opacity-50"><Smile className="h-5 w-5" /></button>
@@ -402,19 +500,64 @@ export function ConversationsView() {
                     ))}
                   </div>
                 )}
+                {slashOpen && (
+                  <div className="absolute bottom-full left-12 right-0 z-30 mb-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg" role="listbox" aria-label="Respostas rápidas">
+                    <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                      <Search className="h-3.5 w-3.5" aria-hidden />
+                      <span>Buscando respostas rápidas:</span>
+                      <b className="font-mono text-slate-800">/{slash!.query}</b>
+                      <span className="ml-auto hidden sm:inline">↑↓ escolhe · Enter insere · Esc fecha</span>
+                    </div>
+                    {slashList.length === 0 ? (
+                      <p className="px-4 py-4 text-sm text-slate-500">Nenhuma resposta encontrada. <Link href="/admin/whatsapp/respostas" className="font-semibold text-blue-600 hover:underline">Criar uma</Link></p>
+                    ) : (
+                      <ul className="max-h-64 overflow-y-auto">
+                        {slashList.map((r, i) => (
+                          <li key={r.id} role="option" aria-selected={i === slashIndex}>
+                            <button type="button" onMouseEnter={() => setSlashIndex(i)} onMouseDown={(e) => { e.preventDefault(); insertReply(r, slash!.start); }} className={`flex w-full items-start gap-3 px-3 py-2 text-left ${i === slashIndex ? "bg-blue-50" : ""}`}>
+                              <code className="mt-0.5 w-24 shrink-0 truncate rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-blue-700">{r.shortcut ? `/${r.shortcut}` : "—"}</code>
+                              <span className="min-w-0"><b className="block truncate text-[13px] text-slate-900">{r.title}</b><span className="block truncate text-xs text-slate-500">{r.text}</span></span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 <textarea
                   ref={textArea}
                   rows={1}
                   value={text}
                   disabled={!canSend}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setSlashIndex(0);
+                    setSlashDismissed(null);
+                  }}
                   onKeyDown={(e) => {
+                    if (slashOpen) {
+                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (slashList.length) setSlashIndex((i) => (i + (e.key === "ArrowDown" ? 1 : -1) + slashList.length) % slashList.length);
+                        return;
+                      }
+                      if ((e.key === "Enter" || e.key === "Tab") && slashList.length) {
+                        e.preventDefault();
+                        insertReply(slashList[Math.min(slashIndex, slashList.length - 1)], slash!.start);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setSlashDismissed(slash!.start);
+                        return;
+                      }
+                    }
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       void send();
                     }
                   }}
-                  placeholder={canSend ? "Escreva uma mensagem… (Enter envia · Shift+Enter quebra a linha)" : "Não é possível enviar agora"}
+                  placeholder={canSend ? "Escreva uma mensagem… ( / para respostas rápidas )" : "Não é possível enviar agora"}
                   aria-label="Mensagem"
                   className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary disabled:bg-slate-50"
                 />
@@ -429,18 +572,51 @@ export function ConversationsView() {
 
       {/* cliente */}
       {selected && customer && (
-        <aside aria-label="Dados do cliente" className="hidden w-[280px] shrink-0 overflow-y-auto border-l border-[color:var(--border)] p-5 2xl:block">
+        <aside aria-label="Dados do cliente" className="scroll-slim hidden w-[270px] shrink-0 overflow-y-auto border-l border-[color:var(--border)] p-4 xl:block">
           <div className="text-center">
-            <span className="mx-auto mb-2.5 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-800">{initials(customer.name)}</span>
+            <span className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-800">{initials(customer.name)}</span>
             <p className="font-bold">{customer.name}</p>
-            <p className="mt-0.5 text-xs text-slate-500">Cliente desde {new Date(customer.createdAt).toLocaleDateString("pt-BR", { timeZone: TZ })}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{customer.phone ?? "—"}{customer.email ? ` · ${customer.email}` : ""}</p>
           </div>
-          <dl className="mt-4 divide-y divide-slate-100 text-[13px]">
-            <div className="flex justify-between gap-3 py-2.5"><dt className="text-slate-500">Telefone</dt><dd className="font-semibold">{customer.phone ?? "—"}</dd></div>
-            <div className="flex justify-between gap-3 py-2.5"><dt className="text-slate-500">E-mail</dt><dd className="break-all text-right text-xs font-semibold">{customer.email ?? "—"}</dd></div>
-          </dl>
-          <Link href={`/admin/customers/${customer.id}`} className="mt-4 flex min-h-[38px] w-full items-center justify-center rounded-lg border border-slate-300 text-[13px] font-semibold hover:bg-slate-50">Abrir ficha completa</Link>
-          <p className="mt-4 text-xs leading-relaxed text-slate-500">Mensagens marcadas “Enviado pelo sistema” saíram dos envios de senha e cardápio. As demais são conversa normal.</p>
+
+          <div className={`mt-4 rounded-xl border px-3.5 py-3 ${ficha ? balanceView(ficha.debtCents).bg : "border-slate-200 bg-slate-50"}`}>
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"><Wallet className="h-3.5 w-3.5" aria-hidden />Saldo da ficha</p>
+            {ficha ? (
+              <>
+                <p className={`mt-1 text-2xl font-bold tabular-nums ${balanceView(ficha.debtCents).tone}`}>{balanceView(ficha.debtCents).text}</p>
+                <p className="text-xs text-slate-600">{balanceView(ficha.debtCents).label}</p>
+              </>
+            ) : (
+              <div className="mt-2 h-7 w-28 animate-pulse rounded bg-slate-200" />
+            )}
+          </div>
+
+          <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Últimas compras</h3>
+          {!ficha ? (
+            <div className="space-y-2 pt-1"><div className="h-10 animate-pulse rounded bg-slate-100" /><div className="h-10 animate-pulse rounded bg-slate-100" /></div>
+          ) : fichaGroups.length === 0 ? (
+            <p className="pt-1 text-[13px] text-slate-500">Nenhuma compra registrada.</p>
+          ) : (
+            fichaGroups.map((g) => (
+              <div key={g.key} className="mt-2">
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">{g.label}</p>
+                <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {g.items.map((e) => (
+                    <li key={e.id} className="flex items-start justify-between gap-2 px-2.5 py-2 text-[12.5px]">
+                      <span className="min-w-0">
+                        <span className="block leading-snug text-slate-800">{e.summary}</span>
+                        <span className="mt-0.5 block text-[11px] text-slate-400">
+                          {hhmm(e.at)}
+                          {e.open && <span className="ml-1.5 rounded bg-amber-100 px-1 font-semibold text-amber-800">na ficha</span>}
+                        </span>
+                      </span>
+                      <b className={`shrink-0 tabular-nums ${e.kind === "payment" ? "text-green-700" : "text-slate-900"}`}>{e.kind === "payment" ? "+" : ""}{brl(e.totalCents)}</b>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
         </aside>
       )}
 

@@ -17,6 +17,7 @@ import {
   MapPin,
   MessageCircle,
   MessagesSquare,
+  Zap,
   Package,
   Receipt,
   Settings,
@@ -75,11 +76,19 @@ const navigationConfig: NavSection[] = [
     ],
   },
   {
+    // atendimento (conversa com o cliente, feito por uma pessoa)
     title: "WhatsApp",
     items: [
       { href: "/admin/whatsapp/conversas", label: "Conversas", icon: MessageCircle },
-      { href: "/admin/whatsapp/mensagens", label: "Mensagens", icon: MessagesSquare },
-      { href: "/admin/whatsapp/historico", label: "Histórico", icon: History },
+      { href: "/admin/whatsapp/respostas", label: "Respostas rápidas", icon: Zap },
+    ],
+  },
+  {
+    // o que o sistema envia sozinho (senha, cardápio...)
+    title: "Envios automáticos",
+    items: [
+      { href: "/admin/whatsapp/mensagens", label: "Mensagens automáticas", icon: MessagesSquare },
+      { href: "/admin/whatsapp/historico", label: "Histórico de envios", icon: History },
     ],
   },
   {
@@ -341,7 +350,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       return navigationConfig;
     }
     // Usuários não-admin não veem Administração nem WhatsApp (conversas de clientes)
-    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp");
+    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp" && section.title !== "Envios automáticos");
   }, [userRole]);
 
   return (
@@ -402,7 +411,7 @@ export function ModernSidebar({ className, userRole }: ModernSidebarProps) {
       </Button>
 
       {/* Navegação */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+      <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
         {filteredNavigation.map((section) => (
           <NavSectionComponent key={section.title} section={section} collapsed={collapsed} />
         ))}
@@ -441,7 +450,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
     if (userRole === "admin") {
       return navigationConfig;
     }
-    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp");
+    return navigationConfig.filter((section) => section.title !== "Administração" && section.title !== "WhatsApp" && section.title !== "Envios automáticos");
   }, [userRole]);
 
   if (!open) return null;
@@ -474,7 +483,7 @@ export function MobileSidebar({ open, onClose, userRole }: MobileSidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          <nav className="scroll-slim flex-1 overflow-y-auto py-4 px-3 space-y-6">
             {filteredNavigation.map((section) => (
               <NavSectionComponent key={section.title} section={section} collapsed={false} />
             ))}

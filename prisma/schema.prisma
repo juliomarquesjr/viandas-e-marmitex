@@ -563,3 +563,15 @@ model WhatsAppMessage {
   @@index([number, createdAt])
   @@index([fromMe, readAt])
 }
+
+// Respostas rápidas do atendimento no WhatsApp: textos prontos que o administrador insere na conversa
+// (pelo botão ou digitando "/"). O atalho é opcional e único; {nome} vira o primeiro nome do cliente.
+model WhatsAppQuickReply {
+  id        String   @id @default(uuid())
+  title     String
+  text      String
+  shortcut  String?  @unique // sem a barra, minúsculo (ex.: pedido)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
