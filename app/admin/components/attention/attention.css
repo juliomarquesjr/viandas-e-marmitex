@@ -1,0 +1,135 @@
+/* Painel de atenção da tela inicial: a cor e o ritmo do pulso seguem a urgência (calmo, atenção, urgente). */
+
+[data-att-level="calm"] {
+  --att: #f59e0b;
+  --att-ink: #92400e;
+  --att-speed: 2.8s;
+}
+[data-att-level="warning"] {
+  --att: #ea580c;
+  --att-ink: #9a3412;
+  --att-speed: 2.1s;
+}
+[data-att-level="urgent"] {
+  --att: #e11d48;
+  --att-ink: #9f1239;
+  --att-speed: 1.5s;
+}
+.dark [data-att-level="calm"] { --att-ink: #fcd34d; }
+.dark [data-att-level="warning"] { --att-ink: #fdba74; }
+.dark [data-att-level="urgent"] { --att-ink: #fda4af; }
+
+@keyframes att-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--att) 40%, transparent), 0 8px 26px -12px color-mix(in srgb, var(--att) 55%, transparent); }
+  50% { box-shadow: 0 0 0 8px transparent, 0 12px 32px -10px color-mix(in srgb, var(--att) 65%, transparent); }
+}
+@keyframes att-ripple {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes att-ring {
+  0%, 86%, 100% { transform: rotate(0); }
+  89% { transform: rotate(14deg); }
+  92% { transform: rotate(-12deg); }
+  95% { transform: rotate(8deg); }
+  98% { transform: rotate(-4deg); }
+}
+@keyframes att-sheen {
+  0% { transform: translateX(-130%); }
+  55%, 100% { transform: translateX(260%); }
+}
+@keyframes att-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+.att-card {
+  border: 2px solid var(--att);
+  animation: att-breathe var(--att-speed) ease-in-out infinite;
+}
+.att-head {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--att) 14%, var(--card)) 0%, var(--card) 100%);
+}
+.att-badge {
+  position: relative;
+  flex: none;
+}
+.att-badge::before,
+.att-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--att);
+  animation: att-ripple var(--att-speed) ease-out infinite;
+}
+.att-badge::after {
+  animation-delay: calc(var(--att-speed) / 2);
+}
+.att-badge > span {
+  position: relative;
+  z-index: 1;
+}
+.att-bell {
+  animation: att-ring 6s ease-in-out infinite;
+  transform-origin: 50% 8%;
+}
+.att-row {
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.att-row[data-att-level="warning"] {
+  border-color: color-mix(in srgb, var(--att) 45%, var(--border));
+  background: color-mix(in srgb, var(--att) 5%, var(--card));
+}
+.att-row[data-att-level="urgent"] {
+  border-color: color-mix(in srgb, var(--att) 55%, var(--border));
+  background: color-mix(in srgb, var(--att) 9%, var(--card));
+}
+.att-track {
+  background: color-mix(in srgb, var(--att) 22%, var(--card));
+}
+.att-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--att) 70%, white), var(--att));
+}
+.att-cta {
+  position: relative;
+  overflow: hidden;
+}
+.att-cta::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: att-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.att-pill {
+  border: 2px solid var(--att);
+  background: color-mix(in srgb, var(--att) 10%, var(--card));
+}
+.att-dot {
+  background: var(--att);
+  animation: att-dot 1.6s ease-in-out infinite;
+}
+.att-pill-btn {
+  background: var(--att);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .att-card,
+  .att-badge::before,
+  .att-badge::after,
+  .att-bell,
+  .att-cta::after,
+  .att-dot {
+    animation: none;
+  }
+  .att-badge::before,
+  .att-badge::after {
+    display: none;
+  }
+}
