@@ -17,6 +17,7 @@ import {
   FileText,
   Barcode,
   Edit,
+  KeyRound,
   ArrowRight,
   Clock,
   Receipt,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Customer } from "../page";
+import { WhatsAppMark } from "./WhatsAppMark";
 
 // =============================================================================
 // HELPERS
@@ -191,6 +193,7 @@ interface CustomerSummaryModalProps {
   customer: Customer | null;
   onClose: () => void;
   onEdit: () => void;
+  onSendPassword: () => void;
 }
 
 export function CustomerSummaryModal({
@@ -198,6 +201,7 @@ export function CustomerSummaryModal({
   customer,
   onClose,
   onEdit,
+  onSendPassword,
 }: CustomerSummaryModalProps) {
   const router = useRouter();
 
@@ -310,6 +314,7 @@ export function CustomerSummaryModal({
                   <div className="flex items-center gap-2.5 text-sm text-slate-700">
                     <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                     {customer.phone}
+                    {customer.phoneIsWhatsapp && <WhatsAppMark />}
                   </div>
                   {customer.email && (
                     <div className="flex items-center gap-2.5 text-sm text-slate-600">
@@ -380,6 +385,10 @@ export function CustomerSummaryModal({
             <DialogFooter>
               <div />
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={onSendPassword} className="gap-1.5">
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Enviar senha
+                </Button>
                 <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
                   <Edit className="h-3.5 w-3.5" />
                   Editar

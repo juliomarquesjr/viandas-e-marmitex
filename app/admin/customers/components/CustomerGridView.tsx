@@ -15,6 +15,7 @@ import {
   Edit,
   Trash2,
   Barcode,
+  KeyRound,
   Phone,
   Mail,
   ChevronsLeft,
@@ -23,6 +24,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Customer } from "../page";
+import { WhatsAppMark } from "./WhatsAppMark";
 
 // =============================================================================
 // MENU DE AÇÕES DO CARD
@@ -33,11 +35,13 @@ function CardActionsMenu({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onSendPassword,
 }: {
   customer: Customer;
   onEdit: () => void;
   onDelete: () => void;
   onDownloadBarcode: () => void;
+  onSendPassword: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -91,6 +95,18 @@ function CardActionsMenu({
         </button>
         <button
           type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+            onSendPassword();
+          }}
+        >
+          <KeyRound className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
+          Enviar senha
+        </button>
+        <button
+          type="button"
           className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-sm"
           onClick={(e) => {
             e.stopPropagation();
@@ -115,12 +131,14 @@ function CustomerCard({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onSendPassword,
   onCardClick,
 }: {
   customer: Customer;
   onEdit: (customer: Customer) => void;
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
+  onSendPassword: (customer: Customer) => void;
   onCardClick?: (customer: Customer) => void;
 }) {
   return (
@@ -136,6 +154,7 @@ function CustomerCard({
           onEdit={() => onEdit(customer)}
           onDelete={() => onDelete(customer.id)}
           onDownloadBarcode={() => onDownloadBarcode(customer)}
+          onSendPassword={() => onSendPassword(customer)}
         />
       </div>
 
@@ -163,6 +182,7 @@ function CustomerCard({
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <Phone className="h-3 w-3 shrink-0" />
           <span className="truncate">{customer.phone}</span>
+          {customer.phoneIsWhatsapp && <WhatsAppMark />}
         </div>
 
         {/* Email (opcional) */}
@@ -191,6 +211,7 @@ export interface CustomerGridViewProps {
   onEdit: (customer: Customer) => void;
   onDelete: (id: string) => void;
   onDownloadBarcode: (customer: Customer) => void;
+  onSendPassword: (customer: Customer) => void;
   onCardClick?: (customer: Customer) => void;
   pagination: {
     page: number;
@@ -207,6 +228,7 @@ export function CustomerGridView({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onSendPassword,
   onCardClick,
   pagination,
   emptyMessage = "Nenhum cliente encontrado",
@@ -238,6 +260,7 @@ export function CustomerGridView({
             onEdit={onEdit}
             onDelete={onDelete}
             onDownloadBarcode={onDownloadBarcode}
+            onSendPassword={onSendPassword}
             onCardClick={onCardClick}
           />
         ))}

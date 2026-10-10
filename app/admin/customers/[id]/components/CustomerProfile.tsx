@@ -1,10 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Download, Phone, MapPin, Barcode as BarcodeIcon, User, ChevronRight, ArrowLeft, Mail } from "lucide-react";
+import { Calendar, Download, Phone, MapPin, Barcode as BarcodeIcon, User, ChevronRight, ArrowLeft, Mail, KeyRound } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent } from "../../../../components/ui/card";
 import { cn } from "@/lib/utils";
 import { Customer } from "../types";
+import { SendPasswordDialog } from "../../components/SendPasswordDialog";
+import { WhatsAppMark } from "../../components/WhatsAppMark";
 
 interface CustomerProfileProps {
   customer: Customer;
@@ -13,7 +18,9 @@ interface CustomerProfileProps {
 }
 
 export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerProfileProps) {
+  const [passwordOpen, setPasswordOpen] = useState(false);
   return (
+    <>
     <Card className="overflow-hidden border-slate-200 shadow-md rounded-xl">
       <CardContent className="p-0">
 
@@ -93,6 +100,7 @@ export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerP
                 <span className="flex items-center gap-1">
                   <Phone className="h-3 w-3" />
                   {customer.phone}
+                  {customer.phoneIsWhatsapp && <WhatsAppMark />}
                 </span>
               )}
               {customer.email && (
@@ -106,6 +114,10 @@ export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerP
 
           {/* Ações */}
           <div className="flex items-center gap-2 shrink-0 sm:pt-1">
+            <Button variant="outline" size="sm" onClick={() => setPasswordOpen(true)} className="gap-1.5 text-xs">
+              <KeyRound className="h-3.5 w-3.5" />
+              Enviar senha
+            </Button>
             {customer.barcode && (
               <Button variant="outline" size="sm" onClick={downloadBarcode} className="gap-1.5 text-xs">
                 <Download className="h-3.5 w-3.5" />
@@ -122,7 +134,9 @@ export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerP
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Phone className="h-3 w-3" /> Contato
             </p>
-            <p className="text-sm font-medium text-slate-900">{customer.phone}</p>
+            <p className="text-sm font-medium text-slate-900">
+              {customer.phone} {customer.phoneIsWhatsapp && <WhatsAppMark />}
+            </p>
             {customer.email ? (
               <p className="text-xs text-slate-500 truncate" title={customer.email}>{customer.email}</p>
             ) : (
@@ -176,5 +190,7 @@ export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerP
 
       </CardContent>
     </Card>
+    <SendPasswordDialog open={passwordOpen} customer={customer} onClose={() => setPasswordOpen(false)} />
+    </>
   );
 }

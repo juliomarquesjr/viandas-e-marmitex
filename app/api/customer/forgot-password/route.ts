@@ -1,9 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { emailService } from '@/lib/email';
-import { EmailTemplates } from '@/lib/email-templates';
+import { sendCustomerMessage } from '@/lib/messages/service';
 import { createPasswordResetToken, RESET_TOKEN_TTL_MINUTES } from '@/lib/customer-password-reset';
-import { SystemConfig } from '@/lib/types';
 
 const GENERIC_RESPONSE = {
   success: true,
@@ -39,26 +37,21 @@ export async function POST(request: Request) {
     }
 
     // Trabalho pesado (SMTP) roda depois da resposta para que o tempo não revele se o email existe
-    const { id, name, email: to } = customer;
+    const contact = { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone, phoneIsWhatsapp: customer.phoneIsWhatsapp };
     after(async () => {
       try {
-        const configs = await prisma.systemConfig.findMany({ where: { category: 'email' } });
-        if (configs.length === 0) {
-          console.error('forgot-password: configurações de email não encontradas');
-          return;
-        }
-        await emailService.configure(configs as SystemConfig[]);
-
-        const token = await createPasswordResetToken(id);
+        const token = await createPasswordResetToken(contact.id);
         const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
         const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
-        await emailService.sendEmail({
-          to,
-          subject: 'Redefinição de senha - Sabores de Casa',
-          html: EmailTemplates.generatePasswordResetHtml(name, resetUrl, RESET_TOKEN_TTL_MINUTES),
-          text: EmailTemplates.generatePasswordResetText(name, resetUrl, RESET_TOKEN_TTL_MINUTES),
+        // Texto editável em Configurações > Mensagens; o resultado vai para o histórico
+        const [result] = await sendCustomerMessage({
+          typeKey: 'customer_password_reset',
+          customer: contact,
+          channels: ['email'],
+          values: { link: resetUrl, validade: String(RESET_TOKEN_TTL_MINUTES) },
         });
+        if (!result.ok) console.error('forgot-password: falha ao enviar email de redefinição:', result.error);
       } catch (error) {
         console.error('forgot-password: falha ao enviar email de redefinição:', error);
       }

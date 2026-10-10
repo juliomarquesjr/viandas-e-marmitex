@@ -110,6 +110,8 @@ export interface CustomerProfile {
   doc: string | null;
   address: CustomerAddress | null;
   imageUrl?: string | null;
+  phoneIsWhatsapp?: boolean;
+  mustChangePassword?: boolean;
 }
 
 /* ---------------------------------------------------------- pedido online */

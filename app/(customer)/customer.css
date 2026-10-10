@@ -1519,6 +1519,12 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
+  /* rua e número lado a lado, também no celular: o número é curto */
+  .c-fields-street {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+    gap: 12px 16px;
+  }
   .c-dl {
     display: flex;
     flex-direction: column;
@@ -1558,9 +1564,83 @@
     color: var(--c-brand-text);
     margin: 0;
   }
+  .c-alert.is-warn {
+    background: var(--c-warn-soft);
+    color: var(--c-warn);
+  }
   .c-alert.is-ok {
     background: var(--c-ok-soft);
     color: var(--c-ok);
+  }
+
+  /* "Este número é WhatsApp" */
+  .c-wa {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    padding: 10px 12px;
+    border-radius: var(--c-r-md);
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+  }
+  .c-wa-t {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--c-ink);
+  }
+  .c-wa-t small {
+    font-size: 13px;
+    color: var(--c-ink2);
+  }
+  .c-switch {
+    position: relative;
+    flex: none;
+    width: 48px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--c-ink2);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .c-switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.15s;
+  }
+  .c-switch[aria-checked="true"] {
+    background: var(--c-ok);
+  }
+  .c-switch[aria-checked="true"]::after {
+    transform: translateX(20px);
+  }
+  .c-switch:focus-visible {
+    outline: 3px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+  .c-tagwa {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--c-ok-soft);
+    color: var(--c-ok);
+    font: 700 12px var(--c-f-body);
+    vertical-align: middle;
   }
   @media (min-width: 860px) {
     .c-fields2 {

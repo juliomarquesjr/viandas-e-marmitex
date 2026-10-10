@@ -25,6 +25,7 @@ import {
   Edit,
   Trash2,
   Barcode,
+  KeyRound,
   User,
 } from "lucide-react";
 import { CustomerStatsCards } from "./components/CustomerStatsCards";
@@ -32,6 +33,8 @@ import { CustomerPageSkeleton } from "./components/CustomerSkeletonLoader";
 import { CustomerGridView } from "./components/CustomerGridView";
 import { CustomerSummaryModal } from "./components/CustomerSummaryModal";
 import { CustomerFilterBar } from "./components/CustomerFilterBar";
+import { SendPasswordDialog, type PasswordOutcome } from "./components/SendPasswordDialog";
+import { WhatsAppMark } from "./components/WhatsAppMark";
 
 // =============================================================================
 // TIPOS
@@ -41,6 +44,7 @@ export type Customer = {
   id: string;
   name: string;
   phone: string;
+  phoneIsWhatsapp?: boolean;
   email?: string;
   doc?: string;
   barcode?: string;
@@ -64,11 +68,13 @@ function CustomerActionsMenu({
   onEdit,
   onDelete,
   onDownloadBarcode,
+  onSendPassword,
 }: {
   customer: Customer;
   onEdit: () => void;
   onDelete: () => void;
   onDownloadBarcode: () => void;
+  onSendPassword: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -110,6 +116,17 @@ function CustomerActionsMenu({
         >
           <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
           Editar
+        </button>
+        <button
+          type="button"
+          className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-sm"
+          onClick={() => {
+            setOpen(false);
+            onSendPassword();
+          }}
+        >
+          <KeyRound className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
+          Enviar senha de acesso
         </button>
         <button
           type="button"
@@ -187,6 +204,9 @@ export default function AdminCustomersPage() {
     doc: "",
     barcode: "",
     password: "",
+    phoneIsWhatsapp: false,
+    mustChangePassword: false,
+    sendPassword: [] as ("whatsapp" | "email")[],
     street: "",
     number: "",
     complement: "",
@@ -248,6 +268,9 @@ export default function AdminCustomersPage() {
       doc: "",
       barcode: "",
       password: "",
+      phoneIsWhatsapp: false,
+      mustChangePassword: false,
+      sendPassword: [],
       street: "",
       number: "",
       complement: "",
@@ -271,6 +294,9 @@ export default function AdminCustomersPage() {
         doc: customer.doc || "",
         barcode: customer.barcode || "",
         password: "",
+        phoneIsWhatsapp: customer.phoneIsWhatsapp === true,
+        mustChangePassword: false,
+        sendPassword: [],
         street: address.street || "",
         number: address.number || "",
         complement: "",
@@ -292,6 +318,31 @@ export default function AdminCustomersPage() {
     setIsFormOpen(false);
     setEditingCustomer(null);
     resetForm();
+  };
+
+  // Envio da senha de acesso (menu do cliente e pós-cadastro)
+  const [passwordFor, setPasswordFor] = React.useState<Customer | null>(null);
+  const [passwordOutcome, setPasswordOutcome] = React.useState<PasswordOutcome | null>(null);
+
+  const openPasswordDialog = (customer: Customer, outcome: PasswordOutcome | null = null) => {
+    setPasswordOutcome(outcome);
+    setPasswordFor(customer);
+  };
+
+  /** Depois de salvar com senha: avisa o resultado; se algum canal falhou, abre o resultado com a senha para copiar. */
+  const reportPasswordSend = (
+    customer: Customer,
+    password: string | undefined,
+    results: PasswordOutcome["results"] | undefined,
+    done: string
+  ) => {
+    if (!password || !results || results.length === 0) return showToast(done, "success");
+    if (results.every((r) => r.ok)) {
+      const channels = results.map((r) => (r.channel === "whatsapp" ? "WhatsApp" : "e-mail")).join(" e ");
+      return showToast(`${done.replace("!", "")} e senha enviada por ${channels}.`, "success");
+    }
+    showToast("Cliente salvo, mas a senha não foi enviada por todos os canais.", "error");
+    openPasswordDialog(customer, { password, results });
   };
 
   const handleFormSubmit = async (e: React.FormEvent, formData: any) => {
@@ -321,6 +372,7 @@ export default function AdminCustomersPage() {
       const customerData: any = {
         name: formData.name,
         phone: formData.phone,
+        phoneIsWhatsapp: formData.phoneIsWhatsapp === true,
         email: formData.email?.trim() || null,
         doc: formData.doc || undefined,
         barcode: formData.barcode || undefined,
@@ -338,6 +390,8 @@ export default function AdminCustomersPage() {
 
       if (formData.password?.trim()) {
         customerData.password = formData.password.trim();
+        customerData.mustChangePassword = formData.mustChangePassword === true;
+        customerData.sendPassword = formData.sendPassword;
       }
 
       if (editingCustomer) {
@@ -352,11 +406,11 @@ export default function AdminCustomersPage() {
           throw new Error(errorData.error || "Falha ao atualizar cliente");
         }
 
-        const updatedCustomer = await response.json();
+        const { messageResults, ...updatedCustomer } = await response.json();
         setCustomers((prev) =>
           prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
         );
-        showToast("Cliente atualizado com sucesso!", "success");
+        reportPasswordSend(updatedCustomer, customerData.password, messageResults, "Cliente atualizado com sucesso!");
         closeForm();
       } else {
         const response = await fetch("/api/customers", {
@@ -370,9 +424,9 @@ export default function AdminCustomersPage() {
           throw new Error(errorData.error || "Falha ao criar cliente");
         }
 
-        const newCustomer = await response.json();
+        const { messageResults, ...newCustomer } = await response.json();
         setCustomers((prev) => [...prev, newCustomer]);
-        showToast("Cliente cadastrado com sucesso!", "success");
+        reportPasswordSend(newCustomer, customerData.password, messageResults, "Cliente cadastrado com sucesso!");
         closeForm();
       }
     } catch (err) {
@@ -523,6 +577,7 @@ export default function AdminCustomersPage() {
           <div className="flex items-center gap-1.5 text-sm text-slate-700">
             <Phone className="h-3.5 w-3.5 text-slate-400" />
             {customer.phone}
+            {customer.phoneIsWhatsapp && <WhatsAppMark />}
           </div>
           {customer.email && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -617,6 +672,7 @@ export default function AdminCustomersPage() {
                   onEdit={() => openForm(customer)}
                   onDelete={() => setDeleteConfirm(customer.id)}
                   onDownloadBarcode={() => downloadBarcode(customer)}
+                  onSendPassword={() => openPasswordDialog(customer)}
                 />
               )}
               pagination={{
@@ -633,6 +689,7 @@ export default function AdminCustomersPage() {
               onEdit={openForm}
               onDelete={(id) => setDeleteConfirm(id)}
               onDownloadBarcode={downloadBarcode}
+              onSendPassword={(customer) => openPasswordDialog(customer)}
               onCardClick={(customer) => setSelectedCustomer(customer)}
               pagination={{
                 page: currentPage,
@@ -654,6 +711,23 @@ export default function AdminCustomersPage() {
         onEdit={() => {
           openForm(selectedCustomer!);
           setSelectedCustomer(null);
+        }}
+        onSendPassword={() => {
+          openPasswordDialog(selectedCustomer!);
+          setSelectedCustomer(null);
+        }}
+      />
+
+      {/* Gerar e enviar a senha de acesso */}
+      <SendPasswordDialog
+        open={passwordFor !== null}
+        customer={passwordFor}
+        initialOutcome={passwordOutcome}
+        onClose={() => setPasswordFor(null)}
+        onEditCustomer={() => {
+          const customer = passwordFor;
+          setPasswordFor(null);
+          if (customer) openForm(customer);
         }}
       />
 

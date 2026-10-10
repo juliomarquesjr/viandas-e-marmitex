@@ -10,6 +10,7 @@ export type Customer = {
   id: string;
   name: string;
   phone: string;
+  phoneIsWhatsapp?: boolean;
   email?: string;
   doc?: string;
   barcode?: string;
