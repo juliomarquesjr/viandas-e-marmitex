@@ -16,6 +16,8 @@ export interface NotificationsContextValue extends UseNotificationsResult {
   /** Muda a cada pedido para abrir o histórico de notificações (quem o abre é o sino). */
   historyRequest: number;
   requestHistory: () => void;
+  /** Conversas do WhatsApp com mensagem nova (0 para quem não é administrador). */
+  chatUnread: number;
 }
 
 const noop = async () => {};
@@ -38,6 +40,7 @@ const FALLBACK: NotificationsContextValue = {
   setSoundEnabled: () => {},
   historyRequest: 0,
   requestHistory: () => {},
+  chatUnread: 0,
 };
 
 const NotificationsContext = React.createContext<NotificationsContextValue>(FALLBACK);
@@ -77,8 +80,56 @@ function useTabTitleCount(count: number, enabled: boolean) {
   );
 }
 
-export function NotificationsProvider({ children, enabled = true }: { children: React.ReactNode; enabled?: boolean }) {
+const CHAT_POLL_MS = 20_000;
+
+/**
+ * Quantas conversas do WhatsApp têm mensagem nova. Fica no provider, e não no item do menu, para valer em
+ * qualquer tela do admin (inclusive com o menu recolhido ou fechado no celular) e para entrar no título da aba.
+ */
+function useChatUnread(enabled: boolean): number {
+  const [count, setCount] = React.useState(0);
+  React.useEffect(() => {
+    if (!enabled) {
+      setCount(0);
+      return;
+    }
+    let alive = true;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/admin/whatsapp/unread", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : { count: 0 }))
+        .then((data: { count?: number }) => alive && setCount(data.count ?? 0))
+        .catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, CHAT_POLL_MS);
+    // voltar para a aba atualiza na hora, sem esperar o próximo ciclo
+    document.addEventListener("visibilitychange", load);
+    window.addEventListener("focus", load);
+    window.addEventListener("whatsapp-unread-changed", load);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+      window.removeEventListener("focus", load);
+      window.removeEventListener("whatsapp-unread-changed", load);
+    };
+  }, [enabled]);
+  return count;
+}
+
+export function NotificationsProvider({
+  children,
+  enabled = true,
+  chatEnabled = false,
+}: {
+  children: React.ReactNode;
+  enabled?: boolean;
+  /** Só administradores veem as conversas do WhatsApp. */
+  chatEnabled?: boolean;
+}) {
   const engine = useNotificationsEngine({ enabled });
+  const chatUnread = useChatUnread(enabled && chatEnabled);
   const { badgeCount, pendingCount, loaded } = engine;
 
   const [soundEnabled, setSoundState] = React.useState(false);
@@ -106,11 +157,11 @@ export function NotificationsProvider({ children, enabled = true }: { children: 
     previousPending.current = pendingCount;
   }, [loaded, pendingCount, soundEnabled]);
 
-  useTabTitleCount(loaded ? badgeCount : 0, enabled);
+  useTabTitleCount((loaded ? badgeCount : 0) + chatUnread, enabled);
 
   const value = React.useMemo<NotificationsContextValue>(
-    () => ({ ...engine, soundEnabled, setSoundEnabled, historyRequest, requestHistory }),
-    [engine, soundEnabled, setSoundEnabled, historyRequest, requestHistory]
+    () => ({ ...engine, soundEnabled, setSoundEnabled, historyRequest, requestHistory, chatUnread }),
+    [engine, soundEnabled, setSoundEnabled, historyRequest, requestHistory, chatUnread]
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

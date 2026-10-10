@@ -24,7 +24,7 @@ type Outcome =
 
 const hour = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-function Notice({ tone, children }: { tone: "warn" | "bad" | "info" | "ok"; children: React.ReactNode }) {
+export function Notice({ tone, children }: { tone: "warn" | "bad" | "info" | "ok"; children: React.ReactNode }) {
   const style = {
     warn: "border-amber-300 bg-amber-50 text-amber-900",
     bad: "border-rose-200 bg-rose-50 text-rose-900",

@@ -2,13 +2,14 @@
 
 import { FormattedText } from "@/app/admin/components/messages/WhatsAppBubble";
 import { SendMenuDialog } from "@/app/admin/customers/components/SendMenuDialog";
+import { SendFichaDialog, type FichaKind } from "@/app/admin/customers/components/SendFichaDialog";
 import { SendPasswordDialog } from "@/app/admin/customers/components/SendPasswordDialog";
 import { Button } from "@/app/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { EMOJI_GROUPS } from "@/lib/messages/format";
 import { messageLabel, SYSTEM_LABEL } from "@/lib/whatsapp-chat";
 import { applyQuickReply, filterQuickReplies, slashQuery, type QuickReply } from "@/lib/whatsapp-quick-replies";
-import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, MoreVertical, Paperclip, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, CheckCheck, FileText, Image as ImageIcon, KeyRound, Loader2, MapPin, MessageCircle, Mic, MoreVertical, Paperclip, Receipt, Search, Send, Smile, Video, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -56,6 +57,9 @@ interface CustomerInfo {
 }
 
 const TZ = "America/Sao_Paulo";
+// compras da ficha: começa com as duas últimas e "Exibir mais" acrescenta cinco por vez
+const FICHA_FIRST = 2;
+const FICHA_STEP = 5;
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
 function dayLabel(iso: string): string {
@@ -141,6 +145,8 @@ export function ConversationsView() {
   const [loadingThread, setLoadingThread] = useState(false);
 
   const [ficha, setFicha] = useState<Ficha | null>(null);
+  const [shown, setShown] = useState(FICHA_FIRST);
+  const [fichaFor, setFichaFor] = useState<FichaKind | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -244,6 +250,7 @@ export function ConversationsView() {
   useEffect(() => {
     if (!selected) return;
     setFicha(null);
+    setShown(FICHA_FIRST);
     let alive = true;
     fetch(`/api/admin/whatsapp/conversations/${selected}/ficha`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -319,14 +326,14 @@ export function ConversationsView() {
 
   const fichaGroups = useMemo(() => {
     const out: { key: string; label: string; items: FichaEntry[] }[] = [];
-    for (const e of ficha?.entries ?? []) {
+    for (const e of (ficha?.entries ?? []).slice(0, shown)) {
       const key = dayKey(e.at);
       const last = out[out.length - 1];
       if (last && last.key === key) last.items.push(e);
       else out.push({ key, label: dayLabel(e.at), items: [e] });
     }
     return out;
-  }, [ficha]);
+  }, [ficha, shown]);
 
   // "/" no começo ou depois de um espaço abre a lista de respostas rápidas
   const slash = slashQuery(text);
@@ -431,6 +438,18 @@ export function ConversationsView() {
                         Enviar cardápio
                       </button>
                     )}
+                    {customer.phoneIsWhatsapp && (
+                      <>
+                        <button type="button" onClick={() => { setActionsOpen(false); setFichaFor("orders"); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-slate-50">
+                          <Receipt className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
+                          Enviar compras
+                        </button>
+                        <button type="button" onClick={() => { setActionsOpen(false); setFichaFor("balance"); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-slate-50">
+                          <Wallet className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
+                          Enviar saldo
+                        </button>
+                      </>
+                    )}
                     <button type="button" onClick={() => { setActionsOpen(false); setPasswordFor(true); }} className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-slate-50">
                       <KeyRound className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
                       Enviar senha de acesso
@@ -526,7 +545,7 @@ export function ConversationsView() {
                 )}
                 <textarea
                   ref={textArea}
-                  rows={1}
+                  rows={4}
                   value={text}
                   disabled={!canSend}
                   onChange={(e) => {
@@ -559,7 +578,7 @@ export function ConversationsView() {
                   }}
                   placeholder={canSend ? "Escreva uma mensagem… ( / para respostas rápidas )" : "Não é possível enviar agora"}
                   aria-label="Mensagem"
-                  className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary disabled:bg-slate-50"
+                  className="max-h-56 min-h-[104px] flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary disabled:bg-slate-50"
                 />
                 <Button type="button" onClick={() => void send()} disabled={!canSend || sending || !text.trim()} className="h-11 gap-2 bg-green-600 px-5 hover:bg-green-700">
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Enviar
@@ -617,10 +636,21 @@ export function ConversationsView() {
               </div>
             ))
           )}
+          {ficha && ficha.entries.length > shown && (
+            <button type="button" onClick={() => setShown((n) => n + FICHA_STEP)} className="mt-3 w-full cursor-pointer rounded-lg border border-slate-200 py-2 text-[13px] font-semibold text-slate-600 hover:bg-slate-50">
+              Exibir mais {Math.min(FICHA_STEP, ficha.entries.length - shown)}
+            </button>
+          )}
         </aside>
       )}
 
       <SendMenuDialog open={menuFor} customer={customer ? { id: customer.id, name: customer.name } : null} onClose={() => { setMenuFor(false); if (selected) void loadThread(selected, true); }} />
+      <SendFichaDialog
+        kind={fichaFor ?? "orders"}
+        open={fichaFor !== null}
+        customer={customer ? { id: customer.id, name: customer.name } : null}
+        onClose={() => { setFichaFor(null); if (selected) void loadThread(selected, true); }}
+      />
       <SendPasswordDialog open={passwordFor} customer={customer ? { id: customer.id, name: customer.name } : null} onClose={() => { setPasswordFor(false); if (selected) void loadThread(selected, true); }} />
     </div>
   );

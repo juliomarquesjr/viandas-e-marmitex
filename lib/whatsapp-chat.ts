@@ -127,6 +127,8 @@ export function messageLabel(type: string, body: string | null | undefined): str
 /** Mensagens do sistema que levam dado sensível: só o tipo fica gravado, nunca o texto. */
 export const SYSTEM_LABEL: Record<string, string> = {
   daily_menu: 'Cardápio do dia',
+  customer_orders: 'Resumo das compras',
+  customer_balance: 'Saldo da ficha',
   customer_password: 'Senha de acesso',
   customer_password_reset: 'Link para redefinir senha',
 };
