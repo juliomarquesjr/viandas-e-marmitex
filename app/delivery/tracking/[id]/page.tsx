@@ -625,7 +625,7 @@ export default function DeliveryTrackingPage() {
 
   if (loading && !deliveryData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex items-center justify-center min-h-dvh bg-gray-900">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-white mx-auto mb-4" />
           <p className="text-white text-lg">Carregando entrega...</p>
@@ -636,7 +636,7 @@ export default function DeliveryTrackingPage() {
 
   if (error || !deliveryData) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-dvh bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-sm w-full">
           <div className="bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
             <X className="h-8 w-8 text-red-600" />

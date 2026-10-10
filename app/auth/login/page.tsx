@@ -172,7 +172,7 @@ export default function LoginPage() {
   const isFacial = view === "facial";
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-10">
       <BrandBackdrop />
 
       <div className="absolute right-6 top-6 z-20">

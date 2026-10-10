@@ -1,15 +1,15 @@
 "use client";
 
-import { BookOpen, Home, LogOut, ReceiptText, ShoppingBag, User } from "lucide-react";
+import { BookOpen, Home, LogOut, Menu, ReceiptText, ShoppingBag, User } from "lucide-react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { resetCustomerAvatar, useCustomerAvatar } from "../lib/avatar-store";
 import { CustomerRealtimeProvider } from "../lib/realtime";
 import { resetNotices } from "../lib/notifications-store";
 import { NotificationBell } from "./avisos/NotificationBell";
-import { CustomerAvatar } from "./Avatar";
+import { MobileMenu } from "./MobileMenu";
 import { CustomerThemeProvider } from "./CustomerTheme";
 import { BrandMark, ThemeButton, useBranding } from "./kit";
 
@@ -37,10 +37,11 @@ function isBareRoute(pathname: string | null) {
   );
 }
 
-function NavLinks({ pathname }: { pathname: string }) {
+/** No celular o Perfil mora no menu do cabeçalho (sanduíche); a barra de baixo fica com quatro atalhos. */
+function NavLinks({ pathname, skip }: { pathname: string; skip?: string }) {
   return (
     <>
-      {NAV.map(({ href, label, icon: Icon }) => {
+      {NAV.filter((item) => item.href !== skip).map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link key={href} href={href} className="c-nav" aria-current={active ? "page" : undefined}>
@@ -62,6 +63,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const branding = useBranding();
   const avatar = useCustomerAvatar();
   const bare = isBareRoute(pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // trocar de tela fecha o menu
+  useEffect(() => setMenuOpen(false), [pathname]);
   const mustChange = avatar.mustChangePassword && !bare && pathname !== "/profile";
 
   // Senha gerada pelo estabelecimento: o cliente só segue depois de trocá-la
@@ -90,12 +95,29 @@ function Shell({ children }: { children: React.ReactNode }) {
         </Link>
         <div className="c-top-actions">
           <NotificationBell />
-          <ThemeButton />
-          <Link href="/profile" className="c-avatar-link" aria-label="Meu perfil">
-            <CustomerAvatar name={session?.user?.name} imageUrl={avatar.imageUrl} size={40} />
-          </Link>
+          <button
+            type="button"
+            className="c-iconbtn"
+            aria-label="Abrir menu"
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu size={24} aria-hidden="true" />
+          </button>
         </div>
       </header>
+
+      <Suspense fallback={null}>
+        <MobileMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          name={session?.user?.name}
+          detail={session?.user?.email || (session?.user as { phone?: string } | undefined)?.phone}
+          imageUrl={avatar.imageUrl}
+          onLogout={logout}
+        />
+      </Suspense>
 
       <nav className="c-rail" aria-label="Principal">
         <Link href="/dashboard" aria-label={branding.title} title={branding.title}>
@@ -118,7 +140,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="c-tabbar" aria-label="Principal">
-        <NavLinks pathname={pathname} />
+        <NavLinks pathname={pathname} skip="/profile" />
       </nav>
     </div>
   );

@@ -303,7 +303,7 @@
   }
   .c-tabbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     background: var(--c-surface);
     border-top: 1px solid var(--c-line);
     padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
@@ -1284,6 +1284,161 @@
     }
   }
 
+  /* ---------- menu do cabeçalho no celular (sanduíche): gaveta pela direita ---------- */
+  .c-drawer-ov {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--c-overlay);
+    backdrop-filter: blur(2px);
+    animation: c-fade 0.22s ease both;
+  }
+  .c-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(88vw, 360px);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-shadow: -12px 0 40px rgb(0 0 0 / 0.18);
+    animation: c-drawer-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .c-drawer-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .c-drawer-me {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+    padding: 4px;
+    border-radius: var(--c-r-md);
+  }
+  .c-drawer-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .c-drawer-who strong {
+    font-size: 17px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .c-drawer-who small {
+    color: var(--c-ink2);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .c-drawer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .c-drawer-sec {
+    margin: 4px 8px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-ink2);
+  }
+  .c-drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 10px;
+    border-radius: var(--c-r-md);
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .c-drawer-item:hover,
+  .c-drawer-item:active {
+    background: var(--c-sunk);
+  }
+  .c-drawer-item[aria-current="page"] {
+    background: var(--c-brand-soft);
+    color: var(--c-brand-text);
+  }
+  .c-drawer-item:focus-visible,
+  .c-drawer-me:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+  .c-drawer-ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--c-sunk);
+  }
+  .c-drawer-item[aria-current="page"] .c-drawer-ic {
+    background: var(--c-surface);
+  }
+  .c-drawer-t {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .c-drawer-t strong {
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .c-drawer-t small {
+    color: var(--c-ink2);
+    font-size: 13px;
+    line-height: 1.3;
+  }
+  .c-drawer-go {
+    flex: none;
+    color: var(--c-ink2);
+  }
+  .c-drawer-item.is-out {
+    color: var(--c-brand-text);
+  }
+  @media (min-width: 860px) {
+    .c-drawer-ov {
+      display: none;
+    }
+  }
+
+  /* teclado aberto no celular: a casca e as folhas passam a ter a altura da parte visível, a barra de baixo
+     some e o botão Salvar / o botão da folha ficam acima do teclado (ver ViewportVars) */
+  @media (max-width: 859px) {
+    html[data-keyboard="open"] .c-shell {
+      height: var(--vv-h, 100dvh);
+    }
+    html[data-keyboard="open"] .c-tabbar {
+      display: none;
+    }
+    html[data-keyboard="open"] .c-ov {
+      inset: var(--vv-top, 0px) 0 auto 0;
+      height: var(--vv-h, 100dvh);
+    }
+    html[data-keyboard="open"] .c-sheet {
+      max-height: var(--vv-h, 94dvh);
+    }
+  }
+
   /* opções de valor, QR e copia e cola */
   .c-opts {
     display: flex;
@@ -1894,5 +2049,11 @@
 @keyframes c-shimmer {
   to {
     background-position: -200% 0;
+  }
+}
+
+@keyframes c-drawer-in {
+  from {
+    transform: translateX(100%);
   }
 }

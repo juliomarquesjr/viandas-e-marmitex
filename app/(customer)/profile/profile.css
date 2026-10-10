@@ -64,9 +64,9 @@
     flex-direction: column;
     flex: 1;
   }
-  /* uma linha só: ícone em cima do texto, a aba ativa ganha o marcador na base */
+  /* no celular as seções do perfil moram no menu do cabeçalho (sanduíche, ver MobileMenu); no computador, no trilho ao lado (.c-pnav) */
   .c-ptabs {
-    display: grid;
+    display: none;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     padding: 4px 8px 0;
     border-bottom: 1px solid var(--c-line);

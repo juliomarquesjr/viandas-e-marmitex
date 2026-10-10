@@ -93,7 +93,7 @@ export function AuthThemeProvider({ children }: { children: React.ReactNode }) {
     <AuthThemeContext.Provider value={value}>
       <div
         data-auth-theme-scope=""
-        className="min-h-screen bg-background text-foreground transition-colors duration-200"
+        className="min-h-dvh bg-background text-foreground transition-colors duration-200"
       >
         {children}
       </div>

@@ -201,7 +201,7 @@ export default function PDVPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground grid grid-rows-[auto_minmax(0,1fr)]">
+    <div className="min-h-dvh w-full bg-background text-foreground grid grid-rows-[auto_minmax(0,1fr)]">
       <audio ref={audioRef} src="/audio/beep.mp3" preload="auto" />
 
       {/* Header */}

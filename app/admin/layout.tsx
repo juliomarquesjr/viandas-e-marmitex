@@ -96,7 +96,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         />
 
         {/* Main Layout */}
-        <div className="flex h-screen">
+        <div className="flex h-dvh">
           {/* Desktop Sidebar — escondida no modo imersivo */}
           {!immersive && <ModernSidebar userRole={userRole} />}
 

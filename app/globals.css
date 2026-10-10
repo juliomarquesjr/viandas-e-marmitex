@@ -640,11 +640,43 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/*
+ * Casca da janela. Na web ela não pode cortar nada: a página rola pelo documento (é o que deixa o botão de um
+ * formulário alcançável em celular baixo, com fonte grande ou teclado aberto). Só no app desktop (Tauri,
+ * html.desktop-runtime) a janela é fixa e cada tela rola por dentro.
+ */
 .desktop-window-frame {
-  height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* Elementos absolutos (ex.: textos sr-only no fim de uma tabela larga) escapam do overflow dos pais e
+     alargariam ou alongariam o documento: no celular a página "zoom out" e os modais saem do lugar.
+     `clip` não cria área de rolagem (o sticky continua valendo) e só corta esse tipo de vazamento. */
+  position: relative;
+}
+
+@supports (overflow: clip) {
+  .desktop-window-frame {
+    overflow: clip;
+  }
+}
+
+html.desktop-runtime .desktop-window-frame {
+  height: 100vh;
+  min-height: 0;
   overflow: hidden;
+}
+
+/*
+ * Modais no celular: centrados e limitados pela área realmente visível (sem o teclado e sem a barra do
+ * navegador), publicada por ViewportVars. Fica fora de @layer de propósito, para valer sobre o `top-1/2` e o
+ * `max-h-[90vh]` que cada modal declara.
+ */
+@media (max-width: 640px) {
+  [data-vv-dialog] {
+    top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh) / 2);
+    max-height: calc(var(--vv-h, 100dvh) - 16px);
+  }
 }
 
 .desktop-window-titlebar {
@@ -722,6 +754,9 @@ body {
 .desktop-window-content {
   flex: 1;
   min-height: 0;
+}
+
+html.desktop-runtime .desktop-window-content {
   overflow: hidden;
 }
 
