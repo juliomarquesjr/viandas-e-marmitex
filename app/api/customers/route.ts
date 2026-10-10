@@ -2,7 +2,6 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { requireStaff } from '@/lib/staff-session';
-import { loadContact, parseChannels, sendPasswordMessage } from '@/lib/messages/customer-password';
 import { Prisma } from '@/lib/generated/prisma';
 import { del } from '@vercel/blob';
 
@@ -72,15 +71,6 @@ export async function GET(request: Request) {
   }
 }
 
-/** Depois de gravar a senha, avisa o cliente pelos canais marcados (`sendPassword: ['whatsapp','email']`). */
-async function notifyPassword(customerId: string, body: { password?: unknown; sendPassword?: unknown }) {
-  const channels = parseChannels(body.sendPassword);
-  const password = typeof body.password === 'string' ? body.password.trim() : '';
-  if (channels.length === 0 || !password) return [];
-  const contact = await loadContact(customerId);
-  return contact ? sendPasswordMessage(contact, password, channels) : [];
-}
-
 export async function POST(request: Request) {
   const auth = await requireStaff();
   if ('error' in auth) return auth.error;
@@ -126,7 +116,6 @@ export async function POST(request: Request) {
         doc: body.doc,
         barcode: body.barcode,
         password: hashedPassword,
-        mustChangePassword: Boolean(hashedPassword) && body.mustChangePassword === true,
         phoneIsWhatsapp: body.phoneIsWhatsapp === true,
         address: body.address ? JSON.parse(JSON.stringify(body.address)) : undefined,
         imageUrl: body.imageUrl || null,
@@ -134,12 +123,9 @@ export async function POST(request: Request) {
       }
     });
     
-    // Avisa o cliente da senha cadastrada, pelos canais que o administrador marcou
-    const messageResults = hashedPassword ? await notifyPassword(customer.id, body) : [];
-
     // Não retornar a senha
     const { password, ...customerWithoutPassword } = customer;
-    return NextResponse.json({ ...customerWithoutPassword, messageResults });
+    return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error creating customer:', error);
     
@@ -246,7 +232,6 @@ export async function PUT(request: Request) {
     // Hash da senha se fornecida e não vazia
     if (password && typeof password === 'string' && password.trim()) {
       updateData.password = await bcrypt.hash(password.trim(), 10);
-      updateData.mustChangePassword = data.mustChangePassword === true;
     }
     
     const customer = await prisma.customer.update({
@@ -254,11 +239,9 @@ export async function PUT(request: Request) {
       data: updateData
     });
     
-    const messageResults = updateData.password ? await notifyPassword(customer.id, { ...data, password }) : [];
-
     // Não retornar a senha
     const { password: _, ...customerWithoutPassword } = customer;
-    return NextResponse.json({ ...customerWithoutPassword, messageResults });
+    return NextResponse.json(customerWithoutPassword);
   } catch (error) {
     console.error('Error updating customer:', error);
     
