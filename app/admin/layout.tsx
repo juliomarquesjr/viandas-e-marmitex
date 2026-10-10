@@ -100,7 +100,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               className={
                 fullBleed
                   ? "flex-1 min-h-0 overflow-hidden bg-background"
-                  : "flex-1 overflow-auto bg-background"
+                  : "scroll-slim flex-1 overflow-auto bg-background"
               }
               style={fullBleed ? undefined : { scrollbarGutter: "stable" }}
             >

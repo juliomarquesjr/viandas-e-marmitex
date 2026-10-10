@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma';
 import { EmailService } from '@/lib/email';
 import { isEvolutionConfigured } from '@/lib/evolution';
 import { describeWhatsAppError, getStatus, sendWhatsAppText } from '@/lib/whatsapp-service';
+import { recordMessage } from '@/lib/whatsapp-chat-service';
 import { normalizeBrazilNumber } from '@/lib/whatsapp-rules';
 import type { SystemConfig } from '@/lib/types';
 import {
@@ -126,7 +127,7 @@ export async function channelReadiness(typeKey: string, channel: MessageChannel)
   const template = await loadTemplate(typeKey, channel);
   if (!template) return { ready: false, reason: 'Este tipo de mensagem não usa este canal.', fixHref: null };
   if (!template.enabled) {
-    return { ready: false, reason: `O modelo de ${CHANNEL_LABEL[channel]} está desligado.`, fixHref: '/admin/settings?tab=mensagens' };
+    return { ready: false, reason: `O modelo de ${CHANNEL_LABEL[channel]} está desligado.`, fixHref: '/admin/whatsapp/mensagens' };
   }
   return channel === 'whatsapp' ? whatsappReadiness() : emailReadiness();
 }
@@ -159,16 +160,18 @@ async function composeText(type: MessageTypeDef, channel: MessageChannel, values
   return { body, subject: template.subject ? renderTemplate(template.subject, values) : '' };
 }
 
+/** Envia pelo canal. No WhatsApp devolve o id e o texto, para a conversa do cliente. */
 async function deliver(type: MessageTypeDef, channel: MessageChannel, to: string, values: Record<string, string>) {
   const { body, subject } = await composeText(type, channel, values);
   if (channel === 'whatsapp') {
-    await sendWhatsAppText(to, body);
-    return;
+    const externalId = await sendWhatsAppText(to, body);
+    return { externalId, body };
   }
   const configs = (await prisma.systemConfig.findMany({ where: { category: 'email' } })) as SystemConfig[];
   const mailer = new EmailService();
   await mailer.configure(configs);
   await mailer.sendEmail({ to, subject, html: emailBodyToHtml(body, values.loja), text: stripFormatting(body) });
+  return null;
 }
 
 function friendlyError(channel: MessageChannel, error: unknown): string {
@@ -223,8 +226,13 @@ export async function sendCustomerMessage(input: SendInput): Promise<ChannelResu
       try {
         const ready = await channelReadiness(type.key, channel);
         if (!ready.ready) throw new Error(ready.reason ?? 'Canal indisponível.');
-        await deliver(type, channel, to, values);
+        const sent = await deliver(type, channel, to, values);
         result = { channel, ok: true, recipient, at };
+        if (channel === 'whatsapp' && sent) {
+          // entra na conversa do cliente; texto com dado sensível (senha, link) nunca é guardado
+          const sensitive = type.variables.some((v) => v.sensitive);
+          await recordMessage({ externalId: sent.externalId, customerId: input.customer.id, number: normalizeBrazilNumber(to) ?? to, fromMe: true, body: sensitive ? null : sent.body, systemType: type.key }).catch(() => undefined);
+        }
       } catch (error) {
         result = { channel, ok: false, recipient, error: friendlyError(channel, error), at };
       }

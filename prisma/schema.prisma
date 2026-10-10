@@ -59,6 +59,7 @@ model Customer {
   paymentIntents PaymentIntent[]
   dismissals     CustomerDismissal[]
   messageLogs    MessageLog[]
+  whatsappMessages WhatsAppMessage[]
   notifications Notification[]
 }
 
@@ -536,4 +537,41 @@ model MessageLog {
   @@index([createdAt])
   @@index([customerId])
   @@index([typeKey, channel, status])
+}
+
+// Conversa do WhatsApp do estabelecimento com os clientes (uma linha por mensagem). Alimentada pelo webhook da
+// Evolution (recebidas e enviadas pelo celular) e pelos envios do próprio sistema. Só clientes cadastrados.
+// Mensagens do sistema com dado sensível (senha, link) guardam só o tipo, nunca o texto.
+model WhatsAppMessage {
+  id         String    @id @default(uuid())
+  externalId String?   @unique // id da mensagem no WhatsApp: evita duplicar webhook + envio do sistema
+  customerId String?
+  number     String    // telefone do contato, só dígitos (ex.: 5562999998888)
+  fromMe     Boolean   // true = enviada pelo estabelecimento
+  type       String    @default("text") // text, image, audio, video, document, location, sticker, other
+  body       String?   // texto (nulo em mídia e em mensagem sigilosa do sistema)
+  systemType String?   // tipo da mensagem do sistema (ex.: daily_menu, customer_password), quando saiu dele
+  status     String    @default("sent") // enviada: sent, delivered, read, failed
+  error      String?
+  sentByName String?   // quem escreveu no sistema (nulo = celular ou envio automático)
+  createdAt  DateTime  // quando a mensagem aconteceu no WhatsApp
+  readAt     DateTime? // recebida: quando um administrador abriu a conversa
+
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@index([number, createdAt])
+  @@index([fromMe, readAt])
+}
+
+// Respostas rápidas do atendimento no WhatsApp: textos prontos que o administrador insere na conversa
+// (pelo botão ou digitando "/"). O atalho é opcional e único; {nome} vira o primeiro nome do cliente.
+model WhatsAppQuickReply {
+  id        String   @id @default(uuid())
+  title     String
+  text      String
+  shortcut  String?  @unique // sem a barra, minúsculo (ex.: pedido)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

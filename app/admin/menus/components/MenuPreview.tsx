@@ -15,7 +15,7 @@ interface WhatsAppTemplate {
   signature: string;
 }
 
-/** O texto de "Mensagens → Cardápio do dia" e os dados para montá-lo (carrega uma vez). */
+/** O texto de "WhatsApp → Mensagens → Cardápio do dia" e os dados para montá-lo (carrega uma vez). */
 function useWhatsAppTemplate() {
   const [state, setState] = useState<WhatsAppTemplate | null | "error">(null);
   useEffect(() => {
@@ -100,7 +100,7 @@ export function MenuPreview({ draft, day }: { draft: Draft; day: string }) {
           />
           <p className="mx-auto mt-3 w-[300px] px-1 text-xs leading-relaxed text-[color:var(--muted-foreground)]">
             É o modelo de <strong>Mensagens → Cardápio do dia</strong> com este cardápio no lugar de <code>{"{cardapio}"}</code> (aqui, para “Maria”). Para mudar o texto,{" "}
-            <Link href="/admin/settings?tab=mensagens" className="font-semibold text-primary underline">edite o modelo</Link>.
+            <Link href="/admin/whatsapp/mensagens" className="font-semibold text-primary underline">edite o modelo</Link>.
             {template && template !== "error" && !template.enabled && <span className="mt-1 block font-semibold" style={{ color: "var(--state-cobrar-fg)" }}>O envio do cardápio por WhatsApp está desligado nas configurações.</span>}
           </p>
         </>

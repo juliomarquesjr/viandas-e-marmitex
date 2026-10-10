@@ -232,12 +232,12 @@ export async function sendTestMessage(): Promise<{ number: string }> {
  * Envio de mensagem para um cliente (base para os recursos futuros). Só envia com o WhatsApp conectado;
  * o telefone é normalizado. Lança erro se não puder enviar: quem chama decide o que fazer.
  */
-export async function sendWhatsAppText(phone: string, text: string): Promise<void> {
+export async function sendWhatsAppText(phone: string, text: string): Promise<string | null> {
   const number = normalizeBrazilNumber(phone);
   if (!number) throw new EvolutionError('bad_request', 'Telefone inválido.');
   const state = await connectionState(instanceName());
   if (state !== 'open') throw new EvolutionError('bad_request', 'O WhatsApp do estabelecimento não está conectado.');
-  await sendText(instanceName(), number, text);
+  return sendText(instanceName(), number, text);
 }
 
 export { describeError as describeWhatsAppError };
