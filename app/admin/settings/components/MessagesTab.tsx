@@ -6,7 +6,8 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Switch } from "@/app/components/ui/switch";
 import { Textarea } from "@/app/components/ui/textarea";
-import { FormattedText, WhatsAppBubble } from "@/app/admin/components/messages/WhatsAppBubble";
+import { FormattedText } from "@/app/admin/components/messages/WhatsAppBubble";
+import { WhatsAppPhone } from "@/app/admin/components/messages/WhatsAppPhone";
 import { EMOJI_GROUPS, toggleWrap, type WrapKind } from "@/lib/messages/format";
 import { renderTemplate } from "@/lib/messages/render";
 import { AlertCircle, Bold, CheckCircle2, Clock, History, Italic, KeyRound, Loader2, Mail, MessageCircle, RotateCcw, Save, Send, Smile, Strikethrough } from "lucide-react";
@@ -349,7 +350,7 @@ function TemplatesPanel({ overview, reload }: { overview: Overview; reload: () =
         <div className="space-y-1.5">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Prévia, com dados de exemplo</p>
           {active === "whatsapp" ? (
-            <WhatsAppBubble text={preview} />
+            <div className="rounded-2xl bg-slate-100 px-3 py-6"><WhatsAppPhone name={overview.storeName} text={preview} /></div>
           ) : (
             <div className="rounded-2xl bg-slate-100 p-4">
               <div className="mx-auto max-w-[520px] overflow-hidden rounded-xl bg-white shadow-sm">

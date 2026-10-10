@@ -39,7 +39,7 @@ export function formatMenuMessage(menu: MenuForMessage, max: number = MENU_MESSA
   const blocks: string[] = [];
 
   for (const section of menu.sections) {
-    const lines: string[] = [`*${section.name}*`];
+    const lines: string[] = [`*${section.name.trim() || 'Itens'}*`];
     let sectionShown = 0;
     for (const item of section.items) {
       const parts = [`• ${item.name}`];
