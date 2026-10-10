@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { StatusBadge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -96,6 +97,19 @@ function CardActionsMenu({
           <Edit className="h-4 w-4 mr-2 shrink-0 text-slate-400" />
           Editar
         </button>
+        {customer.phoneIsWhatsapp && (
+          <Link
+            href={`/admin/whatsapp/conversas?cliente=${customer.id}`}
+            className="flex items-center w-full whitespace-nowrap px-3 py-2 text-sm text-green-700 font-medium hover:bg-green-50 rounded-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          >
+            <MessageCircle className="h-4 w-4 mr-2 shrink-0 text-green-600" />
+            Ver conversa
+          </Link>
+        )}
         {customer.phoneIsWhatsapp && (
           <button
             type="button"

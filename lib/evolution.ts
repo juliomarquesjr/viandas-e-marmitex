@@ -147,11 +147,14 @@ export async function setWebhook(name: string, url: string, secret: string): Pro
       webhookByEvents: false,
       webhookBase64: false,
       headers: { 'x-webhook-secret': secret },
-      events: ['CONNECTION_UPDATE'],
+      // conexão + conversas (mensagens novas, enviadas e as confirmações de entrega/leitura)
+      events: ['CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'SEND_MESSAGE', 'MESSAGES_UPDATE'],
     },
   });
 }
 
-export async function sendText(name: string, number: string, text: string): Promise<void> {
-  await request('POST', `/message/sendText/${encodeURIComponent(name)}`, { number, text });
+/** Envia o texto e devolve o id da mensagem no WhatsApp (para casar com os avisos de entrega e leitura). */
+export async function sendText(name: string, number: string, text: string): Promise<string | null> {
+  const res = await request<{ key?: { id?: string } } | null>('POST', `/message/sendText/${encodeURIComponent(name)}`, { number, text });
+  return res?.key?.id ?? null;
 }

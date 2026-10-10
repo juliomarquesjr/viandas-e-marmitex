@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Download, Phone, MapPin, Barcode as BarcodeIcon, User, ChevronRight, ArrowLeft, Mail, KeyRound } from "lucide-react";
+import { Calendar, Download, Phone, MapPin, Barcode as BarcodeIcon, User, ChevronRight, ArrowLeft, Mail, KeyRound, MessageCircle } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent } from "../../../../components/ui/card";
 import { cn } from "@/lib/utils";
@@ -114,6 +114,15 @@ export function CustomerProfile({ customer, onBack, downloadBarcode }: CustomerP
 
           {/* Ações */}
           <div className="flex items-center gap-2 shrink-0 sm:pt-1">
+            {customer.phoneIsWhatsapp && (
+              <Link
+                href={`/admin/whatsapp/conversas?cliente=${customer.id}`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 text-xs font-medium text-green-800 hover:bg-green-100"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Ver conversa
+              </Link>
+            )}
             <Button variant="outline" size="sm" onClick={() => setPasswordOpen(true)} className="gap-1.5 text-xs">
               <KeyRound className="h-3.5 w-3.5" />
               Enviar senha

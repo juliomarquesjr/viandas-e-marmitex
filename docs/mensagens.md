@@ -1,6 +1,6 @@
 ## Mensagens enviadas ao cliente
 
-O administrador edita os textos que o sistema envia (WhatsApp e e-mail) em **Configurações → Mensagens**: aba **Modelos** (texto, assunto, liga/desliga por canal, prévia, "Enviar teste para mim", "Restaurar texto padrão", assinatura única) e aba **Histórico** (quem recebeu, por qual canal e se deu certo).
+O administrador edita os textos que o sistema envia (WhatsApp e e-mail) em **WhatsApp → Mensagens**: textos (texto, assunto, liga/desliga por canal, prévia, "Enviar teste para mim", "Restaurar texto padrão", assinatura única) e **WhatsApp → Histórico** (quem recebeu, por qual canal e se deu certo).
 
 ### Tipos de mensagem
 Ficam em `lib/messages/registry.ts`: nome, variáveis, texto padrão por canal. Hoje:
@@ -42,4 +42,4 @@ A caixa de texto tem barra com **Negrito**, **Itálico**, **Tachado** (Ctrl+B / 
 Migration `20261010140000_add_messages_and_whatsapp_flag`: só acrescenta (2 colunas com padrão em `Customer` e as tabelas `MessageTemplate` e `MessageLog`). Em produção, aplicar **antes** de publicar o código: `prisma migrate deploy`.
 
 ### Código
-`lib/messages/{registry,render,password,service,customer-password}.ts` (regras puras testadas em `tests/messages.test.ts`), `app/admin/settings/components/MessagesTab.tsx`, `app/admin/customers/components/SendPasswordDialog.tsx`.
+`lib/messages/{registry,render,password,service,customer-password}.ts` (regras puras testadas em `tests/messages.test.ts`), `app/admin/whatsapp/components/MessagesViews.tsx`, `app/admin/customers/components/SendPasswordDialog.tsx`.
