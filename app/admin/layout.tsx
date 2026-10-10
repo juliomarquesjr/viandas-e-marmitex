@@ -107,7 +107,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
               {fullBleed ? (
                 children
               ) : (
-                <div className="container mx-auto px-4 lg:px-6 pt-6 pb-24 lg:pb-6 max-w-7xl">{children}</div>
+                <div className="w-full px-4 lg:px-6 pt-6 pb-24 lg:pb-6">{children}</div>
               )}
             </main>
           </div>

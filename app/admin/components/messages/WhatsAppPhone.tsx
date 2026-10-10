@@ -16,7 +16,7 @@ export function WhatsAppPhone({ name, text, empty, className = "" }: { name: str
 
   return (
     <div className={`mx-auto w-[300px] rounded-[42px] bg-slate-900 p-[9px] shadow-xl ${className}`} aria-label={`Prévia da conversa de WhatsApp com ${name}`}>
-      <div className="relative flex h-[600px] flex-col overflow-hidden rounded-[34px] bg-[#efeae2]">
+      <div className="relative flex h-[min(600px,calc(100dvh-15rem))] min-h-[440px] flex-col overflow-hidden rounded-[34px] bg-[#efeae2]">
         {/* barra de status */}
         <div className="flex items-center justify-between bg-[#075e54] px-5 pb-1 pt-2 text-[11px] font-semibold text-white">
           <span>{time || "9:41"}</span>

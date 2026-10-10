@@ -201,8 +201,8 @@ export default function MenuEditorPage() {
             <div className="h-72 rounded-2xl bg-[color:var(--muted)]" />
           </div>
         ) : (
-          <div className="flex flex-wrap items-start gap-6">
-            <div className="min-w-0 flex-[1_1_640px] space-y-5">
+          <div className="grid items-start gap-6 min-[1180px]:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="min-w-0 space-y-5">
               {saveError && (
                 <div role="alert" className="flex items-start gap-2 rounded-xl px-4 py-3 text-sm" style={{ background: "var(--state-cobrar-bg)", color: "var(--state-cobrar-fg)" }}>
                   <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
@@ -240,7 +240,7 @@ export default function MenuEditorPage() {
               <SectionsEditor draft={draft} onChange={(sections) => patch({ sections })} />
             </div>
 
-            <aside className="min-w-[300px] flex-[0_1_360px] space-y-5">
+            <aside className="space-y-5 min-[1180px]:self-stretch">
               <section aria-labelledby="menu-pub" className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-5">
                 <h2 id="menu-pub" className="text-base font-semibold">
                   Publicação
@@ -280,7 +280,9 @@ export default function MenuEditorPage() {
                 )}
               </section>
 
-              <MenuPreview draft={draft} day={day} />
+              <div className="min-[1180px]:sticky min-[1180px]:top-4">
+                <MenuPreview draft={draft} day={day} />
+              </div>
             </aside>
           </div>
         )}

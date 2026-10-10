@@ -234,7 +234,7 @@ export function UserGridView({
   return (
     <div className="space-y-4">
       {/* Grid de cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 gap-4">
         {users.map((user) => (
           <UserCard
             key={user.id}
