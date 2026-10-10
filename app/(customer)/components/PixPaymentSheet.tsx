@@ -174,7 +174,7 @@ function PixFlow({
           <p className="c-alert" role="alert">
             Não foi possível gerar o QR agora. Tente de novo ou pague no balcão.
           </p>
-          <div className="c-actions">
+          <div className="c-actions c-pix-foot">
             <button type="button" className="c-btn is-ghost" onClick={() => setStep("choose")}>
               Mudar o valor
             </button>
@@ -189,7 +189,6 @@ function PixFlow({
       {step === "qr" && result && (
         <QrStep
           cents={cents}
-          settings={result.settings}
           charge={result.charge}
           onBack={changeValue}
           onPaid={inform}
@@ -359,9 +358,11 @@ function ChooseStep({
         </div>
       )}
 
-      <button type="button" className="c-btn is-primary" disabled={Boolean(problem) || cents <= 0} onClick={onGenerate}>
-        Gerar QR code de {formatBRL(cents)}
-      </button>
+      <div className="c-pix-foot">
+        <button type="button" className="c-btn is-primary" disabled={Boolean(problem) || cents <= 0} onClick={onGenerate}>
+          Gerar QR code de {formatBRL(cents)}
+        </button>
+      </div>
     </>
   );
 }
@@ -370,7 +371,6 @@ function ChooseStep({
 
 function QrStep({
   cents,
-  settings,
   charge,
   onBack,
   onPaid,
@@ -379,7 +379,6 @@ function QrStep({
   onClose,
 }: {
   cents: number;
-  settings: PixSettings;
   charge: PixCharge;
   onBack: () => void;
   onPaid: () => void;
@@ -437,16 +436,18 @@ function QrStep({
 
   return (
     <>
-      <SheetHeader title="Escaneie para pagar" subtitle="No app do seu banco, em PIX." onClose={onClose} />
+      <SheetHeader title="Escaneie para pagar" onClose={onClose} />
 
-      <div className="c-qr">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={charge.qrCodeUrl} alt={`QR code do PIX de ${formatBRL(cents)}`} width={216} height={216} />
-      </div>
-
-      <div className="c-qr-amt">
-        <p className="c-pix-k">Valor</p>
-        <Money cents={cents} />
+      {/* QR e valor centralizados, em pouca altura: o essencial cabe sem rolar */}
+      <div className="c-qr-row">
+        <div className="c-qr">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={charge.qrCodeUrl} alt={`QR code do PIX de ${formatBRL(cents)}`} width={160} height={160} />
+        </div>
+        <div className="c-qr-amt">
+          <p className="c-pix-k">Valor</p>
+          <Money cents={cents} />
+        </div>
       </div>
 
       {payload && (
@@ -470,20 +471,23 @@ function QrStep({
         </div>
       )}
 
-      <ol className="c-howto">
-        <li>Abra o app do seu banco e escolha PIX.</li>
-        <li>Toque em “Ler QR code” ou em “PIX copia e cola”.</li>
-        <li>
-          <span>
-            Confira o valor e o nome <strong>{settings.merchantName}</strong> antes de confirmar.
-          </span>
-        </li>
-      </ol>
-
-      <p className="c-pixnote">
-        Depois de pagar, toque em “Já paguei” para avisar o estabelecimento. O saldo da sua ficha muda quando eles
-        conferirem o pagamento no banco.
-      </p>
+      {/* ao abrir, o quadro sobe para não ficar por baixo do rodapé fixo */}
+      <details
+        className="c-howto-d"
+        onToggle={(e) => {
+          if (e.currentTarget.open) e.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }}
+      >
+        <summary>Como pagar</summary>
+        <ol className="c-howto">
+          <li>Abra o app do seu banco e escolha PIX.</li>
+          <li>Toque em “Ler QR code” ou em “PIX copia e cola”.</li>
+          <li>Confira o valor e o nome do estabelecimento e confirme.</li>
+        </ol>
+        <p className="c-pixnote">
+          O saldo da sua ficha muda quando o estabelecimento conferir o pagamento no banco.
+        </p>
+      </details>
 
       {error && (
         <p className="c-alert" role="alert">
@@ -491,31 +495,34 @@ function QrStep({
         </p>
       )}
 
-      <div className="c-actions">
-        <button type="button" className="c-btn is-ghost" onClick={onBack} disabled={sending}>
-          Mudar o valor
-        </button>
-        <button
-          type="button"
-          className="c-btn is-primary"
-          onClick={onPaid}
-          aria-disabled={sending || undefined}
-          aria-busy={sending || undefined}
-        >
-          {sending ? (
-            <>
-              <span className="c-spin" aria-hidden="true" />
-              Avisando…
-            </>
-          ) : error ? (
-            <>
-              <RefreshCw size={18} aria-hidden="true" />
-              Tentar de novo
-            </>
-          ) : (
-            "Já paguei"
-          )}
-        </button>
+      <div className="c-pix-foot">
+        <p className="c-pix-after">Depois de pagar, toque em “Já paguei”.</p>
+        <div className="c-actions">
+          <button type="button" className="c-btn is-ghost" onClick={onBack} disabled={sending}>
+            Mudar o valor
+          </button>
+          <button
+            type="button"
+            className="c-btn is-primary"
+            onClick={onPaid}
+            aria-disabled={sending || undefined}
+            aria-busy={sending || undefined}
+          >
+            {sending ? (
+              <>
+                <span className="c-spin" aria-hidden="true" />
+                Avisando…
+              </>
+            ) : error ? (
+              <>
+                <RefreshCw size={18} aria-hidden="true" />
+                Tentar de novo
+              </>
+            ) : (
+              "Já paguei"
+            )}
+          </button>
+        </div>
       </div>
     </>
   );
