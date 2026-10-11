@@ -1,3 +1,4 @@
+import { findWhatsappConflict, WHATSAPP_TAKEN_STAFF } from '@/lib/customer-whatsapp';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
@@ -102,6 +103,12 @@ export async function POST(request: Request) {
       }
     }
     
+    // O número de WhatsApp é de um cliente só
+    if (body.phoneIsWhatsapp === true && body.active !== false) {
+      const taken = await findWhatsappConflict(body.phone);
+      if (taken) return NextResponse.json({ error: WHATSAPP_TAKEN_STAFF(taken.name) }, { status: 400 });
+    }
+
     // Hash da senha se fornecida e não vazia
     let hashedPassword = undefined;
     if (body.password && typeof body.password === 'string' && body.password.trim()) {
@@ -208,6 +215,14 @@ export async function PUT(request: Request) {
       }
     }
     
+    // O número de WhatsApp é de um cliente só (vale também ao reativar ou ao marcar o telefone como WhatsApp)
+    const current = await prisma.customer.findUnique({ where: { id }, select: { phoneIsWhatsapp: true } });
+    const willBeWhatsapp = data.phoneIsWhatsapp !== undefined ? data.phoneIsWhatsapp === true : current?.phoneIsWhatsapp === true;
+    if (willBeWhatsapp && data.active !== false) {
+      const taken = await findWhatsappConflict(data.phone, id);
+      if (taken) return NextResponse.json({ error: WHATSAPP_TAKEN_STAFF(taken.name) }, { status: 400 });
+    }
+
     // Limpar imagem antiga do Vercel Blob se uma nova foi enviada
     if (data.imageUrl !== undefined) {
       const existing = await prisma.customer.findUnique({ where: { id }, select: { imageUrl: true } });

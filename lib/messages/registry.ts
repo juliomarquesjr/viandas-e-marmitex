@@ -85,12 +85,12 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
   {
     key: 'customer_password_reset',
     name: 'Link para redefinir senha',
-    description: 'Enviado por e-mail quando o próprio cliente pede para redefinir a senha em "Esqueci minha senha".',
+    description: 'Enviado por e-mail ou WhatsApp, à escolha do cliente, quando ele pede para redefinir a senha em "Esqueci minha senha". A opção de WhatsApp só aparece para o cliente se o WhatsApp do estabelecimento estiver conectado.',
     group: 'Acesso do cliente',
     variables: [
       NAME,
       { key: 'link', label: 'Link para criar a nova senha', sample: 'https://…/reset-password?token=…', sensitive: true },
-      { key: 'validade', label: 'Validade do link, em minutos', sample: '30' },
+      { key: 'validade', label: 'Validade do link, em minutos', sample: '60' },
       STORE,
     ],
     required: ['link'],
@@ -99,6 +99,9 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
       email: {
         subject: 'Redefinição de senha - {loja}',
         body: 'Olá, {nome}! 👋\n\nRecebemos um pedido para redefinir a senha da sua conta no *{loja}*. Para escolher uma nova senha, é só abrir o link abaixo:\n\n🔑 {link}\n\n⏱️ O link vale por {validade} minutos e só pode ser usado uma vez.\n\nNão foi você? Pode ignorar este e-mail: sua senha continua a mesma. 🔒',
+      },
+      whatsapp: {
+        body: 'Olá, {nome}! 👋\n\nRecebemos um pedido para redefinir a senha da sua conta no *{loja}*. Para escolher uma nova senha, é só abrir o link abaixo:\n\n🔑 {link}\n\n⏱️ O link vale por {validade} minutos e só pode ser usado uma vez.\n\nNão foi você? Pode ignorar esta mensagem: sua senha continua a mesma. 🔒',
       },
     },
   },
