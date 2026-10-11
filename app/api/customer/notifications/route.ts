@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
-import { dismissedAmong } from '@/lib/customer-dismissals';
+import { dismissedAmong, seenAmong } from '@/lib/customer-dismissals';
 import { lastVisibleDay } from '@/lib/daily-menu';
 import { todaySP } from '@/lib/date-range';
 
@@ -10,7 +10,8 @@ import { todaySP } from '@/lib/date-range';
 // Não há tabela de avisos: o feed é montado na hora com o que já existe (andamento dos
 // pedidos, compras lançadas na ficha e pagamentos recebidos), do mais novo para o mais antigo.
 // Quando o operador mexe no pedido, o aviso aparece sozinho, sem ninguém precisar gravar nada.
-// Quais já foram vistos fica no aparelho do cliente.
+// O que o cliente limpou e o que marcou como visto fica no servidor (CustomerDismissal), para valer
+// em todos os aparelhos; `seen` devolve os ids já vistos entre os avisos da resposta.
 
 const WINDOW_DAYS = 30;
 const MAX_ITEMS = 30;
@@ -197,8 +198,10 @@ export async function GET() {
     const visible = notices.filter((notice) => !dismissed.has(notice.id));
 
     visible.sort((a, b) => b.at.localeCompare(a.at));
+    const data = visible.slice(0, MAX_ITEMS);
+    const seen = await seenAmong(customerId, data.map((notice) => notice.id));
 
-    return NextResponse.json({ data: visible.slice(0, MAX_ITEMS) });
+    return NextResponse.json({ data, seen });
   } catch (error) {
     console.error('Error fetching customer notifications:', error);
     return NextResponse.json({ error: 'Erro ao buscar avisos' }, { status: 500 });

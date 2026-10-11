@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { seenKey } from "@/lib/customer-notice-keys";
 import { backfillOnce, flushDismissals, syncDismissed, syncUndo } from "./dismissals";
 
 export type NoticeTone = "go" | "prog" | "done" | "off" | "pay";
@@ -20,15 +21,19 @@ export interface Notice {
  * Os avisos do cliente, em um lugar só: o sino do cabeçalho, o do menu lateral e a folha de
  * avisos leem daqui, então a busca acontece uma vez e todos mostram o mesmo número.
  *
- * O que o cliente já viu e o que ele limpou fica no aparelho (localStorage), por cliente e por
- * aviso: tocar num aviso, marcá-lo como visto ou limpá-lo mexe só nele, e a contagem do sino
- * acompanha. Num aparelho novo, o que tem mais de um dia já entra como visto.
+ * O que o cliente já viu e o que ele limpou vale para todos os aparelhos: fica no servidor
+ * (CustomerDismissal; o "visto" com a chave `seen:<aviso>`) e uma cópia no aparelho (localStorage)
+ * serve de reserva sem internet. Tocar num aviso, marcá-lo como visto ou limpá-lo mexe só nele, e
+ * a contagem do sino acompanha. Nada vira "visto" sozinho pelo tempo: quem decide é o cliente.
  */
 interface State {
   items: Notice[];
   loaded: boolean;
-  /** Avisos de antes disto entram como vistos (primeira visita do aparelho). */
-  baseline: string;
+  /**
+   * Só em aparelhos que já usavam o aplicativo antes de o "visto" ir para o servidor: avisos até esta
+   * data já apareciam como vistos, então entram como vistos uma vez e a regra deixa de existir.
+   */
+  legacyBaseline: string | null;
   read: ReadonlySet<string>;
   dismissed: ReadonlySet<string>;
   /** O que o último "limpar" tirou, para o "Desfazer". */
@@ -36,14 +41,13 @@ interface State {
 }
 
 const POLL_MS = 60_000;
-const FIRST_VISIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** O feed cobre 30 dias; guardar mais que isso de ids só incharia o armazenamento. */
 const MAX_STORED = 300;
 
 const EMPTY: State = {
   items: [],
   loaded: false,
-  baseline: "",
+  legacyBaseline: null,
   read: new Set(),
   dismissed: new Set(),
   lastCleared: [],
@@ -72,35 +76,35 @@ const getServerSnapshot = () => EMPTY;
 const storageKey = () => `customer:notices:${customerKey}`;
 
 interface Stored {
-  baseline: string;
+  /** Só existe em aparelhos de antes; ver State.legacyBaseline. */
+  baseline?: string;
   read: string[];
   dismissed: string[];
 }
 
-function readStored(): Pick<State, "baseline" | "read" | "dismissed"> {
+function readStored(): Pick<State, "legacyBaseline" | "read" | "dismissed"> {
   try {
     const raw = window.localStorage.getItem(storageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Stored>;
-      if (typeof parsed.baseline === "string") {
-        return {
-          baseline: parsed.baseline,
-          read: new Set(Array.isArray(parsed.read) ? parsed.read : []),
-          dismissed: new Set(Array.isArray(parsed.dismissed) ? parsed.dismissed : []),
-        };
-      }
+      return {
+        legacyBaseline: typeof parsed.baseline === "string" ? parsed.baseline : null,
+        read: new Set(Array.isArray(parsed.read) ? parsed.read : []),
+        dismissed: new Set(Array.isArray(parsed.dismissed) ? parsed.dismissed : []),
+      };
     }
   } catch {
     // sem armazenamento ou conteúdo estragado: começa do zero
   }
-  return { baseline: new Date(Date.now() - FIRST_VISIT_WINDOW_MS).toISOString(), read: new Set(), dismissed: new Set() };
+  return { legacyBaseline: null, read: new Set(), dismissed: new Set() };
 }
 
 const lastN = (ids: ReadonlySet<string>) => [...ids].slice(-MAX_STORED);
 
 function persist(next: State) {
+  if (!customerKey) return; // sem cliente identificado (saiu da conta): não há de quem guardar
   try {
-    const stored: Stored = { baseline: next.baseline, read: lastN(next.read), dismissed: lastN(next.dismissed) };
+    const stored: Stored = { ...(next.legacyBaseline ? { baseline: next.legacyBaseline } : {}), read: lastN(next.read), dismissed: lastN(next.dismissed) };
     window.localStorage.setItem(storageKey(), JSON.stringify(stored));
   } catch {
     // sem armazenamento: o que foi visto volta como novo na próxima visita
@@ -118,8 +122,8 @@ export function loadNotices(): Promise<void> {
   if (inflight) return inflight;
   inflight = fetch("/api/customer/notifications", { cache: "no-store" })
     .then((response) => (response.ok ? response.json() : null))
-    .then((body: { data?: Notice[] } | null) => {
-      if (body?.data) emit({ ...state, items: body.data, loaded: true });
+    .then((body: { data?: Notice[]; seen?: string[] } | null) => {
+      if (body?.data) applyLoaded(body.data, body.seen ?? []);
       void flushDismissals();
     })
     .catch(() => undefined)
@@ -129,20 +133,45 @@ export function loadNotices(): Promise<void> {
   return inflight;
 }
 
-export const isNoticeUnread = (s: Pick<State, "baseline" | "read" | "dismissed">, notice: Notice) =>
-  !s.dismissed.has(notice.id) && !s.read.has(notice.id) && notice.at > s.baseline;
+/** Junta o que o servidor sabe (o "visto" de qualquer aparelho) com o que este aparelho já tinha. */
+function applyLoaded(items: Notice[], seenOnServer: string[]) {
+  const read = new Set(state.read);
+  seenOnServer.forEach((id) => read.add(id));
+
+  // Aparelho de antes: o que já aparecia como visto por ser antigo passa a ser visto de verdade, uma vez só
+  const migrated: string[] = [];
+  const baseline = state.legacyBaseline;
+  if (baseline) {
+    for (const notice of items) {
+      if (notice.at <= baseline && !read.has(notice.id) && !state.dismissed.has(notice.id)) {
+        read.add(notice.id);
+        migrated.push(notice.id);
+      }
+    }
+  }
+
+  update({ items, loaded: true, read, legacyBaseline: null });
+  syncDismissed(migrated.map(seenKey));
+}
+
+export const isNoticeUnread = (s: Pick<State, "read" | "dismissed">, notice: Notice) =>
+  !s.dismissed.has(notice.id) && !s.read.has(notice.id);
 
 /** Marca um aviso como visto (tocar nele ou usar o botão de visto). */
 export function markNoticeRead(id: string) {
   if (state.read.has(id)) return;
   update({ read: new Set(state.read).add(id) });
+  syncDismissed([seenKey(id)]);
 }
 
 /** Marca todos os avisos de agora como vistos. */
 export function markAllNoticesRead() {
   const read = new Set(state.read);
-  state.items.forEach((notice) => read.add(notice.id));
+  const fresh = state.items.filter((notice) => !read.has(notice.id)).map((notice) => notice.id);
+  if (fresh.length === 0) return;
+  fresh.forEach((id) => read.add(id));
   update({ read });
+  syncDismissed(fresh.map(seenKey));
 }
 
 /** Limpa um aviso (ele some da lista; "Desfazer" traz de volta). */
@@ -206,6 +235,8 @@ export function useNotices(customerId: string | undefined) {
       emit({ ...EMPTY, ...stored });
       // o que foi limpo só neste aparelho, antes de existir o guardado no servidor, sobe uma vez
       backfillOnce(`notices:${customerId}`, [...stored.dismissed]);
+      // o mesmo para o que já foi marcado como visto só neste aparelho
+      backfillOnce(`notices-seen:${customerId}`, [...stored.read].map(seenKey));
     }
     consumers += 1;
     start();

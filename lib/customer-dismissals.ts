@@ -6,23 +6,10 @@
 // filtrado e o aparelho segue com a dispensa que guardou localmente.
 
 import prisma from '@/lib/prisma';
+import { KEEP_DAYS } from '@/lib/customer-dismissals-keys';
+import { seenIdsFromKeys, seenKey } from '@/lib/customer-notice-keys';
 
-export const DISMISS_KEY_MAX_LENGTH = 120;
-export const DISMISS_BATCH_MAX = 100;
-const KEEP_DAYS = 90;
-
-/** Aceita só texto curto e sem repetição; o resto é descartado. */
-export function cleanDismissKeys(input: unknown): string[] {
-  if (!Array.isArray(input)) return [];
-  const keys = new Set<string>();
-  for (const item of input) {
-    if (typeof item !== 'string') continue;
-    const key = item.trim();
-    if (key && key.length <= DISMISS_KEY_MAX_LENGTH) keys.add(key);
-    if (keys.size >= DISMISS_BATCH_MAX) break;
-  }
-  return [...keys];
-}
+export { cleanDismissKeys, DISMISS_BATCH_MAX, DISMISS_KEY_MAX_LENGTH } from '@/lib/customer-dismissals-keys';
 
 /** Dentre `keys`, as que o cliente já dispensou. */
 export async function dismissedAmong(customerId: string, keys: string[]): Promise<Set<string>> {
@@ -36,6 +23,12 @@ export async function dismissedAmong(customerId: string, keys: string[]): Promis
   } catch {
     return new Set();
   }
+}
+
+/** Dentre os ids de aviso, os que o cliente já marcou como vistos (em qualquer aparelho). */
+export async function seenAmong(customerId: string, noticeIds: string[]): Promise<string[]> {
+  const keys = await dismissedAmong(customerId, noticeIds.map(seenKey));
+  return seenIdsFromKeys(keys);
 }
 
 export async function addDismissals(customerId: string, keys: string[]): Promise<void> {
