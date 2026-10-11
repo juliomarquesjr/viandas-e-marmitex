@@ -1,3 +1,4 @@
+import { findWhatsappConflict, WHATSAPP_TAKEN_CUSTOMER } from '@/lib/customer-whatsapp';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
@@ -66,6 +67,15 @@ export async function PUT(request: Request) {
           { error: `A senha deve ter entre ${MIN_PASSWORD_LENGTH} e ${MAX_PASSWORD_LENGTH} caracteres` },
           { status: 400 }
         );
+      }
+    }
+
+    // O número de WhatsApp é de um cliente só
+    if (phone !== undefined || phoneIsWhatsapp !== undefined) {
+      const current = await prisma.customer.findUnique({ where: { id: session.user.customerId }, select: { phone: true, phoneIsWhatsapp: true } });
+      const willBeWhatsapp = phoneIsWhatsapp !== undefined ? phoneIsWhatsapp === true : current?.phoneIsWhatsapp === true;
+      if (willBeWhatsapp && (await findWhatsappConflict(phone !== undefined ? phone : current?.phone, session.user.customerId))) {
+        return NextResponse.json({ error: WHATSAPP_TAKEN_CUSTOMER }, { status: 400 });
       }
     }
 

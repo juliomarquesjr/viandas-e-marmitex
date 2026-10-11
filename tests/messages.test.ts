@@ -52,3 +52,19 @@ describe('senha gerada', () => {
     assert.ok(seen.size > 295);
   });
 });
+
+describe('link para redefinir senha', () => {
+  const reset = getMessageType('customer_password_reset')!;
+  it('tem texto padrão nos dois canais, e os dois passam na validação do gerenciador', () => {
+    for (const channel of ['email', 'whatsapp'] as const) {
+      const text = reset.defaults[channel];
+      assert.ok(text, `sem texto padrão de ${channel}`);
+      assert.ok(validateTemplate(reset, channel, { body: text.body, subject: text.subject ?? '' }).ok, `texto de ${channel} inválido`);
+    }
+  });
+  it('o texto do WhatsApp usa o link e a validade, e não pode ser desligado', () => {
+    const used = usedVariables(reset.defaults.whatsapp!.body);
+    assert.ok(used.includes('link') && used.includes('validade'));
+    assert.equal(reset.alwaysOn, true);
+  });
+});

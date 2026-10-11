@@ -5,7 +5,7 @@ O administrador edita os textos que o sistema envia (WhatsApp e e-mail) em **Wha
 ### Tipos de mensagem
 Ficam em `lib/messages/registry.ts`: nome, variáveis, texto padrão por canal. Hoje:
 - `customer_password` — **Senha de acesso** (WhatsApp e e-mail). Variáveis: `{nome}` (primeiro nome), `{usuario}` (e-mail ou telefone), `{senha}`, `{loja}`, `{link_app}`.
-- `customer_password_reset` — **Link para redefinir senha** (só e-mail, não pode ser desligada). Usada por "Esqueci minha senha". Variáveis: `{nome}`, `{link}`, `{validade}`, `{loja}`.
+- `customer_password_reset` — **Link para redefinir senha** (e-mail e WhatsApp, não pode ser desligada; o texto é o mesmo padrão nos dois canais). Usada por "Esqueci minha senha", onde o cliente escolhe como receber; a opção de WhatsApp só aparece se o WhatsApp do estabelecimento estiver conectado (`GET /api/customer/forgot-password`). Variáveis: `{nome}`, `{link}`, `{validade}`, `{loja}`.
 
 - `daily_menu` — **Cardápio do dia** (só WhatsApp). Variáveis: `{nome}`, `{loja}`, `{cardapio}` (preenchida pelo sistema com o cardápio publicado de hoje, por seção, com ⭐ no destaque e "(vegetariano)"; cardápio grande é cortado com "…e mais N itens"), `{link_app}` (endereço da área do cliente, com https://).
 
