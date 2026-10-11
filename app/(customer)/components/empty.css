@@ -1,0 +1,190 @@
+/* Listas vazias com ilustração animada (ver EmptyArt.tsx e EmptyState em kit.tsx). Só tokens var(--c-*). */
+@layer components {
+  .c-state.has-art {
+    padding: 8px 4px 4px;
+    gap: 8px;
+    animation: c-emp-up 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .c-state.has-art h2 {
+    font: 700 23px/1.15 var(--c-f-display);
+  }
+  .c-state.has-art > p {
+    max-width: 31ch;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .c-emp-art {
+    position: relative;
+    width: 124px;
+    height: 124px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 2px;
+  }
+  .c-emp-art .c-emp-bg {
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: var(--c-brand-soft);
+  }
+  .c-emp-art.is-ok .c-emp-bg {
+    background: var(--c-ok-soft);
+  }
+  .c-emp-art .c-emp-ring {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 2px solid var(--c-tint-line);
+    animation: c-emp-ring 2.8s ease-out infinite;
+  }
+  .c-emp-art .c-emp-ring + .c-emp-ring {
+    animation-delay: 1.4s;
+  }
+  .c-emp-art.is-ok .c-emp-ring {
+    border-color: var(--c-ok-soft);
+  }
+  .c-emp-art svg {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    overflow: visible;
+    animation: c-emp-float 2.8s ease-in-out infinite alternate;
+  }
+  .c-emp-art .a-brand { fill: var(--c-brand); }
+  .c-emp-art .a-deep { fill: var(--c-panel-deep); }
+  .c-emp-art .a-soft { fill: var(--c-brand-soft); }
+  .c-emp-art .a-paper { fill: var(--c-surface); }
+  .c-emp-art .a-ok { fill: var(--c-ok); }
+  .c-emp-art .a-gold { fill: #f2b861; }
+  .c-emp-art .s-brand { stroke: var(--c-brand); }
+  .c-emp-art .s-ink { stroke: var(--c-ink); }
+  .c-emp-art .s-line { stroke: var(--c-tint-line); }
+  .c-emp-art .s-steam { stroke: var(--c-brand); opacity: 0.55; }
+  .c-emp-art .a-steam { animation: c-emp-steam 2.6s ease-in infinite; }
+  .c-emp-art .a-twinkle { animation: c-emp-twinkle 2.4s ease-in-out infinite; }
+  .c-emp-art .a-flip { transform-origin: 90px 30px; animation: c-emp-flip 2.2s ease-in-out infinite; }
+  .c-emp-art .a-lid { transform-origin: 60px 58px; animation: c-emp-lid 1.6s ease-in-out infinite; }
+  .c-emp-art .a-hand { transform-origin: 93px 33px; animation: c-emp-hand 6s linear infinite; }
+  .c-emp-art .a-swing { transform-origin: 60px 30px; animation: c-emp-swing 2.4s ease-in-out infinite; }
+  .c-emp-art .a-zz { animation: c-emp-zz 2.8s ease-out infinite; }
+
+  /* cartões de apoio abaixo do texto: passo a passo e "o que você vai ver aqui" */
+  .c-emp-card {
+    width: 100%;
+    margin-top: 10px;
+    text-align: left;
+    background: var(--c-surface);
+    border: 1px solid var(--c-line);
+    border-radius: var(--c-r-lg);
+    overflow: hidden;
+    animation: c-emp-up 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) 0.12s both;
+  }
+  .c-emp-card > h3 {
+    margin: 0;
+    padding: 12px 14px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-ink2);
+  }
+  .c-emp-steps {
+    margin: 0;
+    padding: 8px 10px 14px;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    text-align: center;
+  }
+  .c-emp-steps li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .c-emp-steps .c-emp-dot {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--c-brand-soft);
+    color: var(--c-brand-text);
+    animation: c-emp-step 6s ease-in-out infinite;
+  }
+  .c-emp-steps li:nth-child(2) .c-emp-dot { animation-delay: 2s; }
+  .c-emp-steps li:nth-child(3) .c-emp-dot { animation-delay: 4s; }
+  .c-emp-steps b {
+    font-size: 14px;
+  }
+  .c-emp-steps span:not(.c-emp-dot) {
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--c-ink2);
+  }
+  .c-emp-fact {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--c-line);
+  }
+  .c-emp-card > h3 + .c-emp-fact {
+    border-top: 0;
+  }
+  .c-emp-fact .c-emp-ic {
+    width: 36px;
+    height: 36px;
+    flex: none;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--c-brand-soft);
+    color: var(--c-brand-text);
+  }
+  .c-emp-fact .c-emp-ic.is-ok { background: var(--c-ok-soft); color: var(--c-ok); }
+  .c-emp-fact .c-emp-ic.is-warn { background: var(--c-warn-soft); color: var(--c-warn); }
+  .c-emp-fact b { display: block; font-size: 14.5px; }
+  .c-emp-fact span:not(.c-emp-ic) { font-size: 13px; color: var(--c-ink2); }
+  .c-state.has-art .c-btn,
+  .c-state.has-art .c-link {
+    margin-top: 4px;
+  }
+  .c-empty-list {
+    width: 100%;
+    margin-top: 10px;
+    text-align: left;
+    overflow: hidden;
+  }
+  .c-empty-list .c-mn-group {
+    margin: 0;
+    padding: 12px 14px 6px;
+  }
+
+  @keyframes c-emp-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes c-emp-float { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+  @keyframes c-emp-ring { from { transform: scale(0.82); opacity: 0.55; } to { transform: scale(1.38); opacity: 0; } }
+  @keyframes c-emp-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1); } }
+  @keyframes c-emp-steam { from { transform: translateY(8px); opacity: 0; } 30% { opacity: 0.9; } to { transform: translateY(-12px); opacity: 0; } }
+  @keyframes c-emp-flip { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.15); } }
+  @keyframes c-emp-lid { 0%, 100% { transform: rotate(-2.5deg) translateY(0); } 50% { transform: rotate(2.5deg) translateY(-2px); } }
+  @keyframes c-emp-hand { to { transform: rotate(360deg); } }
+  @keyframes c-emp-swing { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+  @keyframes c-emp-zz { from { transform: translate(0, 6px) scale(0.7); opacity: 0; } 30% { opacity: 1; } to { transform: translate(8px, -14px) scale(1.1); opacity: 0; } }
+  @keyframes c-emp-step {
+    0%, 20% { background: var(--c-brand); color: var(--c-brand-ink); transform: scale(1.1); }
+    34%, 100% { background: var(--c-brand-soft); color: var(--c-brand-text); transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .c-state.has-art,
+    .c-emp-card,
+    .c-emp-art .c-emp-ring,
+    .c-emp-art svg,
+    .c-emp-art svg *,
+    .c-emp-steps .c-emp-dot {
+      animation: none !important;
+    }
+  }
+}

@@ -2,6 +2,8 @@
 
 import {
   Bell,
+  Receipt,
+  ShoppingBag,
   BellRing,
   Check,
   CheckCheck,
@@ -31,7 +33,7 @@ import {
   useNotices,
   type Notice,
 } from "../../lib/notifications-store";
-import { cx, Sheet } from "../kit";
+import { cx, EmptyFacts, Sheet } from "../kit";
 import "./avisos.css";
 
 /** Quanto o aviso leva para sumir da lista depois de limpo (combina com a animação em avisos.css). */
@@ -256,6 +258,16 @@ export function NotificationBell({ variant = "icon" }: { variant?: "icon" | "rai
                   ? "Quando um pedido mudar de etapa ou um pagamento for registrado, você vê aqui."
                   : "Você viu tudo o que chegou."}
               </p>
+              {items.length === 0 && (
+                <EmptyFacts
+                  heading="O que avisamos"
+                  facts={[
+                    { icon: <ShoppingBag size={18} />, title: "Seu pedido mudou de etapa", text: "Em preparo, saiu para entrega, concluído", tone: "warn" },
+                    { icon: <Receipt size={18} />, title: "Ficha atualizada", text: "Compra lançada ou pagamento recebido", tone: "ok" },
+                    { icon: <BookOpen size={18} />, title: "Cardápio publicado", text: "Quando o estabelecimento avisa que saiu" },
+                  ]}
+                />
+              )}
               {items.length > 0 && (
                 <button type="button" className="c-btn is-ghost" onClick={() => setFilter("all")}>
                   Ver todos os avisos

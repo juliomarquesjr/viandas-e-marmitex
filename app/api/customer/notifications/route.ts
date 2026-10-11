@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getCustomerSession } from '@/lib/customer-auth';
 import { dismissedAmong, seenAmong } from '@/lib/customer-dismissals';
 import { lastVisibleDay } from '@/lib/daily-menu';
+import { getMenuDaysAhead } from '@/lib/daily-menu-settings';
 import { todaySP } from '@/lib/date-range';
 
 // GET - Avisos do cliente autenticado
@@ -171,7 +172,7 @@ export async function GET() {
           status: 'published',
           notifyCustomers: true,
           publishedAt: { gte: new Date(Date.now() - MENU_NOTICE_DAYS * 24 * 60 * 60 * 1000) },
-          date: { lte: lastVisibleDay(todaySP()) },
+          date: { lte: lastVisibleDay(todaySP(), await getMenuDaysAhead()) },
         },
         orderBy: { publishedAt: 'desc' },
         take: 5,

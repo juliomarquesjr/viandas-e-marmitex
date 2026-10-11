@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { isValidDay, isVisibleToCustomer, summarizeMenu, validateMenuInput, weekGroupLabel } from '../lib/daily-menu';
+import { customerVisibility, isValidDay, isVisibleToCustomer, lastVisibleDay, parseDaysAhead, summarizeMenu, validateMenuInput, visibleFromDay, weekGroupLabel } from '../lib/daily-menu';
 
 const menu = (over: Record<string, unknown> = {}) => ({
   status: 'published',
@@ -52,10 +52,26 @@ describe('resumo e visibilidade', () => {
     assert.equal(s.highlight, 'B');
     assert.deepEqual(s.mains, ['A', 'B']);
   });
-  it('cliente vê publicado até amanhã, nunca rascunho', () => {
-    assert.equal(isVisibleToCustomer({ date: '2026-10-10', status: 'published' }, '2026-10-09'), true);
-    assert.equal(isVisibleToCustomer({ date: '2026-10-11', status: 'published' }, '2026-10-09'), false);
+  it('cliente vê publicado até a janela configurada (padrão 7 dias), nunca rascunho', () => {
+    assert.equal(isVisibleToCustomer({ date: '2026-10-16', status: 'published' }, '2026-10-09'), true);
+    assert.equal(isVisibleToCustomer({ date: '2026-10-17', status: 'published' }, '2026-10-09'), false);
     assert.equal(isVisibleToCustomer({ date: '2026-10-08', status: 'draft' }, '2026-10-09'), false);
+    // janela de 1 dia: só hoje e amanhã, como era antes
+    assert.equal(isVisibleToCustomer({ date: '2026-10-10', status: 'published' }, '2026-10-09', 1), true);
+    assert.equal(isVisibleToCustomer({ date: '2026-10-11', status: 'published' }, '2026-10-09', 1), false);
+    assert.equal(lastVisibleDay('2026-10-30', 3), '2026-11-02');
+  });
+  it('a janela aceita número ou texto e volta ao padrão se for inválida', () => {
+    assert.equal(parseDaysAhead(14), 14);
+    assert.equal(parseDaysAhead('30'), 30);
+    for (const bad of [0, 31, 2.5, '', 'abc', null, undefined, NaN]) assert.equal(parseDaysAhead(bad), 7);
+  });
+  it('diz quando o cardápio passa a aparecer para o cliente', () => {
+    assert.equal(visibleFromDay('2026-10-19', '2026-10-11', 7), '2026-10-12');
+    assert.equal(visibleFromDay('2026-10-13', '2026-10-11', 7), '2026-10-11'); // já visível: desde hoje
+    assert.equal(customerVisibility({ date: '2026-10-15', status: 'published' }, '2026-10-11', 7), 'visible');
+    assert.equal(customerVisibility({ date: '2026-10-19', status: 'published' }, '2026-10-11', 7), 'soon');
+    assert.equal(customerVisibility({ date: '2026-10-12', status: 'draft' }, '2026-10-11', 7), 'hidden');
   });
   it('agrupa por semana (segunda a domingo)', () => {
     assert.equal(weekGroupLabel('2026-10-05', '2026-10-09'), 'Esta semana');

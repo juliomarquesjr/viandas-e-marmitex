@@ -9,6 +9,9 @@ export const menuUrl = (day: string) => `${MENUS_URL}/${day}`;
 export interface MenusResponse {
   /** Hoje em Brasília ("AAAA-MM-DD"), do servidor. */
   today: string;
+  /** Quantos dias à frente o cliente enxerga (o administrador define) e o último dia visível. */
+  daysAhead?: number;
+  lastVisible?: string;
   menus: MenuSummary[];
 }
 

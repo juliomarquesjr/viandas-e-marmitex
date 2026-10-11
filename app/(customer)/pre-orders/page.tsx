@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Plus } from "lucide-react";
+import { Check, ChefHat, ChevronLeft, Plus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -56,11 +56,11 @@ function useIsDesktop() {
   );
 }
 
-function NewOrderLink({ className }: { className?: string }) {
+function NewOrderLink({ className, label = "Novo pedido" }: { className?: string; label?: string }) {
   return (
     <Link href="/pre-orders/novo" className={className ?? "c-btn is-primary"}>
       <Plus size={18} aria-hidden="true" />
-      Novo pedido
+      {label}
     </Link>
   );
 }
@@ -223,14 +223,27 @@ function PreOrdersScreen() {
   } else if (orders.length === 0) {
     list = (
       <EmptyState
+        art="order"
         title="Você ainda não tem pedidos"
         text={
           canOrder
-            ? "Faça um pedido pelo app ou peça ao estabelecimento. Ele aparece aqui."
+            ? "Peça pelo aplicativo e acompanhe cada etapa por aqui, do preparo até a retirada."
             : "Quando o estabelecimento registrar um pedido para você, ele aparece aqui."
         }
+        steps={
+          canOrder
+            ? [
+                { icon: <ShoppingBag size={22} />, title: "Você pede", text: "Escolha os itens no app" },
+                { icon: <ChefHat size={22} />, title: "Preparamos", text: "Você vê cada etapa" },
+                { icon: <Check size={22} />, title: "Pronto", text: "Retire ou receba" },
+              ]
+            : undefined
+        }
       >
-        {canOrder && <NewOrderLink />}
+        {canOrder && <NewOrderLink label="Fazer meu primeiro pedido" />}
+        <Link href="/cardapio" className="c-link">
+          Ver o cardápio de hoje
+        </Link>
       </EmptyState>
     );
   } else if (visible.length === 0) {

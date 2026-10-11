@@ -1,10 +1,11 @@
 import { getCustomerSession } from '@/lib/customer-auth';
 import { isValidDay, isVisibleToCustomer } from '@/lib/daily-menu';
 import { getMenu, isMissingTable } from '@/lib/daily-menu-db';
+import { getMenuDaysAhead } from '@/lib/daily-menu-settings';
 import { todaySP } from '@/lib/date-range';
 import { NextResponse } from 'next/server';
 
-// GET - Cardápio de um dia. `menu` vem nulo se não existe, é rascunho ou ainda é de um dia futuro.
+// GET - Cardápio de um dia. `menu` vem nulo se não existe, é rascunho ou ainda está fora da janela de dias à frente.
 export async function GET(_request: Request, { params }: { params: Promise<{ date: string }> }) {
   const session = await getCustomerSession();
   if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
@@ -15,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dat
   const today = todaySP();
   try {
     const menu = await getMenu(date);
-    const visible = menu && isVisibleToCustomer(menu, today) ? menu : null;
+    const visible = menu && isVisibleToCustomer(menu, today, await getMenuDaysAhead()) ? menu : null;
     // o que o cliente não precisa saber
     const safe = visible ? { ...visible, notifyCustomers: undefined, updatedAt: undefined } : null;
     return NextResponse.json({ today, menu: safe }, { headers: { 'Cache-Control': 'no-store' } });

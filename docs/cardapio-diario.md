@@ -9,7 +9,7 @@ O administrador monta o **cardápio de cada dia** (seções e itens) e publica. 
 | Um por dia | Um cardápio por dia (`DailyMenu.date`, "AAAA-MM-DD" em Brasília, único). Sem turnos |
 | Situação | `draft` (rascunho) ou `published`. Só o publicado aparece para o cliente |
 | Quem edita | Só o administrador (`requireAdmin`) |
-| O que o cliente vê | Publicados **de hoje para trás e o de amanhã** (se já publicado). Dia futuro e rascunho voltam `null` |
+| O que o cliente vê | Publicados **de hoje para trás e até N dias à frente** (padrão 7; o administrador escolhe 1 = só amanhã, 7, 14 ou 30 em Cardápios). Rascunho e dia além da janela voltam `null`; o dia além da janela aparece sozinho quando chega perto. Guardado em `SystemConfig` (`menu_days_ahead`), sem migration; regras em `lib/daily-menu.ts` (`lastVisibleDay`, `customerVisibility`) e `lib/daily-menu-settings.ts` |
 | Estrutura | Até 12 seções, 40 itens por seção. Item: nome (80), descrição (160), `★ Destaque` (só um por cardápio: o primeiro marcado vale) e `Vegetariano`. Seção sem item e item sem nome são descartados |
 | Publicar | Exige pelo menos 1 item. Rascunho pode estar vazio |
 | Botão de pedido | `showOrderButton`: aparece só no cardápio **de hoje** e só se o pedido online está ligado (usa o estado da loja do pedido online) |
@@ -18,10 +18,10 @@ O administrador monta o **cardápio de cada dia** (seções e itens) e publica. 
 
 ### Telas
 
-- **Admin → Cardápios** (`/admin/menus`): semana de segunda a domingo (um cartão por dia: Publicado / Rascunho / Sem cardápio) e a lista com abas Próximos e recentes · Anteriores · Rascunhos (Editar, Publicar, Duplicar). "Novo cardápio" e "Copiar de outro dia" abrem um diálogo.
+- **Admin → Cardápios** (`/admin/menus`): a faixa "Quanto o cliente enxerga" (escolhe os dias à frente; `GET/PUT /api/admin/menus/settings`), a semana de segunda a domingo (um cartão por dia: Publicado / Rascunho / Sem cardápio, com a linha "Cliente vê", "Aparece amanhã/em N dias" ou "Só você vê") e a lista com abas Próximos e recentes · Anteriores · Rascunhos (Editar, Publicar, Duplicar). "Novo cardápio" e "Copiar de outro dia" abrem um diálogo.
 - **Admin → Editar** (`/admin/menus/[AAAA-MM-DD]`, `?copiar=AAAA-MM-DD` começa de uma cópia, sempre como rascunho): dia, título e observação; seções e itens (nome, descrição, destaque, vegetariano, ordem); publicação (Publicado/Rascunho, botão de pedido, avisar no sino); prévia ao vivo "Como o cliente vê". Aviso ao sair com mudanças não salvas; "Apagar este cardápio" com confirmação.
-- **Cliente → Início**: depois do saldo, um aviso de uma linha ("Cardápio de hoje disponível · Feijoada completa e mais 8 itens"). Só aparece com cardápio publicado (de hoje, ou o de amanhã).
-- **Cliente → Cardápio** (`/cardapio`, `?dia=AAAA-MM-DD`): faixa de dias (últimos publicados, hoje, amanhã se publicado), o cardápio completo (dia passado mostra "só para consulta"), "Escolher data" e a lista de anteriores agrupada em Hoje e amanhã · Esta semana · Semana passada · Há N semanas, com "Ver mais antigos". No computador, lista à esquerda e cardápio à direita.
+- **Cliente → Início**: depois do saldo, um aviso de uma linha ("Cardápio de hoje disponível · Feijoada completa e mais 8 itens"). Só aparece com cardápio publicado (de hoje, ou o de amanhã; `GET /api/customer/menus?until=tomorrow`).
+- **Cliente → Cardápio** (`/cardapio`, `?dia=AAAA-MM-DD`): faixa de dias (últimos publicados, hoje e os próximos 6 dias, com um ponto nos que já saíram e tracejado nos que ainda não), o cardápio completo (dia passado mostra "só para consulta"), "Escolher data" e a lista de anteriores agrupada em Hoje e amanhã · Esta semana · Semana passada · Há N semanas, com "Ver mais antigos". No computador, lista à esquerda e cardápio à direita.
 
 ### API
 

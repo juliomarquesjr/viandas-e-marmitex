@@ -12,7 +12,7 @@ import "./cardapio.css";
  * não aparece: nada de espaço vazio nem mensagem de "indisponível" na tela principal.
  */
 export function MenuNote({ style }: { style?: React.CSSProperties }) {
-  const { data } = useCustomerData<MenusResponse>(`${MENUS_URL}?limit=3`);
+  const { data } = useCustomerData<MenusResponse>(`${MENUS_URL}?until=tomorrow&limit=3`);
   if (!data) return null;
 
   const today = data.menus.find((m) => m.date === data.today);
