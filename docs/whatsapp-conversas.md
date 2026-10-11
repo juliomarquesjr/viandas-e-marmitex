@@ -16,17 +16,23 @@ A conexão do número continua em Configurações → WhatsApp.
 - Prazo: mensagens com mais de **180 dias** são apagadas aos poucos (`pruneOld`). Apagar o cliente apaga a conversa.
 
 ### Telas
-- `/admin/whatsapp/conversas` (`?cliente=<id>` abre direto): lista (busca, Não lidas, Aguardando resposta), conversa (envio com Enter, emojis, respostas rápidas, "Enviar cardápio" e "Enviar senha") e dados do cliente. O campo de mensagem tem 4 linhas. O número de conversas com mensagem nova aparece em **qualquer tela do admin**: no item do menu, no botão do menu no celular e no título da aba (`NotificationsProvider`, consulta a cada 20 s e ao voltar para a aba).
+- `/admin/whatsapp/conversas` (`?cliente=<id>` abre direto): lista (busca, Não lidas, Aguardando resposta), conversa (envio com Enter, emojis, respostas rápidas, "Enviar cardápio" e "Enviar senha") e dados do cliente. A tela ocupa a página inteira (`useFullBleedLayout`) e o cabeçalho é de uma linha: título com o resumo ("8 conversas · 3 não lidas"), estado da conexão e o botão **Envio em massa**; no celular o cabeçalho some quando há uma conversa aberta. O campo de mensagem é uma barra só (emoji, respostas rápidas pelo raio, texto e Enviar) que cresce com o texto até 6 linhas; acima dela ficam os 3 primeiros atalhos e o "Gerenciar" (o terceiro atalho só aparece em telas largas). O botão flutuante do assistente sobe nesta tela para não cobrir o campo (`RoAssistant raised`). O número de conversas com mensagem nova aparece em **qualquer tela do admin**: no item do menu, no botão do menu no celular e no título da aba (`NotificationsProvider`, consulta a cada 20 s e ao voltar para a aba).
 - "Ver conversa" na ficha do cliente e no menu suspenso da tabela (cartões também), só para quem tem WhatsApp marcado.
 - Painel do cliente (à direita, a partir de 1280 px): **saldo da ficha** (devendo em vermelho com "−", crédito em verde com "+"; mesma conta de `getCustomerBalance`) e **últimas compras e pagamentos agrupados por data** (`GET .../conversations/[customerId]/ficha`): mostra as 2 últimas e o botão **Exibir mais 5** acrescenta cinco por vez. Em telas menores o saldo aparece no topo da conversa.
 - Topo da conversa: menu **Ações** (Abrir ficha completa, Enviar cardápio, **Enviar compras**, **Enviar saldo**, Enviar senha de acesso; ver `docs/mensagens.md`).
 - `/admin/whatsapp/respostas`, `/admin/whatsapp/mensagens` e `/admin/whatsapp/historico`: ver abaixo e `docs/mensagens.md`.
 
+### Envio em massa
+Botão **Envio em massa** no cabeçalho de Conversas (`BulkSendDialog`). Duas abas: **Cardápio de hoje** (mesmo envio individual de `POST /api/admin/customers/[id]/send-menu`, com a opção de pular quem já recebeu hoje) e **Mensagem personalizada** (texto escrito na hora, com `{nome}`, emojis, respostas rápidas e prévia; até 1.500 caracteres, o mesmo limite da conversa). Cada mensagem personalizada sai por `POST .../conversations/[customerId]/messages`, então aparece na conversa do cliente.
+- **Quem recebe:** todos com WhatsApp, quem está devendo (saldo da ficha maior que zero), quem não pediu hoje (dia de Brasília) ou clientes marcados um a um. Os números vêm de `GET /api/admin/whatsapp/broadcast` (só administrador).
+- **Ritmo:** uma mensagem a cada 6 a 12 segundos, feita pelo navegador (a janela precisa ficar aberta). Dá para pausar e parar; 3 falhas seguidas interrompem; "Tentar de novo" reenvia só os que falharam.
+- Regras puras (públicos, tempo estimado) em `lib/whatsapp-broadcast.ts`, testadas em `tests/whatsapp-broadcast.test.ts`. O envio do cardápio em massa de **Cardápios** (`BulkMenuDialog`) continua como antes.
+
 ### Respostas rápidas
 Textos prontos do atendimento (`WhatsAppQuickReply`: nome, texto, **atalho opcional** único e `{nome}` = primeiro nome do cliente). Gerenciador em **WhatsApp → Respostas rápidas** (criar, editar, apagar, buscar, exemplos). Na conversa: botões das primeiras respostas e, ao digitar **/** (no começo ou depois de um espaço), uma lista com a busca ("/ped"…) que filtra por atalho, nome ou texto; ↑↓ escolhe, Enter/Tab insere, Esc fecha. API: `/api/admin/whatsapp/quick-replies` (+ `/[id]`, `/examples`); regras em `lib/whatsapp-quick-replies.ts`. O endereço antigo `/admin/settings?tab=mensagens` redireciona.
 
 ### API (administrador)
-`GET /api/admin/whatsapp/conversations?q&filter`, `GET /api/admin/whatsapp/conversations/[customerId]?before`, `POST .../read`, `POST .../messages`, `GET /api/admin/whatsapp/unread`.
+`GET /api/admin/whatsapp/conversations?q&filter`, `GET /api/admin/whatsapp/conversations/[customerId]?before`, `POST .../read`, `POST .../messages`, `GET /api/admin/whatsapp/unread`, `GET /api/admin/whatsapp/broadcast`.
 
 ### Banco
 Migrations `20261010200000_add_whatsapp_messages` (tabela `WhatsAppMessage` e chave para `Customer`, `ON DELETE CASCADE`) e `20261010210000_add_whatsapp_quick_replies` (tabela `WhatsAppQuickReply`). As duas só criam tabelas. Em produção, aplicar antes do deploy.

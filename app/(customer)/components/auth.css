@@ -91,6 +91,15 @@
     transform: translate(calc(var(--mx) * -8px), calc(var(--my) * -8px));
     transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
   }
+  /* o palco guarda a marmita e o que gira em volta; no celular ele preenche a cena inteira */
+  .c-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .c-spark {
+    display: none;
+  }
   .c-scene .c-box {
     display: block;
     width: 100%;
@@ -112,30 +121,33 @@
   .c-lsteam.s3 {
     animation-delay: 1.8s;
   }
-  /* a tampa começa fechada e sai voando; parada, ela já não está lá */
-  .c-lid {
+  /* a cloche (tampa de inox) fica levantada; some quando a pessoa digita a senha e desce sobre o prato */
+  .c-cloche {
     opacity: 0;
-    transform-origin: 160px 124px;
-    animation: c-auth-lidoff 1.5s 0.25s cubic-bezier(0.55, 0, 0.2, 1) backwards;
+    transform: translateY(-52px);
+    transition: opacity 0.25s ease, transform 0.55s cubic-bezier(0.3, 1.5, 0.5, 1);
   }
-  .c-food {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: c-auth-popin 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) backwards;
+  /* reações do desenho ao que a pessoa faz (login: data-scene em .c-auth) */
+  .c-auth[data-scene="password"] .c-cloche {
+    opacity: 1;
+    transform: none;
   }
-  .c-food.f1 {
-    animation-delay: 0.95s;
+  .c-auth[data-scene="typing"] .c-stage {
+    animation: c-auth-hop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
   }
-  .c-food.f2 {
-    animation-delay: 1.08s;
+  .c-auth[data-scene="error"] .c-stage {
+    animation: c-auth-nope 0.5s ease;
   }
-  .c-food.f3 {
-    animation-delay: 1.2s;
+  .c-auth[data-scene="success"] .c-stage {
+    animation: c-auth-away 0.9s cubic-bezier(0.5, -0.3, 0.8, 0.6) forwards;
   }
-  .c-food.f4 {
-    animation-delay: 1.36s;
+  .c-auth[data-scene="success"] .c-floaty {
+    animation: c-auth-burst 0.7s ease-in forwards;
   }
-
+  /* troca de Telefone para E-mail: o campo novo entra deslizando */
+  .c-swap {
+    animation: c-auth-swap 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
   /* ingredientes soltos: cada um numa profundidade (--d) para o parallax */
   .c-floaty {
     position: absolute;
@@ -474,14 +486,90 @@
       justify-content: space-between;
       gap: 0;
     }
+    /*
+     * Cena grande e enquadrada: ocupa o espaço entre o logo e a frase, e o palco é o maior 4:3 que couber
+     * (container query na cena). A marmita fica no centro; ingredientes e brilhos orbitam em volta.
+     */
     .c-scene {
-      width: min(360px, 64%);
-      align-self: center;
+      width: 100%;
+      flex: 1 1 0;
+      min-height: 0;
+      max-height: none;
+      aspect-ratio: auto;
+      align-self: stretch;
       margin: 0;
+      container-type: size;
+      display: grid;
+      place-items: center;
+      animation: c-auth-stagein 0.9s 0.1s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+    }
+    .c-stage {
+      --stage: min(70cqw, 93.333cqh);
+      width: var(--stage);
+      max-width: 780px;
+      height: auto;
+      aspect-ratio: 4 / 3;
     }
     .c-floaty {
-      width: 52px;
-      height: 52px;
+      width: clamp(40px, calc(var(--stage) * 0.11), 84px);
+      height: clamp(40px, calc(var(--stage) * 0.11), 84px);
+    }
+    .c-floaty.is-1 {
+      left: -3%;
+      top: 8%;
+    }
+    .c-floaty.is-2 {
+      right: -1%;
+      top: -5%;
+    }
+    .c-floaty.is-3 {
+      right: -5%;
+      bottom: 10%;
+    }
+    .c-floaty.is-4 {
+      left: -5%;
+      bottom: -3%;
+    }
+    .c-spark {
+      display: block;
+      position: absolute;
+      width: calc(var(--stage) * 0.05);
+      height: calc(var(--stage) * 0.05);
+      min-width: 12px;
+      min-height: 12px;
+      pointer-events: none;
+      opacity: 0;
+      filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.9));
+      animation: c-auth-twinkle 2.8s ease-in-out infinite;
+    }
+    .c-spark svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .c-spark.is-1 {
+      left: 12%;
+      top: -2%;
+    }
+    .c-spark.is-2 {
+      right: 18%;
+      top: 4%;
+      animation-delay: 0.7s;
+    }
+    .c-spark.is-3 {
+      left: -2%;
+      top: 46%;
+      animation-delay: 1.4s;
+    }
+    .c-spark.is-4 {
+      right: 2%;
+      bottom: 30%;
+      animation-delay: 2.1s;
+    }
+    .c-spark.is-5 {
+      left: 36%;
+      bottom: -5%;
+      animation-delay: 0.35s;
     }
     .c-lcopy {
       text-align: left;
@@ -539,26 +627,72 @@
     transform: translateY(55%);
   }
 }
-@keyframes c-auth-lidoff {
-  0%,
-  30% {
-    transform: none;
-    opacity: 1;
-  }
-  100% {
-    transform: translate(110px, -140px) rotate(22deg);
-    opacity: 0;
-  }
-}
-@keyframes c-auth-popin {
-  from {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-}
 @keyframes c-auth-sheetup {
   from {
     transform: translateY(40px);
     opacity: 0;
+  }
+}
+@keyframes c-auth-stagein {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.86);
+  }
+}
+@keyframes c-auth-hop {
+  35% {
+    transform: translateY(-16px) scale(1.04, 0.97);
+  }
+  60% {
+    transform: translateY(0) scale(0.98, 1.03);
+  }
+}
+@keyframes c-auth-nope {
+  15% {
+    transform: translateX(-14px) rotate(-3deg);
+  }
+  30% {
+    transform: translateX(12px) rotate(3deg);
+  }
+  45% {
+    transform: translateX(-9px) rotate(-2deg);
+  }
+  60% {
+    transform: translateX(6px) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+@keyframes c-auth-away {
+  25% {
+    transform: translateY(-20px) scale(1.07);
+  }
+  to {
+    transform: translate(70%, -45%) rotate(24deg) scale(0.45);
+    opacity: 0;
+  }
+}
+@keyframes c-auth-burst {
+  to {
+    transform: scale(2) rotate(40deg);
+    opacity: 0;
+  }
+}
+@keyframes c-auth-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes c-auth-swap {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
   }
 }
