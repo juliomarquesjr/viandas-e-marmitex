@@ -267,7 +267,7 @@ export function ViandaScene() {
 
 /**
  * Pizza sendo preparada, vista de cima numa tábua: a massa cai e é aberta com o rolo, depois entram o molho,
- * o queijo (em fiapos), a calabresa, a azeitona e o manjericão, e por fim os cortes. O desenho todo fica numa
+ * o queijo (em fiapos), a calabresa, a azeitona e o manjericão. O desenho todo fica numa
  * perspectiva leve (achatado em y), por isso as peças ficam em grupos de fora e as animações em grupos de dentro:
  * a animação (CSS) não pode ocupar o `transform` do grupo que posiciona.
  */
@@ -302,7 +302,7 @@ export function PizzaScene() {
     [46, 20],
   ];
   return (
-    <svg className="c-box" viewBox="0 0 320 240" role="img" aria-label="Pizza sendo preparada: a massa é aberta, recebe molho, queijo, calabresa, azeitona e manjericão e é cortada">
+    <svg className="c-box" viewBox="0 0 320 240" role="img" aria-label="Pizza sendo preparada: a massa é aberta e recebe molho, queijo, calabresa, azeitona e manjericão">
       <defs>
         <radialGradient id={`${id}-c`} cx=".4" cy=".35" r=".8">
           <stop offset="0" stopColor="#ffe58a" />
@@ -378,12 +378,6 @@ export function PizzaScene() {
             </g>
           ))}
 
-          <g className="c-pz-cut" fill="none" stroke="#a96a1c" strokeWidth="2.4" strokeLinecap="round">
-            <path d="M-72 0H72" />
-            <path d="M0 -72V72" />
-            <path d="M-51 -51L51 51" />
-            <path d="M51 -51L-51 51" />
-          </g>
         </g>
       </g>
 

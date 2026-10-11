@@ -60,7 +60,7 @@
       c-s-bump 0.26s 1.9s,
       c-s-bump 0.26s 2.45s;
   }
-  /* pizza: a massa cai e é aberta pelo rolo, o molho e o queijo se espalham e, no fim, os cortes se desenham */
+  /* pizza: a massa cai e é aberta pelo rolo, o molho e o queijo se espalham e os recheios caem por cima */
   .c-pz-dough,
   .c-pz-in {
     transform-box: fill-box;
@@ -73,10 +73,6 @@
   .c-pz-pin,
   .c-pz-flour {
     opacity: 0;
-  }
-  .c-pz-cut {
-    stroke-dasharray: 190;
-    stroke-dashoffset: 0;
   }
   .c-sc.is-active .c-pz-dough {
     animation: c-pz-dough 1.05s ease-in-out backwards;
@@ -93,9 +89,6 @@
   }
   .c-sc.is-active .c-pizza {
     animation: c-s-settle 0.7s 3.35s ease;
-  }
-  .c-sc.is-active .c-pz-cut {
-    animation: c-pz-cut 0.6s 3.5s ease-in-out backwards;
   }
   .c-flag {
     transform-box: fill-box;
@@ -219,10 +212,5 @@
   100% {
     opacity: 0;
     transform: translateY(-16px);
-  }
-}
-@keyframes c-pz-cut {
-  from {
-    stroke-dashoffset: 190;
   }
 }
