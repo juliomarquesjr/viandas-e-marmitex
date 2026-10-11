@@ -9,9 +9,8 @@ export default function WhatsAppQuickRepliesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Respostas rápidas"
-        description="Textos prontos que o atendente insere na conversa, pelo botão ou digitando / no campo de mensagem."
+        description="Textos prontos para inserir na conversa, pelo botão ou digitando /"
         icon={Zap}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "WhatsApp" }, { label: "Respostas rápidas" }]}
       />
       <QuickRepliesView />
     </div>

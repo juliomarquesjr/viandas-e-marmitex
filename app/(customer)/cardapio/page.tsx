@@ -13,6 +13,7 @@ import {
   dayNumber,
   menuUrl,
   MENUS_URL,
+  longDay,
   relativeDay,
   weekdayShort,
   type MenuResponse,
@@ -22,7 +23,11 @@ import {
 import { useCustomerData } from "../lib/useCustomerData";
 
 const PAGE_SIZE = 30;
+/** A primeira busca traz o máximo: os dias à frente (até 30) não podem empurrar os anteriores para fora. */
+const FIRST_PAGE = 60;
 const STRIP_DAYS = 5;
+/** Quantos dias à frente a faixa mostra (o resto está na lista e no seletor de data). */
+const STRIP_AHEAD = 6;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function CardapioPage() {
@@ -45,7 +50,7 @@ function CardapioScreen() {
   const searchParams = useSearchParams();
   const dateInput = React.useRef<HTMLInputElement>(null);
 
-  const list = useCustomerData<MenusResponse>(`${MENUS_URL}?limit=${PAGE_SIZE}`);
+  const list = useCustomerData<MenusResponse>(`${MENUS_URL}?limit=${FIRST_PAGE}`);
   const today = list.data?.today ?? null;
 
   // "Ver mais antigos": o que já veio fica, o resto entra por cima
@@ -111,19 +116,29 @@ function CardapioScreen() {
   }
 
   const tomorrow = addDays(today, 1);
+  const daysAhead = list.data?.daysAhead ?? 1;
+  const lastVisible = list.data?.lastVisible ?? tomorrow;
   const publishedDays = new Set(menus.map((m) => m.date));
-  // faixa: os últimos dias publicados antes de hoje, hoje (sempre) e amanhã se já estiver publicado
+  // faixa: os últimos dias publicados antes de hoje, hoje (sempre) e os próximos dias (marcados se já saíram)
   const past = menus.filter((m) => m.date < today).slice(0, STRIP_DAYS).map((m) => m.date).reverse();
-  const strip = [...past, today, ...(publishedDays.has(tomorrow) ? [tomorrow] : [])];
+  const ahead = Array.from({ length: Math.min(daysAhead, STRIP_AHEAD) }, (_, i) => addDays(today, i + 1));
+  const strip = [...past, today, ...ahead];
   if (!strip.includes(day)) strip.unshift(day);
 
   const previous = menus.filter((m) => m.date < today);
-  const rows = menus.filter((m) => m.date >= today || previous.includes(m));
-  const groups = new Map<string, MenuSummary[]>();
-  for (const m of rows) {
-    const label = m.date >= today ? "Hoje e amanhã" : weekGroupLabel(m.date, today);
-    groups.set(label, [...(groups.get(label) ?? []), m]);
+  // lista: hoje, os próximos dias (do mais perto ao mais longe) e os anteriores por semana
+  const groups: { label: string; items: MenuSummary[] }[] = [];
+  const todayMenu = menus.find((m) => m.date === today);
+  if (todayMenu) groups.push({ label: "Hoje", items: [todayMenu] });
+  const upcoming = menus.filter((m) => m.date > today).sort((a, b) => a.date.localeCompare(b.date));
+  if (upcoming.length > 0) groups.push({ label: "Próximos dias", items: upcoming });
+  for (const m of previous) {
+    const label = weekGroupLabel(m.date, today);
+    const group = groups.find((g) => g.label === label);
+    if (group) group.items.push(m);
+    else groups.push({ label, items: [m] });
   }
+  const rows = menus;
 
   const menu = detail.data?.menu ?? null;
   const latestPast = previous[0] ?? null;
@@ -149,7 +164,7 @@ function CardapioScreen() {
           className="c-mn-date-input"
           tabIndex={-1}
           aria-label="Escolher a data do cardápio"
-          max={tomorrow}
+          max={lastVisible}
           value={day}
           onChange={(e) => e.target.value && select(e.target.value)}
         />
@@ -164,9 +179,17 @@ function CardapioScreen() {
           </button>
         )}
         {strip.map((d) => (
-          <button key={d} type="button" className="c-mn-chip" aria-current={d === day ? "date" : undefined} onClick={() => select(d)}>
+          <button
+            key={d}
+            type="button"
+            className={`c-mn-chip${d > today && !publishedDays.has(d) ? " is-off" : ""}`}
+            aria-current={d === day ? "date" : undefined}
+            aria-label={`${longDay(d)}${publishedDays.has(d) ? ", cardápio publicado" : d >= today ? ", ainda sem cardápio" : ""}`}
+            onClick={() => select(d)}
+          >
             {relativeDay(d, today) === weekdayShort(d) ? weekdayShort(d) : relativeDay(d, today)}
             <b>{dayNumber(d)}</b>
+            <i className={publishedDays.has(d) ? "is-on" : undefined} aria-hidden="true" />
           </button>
         ))}
       </div>
@@ -179,12 +202,38 @@ function CardapioScreen() {
         ) : menu && menu.date === day ? (
           <MenuView menu={menu} today={today} />
         ) : day === today ? (
-          <EmptyState title="O cardápio de hoje ainda não foi publicado" text="Assim que o estabelecimento publicar, ele aparece aqui.">
+          <EmptyState art="menu" title="O cardápio de hoje ainda não saiu" text="Quando o estabelecimento publicar, ele aparece aqui. Enquanto isso, veja o que já está no ar.">
+            {upcoming.length > 0 && (
+              <div className="c-card c-mn-rows c-empty-list">
+                <p className="c-mn-group">Já publicados para os próximos dias</p>
+                {upcoming.slice(0, 3).map((m) => (
+                  <Link key={m.date} href={`${pathname}?dia=${m.date}`} scroll={false} className="c-mn-row">
+                    <span className="c-mn-row-d">
+                      <small>{relativeDay(m.date, today)}</small>
+                      <b>{dayNumber(m.date)}</b>
+                    </span>
+                    <span className="c-mn-row-t">
+                      <strong>{m.mains.length > 0 ? m.mains.slice(0, 2).join(", ") : m.title ?? "Cardápio"}</strong>
+                      <span>
+                        {m.itemCount} {m.itemCount === 1 ? "item" : "itens"}
+                      </span>
+                    </span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </Link>
+                ))}
+              </div>
+            )}
             {latestPast && (
               <button type="button" className="c-btn is-ghost" onClick={() => select(latestPast.date)}>
-                Ver o último cardápio
+                Ver o último cardápio publicado
               </button>
             )}
+          </EmptyState>
+        ) : day > today ? (
+          <EmptyState art="menu" title="Este cardápio ainda não saiu" text={`${longDay(day)}: assim que for publicado, ele aparece aqui.`}>
+            <button type="button" className="c-btn is-ghost" onClick={() => select(today)}>
+              Ver hoje
+            </button>
           </EmptyState>
         ) : (
           <EmptyState title="Não há cardápio publicado neste dia" text="Escolha outro dia na lista.">
@@ -202,7 +251,7 @@ function CardapioScreen() {
         {rows.length === 0 ? (
           <p className="c-mn-group">Nenhum cardápio publicado ainda.</p>
         ) : (
-          [...groups.entries()].map(([label, items]) => (
+          groups.map(({ label, items }) => (
             <div key={label} style={{ marginBottom: 18 }}>
               <p className="c-mn-group">{label}</p>
               <div className="c-card c-mn-rows">

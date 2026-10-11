@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import { Check, ChevronLeft, ShoppingBag } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { MovementRow } from "../components/ficha/MovementRow";
@@ -256,7 +257,19 @@ function FichaScreen() {
           <LoadingRows rows={6} />
         ) : movements.length === 0 ? (
           filter.kind === "all" ? (
-            <EmptyState title="Sua ficha está vazia" text="Quando você comprar na ficha, as compras aparecem aqui." />
+            <EmptyState
+              art="ficha"
+              title="Sua ficha está vazia"
+              text="Quando você comprar na ficha, cada compra entra aqui na hora. Você paga depois, quando quiser."
+              facts={[
+                { icon: <ShoppingBag size={18} />, title: "Compras", text: "Cada compra na ficha, com os itens", tone: "warn" },
+                { icon: <Check size={18} />, title: "Pagamentos", text: "Pague por PIX no app ou no balcão", tone: "ok" },
+              ]}
+            >
+              <Link href="/cardapio" className="c-btn is-primary">
+                Ver o cardápio de hoje
+              </Link>
+            </EmptyState>
           ) : (
             <EmptyState title="Nenhum lançamento neste período" text="Escolha outro período ou veja a ficha inteira.">
               <button type="button" className="c-btn is-ghost" onClick={() => changeFilter(ALL)}>

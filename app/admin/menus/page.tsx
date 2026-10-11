@@ -7,9 +7,11 @@ import { AlertCircle, BookOpen, Copy, MessageCircle, Plus, RefreshCw } from "luc
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BulkMenuDialog } from "../components/messages/BulkMenuDialog";
+import { MENU_DAYS_AHEAD } from "@/lib/daily-menu";
 import { PageHeader } from "../components/layout";
 import { MenuTable, type MenuTab } from "./components/MenuTable";
 import { NewMenuDialog } from "./components/NewMenuDialog";
+import { VisibilityBar } from "./components/VisibilityBar";
 import { WeekStrip } from "./components/WeekStrip";
 import { api, mondayOf, menuApi, toPayload, toDraft, type MenuDTO, type MenuSummary } from "./lib";
 
@@ -29,6 +31,8 @@ export default function MenusPage() {
   const [dialog, setDialog] = useState<{ mode: "new" | "copy"; source?: string } | null>(null);
   const [publishing, setPublishing] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [daysAhead, setDaysAhead] = useState<number>(MENU_DAYS_AHEAD.DEFAULT);
+  const [savingAhead, setSavingAhead] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +48,25 @@ export default function MenusPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void api<{ daysAhead: number }>("/api/admin/menus/settings").then((r) => {
+      if (r.ok) setDaysAhead(r.data.daysAhead);
+    });
+  }, []);
+
+  const changeDaysAhead = async (days: number) => {
+    const before = daysAhead;
+    setDaysAhead(days);
+    setSavingAhead(true);
+    const saved = await api<{ daysAhead: number }>("/api/admin/menus/settings", { method: "PUT", body: JSON.stringify({ daysAhead: days }) });
+    setSavingAhead(false);
+    if (saved.ok) showToast(days === 1 ? "O cliente vê até amanhã" : `O cliente vê até ${days} dias à frente`, "success");
+    else {
+      setDaysAhead(before);
+      showToast(saved.message, "error");
+    }
+  };
 
   const byDay = useMemo(() => new Map(menus.map((m) => [m.date, m])), [menus]);
 
@@ -93,9 +116,8 @@ export default function MenusPage() {
     <div className="space-y-6">
       <PageHeader
         title="Cardápios"
-        description="Monte o cardápio de cada dia. O cliente vê o de hoje e consulta os anteriores."
+        description="Monte o cardápio de cada dia"
         icon={BookOpen}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Cardápios" }]}
         actions={
           <>
             <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">
@@ -132,9 +154,11 @@ export default function MenusPage() {
           </div>
         ) : (
           <>
+            <VisibilityBar today={today} daysAhead={daysAhead} saving={savingAhead} onChange={(days) => void changeDaysAhead(days)} />
             <WeekStrip
               monday={monday}
               today={today}
+              daysAhead={daysAhead}
               byDay={byDay}
               onOpen={(day) => open(day)}
               onWeek={(delta) => setMonday((m) => addDaysToDay(m, delta * 7))}

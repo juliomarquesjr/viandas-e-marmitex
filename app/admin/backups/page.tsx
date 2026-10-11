@@ -79,7 +79,7 @@ export default function BackupsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gerenciamento de Backups"
+        title="Backups"
         description="Crie e restaure backups do banco de dados"
         icon={Database}
         actions={

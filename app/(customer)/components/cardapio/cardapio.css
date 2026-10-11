@@ -116,6 +116,31 @@
   .c-mn-chip[aria-current="date"] b {
     color: var(--c-brand-ink);
   }
+  .c-mn-chip i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    border: 1.5px solid transparent;
+  }
+  .c-mn-chip i.is-on {
+    background: var(--c-ok);
+    border-color: var(--c-ok);
+  }
+  .c-mn-chip[aria-current="date"] i.is-on {
+    background: var(--c-brand-ink);
+    border-color: var(--c-brand-ink);
+  }
+  .c-mn-chip.is-off {
+    border-style: dashed;
+    background: transparent;
+  }
+  .c-mn-chip.is-off b {
+    color: var(--c-ink2);
+  }
+  .c-mn-chip.is-off i {
+    border-color: var(--c-line);
+  }
   .c-mn-chip.is-more {
     border-style: dashed;
     background: transparent;

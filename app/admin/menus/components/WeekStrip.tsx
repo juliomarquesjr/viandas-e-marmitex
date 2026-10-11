@@ -2,11 +2,14 @@
 
 import { Button } from "@/app/components/ui/button";
 import { ChevronLeft, ChevronRight, Info, Plus } from "lucide-react";
-import { addDays, dayNumber, weekdayShort, weekRange, type MenuSummary } from "../lib";
+import { customerVisibility, visibleFromDay } from "@/lib/daily-menu";
+import { addDays, dayMonth, dayNumber, weekdayShort, weekRange, type MenuSummary } from "../lib";
 
 interface Props {
   monday: string;
   today: string;
+  /** Quantos dias à frente o cliente enxerga: define o que já aparece e o que aparece em breve. */
+  daysAhead: number;
   byDay: Map<string, MenuSummary>;
   onOpen: (day: string) => void;
   onWeek: (delta: number) => void;
@@ -27,7 +30,18 @@ function StatusPill({ status }: { status: "draft" | "published" | "none" }) {
 }
 
 /** A semana de segunda a domingo: um cartão por dia, com a situação do cardápio. */
-export function WeekStrip({ monday, today, byDay, onOpen, onWeek, onThisWeek }: Props) {
+/** O que o cliente enxerga deste cardápio, em uma linha curta. */
+function visibilityLine(menu: MenuSummary, day: string, today: string, daysAhead: number): { text: string; className: string } {
+  const how = customerVisibility(menu, today, daysAhead);
+  if (how === "hidden") return { text: "Só você vê", className: "text-[color:var(--muted-foreground)]" };
+  if (how === "visible") return { text: day < today ? "Foi publicado" : "Cliente vê", className: "text-emerald-700 dark:text-emerald-300" };
+  const from = visibleFromDay(day, today, daysAhead);
+  const wait = Math.round((new Date(`${from}T12:00:00Z`).getTime() - new Date(`${today}T12:00:00Z`).getTime()) / 86_400_000);
+  const when = wait === 1 ? "amanhã" : `em ${wait} dias (${dayMonth(from)})`;
+  return { text: `Aparece ${when}`, className: "text-amber-700 dark:text-amber-300" };
+}
+
+export function WeekStrip({ monday, today, daysAhead, byDay, onOpen, onWeek, onThisWeek }: Props) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   return (
     <section aria-labelledby="menus-week" className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] px-4 pb-5 pt-5 sm:px-6">
@@ -83,6 +97,10 @@ export function WeekStrip({ monday, today, byDay, onOpen, onWeek, onThisWeek }: 
                       {menu.itemCount} {menu.itemCount === 1 ? "item" : "itens"}
                       {menu.status === "draft" ? ", falta publicar" : ""}
                     </span>
+                    {(() => {
+                      const line = visibilityLine(menu, day, today, daysAhead);
+                      return <span className={`mt-auto text-xs font-semibold ${line.className}`}>{line.text}</span>;
+                    })()}
                   </>
                 ) : (
                   <>

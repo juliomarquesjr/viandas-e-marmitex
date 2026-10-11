@@ -18,6 +18,7 @@ import type { Session } from "next-auth";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Kbd } from "@/app/components/ui/kbd";
+import { RoHeaderButton } from "@/app/admin/components/ro/header-button";
 
 interface PDVHeaderProps {
   session: Session | null;
@@ -148,6 +149,8 @@ export function PDVHeader({
         >
           <Calculator className="h-4 w-4" />
         </Button>
+
+        <RoHeaderButton className="h-10 w-10" />
 
         {isAdmin && (
           <Button

@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { formatAmount } from "../lib/format";
 import { artKind, isLive, shortLabel, stepIndex, stepNames, toneOf, type StatusSource, type StatusTone } from "../lib/order-status";
 import { useCustomerTheme, type CustomerThemeChoice } from "./CustomerTheme";
+import { EmptyArt, type EmptyArtKind } from "./EmptyArt";
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
 
@@ -431,11 +432,82 @@ export function ErrorState({
   );
 }
 
-export function EmptyState({ title, text, children }: { title: string; text?: string; children?: React.ReactNode }) {
+export interface EmptyStep {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}
+export interface EmptyFact {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+  tone?: "brand" | "ok" | "warn";
+}
+
+/** Cartão "o que você vai ver aqui" das listas vazias: uma linha por assunto, com ícone. */
+export function EmptyFacts({ heading, facts }: { heading: string; facts: EmptyFact[] }) {
   return (
-    <div className="c-state">
+    <section className="c-emp-card" aria-label={heading}>
+      <h3>{heading}</h3>
+      {facts.map((fact) => (
+        <div key={fact.title} className="c-emp-fact">
+          <span className={cx("c-emp-ic", fact.tone === "ok" && "is-ok", fact.tone === "warn" && "is-warn")} aria-hidden="true">
+            {fact.icon}
+          </span>
+          <span>
+            <b>{fact.title}</b>
+            <span>{fact.text}</span>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * Lista sem dados. Sem `art` fica o texto simples de sempre; com `art` entra a ilustração animada e,
+ * se houver, o passo a passo (`steps`) e o cartão do que a pessoa vai ver ali (`facts`). Os botões vão
+ * em `children`.
+ */
+export function EmptyState({
+  title,
+  text,
+  art,
+  steps,
+  facts,
+  factsHeading = "O que você vai ver aqui",
+  children,
+}: {
+  title: string;
+  text?: string;
+  art?: EmptyArtKind;
+  steps?: EmptyStep[];
+  facts?: EmptyFact[];
+  factsHeading?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={cx("c-state", art && "has-art")}>
+      {art && <EmptyArt kind={art} />}
       <h2>{title}</h2>
       {text && <p>{text}</p>}
+      {steps && steps.length > 0 && (
+        <section className="c-emp-card" aria-label="Como funciona">
+          <h3>Como funciona</h3>
+          <ol className="c-emp-steps">
+            {steps.map((step) => (
+              <li key={step.title}>
+                <span className="c-emp-dot" aria-hidden="true">
+                  {step.icon}
+                </span>
+                <b>{step.title}</b>
+                <span>{step.text}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {facts && facts.length > 0 && <EmptyFacts heading={factsHeading} facts={facts} />}
       {children}
     </div>
   );

@@ -1,11 +1,14 @@
 import { getCustomerSession } from '@/lib/customer-auth';
 import { isValidDay, lastVisibleDay } from '@/lib/daily-menu';
+import { getMenuDaysAhead } from '@/lib/daily-menu-settings';
+import { addDaysToDay } from '@/lib/date-range';
 import { isMissingTable, listMenuSummaries } from '@/lib/daily-menu-db';
 import { todaySP } from '@/lib/date-range';
 import { NextRequest, NextResponse } from 'next/server';
 
-// GET - Cardápios publicados que o cliente pode ver (de amanhã para trás), do mais novo ao mais antigo.
-// ?before=AAAA-MM-DD (só os anteriores a esse dia) e ?limit=N (padrão 30, máximo 60).
+// GET - Cardápios publicados que o cliente pode ver (até a janela de dias à frente que o administrador definiu),
+// do mais novo ao mais antigo. ?before=AAAA-MM-DD (só os anteriores a esse dia), ?limit=N (padrão 30, máximo 60)
+// e ?until=today|tomorrow (corta no dia: o aviso do Início só precisa de hoje ou amanhã).
 export async function GET(request: NextRequest) {
   const session = await getCustomerSession();
   if (!session) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
@@ -17,8 +20,12 @@ export async function GET(request: NextRequest) {
 
   const today = todaySP();
   try {
-    const menus = await listMenuSummaries({ published: true, to: lastVisibleDay(today), before, limit });
-    return NextResponse.json({ today, menus }, { headers: { 'Cache-Control': 'no-store' } });
+    const daysAhead = await getMenuDaysAhead();
+    const lastVisible = lastVisibleDay(today, daysAhead);
+    const until = params.get('until');
+    const to = until === 'today' ? today : until === 'tomorrow' ? addDaysToDay(today, 1) : lastVisible;
+    const menus = await listMenuSummaries({ published: true, to: to < lastVisible ? to : lastVisible, before, limit });
+    return NextResponse.json({ today, daysAhead, lastVisible, menus }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     // migration ainda não aplicada: nada de cardápio, sem quebrar o app
     if (isMissingTable(error)) return NextResponse.json({ today, menus: [] });

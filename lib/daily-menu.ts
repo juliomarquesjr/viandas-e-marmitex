@@ -149,13 +149,39 @@ export function summarizeMenu(menu: SummarySource): MenuSummary {
   };
 }
 
-/** O cliente vê cardápio publicado de hoje para trás e o de amanhã (quando já está publicado). */
-export function lastVisibleDay(today: string): string {
-  return addDaysToDay(today, 1);
+/**
+ * Quantos dias à frente o cliente enxerga (configurado pelo administrador). Cardápio publicado além disso
+ * fica guardado e aparece sozinho quando o dia se aproxima. 1 = só hoje e amanhã.
+ */
+export const MENU_DAYS_AHEAD = { DEFAULT: 7, MIN: 1, MAX: 30, OPTIONS: [1, 7, 14, 30] } as const;
+
+/** Aceita número ou texto; o que não for inteiro entre o mínimo e o máximo volta ao padrão. */
+export function parseDaysAhead(value: unknown): number {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+  return Number.isInteger(n) && n >= MENU_DAYS_AHEAD.MIN && n <= MENU_DAYS_AHEAD.MAX ? n : MENU_DAYS_AHEAD.DEFAULT;
 }
 
-export function isVisibleToCustomer(menu: { date: string; status: string }, today: string): boolean {
-  return menu.status === 'published' && menu.date <= lastVisibleDay(today);
+/** O cliente vê cardápio publicado de hoje para trás e até `daysAhead` dias à frente. */
+export function lastVisibleDay(today: string, daysAhead: number = MENU_DAYS_AHEAD.DEFAULT): string {
+  return addDaysToDay(today, parseDaysAhead(daysAhead));
+}
+
+export function isVisibleToCustomer(menu: { date: string; status: string }, today: string, daysAhead: number = MENU_DAYS_AHEAD.DEFAULT): boolean {
+  return menu.status === 'published' && menu.date <= lastVisibleDay(today, daysAhead);
+}
+
+/** Primeiro dia em que o cliente passa a ver o cardápio deste dia (nunca antes de hoje). */
+export function visibleFromDay(day: string, today: string, daysAhead: number = MENU_DAYS_AHEAD.DEFAULT): string {
+  const from = addDaysToDay(day, -parseDaysAhead(daysAhead));
+  return from < today ? today : from;
+}
+
+export type CustomerVisibility = 'visible' | 'soon' | 'hidden';
+
+/** Como o cliente enxerga um cardápio: já vê, aparece em breve (publicado, fora da janela) ou nunca (rascunho). */
+export function customerVisibility(menu: { date: string; status: string }, today: string, daysAhead: number = MENU_DAYS_AHEAD.DEFAULT): CustomerVisibility {
+  if (menu.status !== 'published') return 'hidden';
+  return menu.date <= lastVisibleDay(today, daysAhead) ? 'visible' : 'soon';
 }
 
 /** "Esta semana", "Semana passada", "Há 2 semanas"... para agrupar a lista de anteriores. */

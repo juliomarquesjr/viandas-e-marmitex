@@ -2,14 +2,14 @@
 
 /**
  * Painel da marca das telas de entrar e de senha: luzes quentes que passeiam,
- * ilustrações que se alternam (prato feito, hambúrguer, vianda, frango e sacola
+ * ilustrações que se alternam (prato feito, hambúrguer, vianda, pizza e sacola
  * sendo montados, ver auth-scenes.tsx) e ingredientes soltos que seguem o
  * ponteiro. Com "reduzir movimento" o parallax e a palavra que alterna param.
  */
 
 import * as React from "react";
 import "./auth.css";
-import { BagScene, BurgerScene, ChickenScene, PlateScene, ViandaScene } from "./auth-scenes";
+import { BagScene, BurgerScene, PizzaScene, PlateScene, ViandaScene } from "./auth-scenes";
 import { BrandMark, ThemeButton, cx, useBranding } from "./kit";
 
 const ROT = ["ficha", "entrega", "retirada", "marmita"];
@@ -47,7 +47,7 @@ const FLOATIES: React.ReactNode[] = [
 const SCENE_MS = 7600;
 
 /**
- * Prato feito, hambúrguer, vianda, frango e sacola, uma de cada vez. Todas ficam montadas no palco; a classe
+ * Prato feito, hambúrguer, vianda, pizza e sacola, uma de cada vez. Todas ficam montadas no palco; a classe
  * decide quem aparece: `is-active` (entra deslizando e monta o desenho), `is-leaving` (sai deslizando).
  * Com "reduzir movimento" só o prato feito aparece, parado.
  */
@@ -60,7 +60,7 @@ function SceneCarousel({ lidLabel, reduced }: { lidLabel: string; reduced: boole
     <PlateScene key="prato" label={lidLabel} />,
     <BurgerScene key="hamburguer" />,
     <ViandaScene key="vianda" />,
-    <ChickenScene key="frango" />,
+    <PizzaScene key="pizza" />,
     <BagScene key="sacola" label={lidLabel} />,
   ];
 

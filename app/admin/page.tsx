@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TrendingUp, TrendingDown, Users, Clock, CheckCircle, Receipt } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Clock, CheckCircle, Receipt, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApiOrder, RangeOption, SalesPoint, StatusTotals, CustomerDebtor } from "./types";
 import { SalesOverPeriodCard } from "./components/SalesOverPeriodCard";
@@ -377,6 +377,7 @@ export default function AdminHome() {
             <SimplePageHeader
                 title="Dashboard"
                 description="Visão geral de vendas e operações"
+                icon={LayoutDashboard}
                 actions={
                     <RangeSelector
                         options={RANGE_OPTIONS}
