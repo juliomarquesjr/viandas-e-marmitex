@@ -9,9 +9,8 @@ export default function WhatsAppHistoryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Histórico de envios"
-        description="O que o sistema já enviou sozinho aos clientes e se deu certo. As conversas ficam em Conversas."
+        description="O que o sistema já enviou sozinho e se deu certo"
         icon={MessagesSquare}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Envios automáticos" }, { label: "Histórico de envios" }]}
       />
       <MessageHistoryView />
     </div>

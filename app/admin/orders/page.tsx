@@ -721,7 +721,7 @@ export default function AdminOrdersPage() {
         description="Acompanhe todas as vendas realizadas"
         icon={ShoppingCart}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant={productSummaryEnabled ? "default" : "outline"}
               size="sm"

@@ -9,9 +9,8 @@ export default function WhatsAppMessagesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Mensagens automáticas"
-        description="Textos que o sistema envia sozinho aos clientes (senha de acesso, cardápio…), por WhatsApp e e-mail. Para conversar com o cliente, use Conversas."
+        description="Textos que o sistema envia sozinho aos clientes, por WhatsApp e e-mail"
         icon={MessagesSquare}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Envios automáticos" }, { label: "Mensagens automáticas" }]}
       />
       <MessageTemplatesView />
     </div>

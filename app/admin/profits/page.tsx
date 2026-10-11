@@ -39,7 +39,7 @@ export default function ProfitsPage() {
       {/* Cabeçalho */}
       <PageHeader
         title="Lucros"
-        description="Análise completa de receitas, despesas e lucros por período"
+        description="Receitas, despesas e lucros por período"
         icon={BarChart3}
         actions={
           <Button onClick={() => setIsDialogOpen(true)}>

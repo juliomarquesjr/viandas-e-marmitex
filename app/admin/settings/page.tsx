@@ -161,8 +161,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Configurações do Sistema"
-        description="Gerencie as configurações gerais, contato e marca do sistema"
+        title="Configurações"
+        description="Geral, contato e marca do sistema"
         icon={Settings}
         actions={
           activeSection === 'online' || activeSection === 'whatsapp' ? undefined : (

@@ -44,8 +44,8 @@ export default function ExpensesPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Gerenciamento de Despesas"
-          description="Gerencie despesas, tipos e fornecedores"
+          title="Despesas"
+          description="Despesas, tipos e fornecedores"
           icon={Receipt}
         />
         <div className="space-y-6">
@@ -63,11 +63,11 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       {/* Cabeçalho */}
       <PageHeader
-        title="Gerenciamento de Despesas"
-        description="Gerencie despesas, tipos e fornecedores"
+        title="Despesas"
+        description="Despesas, tipos e fornecedores"
         icon={Receipt}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Toggle lista / calendário — pill style */}
             <div className="flex items-center bg-slate-100 rounded-full p-1 gap-0.5">
               <button

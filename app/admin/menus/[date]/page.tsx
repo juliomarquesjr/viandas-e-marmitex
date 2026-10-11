@@ -163,7 +163,6 @@ export default function MenuEditorPage() {
         title={`Cardápio de ${longDay(day)}`}
         description={`${count} ${count === 1 ? "item" : "itens"} em ${sectionCount} ${sectionCount === 1 ? "seção" : "seções"}${dirty ? " · há mudanças não salvas" : ""}`}
         icon={BookOpen}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Cardápios", href: "/admin/menus" }, { label: longDay(day) }]}
         actions={
           <>
             <Button size="sm" variant="ghost" onClick={() => go("/admin/menus")}>

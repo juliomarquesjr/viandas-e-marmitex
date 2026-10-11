@@ -93,9 +93,8 @@ export default function MenusPage() {
     <div className="space-y-6">
       <PageHeader
         title="Cardápios"
-        description="Monte o cardápio de cada dia. O cliente vê o de hoje e consulta os anteriores."
+        description="Monte o cardápio de cada dia"
         icon={BookOpen}
-        breadcrumb={[{ label: "Admin", href: "/admin" }, { label: "Cardápios" }]}
         actions={
           <>
             <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="border-green-300 bg-green-50 text-green-800 hover:bg-green-100">
