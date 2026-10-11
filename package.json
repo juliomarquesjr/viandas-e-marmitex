@@ -52,6 +52,7 @@
     "face-api.js": "^0.22.2",
     "fast-xml-parser": "^4.3.5",
     "framer-motion": "^12.23.12",
+    "gsap": "^3.13.0",
     "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
