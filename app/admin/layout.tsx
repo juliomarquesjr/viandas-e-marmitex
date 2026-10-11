@@ -135,7 +135,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
-        {!immersive && <RoAssistant raised={pathname.startsWith("/admin/whatsapp/conversas")} />}
+        {!immersive && userRole === "admin" && <RoAssistant raised={pathname.startsWith("/admin/whatsapp/conversas")} />}
     </NotificationsProvider>
   );
 }

@@ -4,13 +4,14 @@ import { PageHeader } from "@/app/admin/components/layout/PageHeader";
 import { useToast } from "@/app/components/Toast";
 import { Button } from "@/app/components/ui/button";
 import { ConfigFormData, useSystemConfig } from "@/app/hooks/useSystemConfig";
-import { AlertCircle, Building2, Loader2, Mail, MessageCircle, Phone, QrCode, RefreshCw, Save, Settings, ShoppingBag } from "lucide-react";
+import { AlertCircle, Building2, Loader2, Mail, MessageCircle, Phone, QrCode, RefreshCw, Save, Settings, ShoppingBag, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandingCard } from "./components/BrandingCard";
 import { ContactCard } from "./components/ContactCard";
 import { EmailCard } from "./components/EmailCard";
 import { OnlineOrderingTab } from "./components/OnlineOrderingTab";
 import { PaymentCard } from "./components/PaymentCard";
+import { RoTab } from "./components/RoTab";
 import { SettingsPageSkeleton } from "./components/SettingsPageSkeleton";
 import { WhatsAppTab } from "./components/WhatsAppTab";
 
@@ -57,6 +58,13 @@ const navItems = [
     fullDescription: 'Conecte o WhatsApp do estabelecimento para enviar avisos aos clientes',
     icon: MessageCircle,
   },
+  {
+    id: 'ro' as const,
+    label: 'Assistente RO',
+    shortDescription: 'Ajustes da RO',
+    fullDescription: 'Ligue, desligue e ajuste o assistente que responde sobre clientes, vendas e pedidos',
+    icon: Sparkles,
+  },
 ];
 
 type SectionId = typeof navItems[number]['id'];
@@ -69,6 +77,7 @@ const TAB_SLUGS: Record<SectionId, string> = {
   payment: 'pagamento',
   online: 'pedidos-online',
   whatsapp: 'whatsapp',
+  ro: 'assistente-ro',
 };
 
 function sectionFromUrl(): SectionId | null {
@@ -165,7 +174,7 @@ export default function SettingsPage() {
         description="Geral, contato e marca do sistema"
         icon={Settings}
         actions={
-          activeSection === 'online' || activeSection === 'whatsapp' ? undefined : (
+          activeSection === 'online' || activeSection === 'whatsapp' || activeSection === 'ro' ? undefined : (
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? (
               <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Salvando...</>
@@ -290,6 +299,7 @@ export default function SettingsPage() {
                   />
                 )}
                 {activeSection === "whatsapp" && <WhatsAppTab active />}
+                {activeSection === "ro" && <RoTab />}
                 {onlineVisited && (
                   <div hidden={activeSection !== "online"}>
                     <OnlineOrderingTab active={activeSection === "online"} />
