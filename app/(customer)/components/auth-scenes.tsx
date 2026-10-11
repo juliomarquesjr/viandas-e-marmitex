@@ -2,7 +2,7 @@
 
 /**
  * Ilustrações que se alternam no painel da marca das telas de entrar (ver AuthScene): prato feito
- * brasileiro, hambúrguer sendo montado, vianda de três andares, frango assado e compras entrando numa
+ * brasileiro, hambúrguer sendo montado, vianda de três andares, pizza sendo preparada e compras entrando numa
  * sacola. Todas usam o mesmo quadro 320×240 e o mesmo vocabulário de
  * movimento (`.c-dr`: a peça cai e quica no lugar), em auth-scenes.css. Parado (sem a classe `is-active`
  * na cena, ou com "reduzir movimento") o desenho aparece já pronto.
@@ -263,90 +263,148 @@ export function ViandaScene() {
   );
 }
 
-/* ----------------------------------------------------------- frango assado */
+/* ------------------------------------------------------------------- pizza */
 
-export function ChickenScene() {
-  const id = "c-ch" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const leg = (
-    <g>
-      <ellipse cx="108" cy="176" rx="36" ry="17" transform="rotate(-24 108 176)" fill={`url(#${id}-g)`} />
-      <ellipse cx="100" cy="171" rx="17" ry="5" transform="rotate(-24 100 171)" fill="#fff" opacity=".28" />
-      <rect x="56" y="178" width="26" height="9" rx="4.5" transform="rotate(-24 69 182)" fill="#fff3dc" />
-      <circle cx="58" cy="190" r="6.5" fill="#fff3dc" />
-      <circle cx="68" cy="198" r="6.5" fill="#fff3dc" />
-    </g>
-  );
+/**
+ * Pizza sendo preparada, vista de cima numa tábua: a massa cai e é aberta com o rolo, depois entram o molho,
+ * o queijo (em fiapos), a calabresa, a azeitona e o manjericão, e por fim os cortes. O desenho todo fica numa
+ * perspectiva leve (achatado em y), por isso as peças ficam em grupos de fora e as animações em grupos de dentro:
+ * a animação (CSS) não pode ocupar o `transform` do grupo que posiciona.
+ */
+export function PizzaScene() {
+  const id = "c-pz" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const pepperoni = [
+    [-34, -26],
+    [28, -36],
+    [-4, 4],
+    [48, 8],
+    [-44, 22],
+    [10, 46],
+  ];
+  const olives = [
+    [-14, -50],
+    [52, -18],
+    [-52, -4],
+    [32, 40],
+    [-26, 48],
+  ];
+  const basil = [
+    [6, -24, -30],
+    [-22, -2, 40],
+    [34, 14, -10],
+  ];
+  const shreds = [
+    [-40, -20],
+    [-6, -44],
+    [34, -26],
+    [-30, 26],
+    [14, 18],
+    [46, 20],
+  ];
   return (
-    <svg className="c-box" viewBox="0 0 320 240" aria-hidden="true">
+    <svg className="c-box" viewBox="0 0 320 240" role="img" aria-label="Pizza sendo preparada: a massa é aberta, recebe molho, queijo, calabresa, azeitona e manjericão e é cortada">
       <defs>
-        <linearGradient id={`${id}-g`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f0a53a" />
-          <stop offset="0.55" stopColor="#cf7a22" />
-          <stop offset="1" stopColor="#a8541a" />
-        </linearGradient>
+        <radialGradient id={`${id}-c`} cx=".4" cy=".35" r=".8">
+          <stop offset="0" stopColor="#ffe58a" />
+          <stop offset="1" stopColor="#f3c23d" />
+        </radialGradient>
+        <radialGradient id={`${id}-d`} cx=".4" cy=".35" r=".9">
+          <stop offset="0" stopColor="#f8e2b4" />
+          <stop offset="1" stopColor="#ecc98a" />
+        </radialGradient>
       </defs>
 
-      <path className="c-lsteam s1" d="M126 46c-9-10 9-17 0-30" />
-      <path className="c-lsteam s2" d="M160 40c-9-10 9-17 0-30" />
-      <path className="c-lsteam s3" d="M196 46c-9-10 9-17 0-30" />
+      <path className="c-lsteam s1" d="M120 40c-9-10 9-17 0-30" />
+      <path className="c-lsteam s2" d="M160 34c-9-10 9-17 0-30" />
+      <path className="c-lsteam s3" d="M200 40c-9-10 9-17 0-30" />
 
-      <ellipse cx="160" cy="226" rx="124" ry="9" fill="#000" opacity=".2" />
-      <ellipse cx="160" cy="204" rx="126" ry="26" fill="#fbf8f5" stroke="#e7dfd9" strokeWidth="3" />
-      <ellipse cx="160" cy="204" rx="100" ry="17" fill="#f1ebe4" />
+      <ellipse cx="150" cy="226" rx="128" ry="9" fill="#000" opacity=".2" />
+      {/* tábua redonda com cabo */}
+      <rect x="236" y="120" width="72" height="22" rx="11" fill="#b87a3e" />
+      <circle cx="298" cy="131" r="3.6" fill="#8a5a2b" />
+      <ellipse cx="150" cy="130" rx="140" ry="92" fill="#c98a4b" />
+      <ellipse cx="150" cy="130" rx="140" ry="92" fill="none" stroke="#e1a869" strokeWidth="3" opacity=".7" />
+      <path d="M40 94c40-22 160-26 220 0M34 130c60 16 180 16 232 0M44 170c52 20 160 22 212 0" fill="none" stroke="#b27536" strokeWidth="2" opacity=".5" />
 
-      {/* batatas e alecrim chegam depois do frango */}
-      {[
-        [52, 198, 1.15],
-        [84, 214, 1.3],
-        [236, 214, 1.45],
-        [268, 198, 1.6],
-      ].map(([x, y, delay]) => (
-        <g key={`${x}`} className="c-pop" style={d(delay)}>
-          <ellipse cx={x} cy={y} rx="16" ry="12" fill="#e2a43a" />
-          <ellipse cx={x - 4} cy={y - 3} rx="8" ry="4" fill="#f4c566" opacity=".85" />
-          <circle cx={x + 5} cy={y + 3} r="1.8" fill="#b9791d" />
+      <g className="c-pizza">
+        <g transform="translate(150 130) scale(1 .78)">
+          <g className="c-pz-dough">
+            <circle r="94" fill="#e4b46a" />
+            <circle r="84" fill={`url(#${id}-d)`} />
+          </g>
+          <g className="c-pz-in" style={d(0.95)}>
+            <circle r="76" fill="#d4382c" />
+            <path d="M-50 -10C-30 -52 30 -56 52 -18M-56 14C-36 58 36 58 56 16M-26 -8C-12 -26 14 -24 24 -6" fill="none" stroke="#ee6a58" strokeWidth="5" strokeLinecap="round" opacity=".55" />
+          </g>
+          <g className="c-pz-in" style={d(1.4)}>
+            <circle r="72" fill={`url(#${id}-c)`} />
+            <path d="M-58 -22c10-8 18-2 26-10M20 -52c10 4 16 14 28 10M-10 56c12-6 24-2 34-12M-48 28c8 8 18 6 24 14M44 8c10-4 18 4 22 12" fill="none" stroke="#fff3b0" strokeWidth="4" strokeLinecap="round" opacity=".8" />
+          </g>
+
+          {shreds.map(([x, y], i) => (
+            <g key={`s${x}${y}`} transform={`translate(${x} ${y})`}>
+              <g className="c-dr" style={d(1.3 + i * 0.07)}>
+                <rect x="-3" y="-8" width="6" height="16" rx="3" fill="#fff0a0" transform={`rotate(${i * 50})`} />
+              </g>
+            </g>
+          ))}
+
+          {pepperoni.map(([x, y], i) => (
+            <g key={`p${x}${y}`} transform={`translate(${x} ${y})`}>
+              <g className="c-dr" style={d(1.95 + i * 0.1)}>
+                <circle r="13" fill="#b3261e" stroke="#8f1a14" strokeWidth="2" />
+                <circle cx={i % 2 ? 3 : -4} cy="-3" r="2" fill="#8f1a14" />
+                <circle cx={i % 2 ? -4 : 4} cy="3" r="2" fill="#8f1a14" />
+                <ellipse cx="-5" cy="-6" rx="4" ry="2" fill="#fff" opacity=".25" />
+              </g>
+            </g>
+          ))}
+
+          {olives.map(([x, y], i) => (
+            <g key={`o${x}${y}`} transform={`translate(${x} ${y})`}>
+              <g className="c-dr" style={d(2.65 + i * 0.07)}>
+                <circle r="6.5" fill="#2b2b2b" />
+                <circle r="2.6" fill="#f3c23d" />
+              </g>
+            </g>
+          ))}
+
+          {basil.map(([x, y, a], i) => (
+            <g key={`b${x}${y}`} transform={`translate(${x} ${y}) rotate(${a})`}>
+              <g className="c-dr" style={d(3 + i * 0.09)}>
+                <path d="M0 -12c10 2 14 12 0 22c-14-10-10-20 0-22z" fill="#4fa23a" />
+                <path d="M0 -10V8" stroke="#2f7a22" strokeWidth="1.6" />
+              </g>
+            </g>
+          ))}
+
+          <g className="c-pz-cut" fill="none" stroke="#a96a1c" strokeWidth="2.4" strokeLinecap="round">
+            <path d="M-72 0H72" />
+            <path d="M0 -72V72" />
+            <path d="M-51 -51L51 51" />
+            <path d="M51 -51L-51 51" />
+          </g>
         </g>
-      ))}
-
-      <g className="c-pop c-big" style={d(0.1)}>
-        <path
-          d="M96 128C92 84 136 52 176 56c46 4 74 34 70 74-3 30-34 52-82 52-40 0-66-22-68-54z"
-          fill={`url(#${id}-g)`}
-        />
-        <ellipse cx="136" cy="96" rx="30" ry="14" transform="rotate(-28 136 96)" fill="#fff" opacity=".3" />
-        <ellipse cx="200" cy="132" rx="22" ry="13" transform="rotate(24 200 132)" fill="#a8541a" opacity=".55" />
-        {[
-          [124, 134],
-          [152, 150],
-          [186, 108],
-          [212, 96],
-          [168, 82],
-          [142, 120],
-        ].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r="3" fill="#8e4313" opacity=".4" />
-        ))}
       </g>
 
-      <g className="c-pop" style={d(0.5)}>{leg}</g>
-      {/* o espelho fica num grupo de fora: a animação (CSS) não pode ocupar o `transform` do mesmo grupo */}
-      <g transform="matrix(-1 0 0 1 320 0)">
-        <g className="c-pop" style={d(0.65)}>
-          {leg}
-        </g>
+      {/* rolo de massa: só aparece enquanto abre a massa */}
+      <g className="c-pz-pin">
+        <rect x="70" y="104" width="160" height="26" rx="9" fill="#e7b073" />
+        <rect x="70" y="106" width="160" height="7" rx="3.5" fill="#fff" opacity=".28" />
+        <rect x="52" y="112" width="24" height="10" rx="5" fill="#b87a3e" />
+        <rect x="224" y="112" width="24" height="10" rx="5" fill="#b87a3e" />
       </g>
-
-      {[
-        [78, 188, -30],
-        [250, 186, 28],
-      ].map(([x, y, a]) => (
-        <g key={`${x}`} className="c-pop" style={d(1.75)}>
-          <path d={`M${x} ${y}l20-12`} stroke="#4f9a3c" strokeWidth="3" strokeLinecap="round" transform={`rotate(${a} ${x} ${y})`} />
-          <path d={`M${Number(x) + 6} ${Number(y) - 4}l9-10M${Number(x) + 12} ${Number(y) - 8}l8-9`} stroke="#6db552" strokeWidth="3" strokeLinecap="round" transform={`rotate(${a} ${x} ${y})`} />
-        </g>
-      ))}
+      <g className="c-pz-flour" fill="#fff">
+        <circle cx="110" cy="136" r="2.4" />
+        <circle cx="150" cy="154" r="2" />
+        <circle cx="190" cy="128" r="2.6" />
+        <circle cx="130" cy="112" r="2" />
+        <circle cx="176" cy="160" r="2.4" />
+        <circle cx="96" cy="154" r="2" />
+      </g>
 
       <g className="c-tw">
-        <path d="M218 74l3 9 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#fff" />
+        <path d="M268 54l3 9 9 3-9 3-3 9-3-9-9-3 9-3z" fill="#fff" />
       </g>
     </svg>
   );
