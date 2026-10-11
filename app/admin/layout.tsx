@@ -134,8 +134,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* RO Assistant — sai da frente quando a tela toda é a área de trabalho */}
-        {!immersive && userRole === "admin" && <RoAssistant raised={pathname.startsWith("/admin/whatsapp/conversas")} />}
+        {/* RO Assistant — o botão flutuante sai da frente quando a tela toda é a área de trabalho (PDV, modo imersivo); a gaveta continua disponível pelo botão do cabeçalho */}
+        {userRole === "admin" && <RoAssistant semBotaoFlutuante={immersive} raised={pathname.startsWith("/admin/whatsapp/conversas")} />}
     </NotificationsProvider>
   );
 }

@@ -23,24 +23,35 @@ export function soDigitos(texto: string): string {
   return texto.replace(/\D/g, '');
 }
 
-/** Distância de edição (inserir, apagar ou trocar uma letra), com corte: devolve cedo se passar de `max`. */
+/**
+ * Distância de edição (inserir, apagar, trocar uma letra ou trocar duas letras vizinhas de lugar, que conta como 1 só),
+ * com corte: devolve `max + 1` quando passa de `max`.
+ */
 export function distancia(a: string, b: string, max = 2): number {
   if (a === b) return 0;
   if (Math.abs(a.length - b.length) > max) return max + 1;
-  let anterior = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
+  const n = a.length;
+  const m = b.length;
+  let anterior2: number[] = [];
+  let anterior = Array.from({ length: m + 1 }, (_, j) => j);
+  let menorAnterior = 0;
+  for (let i = 1; i <= n; i++) {
     const atual = [i];
     let menor = i;
-    for (let j = 1; j <= b.length; j++) {
+    for (let j = 1; j <= m; j++) {
       const custo = a[i - 1] === b[j - 1] ? 0 : 1;
-      const valor = Math.min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + custo);
+      let valor = Math.min(anterior[j] + 1, atual[j - 1] + 1, anterior[j - 1] + custo);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) valor = Math.min(valor, anterior2[j - 2] + 1);
       atual.push(valor);
       if (valor < menor) menor = valor;
     }
-    if (menor > max) return max + 1;
+    // com a troca de vizinhas, uma linha pode se apoiar na de duas antes: só desiste quando as duas passaram do corte
+    if (menor > max && menorAnterior > max) return max + 1;
+    menorAnterior = menor;
+    anterior2 = anterior;
     anterior = atual;
   }
-  return anterior[b.length];
+  return Math.min(anterior[m], max + 1);
 }
 
 export const brl = (cents: number): string =>
@@ -61,5 +72,23 @@ export function primeiroNome(nome: string): string {
 }
 
 export function plural(n: number, um: string, varios: string): string {
-  return `${n} ${n === 1 ? um : varios}`;
+  return `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
+}
+
+/** "1 cliente" / "2 clientes" sem o número (para frases do tipo "Tem 1 cliente que combina"). */
+export const concorda = (n: number, um: string, varios: string): string => (n === 1 ? um : varios);
+
+/** "12/10/2026" a partir de "2026-10-12". */
+export const dataBR = (dia: string): string => `${dia.slice(8, 10)}/${dia.slice(5, 7)}/${dia.slice(0, 4)}`;
+
+/** Quanto falta, em linguagem de gente ("daqui a alguns minutos", "daqui a cerca de 3 horas", "amanhã"). */
+export function esperaHumana(segundos: number): string {
+  if (!Number.isFinite(segundos) || segundos <= 90) return 'daqui a um minuto';
+  const minutos = Math.ceil(segundos / 60);
+  if (minutos <= 10) return 'daqui a alguns minutos';
+  if (minutos < 60) return `daqui a uns ${Math.round(minutos / 5) * 5} minutos`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 2) return 'daqui a cerca de uma hora';
+  if (horas <= 12) return `daqui a cerca de ${horas} horas`;
+  return 'amanhã';
 }

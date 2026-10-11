@@ -156,13 +156,18 @@ describe('atalhos sem IA', () => {
     assert.equal(ferr('quantos pedidos a maria fez no mês passado?'), null);
     assert.equal(ferr('vendas por dia da semana passada'), null);
     assert.equal(ferr('quanto vendemos de marmita de frango em outubro?'), null);
-    assert.equal(ferr('cadastre o cliente joao 11999990000'), null);
+    // pedido de escrita: recusa curta, sem IA e sem procurar ninguém
+    assert.match(rotearRapido('cadastre o cliente joao 11999990000')?.fixo ?? '', /só consulta/);
   });
 });
 
 describe('configurações da RO', () => {
   it('usa o padrão quando não há nada salvo ou o valor é inválido', () => {
-    assert.deepEqual(interpretar({}), { ligada: true, tom: 'divertida', limiteDiario: 150, mostrarBotao: true });
+    assert.deepEqual(interpretar({}), { ligada: true, tom: 'divertida', limiteDiario: 150, posicao: 'flutuante', mostrarBotao: true });
+    assert.equal(interpretar({ ro_show_button: 'false' }).posicao, 'nenhum');
+    assert.equal(interpretar({ ro_placement: 'cabecalho', ro_show_button: 'true' }).posicao, 'cabecalho');
+    assert.equal(interpretar({ ro_placement: 'cabecalho' }).mostrarBotao, true);
+    assert.equal(interpretar({ ro_placement: 'qualquer' }).posicao, 'flutuante');
     assert.equal(interpretar({ ro_daily_limit: '5' }).limiteDiario, 150);
     assert.equal(interpretar({ ro_daily_limit: '500' }).limiteDiario, 500);
     assert.equal(interpretar({ ro_enabled: 'false' }).ligada, false);

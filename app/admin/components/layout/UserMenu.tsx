@@ -21,6 +21,8 @@ import { isDesktopRuntime } from "@/lib/runtime/capabilities";
 import { AdminThemeSelector } from "./AdminThemeSelector";
 import { DesktopPrintManagerDialog } from "./DesktopPrintManagerDialog";
 import { NotificationBell } from "../notifications/NotificationBell";
+import { RoHeaderButton } from "../ro/header-button";
+import { limparHistoricoRo } from "../ro/historico";
 
 /**
  * UserMenu - Design System
@@ -88,6 +90,8 @@ export function UserMenu() {
 
   const handleSignOut = React.useCallback(async () => {
     setOpen(false);
+    // a conversa da RO (nomes, telefones, saldos) não pode ficar no navegador depois de sair
+    limparHistoricoRo();
 
     await signOut({ redirect: false });
     window.location.assign("/auth/login");
@@ -382,6 +386,7 @@ export function HeaderActions({ children, className }: HeaderActionsProps) {
         >
           <ScanBarcode className="h-5 w-5" />
         </button>
+        <RoHeaderButton />
         <NotificationBell />
         <UserMenu />
       </div>

@@ -3,25 +3,20 @@
 
 import prisma from '@/lib/prisma';
 import { lerConfiguracoes } from './settings';
-import { CHAVES_RO as CHAVES, RO_LIMITE_DIARIO, type RoConfiguracoes } from './settings-tipos';
+import { aplicarPedido, CHAVES_RO as CHAVES, type ConfiguracoesPedidas, type RoConfiguracoes } from './settings-tipos';
 
-export async function salvarConfiguracoes(parcial: Partial<RoConfiguracoes>): Promise<RoConfiguracoes> {
+/** Grava só o que mudou. O pedido já deve ter passado por `validarPedido`. */
+export async function salvarConfiguracoes(pedido: ConfiguracoesPedidas): Promise<RoConfiguracoes> {
   const atual = await lerConfiguracoes();
-  const novo: RoConfiguracoes = {
-    ligada: typeof parcial.ligada === 'boolean' ? parcial.ligada : atual.ligada,
-    tom: parcial.tom === 'direta' || parcial.tom === 'divertida' ? parcial.tom : atual.tom,
-    limiteDiario:
-      typeof parcial.limiteDiario === 'number' && Number.isInteger(parcial.limiteDiario) && parcial.limiteDiario >= RO_LIMITE_DIARIO.MIN && parcial.limiteDiario <= RO_LIMITE_DIARIO.MAX
-        ? parcial.limiteDiario
-        : atual.limiteDiario,
-    mostrarBotao: typeof parcial.mostrarBotao === 'boolean' ? parcial.mostrarBotao : atual.mostrarBotao,
-  };
-  const pares: [string, string][] = [
-    [CHAVES.ligada, String(novo.ligada)],
-    [CHAVES.tom, novo.tom],
-    [CHAVES.limiteDiario, String(novo.limiteDiario)],
-    [CHAVES.mostrarBotao, String(novo.mostrarBotao)],
-  ];
+  const novo = aplicarPedido(atual, pedido);
+  const pares: [string, string][] = [];
+  if (novo.ligada !== atual.ligada) pares.push([CHAVES.ligada, String(novo.ligada)]);
+  if (novo.tom !== atual.tom) pares.push([CHAVES.tom, novo.tom]);
+  if (novo.limiteDiario !== atual.limiteDiario) pares.push([CHAVES.limiteDiario, String(novo.limiteDiario)]);
+  if (novo.posicao !== atual.posicao) {
+    pares.push([CHAVES.posicao, novo.posicao]);
+    pares.push([CHAVES.mostrarBotao, String(novo.mostrarBotao)]);
+  }
   await Promise.all(pares.map(([key, value]) => prisma.systemConfig.upsert({ where: { key }, update: { value }, create: { key, value, type: 'text', category: 'ro' } })));
   return novo;
 }

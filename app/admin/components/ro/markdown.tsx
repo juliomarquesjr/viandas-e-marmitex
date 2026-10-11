@@ -19,7 +19,8 @@ export function parseInline(linha: string): Trecho[] {
   return trechos.length ? trechos : [{ texto: linha }];
 }
 
-export function parseMarkdown(texto: string): Bloco[] {
+export function parseMarkdown(texto: string | null | undefined): Bloco[] {
+  texto = typeof texto === "string" ? texto : "";
   const blocos: Bloco[] = [];
   let lista: Trecho[][] | null = null;
   let paragrafo: string[] = [];
@@ -59,7 +60,7 @@ function Inline({ trechos }: { trechos: Trecho[] }) {
   );
 }
 
-export function Markdown({ texto }: { texto: string }) {
+export function Markdown({ texto }: { texto?: string | null }) {
   const blocos = React.useMemo(() => parseMarkdown(texto), [texto]);
   return (
     <div className="space-y-2 leading-relaxed">
