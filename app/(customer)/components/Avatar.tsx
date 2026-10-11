@@ -20,16 +20,22 @@ export function CustomerAvatar({
   size?: number;
   className?: string;
 }) {
-  const [failed, setFailed] = React.useState(false);
-  const [loaded, setLoaded] = React.useState(false);
+  // Guarda QUAL foto carregou (ou falhou), em vez de um "sim/não" que precisa ser zerado quando a foto muda.
+  // Zerar num useEffect corre contra o onLoad: com a foto já no cache (voltar para a Home) ela carrega antes
+  // do efeito rodar, o efeito apagava o "carregou" e a foto ficava invisível, só as iniciais.
+  const [loadedUrl, setLoadedUrl] = React.useState<string | null>(null);
+  const [failedUrl, setFailedUrl] = React.useState<string | null>(null);
 
-  // Foto nova, estado novo
-  React.useEffect(() => {
-    setFailed(false);
-    setLoaded(false);
-  }, [imageUrl]);
+  const showImage = Boolean(imageUrl) && failedUrl !== imageUrl;
+  const loaded = Boolean(imageUrl) && loadedUrl === imageUrl;
 
-  const showImage = Boolean(imageUrl) && !failed;
+  // Foto que já estava pronta antes de o React ligar o onLoad (cache): não espera um evento que não vem
+  const ref = React.useCallback(
+    (img: HTMLImageElement | null) => {
+      if (img?.complete && img.naturalWidth > 0) setLoadedUrl(imageUrl ?? null);
+    },
+    [imageUrl],
+  );
 
   return (
     <span
@@ -42,14 +48,15 @@ export function CustomerAvatar({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={imageUrl}
+          ref={ref}
           src={imageUrl as string}
           alt=""
           width={size}
           height={size}
           decoding="async"
           className={loaded ? "is-loaded" : undefined}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onLoad={() => setLoadedUrl(imageUrl ?? null)}
+          onError={() => setFailedUrl(imageUrl ?? null)}
         />
       )}
     </span>
