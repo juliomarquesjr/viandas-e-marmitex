@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, ChefHat, Copy, RotateCcw, Send, Settings, Square, SquarePen, X } from "lucide-react";
-import Image from "next/image";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -13,7 +13,12 @@ import { Blocos, textoDosBlocos } from "./ro/blocos";
 import { RoErrorBoundary } from "./ro/error-boundary";
 import { Markdown } from "./ro/markdown";
 import { semId, tempoCurto, textoSimples } from "./ro/texto";
+import { ESTADOS, type RoEstado } from "./ro/personagem/estados";
+import { estadoDaResposta, estadoDoCarregamento, HUMOR_DURACAO_MS, type RespostaParaHumor } from "./ro/personagem/humor";
 import { RO_ABRIR, useRoConfig } from "./ro/use-ro-config";
+
+// o desenho animado (e o GSAP) só é baixado quando a RO abre pela primeira vez
+const Personagem = dynamic(() => import("./ro/personagem/Personagem").then((m) => m.Personagem), { ssr: false });
 
 interface ChatMessage {
   id: string;
@@ -114,7 +119,10 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
   const [segundos, setSegundos] = useState(0);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [celular, setCelular] = useState(false);
+  const [faixa, setFaixa] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
+  const [humor, setHumor] = useState<RoEstado | null>(null);
+  const [saudando, setSaudando] = useState(false);
 
   const fim = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLDivElement>(null);
@@ -126,6 +134,9 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
   const devolverFoco = useRef(false);
   const chaveSalva = userId ? `ro:chat:v1:${userId}` : null;
   const carregouSalvas = useRef(false);
+  const perguntaAtual = useRef("");
+  const humorTimer = useRef<number | undefined>(undefined);
+  const saudacaoTimer = useRef<number | undefined>(undefined);
 
   // celular = tela cheia: aí a RO é uma janela só (o resto da página fica de fora)
   useEffect(() => {
@@ -135,6 +146,29 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
     consulta.addEventListener("change", ler);
     return () => consulta.removeEventListener("change", ler);
   }, []);
+
+  // celular com tela alta: a RO aparece numa faixa acima da conversa (em tela baixa só fica a carinha do cabeçalho)
+  useEffect(() => {
+    const consulta = window.matchMedia("(max-width: 767.98px) and (min-height: 700px)");
+    const ler = () => setFaixa(consulta.matches);
+    ler();
+    consulta.addEventListener("change", ler);
+    return () => consulta.removeEventListener("change", ler);
+  }, []);
+
+  /** A expressão da RO logo depois de uma resposta: some sozinha (feliz, confusa) ou fica até a pessoa agir (problema, descanso). */
+  const reagir = useCallback((r: RespostaParaHumor) => {
+    window.clearTimeout(humorTimer.current);
+    const h = estadoDaResposta(r);
+    setHumor(h);
+    const ms = h ? HUMOR_DURACAO_MS[h] : undefined;
+    if (h && ms) humorTimer.current = window.setTimeout(() => setHumor(null), ms);
+  }, []);
+  const acalmar = useCallback(() => {
+    window.clearTimeout(humorTimer.current);
+    setHumor(null);
+  }, []);
+  useEffect(() => () => { window.clearTimeout(humorTimer.current); window.clearTimeout(saudacaoTimer.current); }, []);
 
   // a conversa volta como estava (por pessoa, neste navegador)
   useEffect(() => {
@@ -190,6 +224,9 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
     const ativo = document.activeElement;
     quemAbriu.current = ativo instanceof HTMLElement && ativo !== document.body ? ativo : null;
     setAberto(true);
+    setSaudando(true);
+    window.clearTimeout(saudacaoTimer.current);
+    saudacaoTimer.current = window.setTimeout(() => setSaudando(false), 2800);
     window.setTimeout(() => campo.current?.focus(), 250);
   }, []);
   const fechar = useCallback((opcoes?: { devolverFoco?: boolean }) => {
@@ -226,14 +263,14 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
     return () => window.removeEventListener("keydown", aoTeclar);
   }, [aberto, fechar]);
 
-  // no celular a RO ocupa a tela toda: o resto da página não recebe foco nem é lido por leitor de tela
+  // com a RO aberta o resto da página fica escurecido: não recebe foco nem é lido por leitor de tela
   useEffect(() => {
-    if (!aberto || !celular || !painel.current) return;
+    if (!aberto || !painel.current) return;
     const isolados: Element[] = [];
     let no: Element = painel.current;
     while (no.parentElement && no !== document.body) {
       for (const irmao of Array.from(no.parentElement.children)) {
-        if (irmao !== no && !irmao.hasAttribute("inert") && !["SCRIPT", "STYLE", "LINK"].includes(irmao.tagName)) {
+        if (irmao !== no && !irmao.hasAttribute("inert") && !irmao.hasAttribute("data-ro-cena") && !["SCRIPT", "STYLE", "LINK"].includes(irmao.tagName)) {
           irmao.setAttribute("inert", "");
           isolados.push(irmao);
         }
@@ -241,7 +278,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
       no = no.parentElement;
     }
     return () => isolados.forEach((el) => el.removeAttribute("inert"));
-  }, [aberto, celular]);
+  }, [aberto]);
 
   const enviar = useCallback(
     async (bruto: string, repetindo = false) => {
@@ -254,6 +291,8 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
       setTexto("");
       setDicaDoCampo(null);
       setCarregando(true);
+      acalmar();
+      perguntaAtual.current = pergunta;
 
       const controle = new AbortController();
       aborto.current = controle;
@@ -268,12 +307,16 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
         if (!res.ok || !corpo || corpo.erro || !mensagemValida) {
           const erro: RoErro = corpo?.erro && typeof corpo.erro.mensagem === "string" ? corpo.erro : ERRO_PADRAO;
           acrescentar({ role: "assistant", content: erro.mensagem, erro });
+          reagir({ content: erro.mensagem, erro });
         } else {
-          acrescentar({ role: "assistant", content: corpo.mensagem as string, blocos: Array.isArray(corpo.blocos) ? corpo.blocos : [], contexto: typeof corpo.contexto === "string" ? corpo.contexto : undefined });
+          const blocos = Array.isArray(corpo.blocos) ? corpo.blocos : [];
+          acrescentar({ role: "assistant", content: corpo.mensagem as string, blocos, contexto: typeof corpo.contexto === "string" ? corpo.contexto : undefined });
+          reagir({ content: corpo.mensagem as string, blocos });
         }
       } catch {
         if (controle.signal.aborted && controle.signal.reason === "usuario") {
           acrescentar({ role: "assistant", content: "Parei. Quer tentar de novo?", parada: true });
+          reagir({ content: "", parada: true });
         } else if (controle.signal.aborted && controle.signal.reason === "nova") {
           // conversa nova: nada a mostrar
         } else {
@@ -281,6 +324,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
             ? { codigo: "ocupada", mensagem: "Está demorando muito. Toque em Tentar de novo." }
             : { codigo: "interno", mensagem: "Sem conexão com o sistema. Confira a internet e tente de novo." };
           acrescentar({ role: "assistant", content: erro.mensagem, erro });
+          reagir({ content: erro.mensagem, erro });
         }
       } finally {
         window.clearTimeout(limite);
@@ -291,7 +335,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
         if (!toque || estavaDigitando) window.setTimeout(() => campo.current?.focus(), 50);
       }
     },
-    [carregando, mensagens],
+    [carregando, mensagens, acalmar, reagir],
   );
 
   const parar = () => aborto.current?.abort("usuario");
@@ -310,6 +354,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
     setMensagens([]);
     setTexto("");
     setDicaDoCampo(null);
+    acalmar();
     if (chaveSalva) {
       try {
         window.localStorage.removeItem(chaveSalva);
@@ -343,6 +388,8 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
   if (!config.ligada) return null;
 
   const vazio = mensagens.length === 0;
+  const estado: RoEstado = carregando ? estadoDoCarregamento(perguntaAtual.current, segundos) : texto.trim() ? "ouvindo" : (humor ?? (saudando ? "ola" : "aguardando"));
+  const cena = ESTADOS[estado];
   const dica = segundos >= 20 ? "Está demorando mais que o normal…" : segundos >= 6 ? "Ainda procurando…" : "Procurando a resposta…";
 
   /** Botão (ou aviso) de tentar de novo, de acordo com o tipo de problema. */
@@ -359,12 +406,52 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
   return (
     <>
       <AnimatePresence>
+        {aberto && !celular && (
+          <motion.div
+            key="cena"
+            data-ro-cena=""
+            aria-hidden="true"
+            onClick={() => fechar()}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduzir ? 0 : 0.25 }}
+            className="fixed inset-0 z-[99] bg-[#180f09]/65 backdrop-blur-[2px]"
+          >
+            <div className="pointer-events-none absolute bottom-0 left-0 right-[440px] top-[7vh] flex items-end justify-center px-4">
+              <div
+                className="absolute bottom-[-18%] left-1/2 aspect-square w-[min(90%,640px)] -translate-x-1/2 rounded-full transition-colors duration-700"
+                style={{ background: `radial-gradient(closest-side, ${cena.clima === "bom" ? "rgba(255,214,90,.5)" : cena.clima === "ruim" ? "rgba(255,120,90,.34)" : "rgba(255,190,110,.4)"}, transparent)` }}
+              />
+              <motion.div
+                initial={reduzir ? false : { opacity: 0, x: -48 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -32 }}
+                transition={{ type: "spring", stiffness: 220, damping: 26, delay: reduzir ? 0 : 0.05 }}
+                className="relative"
+                style={{ height: "min(100%, 680px)", aspectRatio: "520 / 660", maxWidth: "100%" }}
+              >
+                <Personagem estado={estado} className="h-full w-full" />
+                <motion.p
+                  key={estado}
+                  initial={reduzir ? false : { opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: reduzir ? 0 : 0.15 }}
+                  className="absolute left-[76%] top-[11%] hidden w-[220px] rounded-2xl rounded-bl-sm bg-[#fffdf6] px-4 py-3 text-[15px] font-semibold leading-snug text-[#3a2924] shadow-2xl xl:block"
+                >
+                  <span className="mb-0.5 block text-[11px] font-bold uppercase tracking-wider text-[#8f2616]">{cena.rotulo}</span>
+                  {cena.fala}
+                </motion.p>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
         {aberto && (
           <motion.aside
             ref={painel}
             key="painel"
             role="dialog"
-            aria-modal={celular ? "true" : undefined}
+            aria-modal="true"
             aria-label="Assistente RO"
             initial={reduzir ? { opacity: 0 } : { opacity: 0, x: 48 }}
             animate={{ opacity: 1, x: 0 }}
@@ -374,14 +461,14 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
             style={{ height: "100dvh" }}
           >
             <header className="flex h-14 flex-none items-center gap-2 border-b border-[color:var(--border)] pl-4 pr-2" style={{ paddingTop: "env(safe-area-inset-top, 0px)", boxSizing: "content-box" }}>
-              <span className="relative h-9 w-9 flex-none overflow-hidden rounded-full bg-primary/10">
-                <Image src="/img/ro_ia.png" alt="" width={36} height={36} className="h-full w-full object-cover object-top" />
+              <span className="relative h-10 w-10 flex-none overflow-hidden rounded-full bg-amber-100 ring-1 ring-[color:var(--border)] dark:bg-amber-950/60">
+                <Personagem estado={estado} modo="rosto" className="h-full w-full" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold leading-tight">RO</p>
                 <p className="flex items-center gap-1.5 text-xs text-[color:var(--muted-foreground)]">
                   <span className={cn("h-2 w-2 flex-none rounded-full", carregando ? "animate-pulse bg-amber-500" : "bg-emerald-500")} aria-hidden="true" />
-                  <span className="truncate">{carregando ? "Procurando…" : "Pronta para ajudar"}</span>
+                  <span className="truncate">{cena.status}</span>
                 </p>
               </div>
               <button type="button" onClick={novaConversa} disabled={vazio && !texto} aria-label="Nova conversa" title="Nova conversa" className="flex h-11 w-11 flex-none items-center justify-center rounded-lg text-[color:var(--muted-foreground)] transition-colors hover:bg-[color:var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-40">
@@ -394,6 +481,18 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </header>
+
+            {faixa && (
+              <div className="relative h-[150px] flex-none overflow-hidden bg-gradient-to-b from-[#2b1c12] to-[#4a3020]" aria-hidden="true">
+                <div className="absolute -left-14 -top-8 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(255,190,110,.4),transparent)]" />
+                <div className="absolute -left-2 top-1 h-[190px] w-[150px]">
+                  <Personagem estado={estado} className="h-full w-full" />
+                </div>
+                <motion.p key={estado} initial={reduzir ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="absolute left-[134px] right-3 top-5 rounded-2xl rounded-bl-sm bg-[#fffdf6] px-3 py-2 text-[13px] font-semibold leading-snug text-[#3a2924] shadow-lg">
+                  {cena.fala}
+                </motion.p>
+              </div>
+            )}
 
             <div ref={lista} role="log" aria-live="polite" aria-label="Conversa com a RO" className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[color:var(--muted)]/40 px-4 py-4">
               {vazio && (
@@ -498,7 +597,10 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
                 ref={campo}
                 rows={1}
                 value={texto}
-                onChange={(e) => setTexto(e.target.value)}
+                onChange={(e) => {
+                  setTexto(e.target.value);
+                  if (humor) acalmar();
+                }}
                 onKeyDown={aoTeclar}
                 placeholder={dicaDoCampo ?? (celular ? "Escreva aqui…" : "Nome do cliente, vendas, ficha…")}
                 enterKeyHint="send"

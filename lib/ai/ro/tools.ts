@@ -897,8 +897,9 @@ export async function executarFerramenta(nome: string, argsBrutos: Argumentos): 
       }
     });
   } catch (error) {
-    // só o tipo do erro vai para o log: a mensagem do banco pode trazer o que a pessoa digitou
-    console.error('[RO][ferramenta]', nome, error instanceof Error ? error.name : 'erro', (error as { code?: string })?.code ?? '');
+    // vai para o log o tipo e a última linha da mensagem (o motivo do banco, ex.: "permission denied for table X"); o começo da mensagem repete a consulta e pode trazer o que a pessoa digitou
+    const motivo = error instanceof Error ? error.message.trim().split('\n').pop()?.slice(0, 200) ?? '' : '';
+    console.error('[RO][ferramenta]', nome, error instanceof Error ? error.name : 'erro', (error as { code?: string })?.code ?? '', motivo);
     return { mensagem: FALHA_AMIGAVEL, blocos: [] };
   }
 }

@@ -23,8 +23,14 @@ const METODOS_BLOQUEADOS = new Set(['$queryRawUnsafe', '$executeRaw', '$executeR
 
 let avisouSemPapel = false;
 
+/** Conexão "pooler" (Neon) exige pgbouncer=true no Prisma; se o endereço da RO veio sem isso, acrescenta. */
+function ajustarUrl(url: string | undefined): string | undefined {
+  if (!url || !/-pooler[.\-]/.test(url) || /[?&]pgbouncer=/.test(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}pgbouncer=true`;
+}
+
 function criarCliente() {
-  const url = process.env.RO_DATABASE_URL;
+  const url = ajustarUrl(process.env.RO_DATABASE_URL);
   if (!url && process.env.NODE_ENV === 'production' && !avisouSemPapel) {
     avisouSemPapel = true;
     console.warn('[RO] RO_DATABASE_URL não está definida: a RO usa o mesmo usuário do banco do sistema (só a trava de código e a transação somente leitura protegem). Veja docs/assistente-ro.md.');
