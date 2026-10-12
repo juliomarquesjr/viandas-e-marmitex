@@ -12,6 +12,9 @@ Ficam em `lib/messages/registry.ts`: nome, variáveis, texto padrão por canal. 
 - `customer_orders` — **Resumo das compras** (só WhatsApp, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{compras}` (preenchida pelo sistema com as compras dos dias escolhidos: itens, total do dia e "(na ficha)" quando ainda não foi paga), `{link_app}`.
 - `customer_balance` — **Saldo da ficha** (só WhatsApp, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{saldo}` (valor sem sinal), `{situacao}` (a frase pronta: valor em aberto, crédito ou ficha em dia), `{link_app}`.
 
+- `customer_closing` — **Fechamento da ficha (PDF)** (WhatsApp e e-mail, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{periodo}`, `{saldo}`, `{situacao}`, `{pagamento}` (o bloco com o link de pagamento; some se não há saldo a pagar ou se o administrador desligou o link), `{link_app}`. No WhatsApp o texto vai de **legenda do PDF**; no e-mail, o PDF vai **anexo**. Ver [fechamento-e-link-de-pagamento.md](./fechamento-e-link-de-pagamento.md).
+- `customer_payment_link` — **Link de pagamento (PIX)** (WhatsApp e e-mail, manual, só administrador). Variáveis: `{nome}`, `{loja}`, `{saldo}`, `{link_pagamento}`.
+
 Pedido aceito/recusado, pronto, pagamento confirmado e lembrete de saldo aparecem como "em breve".
 
 ### Editor de texto

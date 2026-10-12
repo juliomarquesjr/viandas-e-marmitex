@@ -1,5 +1,7 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { amountDueCents } from './closing-report';
+import { fetchPublicConfigs, readPixSettings, requestPixCharge, type PixCharge, type PixSettings } from './pix-qr';
 
 export interface PDFGenerationOptions {
   filename?: string;
@@ -8,6 +10,8 @@ export interface PDFGenerationOptions {
   quality?: number;
   compress?: boolean;
   imageQuality?: number;
+  /** O que o resumo do fechamento mostra (mesmas opções da impressão). Tudo ligado por padrão. */
+  show?: { debt?: boolean; period?: boolean; payments?: boolean };
 }
 
 export class PDFGenerator {
@@ -18,6 +22,17 @@ export class PDFGenerator {
     htmlContent: string, 
     options: PDFGenerationOptions = {}
   ): Promise<Blob> {
+    return (await this.renderHTML(htmlContent, options)).blob;
+  }
+
+  /**
+   * Gera o PDF e também as imagens das páginas (para a prévia na tela mostrar exatamente o que vai no arquivo).
+   * Cada página leva só a sua fatia da imagem, então o arquivo cresce com o conteúdo, não com o número de páginas.
+   */
+  static async renderHTML(
+    htmlContent: string, 
+    options: PDFGenerationOptions = {}
+  ): Promise<{ blob: Blob; pages: string[] }> {
     const {
       filename = 'relatorio.pdf',
       format = 'a4',
@@ -84,30 +99,27 @@ export class PDFGenerator {
         format
       });
 
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
+      const imgWidth = 210; // largura da A4 em mm
+      const pageHeightMm = 297; // altura da A4 em mm
+      const pageHeightPx = Math.floor((canvas.width * pageHeightMm) / imgWidth);
+      const pageCount = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+      const jpegQuality = compress ? Math.min(imageQuality, 0.7) : imageQuality;
+      const pages: string[] = [];
 
-      let position = 0;
-
-      // Converter canvas para imagem comprimida se necessário
-      let imageData = canvas.toDataURL('image/jpeg', imageQuality);
-      if (compress) {
-        // Usar JPEG com qualidade reduzida para arquivos menores
-        imageData = canvas.toDataURL('image/jpeg', 0.6);
-      }
-
-      // Adicionar imagem ao PDF
-      pdf.addImage(imageData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Adicionar páginas se necessário
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      for (let i = 0; i < pageCount; i++) {
+        const sliceHeight = Math.min(pageHeightPx, canvas.height - i * pageHeightPx);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width;
+        slice.height = sliceHeight;
+        const ctx = slice.getContext('2d');
+        if (!ctx) throw new Error('Não foi possível montar a página do PDF.');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, i * pageHeightPx, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+        const data = slice.toDataURL('image/jpeg', jpegQuality);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(data, 'JPEG', 0, 0, imgWidth, (sliceHeight * imgWidth) / canvas.width);
+        pages.push(data);
       }
 
       // Converter para Blob com compressão
@@ -115,7 +127,7 @@ export class PDFGenerator {
       
       console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
       
-      return pdfBlob;
+      return { blob: pdfBlob, pages };
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       throw new Error(`Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -160,6 +172,20 @@ export class PDFGenerator {
     endDate: string,
     options: PDFGenerationOptions = {}
   ): Promise<Blob> {
+    return (await this.generateCustomerClosingReportWithPreview(customerId, startDate, endDate, options)).blob;
+  }
+
+  /**
+   * O mesmo PDF, junto das imagens das páginas (prévia) e do valor que o fechamento cobra.
+   * Quando há valor a pagar e a chave PIX está configurada, o PDF leva o QR do PIX desse valor
+   * (o mesmo valor do QR impresso no papel).
+   */
+  static async generateCustomerClosingReportWithPreview(
+    customerId: string,
+    startDate: string,
+    endDate: string,
+    options: PDFGenerationOptions = {}
+  ): Promise<{ blob: Blob; pages: string[]; amountDueCents: number; hasPix: boolean }> {
     try {
       // Buscar dados do relatório
       const response = await fetch(`/api/customers/${customerId}/report?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`);
@@ -169,18 +195,31 @@ export class PDFGenerator {
       }
       
       const reportData = await response.json();
+
+      // Nome da loja e PIX (as mesmas configurações públicas que as páginas de impressão usam)
+      const configs = await fetchPublicConfigs().catch(() => []);
+      const storeName = configs.find((c) => c.key === 'branding_system_title')?.value?.trim() || 'Sabores de Casa';
+      const due = amountDueCents(reportData);
+      let pix: { settings: PixSettings; charge: PixCharge } | null = null;
+      if (due > 0) {
+        const settings = readPixSettings(configs);
+        const charge = settings ? await requestPixCharge(due, settings) : null;
+        if (settings && charge) pix = { settings, charge };
+      }
       
       // Gerar HTML do relatório
-      const htmlContent = this.generateReportHTML(reportData);
+      const { show, ...renderOptions } = options;
+      const htmlContent = this.generateReportHTML(reportData, { storeName, amountDueCents: due, pix, show });
       
       // Gerar PDF com compressão otimizada para Vercel
-      return await this.generateFromHTML(htmlContent, {
+      const { blob, pages } = await this.renderHTML(htmlContent, {
         filename: `relatorio-fechamento-${customerId}-${startDate}-${endDate}.pdf`,
         compress: true,
         imageQuality: 0.6,
         quality: 0.8,
-        ...options
+        ...renderOptions
       });
+      return { blob, pages, amountDueCents: due, hasPix: pix !== null };
     } catch (error) {
       console.error('Erro ao gerar PDF do relatório:', error);
       throw error;
@@ -190,8 +229,18 @@ export class PDFGenerator {
   /**
    * Gera HTML do relatório para PDF
    */
-  private static generateReportHTML(reportData: any): string {
+  private static generateReportHTML(
+    reportData: any,
+    extras: { storeName?: string; amountDueCents?: number; pix?: { settings: PixSettings; charge: PixCharge } | null; show?: PDFGenerationOptions['show'] } = {}
+  ): string {
     const { customer, period, summary, details, metadata } = reportData;
+    const storeName = extras.storeName || 'Sabores de Casa';
+    const amountDue = extras.amountDueCents ?? 0;
+    const pix = extras.pix ?? null;
+    const showDebt = extras.show?.debt !== false;
+    const showPeriod = extras.show?.period !== false;
+    const showPayments = extras.show?.payments !== false;
+    const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
     const formatCurrency = (cents: number) => {
       return new Intl.NumberFormat('pt-BR', {
@@ -241,7 +290,7 @@ export class PDFGenerator {
       // Adicionar pedidos do período
       details.periodOrders.forEach((order: any) => {
         const itemsDescription = order.items.map((item: any) => 
-          `${item.quantity}x ${item.product.name}`
+          `${item.quantity}x ${esc(item.product?.name)}`
         ).join(', ');
         
         transactions.push({
@@ -285,7 +334,7 @@ export class PDFGenerator {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Relatório de Fechamento - ${customer.name}</title>
+        <title>Relatório de Fechamento - ${esc(customer.name)}</title>
         <style>
           * {
             margin: 0;
@@ -460,6 +509,48 @@ export class PDFGenerator {
             font-weight: 600;
           }
           
+          .summary-item.due {
+            border-color: #fca5a5;
+            background: #fef2f2;
+          }
+
+          .pix-box {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 24px;
+            padding: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            page-break-inside: avoid;
+          }
+
+          .pix-box img {
+            flex: none;
+            width: 132px;
+            height: 132px;
+          }
+
+          .pix-text h3 {
+            font-size: 15px;
+            margin-bottom: 4px;
+          }
+
+          .pix-amount {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 6px;
+          }
+
+          .pix-code {
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            line-height: 1.3;
+            word-break: break-all;
+            color: #555;
+          }
+
           .footer {
             margin-top: 30px;
             padding-top: 20px;
@@ -472,7 +563,7 @@ export class PDFGenerator {
       </head>
       <body>
         <div class="header">
-          <h1>Sabores de Casa</h1>
+          <h1>${esc(storeName)}</h1>
           <h2>RELATÓRIO DE FECHAMENTO</h2>
           <div class="period">
             Período: ${formatDate(period.startDate)} a ${formatDate(period.endDate)} | 
@@ -485,22 +576,22 @@ export class PDFGenerator {
           <div class="customer-grid">
             <div class="customer-item">
               <div class="label">Nome</div>
-              <div class="value">${customer.name}</div>
+              <div class="value">${esc(customer.name)}</div>
             </div>
             <div class="customer-item">
               <div class="label">Telefone</div>
-              <div class="value">${customer.phone}</div>
+              <div class="value">${esc(customer.phone)}</div>
             </div>
             ${customer.email ? `
             <div class="customer-item">
               <div class="label">Email</div>
-              <div class="value">${customer.email}</div>
+              <div class="value">${esc(customer.email)}</div>
             </div>
             ` : ''}
             ${customer.doc ? `
             <div class="customer-item">
               <div class="label">Documento</div>
-              <div class="value">${customer.doc}</div>
+              <div class="value">${esc(customer.doc)}</div>
             </div>
             ` : ''}
           </div>
@@ -509,15 +600,25 @@ export class PDFGenerator {
         <div class="summary">
           <h3>Resumo Financeiro</h3>
           <div class="summary-grid">
+            ${showDebt ? `
             <div class="summary-item debt">
               <div class="label">Saldo Devedor</div>
               <div class="value">${formatCurrency(summary.debtBalanceCents)}</div>
             </div>
+            ` : ''}
+            ${showPeriod ? `
             <div class="summary-item consumption">
               <div class="label">Consumo no Período</div>
               <div class="value">${formatCurrency(summary.periodConsumptionCents)}</div>
             </div>
-            ${summary.totalPaymentsCents > 0 ? `
+            ` : ''}
+            ${amountDue > 0 ? `
+            <div class="summary-item due">
+              <div class="label">Valor a Pagar</div>
+              <div class="value">${formatCurrency(amountDue)}</div>
+            </div>
+            ` : ''}
+            ${showPayments && summary.totalPaymentsCents > 0 ? `
             <div class="summary-item payment">
               <div class="label">Pagamentos</div>
               <div class="value">${formatCurrency(summary.totalPaymentsCents)}</div>
@@ -552,9 +653,21 @@ export class PDFGenerator {
         </div>
         ` : ''}
 
+        ${pix ? `
+        <div class="pix-box">
+          <img src="${esc(pix.charge.qrCodeUrl)}" width="132" height="132" alt="QR code do PIX" />
+          <div class="pix-text">
+            <h3>Pague por PIX</h3>
+            <p class="pix-amount">${formatCurrency(amountDue)}</p>
+            <p>Abra o app do seu banco, escolha PIX e leia o QR code${pix.charge.payload ? ' ou use o PIX copia e cola abaixo' : ''}.</p>
+            ${pix.charge.payload ? `<p class="pix-code">${esc(pix.charge.payload)}</p>` : ''}
+          </div>
+        </div>
+        ` : ''}
+
         <div class="footer">
           <p>Relatório gerado em ${formatDateTime(metadata.generatedAt)}</p>
-          <p>Sabores de Casa</p>
+          <p>${esc(storeName)}</p>
         </div>
       </body>
       </html>

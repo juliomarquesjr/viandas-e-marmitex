@@ -1,0 +1,117 @@
+/*
+ * Link de pagamento (sem login): uma coluna só, no visual da área do cliente.
+ * Usa os tokens e o kit de customer.css (c-hero, c-card, c-btn, Money, Sheet).
+ */
+@layer components {
+  .c-paypage {
+    min-height: 100dvh;
+    background: var(--c-bg);
+    color: var(--c-ink);
+    font-family: var(--c-f-body);
+    padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: center;
+  }
+  .c-paywrap {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .c-paytop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+  }
+  .c-paybrand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    font: 700 17px var(--c-f-display);
+  }
+  .c-paybrand span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .c-paygreet h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 6px 0 0;
+  }
+  .c-paygreet .c-eyebrow {
+    margin: 0;
+  }
+  .c-paywait,
+  .c-paynote {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--c-ink2);
+  }
+  .c-paynote strong {
+    display: block;
+    color: var(--c-ink);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .c-paynote .c-oic {
+    flex: none;
+  }
+  .c-payok {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 28px 20px;
+  }
+  .c-payok h2 {
+    font: 700 22px var(--c-f-display);
+    margin: 8px 0 0;
+  }
+  .c-payok p {
+    margin: 0;
+    color: var(--c-ink2);
+    font-size: 15px;
+    max-width: 30ch;
+  }
+  .c-payerr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 30px 20px;
+  }
+  .c-payerr h2 {
+    font: 700 20px var(--c-f-display);
+    margin: 4px 0 0;
+  }
+  .c-payerr p {
+    margin: 0;
+    color: var(--c-ink2);
+    font-size: 15px;
+    max-width: 34ch;
+  }
+  .c-payfoot {
+    margin: 4px 0 0;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--c-ink2);
+  }
+  @media (min-width: 860px) {
+    .c-paypage {
+      padding-top: 40px;
+    }
+  }
+}

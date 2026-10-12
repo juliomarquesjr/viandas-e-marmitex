@@ -24,6 +24,7 @@ import { CustomerActions } from "./components/CustomerActions";
 import { PurchaseHistory } from "./components/PurchaseHistory";
 import { PaymentDialog } from "./components/dialogs/PaymentDialog";
 import { ClosingReportDialog } from "./components/dialogs/ClosingReportDialog";
+import { PaymentLinkDialog } from "./components/dialogs/PaymentLinkDialog";
 import { Button } from "../../../components/ui/button";
 
 export default function CustomerDetailPage() {
@@ -36,6 +37,7 @@ export default function CustomerDetailPage() {
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<{ id: string, isFichaPayment: boolean } | null>(null);
 
@@ -132,6 +134,7 @@ export default function CustomerDetailPage() {
           onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
           onOpenPresetModal={() => setIsPresetModalOpen(true)}
           onOpenReportDialog={() => setIsReportDialogOpen(true)}
+          onOpenPaymentLink={() => setIsPaymentLinkOpen(true)}
         />
       </div>
 
@@ -185,6 +188,8 @@ export default function CustomerDetailPage() {
         isLoadingLastEntry={isLoadingLastEntry}
         fetchLastEntryDate={fetchLastEntryDate}
       />
+
+      <PaymentLinkDialog open={isPaymentLinkOpen} onOpenChange={setIsPaymentLinkOpen} customer={customer} />
 
       {isBudgetModalOpen && (
         <BudgetModal

@@ -6,7 +6,7 @@
 import prisma from '@/lib/prisma';
 import { EmailService } from '@/lib/email';
 import { isEvolutionConfigured } from '@/lib/evolution';
-import { describeWhatsAppError, getStatus, sendWhatsAppText } from '@/lib/whatsapp-service';
+import { describeWhatsAppError, getStatus, sendWhatsAppDocument, sendWhatsAppText } from '@/lib/whatsapp-service';
 import { recordMessage } from '@/lib/whatsapp-chat-service';
 import { normalizeBrazilNumber } from '@/lib/whatsapp-rules';
 import type { SystemConfig } from '@/lib/types';
@@ -19,9 +19,11 @@ import {
   type MessageTypeDef,
 } from './registry';
 import { stripFormatting } from './format';
-import { emailBodyToHtml, maskEmail, maskPhone, renderTemplate, type TemplateInput } from './render';
+import { emailBodyToHtml, maskEmail, maskPhone, renderTemplate, tidyBlankLines, type TemplateInput } from './render';
 
 const LOG_RETENTION_DAYS = 90;
+/** O WhatsApp aceita legenda de até 1024 caracteres num documento. */
+const CAPTION_MAX = 1000;
 const SIGNATURE_KEYS = { text: 'messages_signature', enabled: 'messages_signature_enabled' } as const;
 
 export interface CustomerContact {
@@ -154,23 +156,42 @@ export interface ChannelResult {
 async function composeText(type: MessageTypeDef, channel: MessageChannel, values: Record<string, string>) {
   const template = await loadTemplate(type.key, channel);
   if (!template) throw new Error('Este tipo de mensagem não usa este canal.');
-  let body = renderTemplate(template.body, values);
+  // uma variável opcional que fica vazia (ex.: o bloco do link de pagamento) não deixa linhas em branco sobrando
+  let body = tidyBlankLines(renderTemplate(template.body, values));
   const signature = await getSignature();
   if (signature.enabled && signature.text) body = `${body}\n\n${signature.text}`;
   return { body, subject: template.subject ? renderTemplate(template.subject, values) : '' };
 }
 
+/** Arquivo que vai junto da mensagem (ex.: o PDF do fechamento). */
+export interface MessageAttachment {
+  fileName: string;
+  mimetype: string;
+  /** Conteúdo em base64, sem o prefixo "data:". */
+  base64: string;
+}
+
 /** Envia pelo canal. No WhatsApp devolve o id e o texto, para a conversa do cliente. */
-async function deliver(type: MessageTypeDef, channel: MessageChannel, to: string, values: Record<string, string>) {
+async function deliver(type: MessageTypeDef, channel: MessageChannel, to: string, values: Record<string, string>, attachment?: MessageAttachment) {
   const { body, subject } = await composeText(type, channel, values);
   if (channel === 'whatsapp') {
-    const externalId = await sendWhatsAppText(to, body);
+    if (!attachment) return { externalId: await sendWhatsAppText(to, body), body };
+    // com arquivo, o texto vai de legenda do documento (uma mensagem só); texto longo demais vai em seguida, separado
+    if (body.length <= CAPTION_MAX) return { externalId: await sendWhatsAppDocument(to, { ...attachment, caption: body }), body };
+    const externalId = await sendWhatsAppDocument(to, { ...attachment, caption: '' });
+    await sendWhatsAppText(to, body);
     return { externalId, body };
   }
   const configs = (await prisma.systemConfig.findMany({ where: { category: 'email' } })) as SystemConfig[];
   const mailer = new EmailService();
   await mailer.configure(configs);
-  await mailer.sendEmail({ to, subject, html: emailBodyToHtml(body, values.loja), text: stripFormatting(body) });
+  await mailer.sendEmail({
+    to,
+    subject,
+    html: emailBodyToHtml(body, values.loja),
+    text: stripFormatting(body),
+    attachments: attachment ? [{ filename: attachment.fileName, content: Buffer.from(attachment.base64, 'base64'), contentType: attachment.mimetype }] : undefined,
+  });
   return null;
 }
 
@@ -192,11 +213,16 @@ export async function buildValues(customer: CustomerContact, extra: Record<strin
   };
 }
 
-/** O texto exato que o cliente receberia por este canal (para a prévia antes de enviar). */
-export async function previewCustomerMessage(typeKey: string, channel: MessageChannel, customer: CustomerContact, extra: Record<string, string>): Promise<string> {
+/** O texto exato que o cliente receberia por este canal, com o assunto (e-mail). */
+export async function composeCustomerMessage(typeKey: string, channel: MessageChannel, customer: CustomerContact, extra: Record<string, string>): Promise<{ subject: string; body: string }> {
   const type = getMessageType(typeKey);
   if (!type) throw new Error('Tipo de mensagem desconhecido.');
-  return (await composeText(type, channel, await buildValues(customer, extra))).body;
+  return composeText(type, channel, await buildValues(customer, extra));
+}
+
+/** O texto exato que o cliente receberia por este canal (para a prévia antes de enviar). */
+export async function previewCustomerMessage(typeKey: string, channel: MessageChannel, customer: CustomerContact, extra: Record<string, string>): Promise<string> {
+  return (await composeCustomerMessage(typeKey, channel, customer, extra)).body;
 }
 
 export interface SendInput {
@@ -205,6 +231,8 @@ export interface SendInput {
   channels: MessageChannel[];
   /** Valores específicos do tipo (ex.: senha). Os automáticos (nome, loja, usuário, link) são preenchidos aqui. */
   values: Record<string, string>;
+  /** Arquivo que acompanha a mensagem nos dois canais (WhatsApp: documento com o texto de legenda; e-mail: anexo). */
+  attachment?: MessageAttachment;
 }
 
 /** Envia pelos canais pedidos. Um canal que falha não impede o outro; cada resultado volta separado. */
@@ -226,12 +254,12 @@ export async function sendCustomerMessage(input: SendInput): Promise<ChannelResu
       try {
         const ready = await channelReadiness(type.key, channel);
         if (!ready.ready) throw new Error(ready.reason ?? 'Canal indisponível.');
-        const sent = await deliver(type, channel, to, values);
+        const sent = await deliver(type, channel, to, values, input.attachment);
         result = { channel, ok: true, recipient, at };
         if (channel === 'whatsapp' && sent) {
           // entra na conversa do cliente; texto com dado sensível (senha, link) nunca é guardado
           const sensitive = type.variables.some((v) => v.sensitive);
-          await recordMessage({ externalId: sent.externalId, customerId: input.customer.id, number: normalizeBrazilNumber(to) ?? to, fromMe: true, body: sensitive ? null : sent.body, systemType: type.key }).catch(() => undefined);
+          await recordMessage({ externalId: sent.externalId, customerId: input.customer.id, number: normalizeBrazilNumber(to) ?? to, fromMe: true, type: input.attachment ? 'document' : 'text', body: sensitive ? null : sent.body, systemType: type.key }).catch(() => undefined);
         }
       } catch (error) {
         result = { channel, ok: false, recipient, error: friendlyError(channel, error), at };

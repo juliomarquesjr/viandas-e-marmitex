@@ -159,6 +159,28 @@ export async function sendText(name: string, number: string, text: string): Prom
   return res?.key?.id ?? null;
 }
 
+export interface OutgoingDocument {
+  /** Arquivo em base64, sem o prefixo "data:". */
+  base64: string;
+  fileName: string;
+  mimetype: string;
+  /** Texto que vai junto do documento. */
+  caption?: string;
+}
+
+/** Envia um documento (ex.: PDF) com legenda e devolve o id da mensagem no WhatsApp. */
+export async function sendDocument(name: string, number: string, doc: OutgoingDocument): Promise<string | null> {
+  const res = await request<{ key?: { id?: string } } | null>('POST', `/message/sendMedia/${encodeURIComponent(name)}`, {
+    number,
+    mediatype: 'document',
+    mimetype: doc.mimetype,
+    caption: doc.caption ?? '',
+    media: doc.base64,
+    fileName: doc.fileName,
+  });
+  return res?.key?.id ?? null;
+}
+
 export interface EvolutionMedia {
   /** Arquivo em base64 (sem o prefixo "data:"). */
   base64: string;

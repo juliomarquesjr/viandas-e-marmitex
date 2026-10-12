@@ -123,6 +123,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
   const [agora, setAgora] = useState(() => Date.now());
   const [humor, setHumor] = useState<RoEstado | null>(null);
   const [saudando, setSaudando] = useState(false);
+  const [janelaAberta, setJanelaAberta] = useState(false);
 
   const fim = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLDivElement>(null);
@@ -154,6 +155,15 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
     ler();
     consulta.addEventListener("change", ler);
     return () => consulta.removeEventListener("change", ler);
+  }, []);
+
+  // com uma janela de diálogo aberta (envio de fechamento, cadastro...) o botão flutuante sai da frente dos botões dela
+  useEffect(() => {
+    const ler = () => setJanelaAberta(document.querySelector('[role="dialog"][data-state="open"]') !== null);
+    ler();
+    const observador = new MutationObserver(ler);
+    observador.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-state"] });
+    return () => observador.disconnect();
   }, []);
 
   /** A expressão da RO logo depois de uma resposta: some sozinha (feliz, confusa) ou fica até a pessoa agir (problema, descanso). */
@@ -621,7 +631,7 @@ function RoPainel({ raised = false, semBotaoFlutuante = false, defaultOpen = fal
         )}
       </AnimatePresence>
 
-      {!aberto && !semBotaoFlutuante && config.posicao === "flutuante" && (
+      {!aberto && !janelaAberta && !semBotaoFlutuante && config.posicao === "flutuante" && (
         <motion.button
           ref={botao}
           type="button"

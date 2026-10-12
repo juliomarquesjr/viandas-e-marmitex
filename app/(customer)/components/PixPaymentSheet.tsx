@@ -4,7 +4,7 @@ import { Check, Copy, RefreshCw } from "lucide-react";
 import * as React from "react";
 import { loadPixCharge, type PixCharge, type PixSettings } from "@/lib/pix-qr";
 import { formatAmount, formatBRL } from "../lib/format";
-import { informPayment } from "../lib/payment-intents";
+import { informPayment, type InformResult } from "../lib/payment-intents";
 import "./ficha/pix.css";
 import { Money, Sheet, SheetHeader, cx } from "./kit";
 import "./pagamento/pagamento.css";
@@ -29,16 +29,19 @@ export function PixPaymentSheet({
   onClose,
   balanceCents,
   onInformed,
+  inform,
 }: {
   open: boolean;
   onClose: () => void;
   balanceCents: number;
   onInformed?: () => void;
+  /** Como o aviso "Já paguei" chega ao estabelecimento. Padrão: pela conta do cliente (a página do link de pagamento troca). */
+  inform?: (amountCents: number) => Promise<InformResult>;
 }) {
   return (
     <Sheet open={open} onClose={onClose} label="Pagar com PIX">
       {/* montado só com a folha aberta: cada abertura começa do primeiro passo */}
-      <PixFlow balanceCents={Math.max(0, balanceCents)} onClose={onClose} onInformed={onInformed} />
+      <PixFlow balanceCents={Math.max(0, balanceCents)} onClose={onClose} onInformed={onInformed} inform={inform} />
     </Sheet>
   );
 }
@@ -47,10 +50,12 @@ function PixFlow({
   balanceCents,
   onClose,
   onInformed,
+  inform: informFn = informPayment,
 }: {
   balanceCents: number;
   onClose: () => void;
   onInformed?: () => void;
+  inform?: (amountCents: number) => Promise<InformResult>;
 }) {
   const [step, setStep] = React.useState<Step>("choose");
   const [mode, setMode] = React.useState<Mode>("total");
@@ -121,7 +126,7 @@ function PixFlow({
     sendingRef.current = true;
     setSending(true);
     setInformError(null);
-    const res = await informPayment(cents);
+    const res = await informFn(cents);
     sendingRef.current = false;
     if (res.ok) {
       // a tela de trás busca de novo mesmo que a folha tenha sido fechada nesse meio tempo

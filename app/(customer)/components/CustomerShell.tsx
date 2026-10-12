@@ -26,13 +26,19 @@ function isTrackingRoute(pathname: string | null) {
   return !!pathname && /^\/pre-orders\/[^/]+\/tracking$/.test(pathname);
 }
 
-/** Telas sem navegação: entrar, recuperar senha e o rastreio público. */
+/** Link de pagamento: público, sem navegação, com o visual novo da área do cliente. */
+function isPayRoute(pathname: string | null) {
+  return !!pathname && /^\/pagar\/[^/]+$/.test(pathname);
+}
+
+/** Telas sem navegação: entrar, recuperar senha, o rastreio público e o link de pagamento. */
 function isBareRoute(pathname: string | null) {
   if (!pathname) return false;
   return (
     pathname === "/login" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
+    isPayRoute(pathname) ||
     isTrackingRoute(pathname)
   );
 }
