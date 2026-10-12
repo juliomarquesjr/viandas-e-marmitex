@@ -159,6 +159,21 @@ export async function sendText(name: string, number: string, text: string): Prom
   return res?.key?.id ?? null;
 }
 
+/**
+ * Endereço da foto de perfil que o contato tem no WhatsApp, ou null quando ele não tem foto ou a escondeu
+ * (a Evolution responde erro ou vazio nesses casos). O endereço expira: quem usa deve baixar a imagem logo.
+ */
+export async function fetchProfilePictureUrl(name: string, number: string): Promise<string | null> {
+  try {
+    const res = await request<{ profilePictureUrl?: unknown } | null>('POST', `/chat/fetchProfilePictureUrl/${encodeURIComponent(name)}`, { number });
+    return typeof res?.profilePictureUrl === 'string' && res.profilePictureUrl ? res.profilePictureUrl : null;
+  } catch (error) {
+    // sem foto / foto privada: a Evolution devolve 400 ou 404
+    if (error instanceof EvolutionError && (error.code === 'bad_request' || error.code === 'not_found')) return null;
+    throw error;
+  }
+}
+
 export interface OutgoingDocument {
   /** Arquivo em base64, sem o prefixo "data:". */
   base64: string;

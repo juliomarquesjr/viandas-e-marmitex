@@ -2,7 +2,8 @@
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/app/components/ui/dialog";
 import { AlertCircle, Download, FileText, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { VideoPlayer } from "./VideoPlayer";
 
 /**
  * Foto, figurinha, áudio, vídeo e documento recebidos na conversa. O arquivo é buscado na Evolution só quando
@@ -12,6 +13,10 @@ export function MessageMedia({ id, type, caption, onLoaded }: { id: string; type
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  // o vídeo da mensagem e o ampliado seguem juntos: o ponto de um vira o ponto de partida do outro
+  const videoAt = useRef(0);
+  const [startAt, setStartAt] = useState<number | undefined>(undefined);
   const src = `/api/admin/whatsapp/media/${id}${attempt ? `?t=${attempt}` : ""}`;
 
   const retry = () => {
@@ -61,7 +66,56 @@ export function MessageMedia({ id, type, caption, onLoaded }: { id: string; type
   }
 
   if (type === "video") {
-    return <video controls preload="metadata" src={src} onLoadedMetadata={onLoaded} onError={() => setFailed(true)} className="max-h-72 max-w-full rounded-lg bg-black" aria-label="Vídeo recebido" />;
+    const name = caption?.trim() ? `${caption.trim().slice(0, 40)}.mp4` : "video-whatsapp.mp4";
+    return (
+      <>
+        <VideoPlayer
+          src={src}
+          label={name}
+          variant="inline"
+          startAt={startAt}
+          suspended={expanded}
+          onLoaded={onLoaded}
+          onUnavailable={() => setFailed(true)}
+          onTime={(t) => {
+            videoAt.current = t;
+          }}
+          onExpand={(t) => {
+            videoAt.current = t;
+            setExpanded(true);
+          }}
+        />
+        <Dialog
+          open={expanded}
+          onOpenChange={(open) => {
+            setExpanded(open);
+            if (!open) setStartAt(videoAt.current);
+          }}
+        >
+          <DialogContent
+            className="max-w-[96vw] overflow-hidden border-black bg-black p-0 sm:max-w-4xl"
+            style={{ "--modal-header-close": "#ffffff", "--modal-header-close-hover": "rgba(255,255,255,.18)" } as React.CSSProperties}
+          >
+            <DialogTitle className="sr-only">Vídeo recebido</DialogTitle>
+            <DialogDescription className="sr-only">{caption ?? "Vídeo enviado pelo cliente"}</DialogDescription>
+            <VideoPlayer
+              src={src}
+              label={name}
+              variant="modal"
+              autoPlay
+              startAt={videoAt.current}
+              onUnavailable={() => {
+                setExpanded(false);
+                setFailed(true);
+              }}
+              onTime={(t) => {
+                videoAt.current = t;
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
+    );
   }
 
   // documento

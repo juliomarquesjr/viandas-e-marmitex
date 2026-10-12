@@ -133,6 +133,8 @@ export interface ConversationItem {
   lastSystemType: string | null;
   lastAt: string;
   unread: number;
+  /** Foto do cadastro do cliente (a do WhatsApp é buscada à parte, só quando falta esta). */
+  imageUrl: string | null;
 }
 
 /** Conversas (uma por cliente), da mais recente para a mais antiga. */
@@ -144,7 +146,7 @@ export async function listConversations(opts: { q?: string; filter?: 'all' | 'un
   if (last.length === 0) return [];
   const ids = last.map((l) => l.customerId);
   const [customers, unread] = await Promise.all([
-    prisma.customer.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, phone: true } }),
+    prisma.customer.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, phone: true, imageUrl: true } }),
     prisma.whatsAppMessage.groupBy({ by: ['customerId'], where: { customerId: { in: ids }, fromMe: false, readAt: null }, _count: { _all: true } }),
   ]);
   const byId = new Map(customers.map((c) => [c.id, c]));
@@ -175,6 +177,7 @@ export async function listConversations(opts: { q?: string; filter?: 'all' | 'un
         lastSystemType: l.systemType,
         lastAt: l.createdAt.toISOString(),
         unread: unreadBy.get(l.customerId) ?? 0,
+        imageUrl: c.imageUrl,
       };
     })
     .filter((c) => (!matches || matches.has(c.customerId)) && (opts.filter === 'unread' ? c.unread > 0 : opts.filter === 'awaiting' ? !c.lastFromMe : true))
