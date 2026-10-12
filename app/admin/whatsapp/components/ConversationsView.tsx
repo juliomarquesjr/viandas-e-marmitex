@@ -4,6 +4,7 @@ import { FormattedText } from "@/app/admin/components/messages/WhatsAppBubble";
 import { SendMenuDialog } from "@/app/admin/customers/components/SendMenuDialog";
 import { SendFichaDialog, type FichaKind } from "@/app/admin/customers/components/SendFichaDialog";
 import { SendPasswordDialog } from "@/app/admin/customers/components/SendPasswordDialog";
+import { ContactAvatar, initials } from "./ContactAvatar";
 import { MessageMedia } from "./MessageMedia";
 import { BulkSendDialog } from "./BulkSendDialog";
 import { useFullBleedLayout } from "@/app/admin/components/layout/AdminChromeProvider";
@@ -27,6 +28,7 @@ interface Conversation {
   lastSystemType: string | null;
   lastAt: string;
   unread: number;
+  imageUrl: string | null;
 }
 interface Message {
   id: string;
@@ -57,6 +59,7 @@ interface CustomerInfo {
   phone: string | null;
   email: string | null;
   phoneIsWhatsapp: boolean;
+  imageUrl?: string | null;
   createdAt: string;
 }
 
@@ -88,7 +91,6 @@ function balanceView(debtCents: number) {
   if (debtCents < 0) return { text: `+ ${brl(debtCents)}`, label: "Crédito a favor do cliente", tone: "text-green-700", bg: "bg-green-50 border-green-200" };
   return { text: brl(0), label: "Ficha em dia", tone: "text-slate-700", bg: "bg-slate-50 border-slate-200" };
 }
-const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
 
 function Ticks({ status }: { status: string }) {
@@ -439,7 +441,7 @@ export function ConversationsView() {
           ) : (
             list.map((c) => (
               <button key={c.customerId} type="button" onClick={() => setSelected(c.customerId)} aria-current={c.customerId === selected ? "true" : undefined} className={`flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${c.customerId === selected ? "bg-blue-50" : ""}`}>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-800">{initials(c.name)}</span>
+                <ContactAvatar customerId={c.customerId} name={c.name} imageUrl={c.imageUrl} className="h-10 w-10 text-sm" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <b className="truncate text-sm">{c.name}</b>
@@ -470,7 +472,7 @@ export function ConversationsView() {
           <>
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-2 md:gap-3 md:px-4">
               <button type="button" className="flex h-11 w-11 shrink-0 items-center justify-center md:hidden" onClick={() => setSelected(null)} aria-label="Voltar para a lista"><ArrowLeft className="h-5 w-5" /></button>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[13px] font-bold text-indigo-800">{initials(customer?.name ?? picked?.name ?? "?")}</span>
+              <ContactAvatar customerId={selected} name={customer?.name ?? picked?.name ?? "?"} imageUrl={customer?.imageUrl ?? picked?.imageUrl} className="h-9 w-9 text-[13px]" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-bold leading-5">{customer?.name ?? picked?.name ?? "…"}</p>
                 {/* no celular o saldo toma o lugar do telefone, que não cabe ao lado */}
@@ -662,7 +664,7 @@ export function ConversationsView() {
       {selected && customer && (
         <aside aria-label="Dados do cliente" className="scroll-slim hidden w-[270px] shrink-0 overflow-y-auto border-l border-[color:var(--border)] p-4 xl:block">
           <div className="text-center">
-            <span className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-800">{initials(customer.name)}</span>
+            <ContactAvatar customerId={customer.id} name={customer.name} imageUrl={customer.imageUrl} className="mx-auto mb-2 h-14 w-14 text-lg" />
             <p className="font-bold">{customer.name}</p>
             <p className="mt-0.5 text-xs text-slate-500">{customer.phone ?? "—"}{customer.email ? ` · ${customer.email}` : ""}</p>
           </div>
