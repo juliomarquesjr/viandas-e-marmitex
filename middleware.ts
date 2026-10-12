@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
  * Páginas da área do cliente. Ficam na raiz do site, então a lista é explícita: as demais
  * rotas (/admin, /auth, /tracking, /print...) não são do cliente.
  */
-const CUSTOMER_PATHS = ["/login", "/forgot-password", "/reset-password", "/dashboard", "/cardapio", "/expenses", "/pre-orders", "/profile"];
+const CUSTOMER_PATHS = ["/login", "/forgot-password", "/reset-password", "/dashboard", "/cardapio", "/expenses", "/pre-orders", "/profile", "/pagar"];
 
 function isCustomerPath(pathname: string) {
   return CUSTOMER_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
@@ -47,6 +47,11 @@ export default withAuth(
         return NextResponse.next();
       }
       
+      // Link de pagamento: público (o código assinado no endereço é a chave de acesso)
+      if (pathname.startsWith("/pagar/")) {
+        return NextResponse.next();
+      }
+
       // Sem sessão de cliente, volta para o login
       if (!customerLoggedIn) {
         return NextResponse.redirect(new URL("/login", req.url));
@@ -132,6 +137,7 @@ export const config = {
     "/expenses/:path*",
     "/pre-orders/:path*",
     "/profile/:path*",
+    "/pagar/:path*",
     // / (a entrada do cliente decide sozinha) e /tracking (público) não estão no matcher
   ]
 };

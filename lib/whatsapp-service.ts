@@ -16,8 +16,10 @@ import {
   instanceName,
   isEvolutionConfigured,
   logoutInstance,
+  sendDocument,
   sendText,
   setWebhook,
+  type OutgoingDocument,
   type QrResult,
 } from './evolution';
 import { formatPhoneBR, isStale, normalizeBrazilNumber, publicWebhookUrl, shouldAlertDisconnect, type WhatsAppState } from './whatsapp-rules';
@@ -238,6 +240,15 @@ export async function sendWhatsAppText(phone: string, text: string): Promise<str
   const state = await connectionState(instanceName());
   if (state !== 'open') throw new EvolutionError('bad_request', 'O WhatsApp do estabelecimento não está conectado.');
   return sendText(instanceName(), number, text);
+}
+
+/** Envia um documento (PDF etc.) com legenda para um cliente. Mesmas regras de `sendWhatsAppText`. */
+export async function sendWhatsAppDocument(phone: string, doc: OutgoingDocument): Promise<string | null> {
+  const number = normalizeBrazilNumber(phone);
+  if (!number) throw new EvolutionError('bad_request', 'Telefone inválido.');
+  const state = await connectionState(instanceName());
+  if (state !== 'open') throw new EvolutionError('bad_request', 'O WhatsApp do estabelecimento não está conectado.');
+  return sendDocument(instanceName(), number, doc);
 }
 
 export { describeError as describeWhatsAppError };

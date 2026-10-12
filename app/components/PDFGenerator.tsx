@@ -3,7 +3,7 @@
 import { useToast } from '@/app/components/Toast';
 import { Button } from '@/app/components/ui/button';
 import { PDFGenerator } from '@/lib/pdf-generator';
-import { Download, FileText, Loader2 } from 'lucide-react';
+import { Download, Loader2, Send } from 'lucide-react';
 import { useState } from 'react';
 
 interface PDFGeneratorProps {
@@ -12,8 +12,12 @@ interface PDFGeneratorProps {
   endDate: string;
   customerName: string;
   onPDFGenerated?: (pdfBlob: Blob) => void;
-  onSendEmail?: (pdfBase64: string) => void;
-  showSendButton?: boolean;
+  /** Abre a janela que mostra o PDF e envia ao cliente (WhatsApp e/ou e-mail). */
+  onOpenSend?: () => void;
+  /** Sem como enviar (cliente sem WhatsApp nem e-mail): o botão fica desligado e este texto explica. */
+  sendDisabledReason?: string | null;
+  /** O que o resumo do PDF mostra (as mesmas opções da impressão). */
+  show?: { debt?: boolean; period?: boolean; payments?: boolean };
 }
 
 export function PDFGeneratorComponent({
@@ -22,11 +26,11 @@ export function PDFGeneratorComponent({
   endDate,
   customerName,
   onPDFGenerated,
-  onSendEmail,
-  showSendButton = false
+  onOpenSend,
+  sendDisabledReason = null,
+  show,
 }: PDFGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const { showToast } = useToast();
 
   const handleGeneratePDF = async () => {
@@ -40,7 +44,8 @@ export function PDFGeneratorComponent({
         startDate,
         endDate,
         {
-          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`
+          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`,
+          show
         }
       );
 
@@ -58,78 +63,6 @@ export function PDFGeneratorComponent({
     }
   };
 
-  const handleGenerateAndSend = async () => {
-    try {
-      setIsSending(true);
-      showToast("Gerando PDF e enviando por email...", "info");
-
-      // Validar dados
-      if (!customerId || !startDate || !endDate) {
-        throw new Error('Dados obrigatórios não fornecidos');
-      }
-
-      console.log('Gerando PDF para:', { customerId, startDate, endDate, customerName });
-
-      // Gerar PDF com compressão otimizada para Vercel
-      const pdfBlob = await PDFGenerator.generateCustomerClosingReport(
-        customerId,
-        startDate,
-        endDate,
-        {
-          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`,
-          compress: true,
-          imageQuality: 0.6,
-          quality: 0.8
-        }
-      );
-
-      console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
-
-      // Verificar se o PDF é muito grande para Vercel
-      if (PDFGenerator.isPDFTooLarge && PDFGenerator.isPDFTooLarge(pdfBlob)) {
-        throw new Error('PDF muito grande para envio. Tente um período menor ou use a opção "Baixar PDF" para salvar localmente.');
-      }
-
-      // Converter para base64
-      const pdfBase64 = await PDFGenerator.blobToBase64(pdfBlob);
-      console.log('PDF convertido para base64, tamanho:', pdfBase64.length);
-
-      // Enviar por email
-      const url = `/api/customers/${customerId}/send-closing-report-pdf?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-      console.log('Enviando para API:', url);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pdfBase64
-        })
-      });
-
-      console.log('Resposta da API:', response.status, response.statusText);
-
-      const result = await response.json();
-      console.log('Resultado:', result);
-
-      if (response.ok) {
-        showToast(`Relatório com PDF enviado para o cliente!`, "success");
-        if (onSendEmail) {
-          onSendEmail(pdfBase64);
-        }
-      } else {
-        showToast(result.error || "Erro ao enviar relatório", "error");
-      }
-    } catch (error) {
-      console.error('Erro detalhado ao gerar e enviar PDF:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      showToast(`Erro ao gerar e enviar PDF: ${errorMessage}`, "error");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const handleDownloadPDF = async () => {
     try {
       setIsGenerating(true);
@@ -141,7 +74,8 @@ export function PDFGeneratorComponent({
         startDate,
         endDate,
         {
-          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`
+          filename: `relatorio-fechamento-${customerName.replace(/\s+/g, '-').toLowerCase()}-${startDate}-${endDate}.pdf`,
+          show
         }
       );
 
@@ -165,34 +99,35 @@ export function PDFGeneratorComponent({
   };
 
   return (
-    <div className="flex gap-2">
-      <Button
-        onClick={handleDownloadPDF}
-        disabled={isGenerating || isSending}
-        variant="outline"
-        className="flex-1 h-10 flex items-center justify-center gap-2"
-      >
-        {isGenerating ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Download className="h-4 w-4" />
-        )}
-        Baixar PDF
-      </Button>
-
-      {showSendButton && (
+    <div className="space-y-1.5">
+      <div className="flex gap-2">
         <Button
-          onClick={handleGenerateAndSend}
-          disabled={isGenerating || isSending}
-          className="flex-1 h-10 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
+          onClick={handleDownloadPDF}
+          disabled={isGenerating}
+          variant="outline"
+          className="flex-1 h-10 flex items-center justify-center gap-2"
         >
-          {isSending ? (
+          {isGenerating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <FileText className="h-4 w-4" />
+            <Download className="h-4 w-4" />
           )}
-          Enviar por Email
+          Baixar PDF
         </Button>
+
+        {onOpenSend && (
+          <Button
+            onClick={onOpenSend}
+            disabled={isGenerating || Boolean(sendDisabledReason)}
+            className="flex-1 h-10 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
+          >
+            <Send className="h-4 w-4" />
+            Visualizar e enviar
+          </Button>
+        )}
+      </div>
+      {onOpenSend && sendDisabledReason && (
+        <p className="text-center text-xs text-slate-400">{sendDisabledReason}</p>
       )}
     </div>
   );

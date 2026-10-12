@@ -1,4 +1,4 @@
-import { Calculator, Package, Plus, FileText } from "lucide-react";
+import { Calculator, Package, Plus, FileText, Link2 } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../../components/ui/card";
 
@@ -7,6 +7,7 @@ interface CustomerActionsProps {
   onOpenBudgetModal: () => void;
   onOpenPresetModal: () => void;
   onOpenReportDialog: () => void;
+  onOpenPaymentLink: () => void;
 }
 
 export function CustomerActions({
@@ -14,6 +15,7 @@ export function CustomerActions({
   onOpenBudgetModal,
   onOpenPresetModal,
   onOpenReportDialog,
+  onOpenPaymentLink,
 }: CustomerActionsProps) {
   return (
     <Card className="border-slate-200">
@@ -72,6 +74,19 @@ export function CustomerActions({
             <FileText className="h-3.5 w-3.5 text-blue-600" />
           </div>
           <p className="text-xs font-semibold leading-tight">Relatório de Fechamento</p>
+        </Button>
+
+        {/* Link de pagamento por PIX */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-3 h-10 border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+          onClick={onOpenPaymentLink}
+        >
+          <div className="h-6 w-6 rounded-md bg-green-100 flex items-center justify-center shrink-0">
+            <Link2 className="h-3.5 w-3.5 text-green-600" />
+          </div>
+          <p className="text-xs font-semibold leading-tight">Link de pagamento (PIX)</p>
         </Button>
       </CardContent>
     </Card>

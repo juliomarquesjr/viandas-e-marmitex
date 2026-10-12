@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, Printer, Search } from "lucide-react";
 import { Button } from "../../../../../components/ui/button";
 import {
@@ -16,6 +16,7 @@ import { Switch } from "../../../../../components/ui/switch";
 import { PDFGeneratorComponent } from "../../../../../components/PDFGenerator";
 import { Customer } from "../../types";
 import { ClosingReportConfig } from "../../hooks/useClosingReport";
+import { ClosingSendDialog } from "./ClosingSendDialog";
 
 interface ClosingReportDialogProps {
   isOpen: boolean;
@@ -29,7 +30,8 @@ interface ClosingReportDialogProps {
   setShowPaymentsTotal: (v: boolean) => void;
   setDefaultDates: () => void;
   generateReport: (isThermal: boolean) => boolean;
-  onSendEmailSuccess: () => void;
+  /** Chamado depois que a janela de envio fecha (o relatório pode ser fechado junto). */
+  onSendEmailSuccess?: () => void;
   isLoadingLastEntry: boolean;
   fetchLastEntryDate: () => void;
 }
@@ -56,7 +58,14 @@ export function ClosingReportDialog({
     }
   }, [isOpen, config.startDate, config.endDate, setDefaultDates]);
 
+  const [sendOpen, setSendOpen] = useState(false);
   const canGenerate = !!config.startDate && !!config.endDate;
+  const hasWhatsapp = Boolean(customer?.phone && customer.phoneIsWhatsapp);
+  const sendBlocked = !canGenerate
+    ? "Escolha o período para visualizar e enviar."
+    : !hasWhatsapp && !customer?.email
+      ? "Cliente sem WhatsApp marcado nem e-mail cadastrado."
+      : null;
 
   const handleGenerate = (isThermal: boolean) => {
     const ok = generateReport(isThermal);
@@ -80,7 +89,7 @@ export function ClosingReportDialog({
             Relatório de Fechamento
           </DialogTitle>
           <DialogDescription>
-            Gere um relatório imprimível com o consumo e saldo do cliente por período
+            Imprima ou envie ao cliente (WhatsApp e e-mail) o consumo e o saldo por período
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +155,7 @@ export function ClosingReportDialog({
           {/* Opções de Impressão */}
           <div className="flex items-center gap-3 pt-1">
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
-              Opções de Impressão
+              Opções de impressão e do PDF
             </span>
             <div className="flex-1 h-px bg-slate-100" />
           </div>
@@ -221,24 +230,33 @@ export function ClosingReportDialog({
             </div>
           </div>
 
-          {customer?.email ? (
+          {customer && (
             <div className="w-full">
               <PDFGeneratorComponent
                 customerId={customer.id}
                 startDate={config.startDate}
                 endDate={config.endDate}
                 customerName={customer.name}
-                showSendButton={true}
-                onSendEmail={onSendEmailSuccess}
+                show={{ debt: config.showDebtBalance, period: config.showPeriodBalance, payments: config.showPaymentsTotal }}
+                onOpenSend={() => setSendOpen(true)}
+                sendDisabledReason={sendBlocked}
               />
-            </div>
-          ) : (
-            <div className="w-full py-2.5 flex items-center justify-center bg-slate-100 rounded-xl border border-slate-200">
-              <span className="text-xs text-slate-400 font-medium">Cliente sem email cadastrado</span>
             </div>
           )}
         </DialogFooter>
       </DialogContent>
+
+      <ClosingSendDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        onFinished={() => {
+          setSendOpen(false);
+          onOpenChange(false);
+          onSendEmailSuccess?.();
+        }}
+        customer={customer}
+        config={config}
+      />
     </Dialog>
   );
 }

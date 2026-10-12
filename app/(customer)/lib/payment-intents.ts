@@ -20,14 +20,23 @@ const GENERIC = "Não foi possível avisar o estabelecimento agora. Tente de nov
  * leva ao login; as demais falhas voltam com a mensagem da API para o cliente ler.
  */
 export async function informPayment(amountCents: number): Promise<InformResult> {
+  return postInform(PAYMENT_INTENTS_URL, amountCents, true);
+}
+
+/** O mesmo aviso, feito pela página do link de pagamento (sem login): o código do link vale como credencial. */
+export function informPaymentByLink(token: string): (amountCents: number) => Promise<InformResult> {
+  return (amountCents) => postInform(`/api/pay/${encodeURIComponent(token)}`, amountCents, false);
+}
+
+async function postInform(url: string, amountCents: number, loginOnExpire: boolean): Promise<InformResult> {
   try {
-    const response = await fetch(PAYMENT_INTENTS_URL, {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amountCents }),
       cache: "no-store",
     });
-    if (response.status === 401) {
+    if (response.status === 401 && loginOnExpire) {
       window.location.href = "/login";
       return { ok: false, error: "Sua sessão venceu. Entre de novo para continuar." };
     }

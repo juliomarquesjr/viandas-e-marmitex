@@ -160,6 +160,53 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
       },
     },
   },
+  {
+    key: 'customer_closing',
+    name: 'Fechamento da ficha (PDF)',
+    description: 'Enviado pelo administrador a um cliente: o PDF do fechamento da ficha no período escolhido, com o saldo e, se o administrador quiser, o link para pagar por PIX. No WhatsApp o texto vai de legenda do PDF; no e-mail, o PDF vai anexo.',
+    group: 'Ficha do cliente',
+    variables: [
+      NAME,
+      STORE,
+      { key: 'periodo', label: 'Período do fechamento', sample: '01/09/2026 a 30/09/2026', auto: true },
+      { key: 'saldo', label: 'Saldo da ficha, sem sinal', sample: 'R$ 127,70', auto: true },
+      { key: 'situacao', label: 'A frase do saldo (a pagar, crédito ou em dia)', sample: '💳 Sua ficha está com *R$ 127,70* em aberto.', auto: true },
+      { key: 'pagamento', label: 'Bloco com o link para pagar por PIX (some se não houver nada a pagar ou se o link não for incluído)', sample: '💸 *Pague pelo PIX*, direto do seu celular:\nhttps://saboresdecasa.com.br/pagar/…', sensitive: true, auto: true },
+      { key: 'link_app', label: 'Endereço da área do cliente', sample: 'https://saboresdecasa.com.br' },
+    ],
+    required: ['periodo'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}! 😊\n\nSegue o fechamento da sua ficha no *{loja}*, referente a *{periodo}*.\n\n{situacao}\n\n📄 O PDF com todos os detalhes está anexo.\n\n{pagamento}\n\nQualquer dúvida, é só responder esta mensagem. 🙏',
+      },
+      email: {
+        subject: 'Fechamento da sua ficha: {loja} ({periodo})',
+        body: 'Olá, {nome}!\n\nSegue o fechamento da sua ficha no *{loja}*, referente a *{periodo}*.\n\n{situacao}\n\nO PDF com todos os detalhes está anexo a este e-mail.\n\n{pagamento}\n\nQualquer dúvida, é só responder este e-mail.',
+      },
+    },
+  },
+  {
+    key: 'customer_payment_link',
+    name: 'Link de pagamento (PIX)',
+    description: 'Enviado pelo administrador a um cliente: o link que abre a página de PIX da ficha dele, sem precisar entrar na conta. Quando ele toca em “Já paguei”, o aviso chega ao sino do administrador, como na área do cliente.',
+    group: 'Ficha do cliente',
+    variables: [
+      NAME,
+      STORE,
+      { key: 'saldo', label: 'Saldo da ficha, sem sinal', sample: 'R$ 127,70', auto: true },
+      { key: 'link_pagamento', label: 'Link para pagar por PIX', sample: 'https://saboresdecasa.com.br/pagar/…', sensitive: true, auto: true },
+    ],
+    required: ['link_pagamento'],
+    defaults: {
+      whatsapp: {
+        body: 'Olá, {nome}! 😊\n\nSua ficha no *{loja}* está com *{saldo}* em aberto.\n\n💸 Pague pelo PIX neste link, direto do seu celular, sem precisar entrar na conta:\n{link_pagamento}\n\nDepois de pagar, toque em “Já paguei” na página para nos avisar. 🙏',
+      },
+      email: {
+        subject: 'Pague sua ficha por PIX: {loja}',
+        body: 'Olá, {nome}!\n\nSua ficha no *{loja}* está com *{saldo}* em aberto.\n\nPague pelo PIX neste link, direto do seu celular, sem precisar entrar na conta:\n{link_pagamento}\n\nDepois de pagar, toque em “Já paguei” na página para nos avisar.',
+      },
+    },
+  },
 ];
 
 /** Aparecem no gerenciador como "em breve" (ainda não enviam nada). */

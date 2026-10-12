@@ -10,6 +10,11 @@ export function renderTemplate(text: string, values: Record<string, string>): st
   return text.replace(VARIABLE_RE, (match, key: string) => (key in values ? values[key] : match));
 }
 
+/** Tira o espaço no fim das linhas e deixa no máximo uma linha em branco seguida (variável opcional que ficou vazia não deixa buraco). */
+export function tidyBlankLines(text: string): string {
+  return text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export function usedVariables(text: string): string[] {
   return [...new Set([...text.matchAll(VARIABLE_RE)].map((m) => m[1]))];
 }
