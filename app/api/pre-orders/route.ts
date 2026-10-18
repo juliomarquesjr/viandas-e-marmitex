@@ -11,7 +11,12 @@ import {
   settle,
   type PaymentMethod,
 } from '@/app/admin/pre-orders/lib/payment';
-import { decrementStockForItems } from '@/lib/stock/orderStock';
+import {
+  StockShortError,
+  decrementStockForItems,
+  releasePreOrderReservation,
+  reserveStockForItems,
+} from '@/lib/stock/orderStock';
 import {
   isWeightBasedProduct,
   roundWeightKg,
@@ -37,6 +42,15 @@ const preOrderItemProductSelect = {
   pricePerKgCents: true,
   productType: true,
 };
+
+/** Falta de saldo ao reservar vira 409 com a mensagem pronta para a tela. */
+function stockShortResponse(error: unknown) {
+  if (!(error instanceof StockShortError)) return null;
+  return NextResponse.json(
+    { error: error.message, code: 'OUT_OF_STOCK', products: error.shortages },
+    { status: 409 }
+  );
+}
 
 type PricingProduct = {
   id: string;
@@ -314,32 +328,38 @@ export async function POST(request: Request) {
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
     const notifyCustomer = await wantsNotice(body.notifyCustomer, body.customerId);
     
-    // Criar pré-pedido
-    const preOrder = await prisma.preOrder.create({
-      data: {
-        customerId: body.customerId || null,
-        notifyCustomer,
-        subtotalCents,
-        discountCents,
-        deliveryFeeCents,
-        totalCents,
-        notes: body.notes || null,
-        items: {
-          create: itemsData
-        }
-      },
-      include: {
-        customer: {
-          select: preOrderCustomerSelect
+    // Criar pré-pedido já reservando o estoque: o PDV passa a ver só o que sobra.
+    // Sem saldo, a transação inteira é desfeita.
+    const preOrder = await prisma.$transaction(async (tx) => {
+      await reserveStockForItems(tx, itemsData);
+
+      return tx.preOrder.create({
+        data: {
+          customerId: body.customerId || null,
+          notifyCustomer,
+          stockReserved: true,
+          subtotalCents,
+          discountCents,
+          deliveryFeeCents,
+          totalCents,
+          notes: body.notes || null,
+          items: {
+            create: itemsData
+          }
         },
-        items: {
-          include: {
-            product: {
-              select: preOrderItemProductSelect
+        include: {
+          customer: {
+            select: preOrderCustomerSelect
+          },
+          items: {
+            include: {
+              product: {
+                select: preOrderItemProductSelect
+              }
             }
           }
         }
-      }
+      });
     });
 
     await publishToCustomer(preOrder.customerId, 'pre-order.updated', { id: preOrder.id });
@@ -349,6 +369,8 @@ export async function POST(request: Request) {
     
     return NextResponse.json({ ...preOrder, customerNotice });
   } catch (error) {
+    const short = stockShortResponse(error);
+    if (short) return short;
     console.error('Error creating pre-order:', error);
     return NextResponse.json(
       { error: 'Failed to create pre-order' },
@@ -457,49 +479,55 @@ async function convertPreOrderToOrder(request: Request) {
       );
     }
 
-    // Verificar estoque antes de criar o pedido. A soma é por produto, não por
-    // linha: um item por quilo ocupa uma linha por peso, e a baixa acontece em
-    // todas elas.
-    const requestedByProduct = new Map<string, number>();
-    for (const item of preOrder.items) {
-      requestedByProduct.set(
-        item.productId,
-        (requestedByProduct.get(item.productId) || 0) + item.quantity
-      );
-    }
-    
-    for (const [productId, requestedUnits] of requestedByProduct) {
-      const product = await prisma.product.findUnique({
-        where: { id: productId },
-        select: { 
-          id: true, 
-          name: true, 
-          stockEnabled: true, 
-          stock: true 
-        }
-      });
-      
-      if (!product) {
-        return NextResponse.json(
-          { error: `Product with ID ${productId} not found` },
-          { status: 400 }
+    // Pré-pedido com estoque reservado já baixou o saldo ao nascer: aqui não se
+    // confere nem se baixa de novo. Pedido antigo (sem reserva) segue o caminho
+    // de sempre: confere o saldo agora e baixa na transação.
+    if (!preOrder.stockReserved) {
+      // Verificar estoque antes de criar o pedido. A soma é por produto, não por
+      // linha: um item por quilo ocupa uma linha por peso, e a baixa acontece em
+      // todas elas.
+      const requestedByProduct = new Map<string, number>();
+      for (const item of preOrder.items) {
+        requestedByProduct.set(
+          item.productId,
+          (requestedByProduct.get(item.productId) || 0) + item.quantity
         );
       }
+    
+      for (const [productId, requestedUnits] of requestedByProduct) {
+        const product = await prisma.product.findUnique({
+          where: { id: productId },
+          select: { 
+            id: true, 
+            name: true, 
+            stockEnabled: true, 
+            stock: true 
+          }
+        });
       
-      if (product.stockEnabled && product.stock !== null) {
-        if (product.stock < requestedUnits) {
+        if (!product) {
           return NextResponse.json(
-            {
-              error: `Estoque insuficiente para "${product.name}": ${requestedUnits} un. no pedido, ${product.stock} ${
-                product.stock === 1 ? 'disponível' : 'disponíveis'
-              }.`
-            },
+            { error: `Product with ID ${productId} not found` },
             { status: 400 }
           );
         }
+      
+        if (product.stockEnabled && product.stock !== null) {
+          if (product.stock < requestedUnits) {
+            return NextResponse.json(
+              {
+                error: `Estoque insuficiente para "${product.name}": ${requestedUnits} un. no pedido, ${product.stock} ${
+                  product.stock === 1 ? 'disponível' : 'disponíveis'
+                }.`
+              },
+              { status: 400 }
+            );
+          }
+        }
       }
-    }
     
+    }
+
     // Criar pedido e atualizar estoque em uma transação
     const order = await prisma.$transaction(async (prisma) => {
       // Ficha vira dívida: a venda nasce pendente. Qualquer outra forma já
@@ -550,7 +578,9 @@ async function convertPreOrderToOrder(request: Request) {
         }
       });
       
-      await decrementStockForItems(prisma, preOrder.items);
+      if (!preOrder.stockReserved) {
+        await decrementStockForItems(prisma, preOrder.items);
+      }
       
       // Excluir o pré-pedido após a conversão
       await prisma.preOrderItem.deleteMany({
@@ -635,40 +665,49 @@ export async function PUT(request: Request) {
       ? undefined
       : await wantsNotice(body.notifyCustomer ?? current?.notifyCustomer, body.customerId === undefined ? current?.customerId : body.customerId);
 
-    // Atualizar pré-pedido
-    const preOrder = await prisma.preOrder.update({
-      where: { id: body.id },
-      data: {
-        customerId: body.customerId,
-        notifyCustomer,
-        subtotalCents,
-        discountCents,
-        deliveryFeeCents,
-        totalCents,
-        notes: body.notes,
-        items: {
-          deleteMany: {},
-          create: itemsData
-        }
-      },
-      include: {
-        customer: {
-          select: preOrderCustomerSelect
+    // Atualizar pré-pedido: devolve a reserva antiga e reserva a nova na mesma
+    // transação. Sem saldo para os itens novos, nada muda.
+    const preOrder = await prisma.$transaction(async (tx) => {
+      await releasePreOrderReservation(tx, body.id);
+      await reserveStockForItems(tx, itemsData);
+
+      return tx.preOrder.update({
+        where: { id: body.id },
+        data: {
+          customerId: body.customerId,
+          notifyCustomer,
+          stockReserved: true,
+          subtotalCents,
+          discountCents,
+          deliveryFeeCents,
+          totalCents,
+          notes: body.notes,
+          items: {
+            deleteMany: {},
+            create: itemsData
+          }
         },
-        items: {
-          include: {
-            product: {
-              select: preOrderItemProductSelect
+        include: {
+          customer: {
+            select: preOrderCustomerSelect
+          },
+          items: {
+            include: {
+              product: {
+                select: preOrderItemProductSelect
+              }
             }
           }
         }
-      }
+      });
     });
 
     await publishToCustomer(preOrder.customerId, 'pre-order.updated', { id: preOrder.id });
     
     return NextResponse.json(preOrder);
   } catch (error) {
+    const short = stockShortResponse(error);
+    if (short) return short;
     console.error('Error updating pre-order:', error);
     return NextResponse.json(
       { error: 'Failed to update pre-order' },
@@ -703,22 +742,27 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
     }
 
-    // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
-    // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos
-    await prisma.deliveryTracking.deleteMany({
-      where: { preOrderId: id }
+    await prisma.$transaction(async (tx) => {
+      // O estoque reservado volta antes de o pedido sumir
+      await releasePreOrderReservation(tx, id);
+
+      // Excluir dados relacionados primeiro (devido à restrições de chave estrangeira)
+      // Limpar tracking de entrega (latitudes/longitudes) para não manter dados órfãos
+      await tx.deliveryTracking.deleteMany({
+        where: { preOrderId: id }
+      });
+
+      // Excluir itens do pré-pedido
+      await tx.preOrderItem.deleteMany({
+        where: { preOrderId: id }
+      });
+
+      // Excluir pré-pedido (o cascade também limparia automaticamente, mas deixamos explícito)
+      await tx.preOrder.delete({
+        where: { id }
+      });
     });
-    
-    // Excluir itens do pré-pedido
-    await prisma.preOrderItem.deleteMany({
-      where: { preOrderId: id }
-    });
-    
-    // Excluir pré-pedido (o cascade também limparia automaticamente, mas deixamos explícito)
-    await prisma.preOrder.delete({
-      where: { id }
-    });
-    
+
     await publishToCustomer(owner?.customerId, 'pre-order.updated', { id });
 
     return NextResponse.json({ message: 'Pre-order deleted successfully' });

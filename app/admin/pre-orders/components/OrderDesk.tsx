@@ -35,6 +35,7 @@ import {
   lineTotal,
   parseCentsInput,
   productsOverStock,
+  withOwnReservation,
   subtotalOf,
   totalOf,
   addProduct as addProductToItems,
@@ -150,6 +151,12 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
           if (!preOrderRes.ok) throw new Error("Não foi possível carregar o pré-pedido.");
           const saved = await preOrderRes.json();
           if (cancelled) return;
+
+          // O saldo do cadastro já exclui o que este pedido reserva. Para conferir a comanda,
+          // as unidades dele voltam ao saldo livre — senão editar acusaria falta que não existe.
+          if (saved.stockReserved) {
+            setProducts(withOwnReservation(catalog, saved.items ?? []));
+          }
 
           const discountCents = saved.discountCents ?? 0;
           setDiscountInput(formatCentsInput(discountCents));
@@ -368,7 +375,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
 
   const save = useCallback(
     async (print: boolean) => {
-      if (draft.items.length === 0 || invalidWeight) return;
+      if (draft.items.length === 0 || invalidWeight || overStock.length > 0) return;
       setSaving(true);
 
       try {
@@ -413,7 +420,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
         setSaving(false);
       }
     },
-    [customer, draft, invalidWeight, onOpenChange, onSaved, showToast]
+    [customer, draft, invalidWeight, overStock, onOpenChange, onSaved, showToast]
   );
 
   const subtotal = subtotalOf(draft.items);
@@ -602,7 +609,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
               <Button
                 variant="outline"
                 onClick={() => save(true)}
-                disabled={saving || draft.items.length === 0 || invalidWeight}
+                disabled={saving || draft.items.length === 0 || invalidWeight || overStock.length > 0}
                 leftIcon={<Printer className="h-4 w-4" />}
                 title="Salva o pré-pedido e manda a comanda para a impressora"
               >
@@ -611,7 +618,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
               <Button
                 onClick={() => save(false)}
                 loading={saving}
-                disabled={saving || draft.items.length === 0 || invalidWeight}
+                disabled={saving || draft.items.length === 0 || invalidWeight || overStock.length > 0}
                 leftIcon={saving ? undefined : <Save className="h-4 w-4" />}
               >
                 {saving ? "Salvando…" : "Salvar"}
@@ -741,8 +748,8 @@ function Comanda({
               {overStock.length === 1
                 ? "1 produto acima do estoque."
                 : `${overStock.length} produtos acima do estoque.`}{" "}
-              O pré-pedido salva normalmente, mas a conversão em venda vai falhar enquanto o
-              saldo não cobrir.
+              O pré-pedido reserva o estoque, então não dá para salvar acima do saldo livre.
+              Reduza a quantidade ou ajuste o estoque do produto.
             </span>
           </p>
         )}

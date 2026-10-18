@@ -1,6 +1,6 @@
 import { getCustomerSession } from '@/lib/customer-auth';
 import { describeOpening, ORDERING, orderingStatus, productsOpenNow } from '@/lib/ordering';
-import { describeSchedule, loadSettings, loadSoldOut, loadWindows, productEligibility } from '@/lib/online-ordering';
+import { describeSchedule, loadSettings, releaseDeadReservations, loadSoldOut, loadWindows, productEligibility } from '@/lib/online-ordering';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
@@ -23,6 +23,8 @@ export async function GET() {
     }
 
     const now = new Date();
+    // pedidos que não vão mais acontecer devolvem o estoque antes de o cardápio ler o saldo
+    await releaseDeadReservations(now);
     const [settings, windows, soldOut] = await Promise.all([loadSettings(), loadWindows(), loadSoldOut(now)]);
     const status = orderingStatus(windows, settings, now);
     const usable = windows.filter((w) => w.active && w.productIds.length > 0);

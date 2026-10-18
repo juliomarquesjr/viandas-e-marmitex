@@ -28,6 +28,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { CustomerPhotoModal } from "@/app/admin/customers/components/CustomerPhotoModal";
+import { WhatsappPhotoOffer } from "@/app/admin/customers/components/WhatsappPhotoOffer";
 
 interface CustomerFormData {
   name: string;
@@ -232,6 +233,19 @@ export function CustomerFormDialog({
                   {formData.imageUrl ? "Alterar" : "Adicionar"}
                 </Button>
               </div>
+
+              {/* A foto do WhatsApp só é oferecida para quem já é cliente cadastrado com número de WhatsApp (o servidor busca pelo cadastro salvo) */}
+              {editingCustomer?.id &&
+                editingCustomer.phoneIsWhatsapp &&
+                formData.phoneIsWhatsapp &&
+                formData.phone.replace(/\D/g, "") === String(editingCustomer.phone ?? "").replace(/\D/g, "") && (
+                  <WhatsappPhotoOffer
+                    customerId={editingCustomer.id}
+                    name={formData.name || editingCustomer.name}
+                    currentImageUrl={formData.imageUrl}
+                    onUse={(url) => updateFormData("imageUrl", url)}
+                  />
+                )}
 
               {/* ── Informações Pessoais ── */}
               <SectionDivider label="Informações Pessoais" />

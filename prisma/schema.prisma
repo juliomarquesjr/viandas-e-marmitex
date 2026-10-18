@@ -228,6 +228,9 @@ model PreOrder {
   // O operador marcou "avisar o cliente pelo WhatsApp" a cada etapa (ver docs/mensagens.md)
   notifyCustomer      Boolean        @default(false)
 
+  // Os itens deste pedido estão segurando estoque agora (reserva). Pedidos antigos nascem false e baixam na conversão.
+  stockReserved       Boolean        @default(false)
+
   // Relacionamentos
   customer            Customer?      @relation(fields: [customerId], references: [id])
   items               PreOrderItem[]

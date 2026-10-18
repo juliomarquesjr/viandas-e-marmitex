@@ -2,6 +2,7 @@ import type { AwaitingOrderDTO } from '@/lib/notification-types';
 import { addDaysToDay, dateStringSP, startOfDaySP } from '@/lib/date-range';
 import { formatMinute, isOrderExpired, ORDERING, WEEKDAY_NAMES, type OrderingSettings, type WindowDef } from '@/lib/ordering';
 import prisma from '@/lib/prisma';
+import { releasePreOrderReservation } from '@/lib/stock/orderStock';
 import { isWeightBasedProduct } from '@/lib/weight';
 
 /**
@@ -103,6 +104,39 @@ export function describeSchedule(window: Pick<WindowDef, 'weekdays' | 'startMinu
 
 export { WEEKDAY_NAMES };
 
+/**
+ * Devolve ao estoque o que pedidos que não vão mais acontecer ainda seguram:
+ * pedido online sem resposta além do prazo (continua "aguardando" na tela, mas
+ * nunca mais será aceito), recusado, cancelado ou de dia anterior sem resposta.
+ * Idempotente (a marca `stockReserved` garante uma devolução só) e barato quando
+ * não há nada a devolver. Nunca derruba quem chamou: o saldo se acerta na próxima.
+ */
+export async function releaseDeadReservations(now: Date = new Date()): Promise<number> {
+  try {
+    const ttlCutoff = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
+    const dead = await prisma.preOrder.findMany({
+      where: {
+        stockReserved: true,
+        OR: [
+          { deliveryStatus: 'cancelled' },
+          { approval: { in: ['rejected', 'cancelled'] } },
+          { source: 'online', approval: 'awaiting', createdAt: { lt: ttlCutoff } },
+        ],
+      },
+      select: { id: true },
+      take: 100,
+    });
+    let released = 0;
+    for (const { id } of dead) {
+      if (await prisma.$transaction((tx) => releasePreOrderReservation(tx, id))) released += 1;
+    }
+    return released;
+  } catch (error) {
+    console.error('Error releasing dead reservations:', error);
+    return 0;
+  }
+}
+
 /** Pedidos do cliente aguardando o admin. Tolera a migration ainda não aplicada (devolve vazio). */
 export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Promise<{ count: number; items: AwaitingOrderDTO[] }> {
   try {
@@ -115,6 +149,8 @@ export async function loadAwaitingOrders(now: Date = new Date(), take = 10): Pro
         data: { approval: 'rejected', deliveryStatus: 'cancelled', respondedAt: now, rejectReason: 'A loja não respondeu a tempo' },
       });
     }
+
+    await releaseDeadReservations(now);
 
     const where = { source: 'online', approval: 'awaiting' } as const;
     const [count, rows] = await Promise.all([

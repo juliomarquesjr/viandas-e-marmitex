@@ -1,8 +1,8 @@
 import { getCustomerSession } from '@/lib/customer-auth';
-import { dateStringSP, startOfDaySP } from '@/lib/date-range';
 import { OrderError } from '@/lib/online-order-errors';
 import { describeOpening, nextOpening, ORDERING, orderingStatus, productsOpenNow } from '@/lib/ordering';
-import { loadSettings, loadSoldOut, loadWindows, productEligibility } from '@/lib/online-ordering';
+import { loadSettings, loadSoldOut, loadWindows, productEligibility, releaseDeadReservations } from '@/lib/online-ordering';
+import { StockShortError, reserveStockForItems } from '@/lib/stock/orderStock';
 import { canNotifyOnWhatsapp } from '@/lib/messages/order-status-send';
 import prisma from '@/lib/prisma';
 import { publishToCustomer, publishToStaff } from '@/lib/realtime';
@@ -74,6 +74,8 @@ export async function POST(request: Request) {
     // A configuração é lida ANTES de abrir a transação: dentro dela, `prisma` pegaria uma segunda conexão
     // do pool enquanto a transação segura a primeira (no pico do almoço isso trava o envio).
     const now = new Date();
+    // pedidos que não vão mais acontecer devolvem o estoque antes da checagem de saldo
+    await releaseDeadReservations(now);
     const [settings, windows, soldOut] = await Promise.all([loadSettings(), loadWindows(), loadSoldOut(now)]);
     const usable = windows.filter((w) => w.active && w.productIds.length > 0);
 
@@ -141,36 +143,18 @@ export async function POST(request: Request) {
           );
         }
 
-        // Estoque (só para quem controla): o que sobra descontando o que já está em pedidos abertos.
-        // É uma checagem de melhor esforço; a definitiva é a conversão em venda, que baixa o estoque.
-        const stocked = products.filter((p) => p.stockEnabled);
-        if (stocked.length > 0) {
-          // Só reserva o que ainda vai para a cozinha: de hoje (Brasília), nem cancelado nem entregue, e nem pedido
-          // online que ficou sem resposta além do prazo (esse nunca vai ser aceito).
-          const dayStart = startOfDaySP(dateStringSP(now))!;
-          const ttlCutoff = new Date(now.getTime() - ORDERING.TTL_MINUTES * 60_000);
-          const reserved = await tx.preOrderItem.groupBy({
-            by: ['productId'],
-            where: {
-              productId: { in: stocked.map((p) => p.id) },
-              preOrder: {
-                deliveryStatus: { notIn: ['cancelled', 'delivered'] },
-                createdAt: { gte: dayStart },
-                NOT: { source: 'online', approval: 'awaiting', createdAt: { lt: ttlCutoff } },
-              },
-            },
-            _sum: { quantity: true },
+        // Estoque (só para quem controla): o pedido reserva de verdade. O saldo do produto já vem
+        // descontado do que está em pedidos abertos (ver lib/stock/orderStock.ts), então a checagem
+        // é direta. A baixa definitiva e atômica é feita mais abaixo, junto da criação do pedido.
+        const short = products
+          .filter((p) => p.stockEnabled)
+          .map((p) => ({ productId: p.id, name: p.name, available: Math.max(0, p.stock ?? 0) }))
+          .filter((p) => items.find((i) => i.productId === p.productId)!.quantity > p.available);
+        if (short.length > 0) {
+          // o estoque exato não sai: só até o máximo que dá para pedir de uma vez
+          throw new OrderError('OUT_OF_STOCK', 409, 'Alguns produtos não têm a quantidade pedida. Ajuste o carrinho e envie de novo.', {
+            products: short.map((p) => ({ ...p, available: Math.min(p.available, ORDERING.MAX_QTY_PER_ITEM) })),
           });
-          const reservedById = new Map(reserved.map((r) => [r.productId, r._sum.quantity ?? 0]));
-          const short = stocked
-            .map((p) => ({ productId: p.id, name: p.name, available: Math.max(0, (p.stock ?? 0) - (reservedById.get(p.id) ?? 0)) }))
-            .filter((p) => items.find((i) => i.productId === p.productId)!.quantity > p.available);
-          if (short.length > 0) {
-            // o estoque exato não sai: só até o máximo que dá para pedir de uma vez
-            throw new OrderError('OUT_OF_STOCK', 409, 'Alguns produtos não têm a quantidade pedida. Ajuste o carrinho e envie de novo.', {
-              products: short.map((p) => ({ ...p, available: Math.min(p.available, ORDERING.MAX_QTY_PER_ITEM) })),
-            });
-          }
         }
 
         // pedido que a loja não respondeu em 20 min já está expirado: não ocupa vaga
@@ -192,10 +176,24 @@ export async function POST(request: Request) {
         const totalCents = items.reduce((sum, item) => sum + byId.get(item.productId)!.priceCents * item.quantity, 0);
         // Cliente com WhatsApp é avisado a cada etapa por padrão; o operador pode desligar no pedido
         const contact = await tx.customer.findUnique({ where: { id: customerId }, select: { phone: true, phoneIsWhatsapp: true } });
+        try {
+          await reserveStockForItems(tx, items);
+        } catch (error) {
+          // alguém levou o último item entre a checagem e a reserva
+          if (!(error instanceof StockShortError)) throw error;
+          throw new OrderError('OUT_OF_STOCK', 409, 'Alguns produtos não têm a quantidade pedida. Ajuste o carrinho e envie de novo.', {
+            products: error.shortages.map((p) => ({
+              productId: p.productId,
+              name: p.name,
+              available: Math.min(p.available, ORDERING.MAX_QTY_PER_ITEM),
+            })),
+          });
+        }
         const order = await tx.preOrder.create({
           data: {
             customerId,
             notifyCustomer: canNotifyOnWhatsapp(contact),
+            stockReserved: true,
             source: 'online',
             approval: 'awaiting',
             idempotencyKey: key,
