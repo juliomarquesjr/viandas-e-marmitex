@@ -4,6 +4,7 @@ import { parseDayRange } from '@/lib/date-range';
 import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
 import { requireStaff } from '@/lib/staff-session';
+import { canNotifyOnWhatsapp, notifyOrderEvent } from '@/lib/messages/order-status-send';
 import {
   isCashMethod,
   isPaymentMethod,
@@ -26,6 +27,7 @@ const preOrderCustomerSelect = {
   phone: true,
   imageUrl: true,
   address: true,
+  phoneIsWhatsapp: true,
 };
 
 const preOrderItemProductSelect = {
@@ -114,6 +116,13 @@ function buildPreOrderItems(
   return { itemsData, subtotalCents };
 }
 
+/** O aviso pelo WhatsApp só vale com um cliente que tem WhatsApp; sem ele, o switch fica desligado. */
+async function wantsNotice(requested: unknown, customerId: string | null | undefined): Promise<boolean> {
+  if (requested !== true || !customerId) return false;
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { phone: true, phoneIsWhatsapp: true } });
+  return canNotifyOnWhatsapp(customer);
+}
+
 // GET - Listar pré-pedidos com filtros
 export async function GET(request: Request) {
   // Telefone, endereço e itens dos clientes: só para funcionário logado (a lista e o pedido por id)
@@ -177,6 +186,7 @@ export async function GET(request: Request) {
           approval: true,
           respondedAt: true,
           rejectReason: true,
+          notifyCustomer: true,
           customer: {
             select: preOrderCustomerSelect
           },
@@ -302,11 +312,13 @@ export async function POST(request: Request) {
     const discountCents = body.discountCents || 0;
     const deliveryFeeCents = body.deliveryFeeCents || 0;
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
+    const notifyCustomer = await wantsNotice(body.notifyCustomer, body.customerId);
     
     // Criar pré-pedido
     const preOrder = await prisma.preOrder.create({
       data: {
         customerId: body.customerId || null,
+        notifyCustomer,
         subtotalCents,
         discountCents,
         deliveryFeeCents,
@@ -331,8 +343,11 @@ export async function POST(request: Request) {
     });
 
     await publishToCustomer(preOrder.customerId, 'pre-order.updated', { id: preOrder.id });
+
+    // O pedido já está salvo: se o aviso falhar, o operador fica sabendo, mas nada é desfeito
+    const customerNotice = notifyCustomer ? await notifyOrderEvent(preOrder.id, 'received') : null;
     
-    return NextResponse.json(preOrder);
+    return NextResponse.json({ ...preOrder, customerNotice });
   } catch (error) {
     console.error('Error creating pre-order:', error);
     return NextResponse.json(
@@ -607,7 +622,7 @@ export async function PUT(request: Request) {
     const totalCents = subtotalCents - discountCents + deliveryFeeCents;
     
     // Pedido do cliente aguardando resposta não é editado: o admin aceita ou recusa antes
-    const current = await prisma.preOrder.findUnique({ where: { id: body.id }, select: { source: true, approval: true } });
+    const current = await prisma.preOrder.findUnique({ where: { id: body.id }, select: { source: true, approval: true, customerId: true, notifyCustomer: true } });
     if (current && isAwaitingApproval(current)) {
       return NextResponse.json({ error: AWAITING_MESSAGE, code: 'AWAITING_APPROVAL' }, { status: 409 });
     }
@@ -615,11 +630,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: CLOSED_MESSAGE, code: 'ORDER_CLOSED' }, { status: 409 });
     }
 
+    // Trocar para um cliente sem WhatsApp desliga o aviso; sem a chave no corpo, o switch fica como estava
+    const notifyCustomer = body.notifyCustomer === undefined && body.customerId === undefined
+      ? undefined
+      : await wantsNotice(body.notifyCustomer ?? current?.notifyCustomer, body.customerId === undefined ? current?.customerId : body.customerId);
+
     // Atualizar pré-pedido
     const preOrder = await prisma.preOrder.update({
       where: { id: body.id },
       data: {
         customerId: body.customerId,
+        notifyCustomer,
         subtotalCents,
         discountCents,
         deliveryFeeCents,

@@ -56,6 +56,8 @@ export type PreOrder = {
   /** Motivo da recusa, escrito pelo operador. */
   rejectReason?: string | null;
   idempotencyKey?: string | null;
+  /** O operador marcou "avisar o cliente pelo WhatsApp" a cada etapa. */
+  notifyCustomer?: boolean;
   deliveryStartedAt?: string | null;
   deliveredAt?: string | null;
   deliveryPerson?: { id: string; name: string } | null;
@@ -64,6 +66,7 @@ export type PreOrder = {
     id: string;
     name: string;
     phone: string;
+    phoneIsWhatsapp?: boolean;
     imageUrl?: string | null;
     address?: any;
   } | null;

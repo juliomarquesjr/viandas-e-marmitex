@@ -41,6 +41,7 @@ import {
   type Fulfillment,
   type PreOrder,
 } from "../lib/preOrderView";
+import { CustomerNoticeSwitch } from "./CustomerNoticeSwitch";
 import { AwaitingWait, OnlineBadge } from "./OnlineBadge";
 import { PreOrderTimeline } from "./PreOrderTimeline";
 import { StagePicker } from "./StagePicker";
@@ -122,6 +123,8 @@ interface PreOrderDossierProps {
   onDelete: () => void;
   /** Depois de aceitar ou recusar: a lista precisa ser recarregada. */
   onResponded: () => void;
+  /** Liga ou desliga o aviso ao cliente pelo WhatsApp; devolve se a escolha foi gravada. */
+  onNotifyChange: (notify: boolean) => Promise<boolean>;
 }
 
 type Tab = "itens" | "historico" | "entrega";
@@ -138,8 +141,12 @@ export function PreOrderDossier({
   onTrack,
   onDelete,
   onResponded,
+  onNotifyChange,
 }: PreOrderDossierProps) {
   const [tab, setTab] = useState<Tab>("itens");
+  const [notify, setNotify] = useState(Boolean(preOrder.notifyCustomer));
+  const [savingNotify, setSavingNotify] = useState(false);
+  useEffect(() => setNotify(Boolean(preOrder.notifyCustomer)), [preOrder.notifyCustomer]);
   const stage = stageOf(preOrder);
   const fulfillment = fulfillmentOf(preOrder);
   const { primary, secondary } = actionsFor(preOrder);
@@ -234,6 +241,25 @@ export function PreOrderDossier({
       </header>
 
       <OnlineStatusBanner preOrder={preOrder} now={now} awaiting={awaiting} expired={expired} />
+
+      {/* Só enquanto o pedido ainda anda (da aprovação até a rota) e o cliente tem WhatsApp */}
+      {preOrder.customer?.phoneIsWhatsapp && preOrder.customer.phone && ["aprovacao", "fila", "producao", "pronto", "rota"].includes(stage) && (
+        <div className="border-b border-[color:var(--border)] bg-[color:var(--card)] px-5 py-2.5">
+          <CustomerNoticeSwitch
+            checked={notify}
+            disabled={savingNotify}
+            customerName={preOrder.customer.name}
+            className="border-0 bg-transparent p-0"
+            onChange={async (next) => {
+              setNotify(next);
+              setSavingNotify(true);
+              const saved = await onNotifyChange(next);
+              if (!saved) setNotify(!next);
+              setSavingNotify(false);
+            }}
+          />
+        </div>
+      )}
 
       <div
         role="tablist"

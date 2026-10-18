@@ -25,10 +25,13 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CustomerNoticeSwitch } from "./CustomerNoticeSwitch";
+import { toastCustomerNotice } from "../lib/customerNotice";
 import { formatCurrency } from "../lib/preOrderView";
 import {
   emptyDraft,
   formatCentsInput,
+  hasWhatsapp,
   lineTotal,
   parseCentsInput,
   productsOverStock,
@@ -155,6 +158,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
             customerId: saved.customerId ?? null,
             notes: saved.notes ?? "",
             discountCents,
+            notifyCustomer: saved.notifyCustomer === true,
             items: (saved.items ?? []).map((item: any): DraftItem => ({
               id: item.id,
               productId: item.productId,
@@ -303,14 +307,15 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
 
   const handleSelectCustomer = useCallback((next: DeskCustomer) => {
     setCustomer(next);
-    setDraft((current) => ({ ...current, customerId: next.id }));
+    // Cliente com WhatsApp já vem com o aviso ligado (o operador desliga se quiser); sem WhatsApp fica desligado
+    setDraft((current) => ({ ...current, customerId: next.id, notifyCustomer: hasWhatsapp(next) }));
     setCustomerQuery("");
     setBrowsingCustomers(false);
   }, []);
 
   const handleClearCustomer = useCallback(() => {
     setCustomer(null);
-    setDraft((current) => ({ ...current, customerId: null }));
+    setDraft((current) => ({ ...current, customerId: null, notifyCustomer: false }));
     setBrowsingCustomers(false);
   }, []);
 
@@ -373,6 +378,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
           body: JSON.stringify({
             ...(draft.id && { id: draft.id }),
             customerId: draft.customerId,
+            notifyCustomer: draft.notifyCustomer && hasWhatsapp(customer),
             notes: draft.notes.trim() || null,
             discountCents: draft.discountCents,
             deliveryFeeCents: 0,
@@ -393,6 +399,8 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
 
         const saved = await response.json();
         showToast(draft.id ? "Pré-pedido atualizado." : "Pré-pedido criado.", "success");
+        // O pedido já foi salvo; só o aviso ao cliente pode ter falhado
+        toastCustomerNotice(saved.customerNotice, showToast, "O pedido foi salvo");
         onOpenChange(false);
         onSaved?.({ id: saved.id ?? draft.id ?? "", print });
       } catch (error) {
@@ -405,7 +413,7 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
         setSaving(false);
       }
     },
-    [draft, invalidWeight, onOpenChange, onSaved, showToast]
+    [customer, draft, invalidWeight, onOpenChange, onSaved, showToast]
   );
 
   const subtotal = subtotalOf(draft.items);
@@ -538,6 +546,9 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
                   discountInput={discountInput}
                   overStock={overStock}
                   saving={saving}
+                  canNotify={hasWhatsapp(customer)}
+                  customerName={customer?.name}
+                  onNotifyChange={(notifyCustomer) => setDraft((current) => ({ ...current, notifyCustomer }))}
                   onDiscountChange={handleDiscount}
                   onNotesChange={(notes) => setDraft((current) => ({ ...current, notes }))}
                   onQuantityChange={(index, quantity) =>
@@ -685,6 +696,10 @@ type ComandaProps = {
   discountInput: string;
   overStock: CatalogProduct[];
   saving: boolean;
+  /** O cliente da comanda tem WhatsApp: só então o switch de avisar aparece. */
+  canNotify: boolean;
+  customerName?: string;
+  onNotifyChange: (notify: boolean) => void;
   onDiscountChange: (raw: string) => void;
   onNotesChange: (notes: string) => void;
   onQuantityChange: (index: number, quantity: number) => void;
@@ -701,6 +716,9 @@ function Comanda({
   discountInput,
   overStock,
   saving,
+  canNotify,
+  customerName,
+  onNotifyChange,
   onDiscountChange,
   onNotesChange,
   onQuantityChange,
@@ -800,6 +818,16 @@ function Comanda({
             )}
           />
         </label>
+
+        {canNotify && (
+          <CustomerNoticeSwitch
+            className="mt-3"
+            checked={draft.notifyCustomer}
+            onChange={onNotifyChange}
+            disabled={saving}
+            customerName={customerName}
+          />
+        )}
       </div>
 
       <div className="flex-none border-t border-[color:var(--border)] px-3.5 py-2.5 shadow-[0_-8px_14px_-12px_rgb(15_23_42/0.5)]">

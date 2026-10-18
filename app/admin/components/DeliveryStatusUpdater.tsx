@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { DeliveryStatusBadge } from "@/app/components/DeliveryStatusBadge";
 import { Loader2, Save, User } from "lucide-react";
 import { useToast } from "@/app/components/Toast";
+import { toastCustomerNotice } from "@/app/admin/pre-orders/lib/customerNotice";
 
 type DeliveryStatus = 
   | "pending" 
@@ -72,6 +73,7 @@ export function DeliveryStatusUpdater({
       }
 
       showToast("Status atualizado com sucesso!", "success");
+      toastCustomerNotice((await response.json().catch(() => null))?.customerNotice, showToast, "O status foi atualizado");
       onUpdate?.();
     } catch (error) {
       console.error("Error updating status:", error);

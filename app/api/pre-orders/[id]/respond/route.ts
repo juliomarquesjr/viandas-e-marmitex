@@ -2,6 +2,7 @@ import { ORDERING, isOrderExpired } from '@/lib/ordering';
 import prisma from '@/lib/prisma';
 import { publishToCustomer, publishToStaff } from '@/lib/realtime';
 import { requireAdmin } from '@/lib/staff-session';
+import { notifyOrderEvent } from '@/lib/messages/order-status-send';
 import { NextResponse } from 'next/server';
 
 const MAX_REASON = 200;
@@ -75,7 +76,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       publishToCustomer(order.customerId, 'pre-order.updated', { id }),
     ]);
 
-    return NextResponse.json({ success: true, action });
+    // Pedido do cliente: o aviso só sai se o operador marcou "avisar" nele (ver o pedido na Mesa)
+    const customerNotice = await notifyOrderEvent(id, action === 'accept' ? 'accepted' : 'rejected');
+
+    return NextResponse.json({ success: true, action, customerNotice });
   } catch (error) {
     console.error('Error answering online order:', error);
     return NextResponse.json({ error: 'Erro ao responder o pedido' }, { status: 500 });

@@ -8,6 +8,7 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { useToast } from "@/app/components/Toast";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "../notifications/format";
+import { toastCustomerNotice, type CustomerNoticeResult } from "@/app/admin/pre-orders/lib/customerNotice";
 
 /**
  * Aceitar e Recusar um pedido que o cliente fez pela área dele (POST /api/pre-orders/[id]/respond).
@@ -18,7 +19,7 @@ import { formatCurrency } from "../notifications/format";
 const ACCEPT_MINUTES = [15, 30, 45, 60] as const;
 const REJECT_REASONS = ["Sem estoque", "Fechado agora", "Não conseguimos atender", "Outro motivo"] as const;
 
-export type RespondResult = { ok: true } | { ok: false; error: string; code?: string };
+export type RespondResult = { ok: true; notice?: CustomerNoticeResult } | { ok: false; error: string; code?: string };
 
 /** Chama a API. Nunca lança: devolve { ok, error } com a mensagem pronta para mostrar. */
 export async function respondToOrder(
@@ -31,7 +32,7 @@ export async function respondToOrder(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (response.ok) return { ok: true };
+    if (response.ok) return { ok: true, notice: (await response.json().catch(() => null))?.customerNotice };
     const data = await response.json().catch(() => null);
     return { ok: false, error: data?.error ?? "Não foi possível responder o pedido.", code: data?.code };
   } catch {
@@ -193,6 +194,7 @@ export function AcceptOrderDialog({ open, orderId, who, summary, totalCents, onC
     setBusy(false);
     if (result.ok) {
       showToast(`Pedido de ${who} aceito.`, "success", "Pedido aceito");
+      toastCustomerNotice(result.notice, showToast, "O pedido foi aceito");
       onDone();
     } else if (result.code === "ALREADY_ANSWERED") {
       showToast(result.error, "info");
@@ -279,6 +281,7 @@ export function RejectOrderDialog({ open, orderId, who, expired, summary, totalC
     setBusy(false);
     if (result.ok) {
       showToast(`Pedido de ${who} recusado. O cliente foi avisado.`, "success", "Pedido recusado");
+      toastCustomerNotice(result.notice, showToast, "O pedido foi recusado");
       onDone();
     } else if (result.code === "ALREADY_ANSWERED") {
       showToast(result.error, "info");

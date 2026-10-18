@@ -225,6 +225,9 @@ model PreOrder {
   rejectReason        String?        // motivo da recusa, mostrado ao cliente
   idempotencyKey      String?        // evita pedido duplicado por toque duplo
 
+  // O operador marcou "avisar o cliente pelo WhatsApp" a cada etapa (ver docs/mensagens.md)
+  notifyCustomer      Boolean        @default(false)
+
   // Relacionamentos
   customer            Customer?      @relation(fields: [customerId], references: [id])
   items               PreOrderItem[]
