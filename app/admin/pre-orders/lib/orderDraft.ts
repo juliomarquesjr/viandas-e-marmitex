@@ -155,8 +155,29 @@ export function kgInDraft(items: DraftItem[], productId: string): number {
 }
 
 /**
- * Leitura de estoque para exibição. O pré-pedido é pedido futuro: aqui só
- * avisamos — quem bloqueia de fato é a conversão em venda.
+ * O pré-pedido reserva estoque: o saldo do cadastro é o que está livre para
+ * vender e já exclui as unidades de todos os pedidos abertos, inclusive as do
+ * pedido que está sendo editado. Devolve o catálogo com as unidades deste
+ * pedido de volta ao saldo, que é o que ele pode usar de fato.
+ */
+export function withOwnReservation(
+  products: CatalogProduct[],
+  savedItems: Array<{ productId: string; quantity: number }>
+): CatalogProduct[] {
+  const own = new Map<string, number>();
+  for (const item of savedItems) {
+    own.set(item.productId, (own.get(item.productId) ?? 0) + item.quantity);
+  }
+  return products.map((product) => {
+    const units = own.get(product.id);
+    if (!units || !product.stockEnabled || product.stock == null) return product;
+    return { ...product, stock: product.stock + units };
+  });
+}
+
+/**
+ * Leitura de estoque para exibição. O saldo é o estoque livre: salvar o
+ * pré-pedido o reserva, e a API recusa o que passar dele.
  */
 export function readStock(
   product: CatalogProduct | undefined,

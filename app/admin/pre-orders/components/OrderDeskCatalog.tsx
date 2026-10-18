@@ -306,7 +306,7 @@ function describeStock(stock: ReturnType<typeof readStock>) {
     return {
       tone: "text-amber-700 dark:text-amber-400",
       dot: "bg-amber-500",
-      text: `${stock.units} pedidas · ${stock.stock} em estoque`,
+      text: `${stock.units} pedidas · ${stock.stock} livres`,
     };
   }
   if (stock.low) {
@@ -319,6 +319,6 @@ function describeStock(stock: ReturnType<typeof readStock>) {
   return {
     tone: "text-[color:var(--muted-foreground)]",
     dot: "bg-emerald-500",
-    text: `Estoque ${stock.stock}`,
+    text: `Livre ${stock.stock}`,
   };
 }

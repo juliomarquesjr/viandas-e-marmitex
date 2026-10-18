@@ -4,6 +4,7 @@ import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } 
 import { publishToCustomer } from '@/lib/realtime';
 import { eventOfStatus } from '@/lib/messages/order-status-text';
 import { notifyOrderEvent } from '@/lib/messages/order-status-send';
+import { StockShortError, releasePreOrderReservation, reserveStockForItems } from '@/lib/stock/orderStock';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -197,6 +198,28 @@ export async function PUT(
 
     // Atualizar pré-pedido e criar registro de tracking em uma transação
     const result = await prisma.$transaction(async (tx) => {
+      // Cancelar devolve a reserva de estoque; reabrir um cancelado reserva de novo
+      // (sem saldo, o pedido continua cancelado).
+      if (updateData.deliveryStatus === 'cancelled' && preOrder.deliveryStatus !== 'cancelled') {
+        await releasePreOrderReservation(tx, preOrderId);
+      } else if (
+        updateData.deliveryStatus &&
+        updateData.deliveryStatus !== 'cancelled' &&
+        preOrder.deliveryStatus === 'cancelled'
+      ) {
+        const claimed = await tx.preOrder.updateMany({
+          where: { id: preOrderId, stockReserved: false },
+          data: { stockReserved: true },
+        });
+        if (claimed.count > 0) {
+          const items = await tx.preOrderItem.findMany({
+            where: { preOrderId },
+            select: { productId: true, quantity: true },
+          });
+          await reserveStockForItems(tx, items);
+        }
+      }
+
       // Atualizar pré-pedido se houver mudanças
       if (Object.keys(updateData).length > 0) {
         await tx.preOrder.update({
@@ -264,6 +287,9 @@ export async function PUT(
 
     return NextResponse.json({ ...result, customerNotice });
   } catch (error) {
+    if (error instanceof StockShortError) {
+      return NextResponse.json({ error: error.message, code: 'OUT_OF_STOCK', products: error.shortages }, { status: 409 });
+    }
     console.error('Error updating delivery:', error);
     return NextResponse.json(
       { error: 'Failed to update delivery' },

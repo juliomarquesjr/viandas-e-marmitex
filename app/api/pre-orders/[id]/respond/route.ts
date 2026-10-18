@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { publishToCustomer, publishToStaff } from '@/lib/realtime';
 import { requireAdmin } from '@/lib/staff-session';
 import { notifyOrderEvent } from '@/lib/messages/order-status-send';
+import { releasePreOrderReservation } from '@/lib/stock/orderStock';
 import { NextResponse } from 'next/server';
 
 const MAX_REASON = 200;
@@ -68,6 +69,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { error: `Este pedido já foi ${what[current?.approval ?? ''] ?? 'respondido'}.`, code: 'ALREADY_ANSWERED' },
         { status: 409 }
       );
+    }
+
+    // Recusado: o estoque que o pedido segurava volta para a venda
+    if (action === 'reject') {
+      await prisma.$transaction((tx) => releasePreOrderReservation(tx, id));
     }
 
     console.info(JSON.stringify({ event: 'online_order.responded', preOrderId: id, action, by: auth.staff.userId }));

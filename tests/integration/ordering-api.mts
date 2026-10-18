@@ -219,7 +219,7 @@ try {
   const note = await (await cust.f('/api/customer/notifications')).json();
   check('o aviso do cliente mostra o motivo da recusa', note.data.some((n: any) => n.title === 'Pedido recusado' && n.text.includes('Teste')));
 
-  console.log('\n— estoque: só reserva o que vai para a cozinha');
+  console.log('\n— estoque: o pedido reserva de verdade e devolve ao cair');
   // os pedidos de teste anteriores já passam do limite de 10 por hora: empurra-os para trás para este trecho
   await p.preOrder.updateMany({ where: { id: { in: created } }, data: { createdAt: new Date(Date.now() - 3 * 3600_000) } });
   const stocked = await p.product.create({ data: { name: 'QA-Estoque', priceCents: 500, stockEnabled: true, stock: 5, productType: 'sellable', active: true } });
@@ -227,13 +227,28 @@ try {
     await putCfg({ windows: [{ name: 'Estoque', weekdays: allDays, startMinute: 0, endMinute: 1440, active: true, productIds: [stocked.id] }] });
     o = await order([{ productId: stocked.id, quantity: 6 }]);
     check('pedir mais que o estoque → 409 OUT_OF_STOCK (sem expor o estoque exato além do limite do pedido)', o.r.status === 409 && o.b.code === 'OUT_OF_STOCK');
-    const stale = await p.preOrder.create({ data: { customerId: customer.id, source: 'online', approval: 'awaiting', deliveryStatus: 'pending', subtotalCents: 2500, totalCents: 2500, items: { create: [{ productId: stocked.id, quantity: 5, priceCents: 500 }] } } });
-    created.push(stale.id);
+    const left = async () => (await p.product.findUniqueOrThrow({ where: { id: stocked.id } })).stock;
     o = await order([{ productId: stocked.id, quantity: 5 }]);
-    check('aguardando recente reserva o estoque → 409', o.r.status === 409 && o.b.code === 'OUT_OF_STOCK');
-    await p.preOrder.update({ where: { id: stale.id }, data: { createdAt: new Date(Date.now() - 40 * 60_000) } });
+    const first = o.b.id as string;
+    check('pedido de 5 (estoque 5) → 201 e reserva de verdade (estoque 0)', o.r.status === 201 && (await left()) === 0, `${o.r.status} estoque ${await left()}`);
+    o = await order([{ productId: stocked.id, quantity: 1 }]);
+    check('reservado por outro pedido → 409 OUT_OF_STOCK', o.r.status === 409 && o.b.code === 'OUT_OF_STOCK');
+    const rej = await admin.f(`/api/pre-orders/${first}/respond`, json('POST', { action: 'reject' }));
+    check('recusar devolve a reserva (estoque 5)', rej.ok && (await left()) === 5, `${rej.status} estoque ${await left()}`);
+    const rej2 = await admin.f(`/api/pre-orders/${first}/respond`, json('POST', { action: 'reject' }));
+    check('recusar de novo (409) não devolve em dobro', rej2.status === 409 && (await left()) === 5);
     o = await order([{ productId: stocked.id, quantity: 5 }]);
-    check('depois de expirar (40 min), o pedido sem resposta deixa de reservar → 201', o.r.status === 201, `${o.r.status} ${o.b.code ?? ''}`);
+    const second = o.b.id as string;
+    check('pedido de novo → 201 (estoque 0)', o.r.status === 201 && (await left()) === 0);
+    const can = await cust.f(`/api/customer/pre-orders/${second}/cancel`, { method: 'POST' });
+    check('cliente cancela → devolve (estoque 5)', can.ok && (await left()) === 5, `${can.status} estoque ${await left()}`);
+    o = await order([{ productId: stocked.id, quantity: 5 }]);
+    const third = o.b.id as string;
+    await p.preOrder.update({ where: { id: third }, data: { createdAt: new Date(Date.now() - 40 * 60_000) } });
+    const menu = await cust.f('/api/customer/ordering/menu');
+    check('depois de expirar (40 min), o cardápio devolve a reserva (estoque 5)', menu.ok && (await left()) === 5, `estoque ${await left()}`);
+    o = await order([{ productId: stocked.id, quantity: 5 }]);
+    check('e o produto volta a poder ser pedido → 201', o.r.status === 201, `${o.r.status} ${o.b.code ?? ''}`);
   } finally {
     await p.preOrderItem.deleteMany({ where: { productId: stocked.id } });
     await p.product.delete({ where: { id: stocked.id } }).catch(() => undefined);

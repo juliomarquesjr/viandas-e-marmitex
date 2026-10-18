@@ -1,6 +1,7 @@
 import { getCustomerSession } from '@/lib/customer-auth';
 import prisma from '@/lib/prisma';
 import { publishToCustomer, publishToStaff } from '@/lib/realtime';
+import { releasePreOrderReservation } from '@/lib/stock/orderStock';
 import { NextResponse } from 'next/server';
 
 // POST - O cliente cancela o próprio pedido online, enquanto a loja ainda não respondeu
@@ -24,6 +25,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (result.count === 0) {
       return NextResponse.json({ error: 'A loja já respondeu este pedido, então não dá mais para cancelar por aqui. Fale com a loja.' }, { status: 409 });
     }
+
+    // O estoque que o pedido segurava volta para a venda
+    await prisma.$transaction((tx) => releasePreOrderReservation(tx, id));
 
     console.info(JSON.stringify({ event: 'online_order.cancelled_by_customer', preOrderId: id, customerId }));
     await Promise.all([publishToStaff('notification.changed', { id }), publishToCustomer(customerId, 'pre-order.updated', { id })]);
