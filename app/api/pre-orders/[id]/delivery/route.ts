@@ -2,6 +2,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { AWAITING_MESSAGE, CLOSED_MESSAGE, isAwaitingApproval, isClosedOnline } from '@/lib/online-ordering';
 import { publishToCustomer } from '@/lib/realtime';
+import { eventOfStatus } from '@/lib/messages/order-status-text';
+import { notifyOrderEvent } from '@/lib/messages/order-status-send';
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -253,7 +255,14 @@ export async function PUT(
       await publishToCustomer(result?.customer?.id, 'pre-order.updated', { id: preOrderId });
     }
 
-    return NextResponse.json(result);
+    // Avisa o cliente pelo WhatsApp (se o operador marcou) só quando a etapa de fato mudou:
+    // repetir a mesma etapa não manda mensagem de novo. Falha no envio não desfaz a mudança.
+    // (saiu para entrega → em trânsito é a mesma mensagem)
+    const event = updateData.deliveryStatus ? eventOfStatus(updateData.deliveryStatus) : null;
+    const notify = event !== null && event !== eventOfStatus(preOrder.deliveryStatus);
+    const customerNotice = event && notify ? await notifyOrderEvent(preOrderId, event) : null;
+
+    return NextResponse.json({ ...result, customerNotice });
   } catch (error) {
     console.error('Error updating delivery:', error);
     return NextResponse.json(

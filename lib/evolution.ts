@@ -55,7 +55,9 @@ async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?
     if (!res.ok) {
       const detail = (json as { response?: { message?: unknown }; message?: unknown } | null) ?? {};
       const raw = detail.response?.message ?? detail.message;
-      const message = Array.isArray(raw) ? raw.join(', ') : typeof raw === 'string' ? raw : `Erro ${res.status} da Evolution API.`;
+      // número sem WhatsApp vem como [{ exists: false, jid, number }]: sem tratar, virava "[object Object]"
+      const part = (item: unknown) => (item && typeof item === 'object' ? ((item as { exists?: unknown }).exists === false ? 'Este número não tem WhatsApp.' : 'A Evolution API recusou a mensagem.') : String(item));
+      const message = Array.isArray(raw) ? [...new Set(raw.map(part))].join(', ') : typeof raw === 'string' ? raw : `Erro ${res.status} da Evolution API.`;
       if (res.status === 401 || res.status === 403) throw new EvolutionError('unauthorized', 'A chave da Evolution API foi recusada.', res.status);
       if (res.status === 404) throw new EvolutionError('not_found', message, res.status);
       if (res.status >= 500) throw new EvolutionError('server', message, res.status);

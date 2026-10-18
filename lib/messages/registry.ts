@@ -58,6 +58,30 @@ const SAMPLE_ORDERS = `🧾 *Sexta-feira, 09/10*
 • 2× Suco de laranja
 💰 Total: *R$ 37,00*`;
 
+const SAMPLE_ORDER_ITEMS = `• 1× Feijoada completa
+• 2× Suco de laranja`;
+
+/** Variáveis de toda mensagem de andamento do pedido (as automáticas são preenchidas pelo sistema). */
+const ORDER_VARIABLES: MessageVariable[] = [
+  NAME,
+  STORE,
+  { key: 'pedido', label: 'Número do pedido', sample: '#C3D4', auto: true },
+  { key: 'itens', label: 'Itens do pedido, um por linha', sample: SAMPLE_ORDER_ITEMS, auto: true },
+  { key: 'total', label: 'Total do pedido', sample: 'R$ 37,00', auto: true },
+  { key: 'previsao', label: 'Linha com a previsão de entrega (some se o pedido não tem previsão)', sample: '🕐 Previsão: *18:30*', auto: true },
+  { key: 'link_app', label: 'Endereço da área do cliente', sample: 'https://saboresdecasa.com.br' },
+];
+
+const orderStatusType = (key: string, name: string, description: string, body: string, extra: MessageVariable[] = []): MessageTypeDef => ({
+  key,
+  name,
+  description: `${description} Só é enviada quando o operador marca "Avisar o cliente pelo WhatsApp" no pedido.`,
+  group: 'Pedidos',
+  variables: [...ORDER_VARIABLES, ...extra],
+  required: ['pedido'],
+  defaults: { whatsapp: { body } },
+});
+
 export const MESSAGE_TYPES: MessageTypeDef[] = [
   {
     key: 'customer_password',
@@ -207,11 +231,59 @@ export const MESSAGE_TYPES: MessageTypeDef[] = [
       },
     },
   },
+  orderStatusType(
+    'order_received',
+    'Pedido recebido',
+    'Enviada quando o pedido é registrado.',
+    'Olá, {nome}! 😊\n\nRecebemos o seu pedido *{pedido}* no *{loja}*:\n\n{itens}\n\n💰 Total: *{total}*\n\nVamos avisar você por aqui a cada etapa. 🙏'
+  ),
+  orderStatusType(
+    'order_accepted',
+    'Pedido aceito',
+    'Enviada quando o estabelecimento aceita um pedido feito pelo cliente no aplicativo.',
+    'Olá, {nome}! ✅\n\nSeu pedido *{pedido}* foi aceito pelo *{loja}* e já entrou na fila de preparo.\n\n{previsao}\n\n📲 Acompanhe também pelo aplicativo:\n{link_app}'
+  ),
+  orderStatusType(
+    'order_rejected',
+    'Pedido recusado',
+    'Enviada quando o estabelecimento recusa um pedido feito pelo cliente no aplicativo.',
+    'Olá, {nome}.\n\nInfelizmente não conseguimos atender o seu pedido *{pedido}* desta vez. 😕\n\n{motivo}\n\nPedimos desculpas pelo transtorno e esperamos você em breve! 🙏',
+    [{ key: 'motivo', label: 'Linha com o motivo da recusa (some se não foi informado)', sample: 'Motivo: _Produto esgotado_', auto: true }]
+  ),
+  orderStatusType(
+    'order_preparing',
+    'Pedido em preparo',
+    'Enviada quando o pedido entra em produção.',
+    'Olá, {nome}! 👨‍🍳\n\nSeu pedido *{pedido}* já está sendo preparado com carinho.\n\n{previsao}'
+  ),
+  orderStatusType(
+    'order_ready',
+    'Pronto para retirar',
+    'Enviada quando o pedido fica pronto e aguarda o cliente no balcão.',
+    'Olá, {nome}! 🎉\n\nSeu pedido *{pedido}* está *pronto* e aguardando a retirada no *{loja}*.\n\nÉ só vir buscar! 😋'
+  ),
+  orderStatusType(
+    'order_out_for_delivery',
+    'Saiu para entrega',
+    'Enviada quando o pedido sai com o entregador.',
+    'Olá, {nome}! 🛵\n\nSeu pedido *{pedido}* *saiu para entrega*.\n\n{previsao}\n\n📲 Acompanhe o caminho do entregador pelo aplicativo:\n{link_app}'
+  ),
+  orderStatusType(
+    'order_delivered',
+    'Pedido entregue',
+    'Enviada quando o pedido é marcado como entregue.',
+    'Olá, {nome}! 🍽️\n\nSeu pedido *{pedido}* foi *entregue*. Bom apetite! 😋\n\nObrigado por escolher o *{loja}*. 💛'
+  ),
+  orderStatusType(
+    'order_cancelled',
+    'Pedido cancelado',
+    'Enviada quando o estabelecimento cancela o pedido.',
+    'Olá, {nome}.\n\nO seu pedido *{pedido}* foi *cancelado*. 😕\n\nSe você não esperava por isso ou tem alguma dúvida, é só responder esta mensagem. 🙏'
+  ),
 ];
 
 /** Aparecem no gerenciador como "em breve" (ainda não enviam nada). */
 export const UPCOMING_MESSAGES: { group: string; names: string[] }[] = [
-  { group: 'Pedidos', names: ['Pedido aceito', 'Pedido recusado', 'Pronto para retirar'] },
   { group: 'Financeiro', names: ['Pagamento confirmado', 'Lembrete de saldo'] },
 ];
 

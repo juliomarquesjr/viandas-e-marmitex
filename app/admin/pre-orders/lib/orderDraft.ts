@@ -29,6 +29,8 @@ export type DeskCustomer = {
   id: string;
   name: string;
   phone?: string | null;
+  /** O telefone é WhatsApp: só assim o switch de avisar o cliente aparece. */
+  phoneIsWhatsapp?: boolean;
   imageUrl?: string | null;
   address?: {
     street?: string;
@@ -73,11 +75,18 @@ export type Draft = {
   customerId: string | null;
   notes: string;
   discountCents: number;
+  /** Avisar o cliente pelo WhatsApp a cada etapa do pedido. Só vale com cliente que tem WhatsApp. */
+  notifyCustomer: boolean;
   items: DraftItem[];
 };
 
 export function emptyDraft(): Draft {
-  return { customerId: null, notes: "", discountCents: 0, items: [] };
+  return { customerId: null, notes: "", discountCents: 0, notifyCustomer: false, items: [] };
+}
+
+/** O cliente tem WhatsApp cadastrado (telefone marcado como WhatsApp): condição para oferecer o aviso. */
+export function hasWhatsapp(customer: Pick<DeskCustomer, "phone" | "phoneIsWhatsapp"> | null | undefined): boolean {
+  return Boolean(customer?.phoneIsWhatsapp && customer.phone);
 }
 
 // =============================================================================

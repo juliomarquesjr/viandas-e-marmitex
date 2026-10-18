@@ -35,6 +35,7 @@ import { MoneyBoard } from "./components/MoneyBoard";
 import { PreOrderRow } from "./components/PreOrderRow";
 import { ReceiveTerminal, type NextInQueue } from "./components/ReceiveTerminal";
 import { ViewSettings } from "./components/ViewSettings";
+import { toastCustomerNotice } from "./lib/customerNotice";
 import { isCashMethod, type Payment } from "./lib/payment";
 import {
   RAIL_ORDER,
@@ -617,13 +618,39 @@ export default function AdminPreOrdersPage() {
           throw new Error(failure.message);
         }
 
+        const updated = await response.json().catch(() => null);
         await loadPreOrders({ silent: true });
         showToast(`Pedido movido para "${STAGE_META[stageOf({ deliveryStatus: nextStatus })].label}".`, "success");
+        toastCustomerNotice(updated?.customerNotice, showToast, "A etapa foi alterada");
       } catch (error) {
         console.error(error);
         showToast(error instanceof Error ? error.message : "Não foi possível mudar a etapa.", "error");
       } finally {
         setAdvancing(false);
+      }
+    },
+    [loadPreOrders, selected, showToast],
+  );
+
+  /** Liga ou desliga o aviso ao cliente pelo WhatsApp neste pedido. Devolve se gravou. */
+  const changeNotify = useCallback(
+    async (notify: boolean): Promise<boolean> => {
+      if (!selected) return false;
+      try {
+        const response = await fetch(`/api/pre-orders/${selected.id}/notify`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notify }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error || "Não foi possível salvar a escolha.");
+        }
+        await loadPreOrders({ silent: true });
+        return true;
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Não foi possível salvar a escolha.", "error");
+        return false;
       }
     },
     [loadPreOrders, selected, showToast],
@@ -962,6 +989,7 @@ export default function AdminPreOrdersPage() {
             onCancel={() => setCancelTarget(selected)}
             onDelete={() => setDeleteId(selected.id)}
             onResponded={handleResponded}
+            onNotifyChange={changeNotify}
           />
         ) : (
           <div className="hidden items-start justify-center bg-[color:var(--background)] pt-16 lg:flex">
