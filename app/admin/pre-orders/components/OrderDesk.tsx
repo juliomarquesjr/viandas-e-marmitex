@@ -307,8 +307,8 @@ export function OrderDesk({ open, onOpenChange, preOrderId, onSaved }: OrderDesk
 
   const handleSelectCustomer = useCallback((next: DeskCustomer) => {
     setCustomer(next);
-    // O aviso é de quem tem WhatsApp: trocar para alguém sem ele desliga o switch
-    setDraft((current) => ({ ...current, customerId: next.id, notifyCustomer: hasWhatsapp(next) && current.notifyCustomer }));
+    // Cliente com WhatsApp já vem com o aviso ligado (o operador desliga se quiser); sem WhatsApp fica desligado
+    setDraft((current) => ({ ...current, customerId: next.id, notifyCustomer: hasWhatsapp(next) }));
     setCustomerQuery("");
     setBrowsingCustomers(false);
   }, []);

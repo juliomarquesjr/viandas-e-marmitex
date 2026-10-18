@@ -3,6 +3,7 @@ import { dateStringSP, startOfDaySP } from '@/lib/date-range';
 import { OrderError } from '@/lib/online-order-errors';
 import { describeOpening, nextOpening, ORDERING, orderingStatus, productsOpenNow } from '@/lib/ordering';
 import { loadSettings, loadSoldOut, loadWindows, productEligibility } from '@/lib/online-ordering';
+import { canNotifyOnWhatsapp } from '@/lib/messages/order-status-send';
 import prisma from '@/lib/prisma';
 import { publishToCustomer, publishToStaff } from '@/lib/realtime';
 import { NextResponse } from 'next/server';
@@ -189,9 +190,12 @@ export async function POST(request: Request) {
 
         // Preço lido do banco agora e congelado no item
         const totalCents = items.reduce((sum, item) => sum + byId.get(item.productId)!.priceCents * item.quantity, 0);
+        // Cliente com WhatsApp é avisado a cada etapa por padrão; o operador pode desligar no pedido
+        const contact = await tx.customer.findUnique({ where: { id: customerId }, select: { phone: true, phoneIsWhatsapp: true } });
         const order = await tx.preOrder.create({
           data: {
             customerId,
+            notifyCustomer: canNotifyOnWhatsapp(contact),
             source: 'online',
             approval: 'awaiting',
             idempotencyKey: key,

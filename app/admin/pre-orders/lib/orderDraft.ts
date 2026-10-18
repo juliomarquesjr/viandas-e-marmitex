@@ -75,7 +75,7 @@ export type Draft = {
   customerId: string | null;
   notes: string;
   discountCents: number;
-  /** Avisar o cliente pelo WhatsApp a cada etapa do pedido. Só vale com cliente que tem WhatsApp. */
+  /** Avisar o cliente pelo WhatsApp a cada etapa do pedido. Vem ligado ao escolher um cliente com WhatsApp; só vale para quem tem. */
   notifyCustomer: boolean;
   items: DraftItem[];
 };
